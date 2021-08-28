@@ -16,6 +16,13 @@ if [ "$(uname)" != "Darwin" ]; then
     #cc art/tools/mid2wav.c   -o art/tools/mid2wav  -lm -ldl -lpthread -w -g
     #cc art/tools/xml2json.c  -o art/tools/xml2json -lm -ldl -lpthread -w -g
 
+    # change permissions of precompiled tools binaries because of 'Permission denied' runtime error (@procedural)
+    chmod +x art/tools/ass2iqe
+    chmod +x art/tools/iqe2iqm
+    chmod +x art/tools/mid2wav
+    chmod +x art/tools/xml2json
+    chmod +x art/tools/ffmpeg
+
     # framework
     echo fwk            && cc -c fwk.c -w -g
 
@@ -36,10 +43,17 @@ if [ "$(uname)" = "Darwin" ]; then
     export SDKROOT=$(xcrun --show-sdk-path)
 
     # pipeline
-    #cc art/tools/ass2iqe.c   -o art/tools/ass2iqe  -w -g -lassimp
-    #cc art/tools/iqe2iqm.cpp -o art/tools/iqe2iqm  -w -g -lstdc++
-    #cc art/tools/mid2wav.c   -o art/tools/mid2wav  -w -g
-    #cc art/tools/xml2json.c  -o art/tools/xml2json -w -g
+    #cc art/tools/ass2iqe.c   -o art/tools/ass2iqe.osx  -w -g -lassimp
+    #cc art/tools/iqe2iqm.cpp -o art/tools/iqe2iqm.osx  -w -g -lstdc++
+    #cc art/tools/mid2wav.c   -o art/tools/mid2wav.osx  -w -g
+    #cc art/tools/xml2json.c  -o art/tools/xml2json.osx -w -g
+
+    # change permissions of precompiled tools binaries because of 'Permission denied' runtime error (@procedural)
+    chmod +x art/tools/ass2iqe.osx
+    chmod +x art/tools/iqe2iqm.osx
+    chmod +x art/tools/mid2wav.osx
+    chmod +x art/tools/xml2json.osx
+    chmod +x art/tools/ffmpeg.osx
 
     # framework
     echo fwk            && cc -c -ObjC fwk.c -w -g
