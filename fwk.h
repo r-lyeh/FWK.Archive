@@ -488,7 +488,7 @@ void scale34(mat34 m, float s);
 void add34(mat34 m, mat34 n);
 void muladd34(mat34 m, mat34 n, float s);
 void add34x2(mat34 m, mat34 n, mat34 o);
-void lerp34(mat34 m, mat34 n, mat34 o, float alpha);
+void lerp34(mat34 m, mat34 n, mat34 o, float alpha); // mix34?
 void multiply34x2(mat34 m, const mat34 m0, const mat34 m1);
 void multiply34(mat34 m, const mat34 a);
 void multiply34x3(mat34 m, const mat34 a, const mat34 b, const mat34 c);
@@ -1530,8 +1530,10 @@ double      sleep_ms(double ms);
 char*       callstack( int traces ); // write callstack into a temporary string. do not delete it.
 int         callstackf( FILE *fp, int traces ); // write callstack to file. <0 traces to invert order.
 
+void        die(const char *message);
 void        alert(const char *message);
-void        hexdump( FILE *fp, const void *ptr, unsigned len, int width );
+void        hexdump( const void *ptr, unsigned len );
+void        hexdumpf( FILE *fp, const void *ptr, unsigned len, int width );
 void        breakpoint(const char *reason);
 bool        has_debugger();
 
