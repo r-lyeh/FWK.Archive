@@ -13,7 +13,7 @@
 - [x] ~Full featured~. Small.
 - [x] ~Royaltie fee~. Free and unlicensed.
 
-## Features ᕦ(ᐛ)ᕤ (stuff done ~~and yet to do~~)
+## Features ᕦ(ᐛ)ᕤ (stuff done ~~and yet to be done~~)
 - [x] OS: Windows, Linux and OSX.
 - [x] Compiler: MSVC, MINGW64, TCC, GCC and clang.
 - [x] Window: fullscreen, msaa, cursor handling.
@@ -39,70 +39,87 @@
 - [x] Scene handling.
 - [x] Integrated asset pipeline.
 - [x] Profiler, stats and leaks finder.
-- [x] Level data: JSON5 ~~and XML~~.
+- [x] Level data: JSON, JSON5, SJSON, XML.
 
-## Roadmap ᕕ(ᐛ)ᕗ (in order of arrival)
-- [ ] Network: message api and pub/sub wrappers.
-- [ ] Script: Teal and typescript.
+## Roadmap ᕕ(ᐛ)ᕗ (in order of arrival; `*` partial support)
+- [ ] Network: message api and pub/sub wrappers (enet/websocket).
+- [ ] Script: DLL, Teal and TypeScript.
 - [ ] Script: Refl/meta binding tool (during cook stage).
-- [ ] Level editor: gizmos, ~~scene tree, property editor, load/save~~.
-- [ ] Level objects: ~~volumes, triggers, platforms, streaming~~.
-- [ ] Render: Materials (textures, matcaps, videos, shadertoys).
+- [ ] Level editor: gizmos`*`, scene tree, property editor, load/save, undo/redo, copy/paste.
+- [ ] Level objects: volumes, triggers, platforms, streaming.
+- [ ] Render: Materials (colors, textures, matcaps`*`, videos, shadertoys`*`).
 - [ ] Render: Shadow mapping and baked lightmaps.
-- [ ] Pipeline: Extend configurable asset pipeline (shaders, bindings, xml, textures). Asset options.
-- [ ] API: Review API and lock it.
-- [ ] API: Documentation.
-- [ ] API: More examples.
+- [ ] Pipeline: Make asset pipeline configurable. Extend: shaders, bindings, textures. Per-type, per-asset options.
 - [ ] Maybe: Animation pass.
 - [ ] Maybe: AI/Logic pass.
+- [ ] Maybe: Lighting/PBR pass.
 - [ ] Maybe: VM/ECS/Replication pass.
-- [ ] Maybe: PBR pass.
+- [ ] API: More examples.
+- [ ] API: Documentation. Generator (during cook stage).
+- [ ] API: Review API, clean it up and lock it.
 
 <!--
-//
 // almost done:
 // [x] shadertoy textures
-// [ ] xml
 // [ ] billboards
 // [ ] soft shadows (vsm, vsmcube)
-// [ ] enet, websocket
-//
-// roadmap:
-// 1) lighting: vsm,vsmcube (per @procedural's request)
-//    2d: billboards
-// 2) fixing leaks
+// nice to have:
+// [ ] fixed leaks
+// [ ] fwk_app: app state manager, options, app icon, cpu usage, battery, orientation
+// [ ] fwk_input: cursor, mouse clip, mouse wrap,
+// [ ] sprites: pixel perfect zooming (demo+wheel)
+// [ ] zip0 seek-vfs optimization
+-->
+
+<!--
+//[ ] Script: Teal and typescript.
+//[ ] Script: Refl/meta binding tool (during cook stage).
+//    fwk_cook (*.c, *.h) as .proto/.pbc maybe, free reflection+automatic bindings
+//[ ] Level editor: gizmos, ~~scene tree, property editor, load/save~~.
+// 4) (json) editor: load/save jsons, property editor for anything (remote osc server/client)
+//    cam: friction, projections (dimetric, isometric, ...)
+//    gizmo: proportional, arcball XY (+shift for Z/tilt)
+//    scene: scenegraph, obj naming, ~~obj picking, obj bounds,~~ obj collisions, obj/scene streaming
+//    placeholders google
+//    vcs
+//[ ] Level objects: ~~volumes, triggers, platforms, streaming~~.
+//    level: emitters: particles, lights, lightmaps, sound sources, triggers, etc
+//    level: box triggers, start/end, spawn, streaming, checkpoints,
+//    level: jump, shoots, platforms, collisions
+//    level: 60s, 70s, 80s, 90s
+//[ ] Render: Materials (textures, matcaps, videos, shadertoys).
+//    material: fixed color, texture or script that returns color
+//    animated textures (shadertoys)
+//[ ] Render: Shadow mapping and baked lightmaps.
+// [ ] soft shadows (vsm, vsmcube)
+//[ ] Pipeline: Extend configurable asset pipeline (shaders, bindings, xml, textures). Asset options.
 //    extending asset pipeline
 //      cook: img2png (spot, stbi), tex2pvr (spot, soil2)
 //      cook: hlsl2glsl (XShaderCompiler), hlsl2spirv (dxc), spirv2many (spirv-cross), glsl2many (sokol-shdc)
 //      cook: ogg2wav, mp32wav, mp22wav, flac2wav
 //      cook: xml2json, mp2json
 //      cook: tiled2json, spine2json, tlfx22json
-// 3) lock API and release first stable version.
-//    modules: script or dll + ram load/save/diff/patch + play/stop/init/ + attach/detach
-//    logic tree/ << [] |> || >>
-//    - scene |>
-//       - enemies
-// 4) (json) editor: load/save jsons, property editor for anything (remote osc server/client)
-//    cam: friction, projections (dimetric, isometric, ...)
-//    gizmo: proportional, arcball XY (+shift for Z/tilt)
-//    scene: scenegraph, obj naming, ~~obj picking, obj bounds,~~ obj collisions, obj/scene streaming
-//    ecs: sys are modules, ecs: messaging, ecs: filesystem (e/dir,c/files,s/dll)
-//    world: streaming, migration
-//    gfx: tessellation
-//    placeholders google
-//    vcs
-// X) level
-//    scripts: states, signals, h/fsm, coroutines, load/save context
-//    ai: h/fsm for level objects and small enemies, planning GOAL, BTrees,
-//    nav: navpaths, waypoints, navigation, pathfinding (jps.hh), a*, swarm/flocks,
-//    physics: emitters: particles, lights, lightmaps, sound sources, triggers, etc
-//    level: box triggers, start/end, spawn, streaming, checkpoints,
-//    level: jump, shoots, platforms, collisions
-//    level: 60s, 70s, 80s, 90s
+//[ ] Maybe: Animation pass.
 // 6) anims, I (playlist: forward/backwards/loop/rewind), II (blend/shapes), III (ik/bone), IV (graph/controller)
 //    blend anims, animtracks+animevents, draw skeleton, additive anims,
 //    fwk_data: quantization: ~~half, quant, microfloat~~.
 //    anim; keyframes[] { frame+delay,frame+delay,... }, anim duration, anim flip
+//[ ] Maybe: AI/Logic pass.
+//    scripts: states, signals, h/fsm, coroutines, load/save context
+//    ai: h/fsm for level objects and small enemies, planning GOAL, BTrees,
+//    nav: navpaths, waypoints, navigation, pathfinding (jps.hh), a*, swarm/flocks,
+//[ ] Maybe: VM/ECS/Replication pass.
+// 8) vm/ecs core + engines: custom frontends & backends
+//    vm: ram, workqueues, threading, priorities, load/save
+//    service protocols: websocket bqqbarbhg/bq_websocket, https, handshake
+//    databases, services, quotas, black/whitelists, etc
+//[ ] Core: wecs+replication
+//    modules: script or dll + ram load/save/diff/patch + play/stop/init/ + attach/detach
+//    logic tree/ << [] |> || >>
+//    - scene |>
+//       - enemies
+//    ecs: sys are modules, ecs: messaging, ecs: filesystem (e/dir,c/files,s/dll)
+//    world: streaming, migration
 // 7) network replication & messaging
 //    network: replication, dead reckoning, interpolation, extrapolation, bandwidth
 //    network: messaging: un/reliable, fragmentation, priority, etc
@@ -110,16 +127,16 @@
 //    network: filesystem
 //    int send_game_state(void *ptr, int len, int flags); PROTOCOL_V1|QUANTIZE|COMPRESS|RLE
 //    int recv_game_state(); compensate, extrapolate, intrapolate(); lerp();
-// 8) vm/ecs core + engines: custom frontends & backends
-//    vm: ram, workqueues, threading, priorities
-//    service protocols: websocket bqqbarbhg/bq_websocket, https, handshake
-//    databases, services, quotas, black/whitelists, etc
+//[ ] Maybe: Lighting/PBR pass.
 // 9) render+
+//    lighting: vsm,vsmcube (per @procedural's request)
+//    2d: billboards
 //    PBR/IBL/materials (from Foxotron+sgorsten) + shading models
 //    lightmapping/xatlas (demos), reflection probes
 //    instancing, frustum culling, impostors, mesh lods,
 //    renderbuckets
 //    decals
+//    tessellation
 //    2d: spines, particles (tlfx2)
 //    reverse-z {
 //    fbo attach format D16_UNORM -> D32_SFLOAT
@@ -128,19 +145,18 @@
 //    proj matrix: float a = zfar / (zfar - znear); -> float a = -znear / (zfar - znear);
 //    proj matrix: float b = (-znear * zfar) / (zfar - znear); -> float b = (znear * zfar) / (zfar - znear);
 //    }
-//10) fwk_app: app state manager, options, app icon, cpu usage, battery, orientation
-//    fwk_input: cursor, mouse clip, mouse wrap,
-//    animated textures (shadertoys)
-//    sprites: pixel perfect zooming (demo+wheel)
-//    zip0 seek-vfs optimization
-// 11) fwk_cook (*.c, *.h) as .proto/.pbc maybe, free reflection+automatic bindings
-
+//[ ] API: Review API and lock it.
+// 3) lock API and release first stable version.
+//[ ] API: Documentation.
+    //src2doc
+//[ ] API: More examples.
 -->
+
 
 ## Build
 Type `MAKE.bat` (Win) or `sh MAKE.bat` (Linux/OSX) to build everything. Alternatively,
 
-```bash
+```lua
 echo Windows (vc+tcc)      && cl  demo.c       fwk.c
 echo Windows (mingw64)     && gcc demo.c       fwk.c -o demo -w -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99
 echo Linux (gcc+clang+tcc) && cc  demo.c       fwk.c -o demo -w -lm -ldl -lpthread
@@ -153,7 +169,8 @@ echo OSX (gcc+clang)       && cc  demo.c -ObjC fwk.c -o demo -w -framework cocoa
 - Split FWK into separate files by running `art/tools/split.bat` (or `sh art/tools/split.bat` in Linux/OSX).
 - Merge those files back into FWK by running `art/tools/join.bat` (or `sh art/tools/join.bat` in Linux/OSX).
 - Optionally, generate a single-header distribution by executing following script:
-```bash
+
+```lua
 type fwk.h            > fwk-single-header.h
 echo #ifdef FWK_C    >> fwk-single-header.h
 echo #pragma once    >> fwk-single-header.h

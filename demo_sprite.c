@@ -81,13 +81,13 @@ void demo_cats() {
         // Get x scale based on flip flag
         int xscale = yscale * (c->flip ? -1 : 1);
         // Draw
-        sprite_ex(catImage,
+        sprite(catImage,
             c->x,c->y,c->y, 0,          // position(x,y,depth: sort by Y), angle
             0,0, xscale,yscale,         // offset(x,y), scale(x,y)
             0,white,                    // is_additive, tint color
             frame_num, 8,4              // frame_number in a 8x4 spritesheet
         );
-        sprite_ex(shadowImage,
+        sprite(shadowImage,
             c->x,c->y,-c->y, 0,         // position(x,y,depth: sort by Y), angle
             -1,5, xscale,yscale,        // offset(x,y), scale(x,y)
             0,alpha,                    // is_additive, tint color
@@ -125,7 +125,7 @@ void demo_kids() {
         int col = ((x[i] / 10) % 4); // 4x4 tilesheet
         int row = ((y[i] / 10) % 4);
         int num_frame = col * 4 + row;
-        sprite_ex(kids,
+        sprite(kids,
             x[i],y[i],y[i], angle,    // position(x,y,depth: sort by Y), angle
             0,0, 1,1,                 // offset(x,y), scale(x,y)
             0, ~0u,                   // is_additive, tint color

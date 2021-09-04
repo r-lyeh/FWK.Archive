@@ -1031,7 +1031,8 @@ int   udp_bind(const char *address, const char *port);
 int   udp_open(const char *address, const char *port);
 
 // common
-int   udp_send(int, const void *buf, int len ); // <0 error, >0 ok. @todo: return number of bytes sent instead?
+int   udp_send(int, const void *buf, int len ); // <0 error, >0 bytes sent ok
+int   udp_sendto(int, const char *ip, const char *port, const void *buf, int len ); // <0 error, >0 bytes sent ok
 int   udp_recv(int, void *buf, int len ); // <0 error, 0 orderly shutdown, >0 received bytes
 int   udp_peek(int); // <0 error, 0 timeout, >0 data
 
@@ -1077,7 +1078,9 @@ uint32_t rgba( uint8_t r, uint8_t g, uint8_t b, uint8_t a );
 uint32_t bgra( uint8_t r, uint8_t g, uint8_t b, uint8_t a );
 float    alpha( uint32_t rgba );
 
-#define RGBX(rgb,x) ( ((rgb)&0xFFFFFF) | ((x)<<24) )
+#define RGBX(rgb,x)   ( ((rgb)&0xFFFFFF) | ((x)<<24) )
+#define RGB3(r,g,b)   ( ((r)<<16) | ((g)<<8) | (b) )
+#define RGB4(r,g,b,a) RGBX(RGB3(r,g,b),a)
 
 #define BLACK   RGBX(0x000000,255)
 #define RED     RGBX(0xFF004D,255)
@@ -1175,13 +1178,16 @@ void  fullscreen_ycbcr_quad( texture_t texture_YCbCr[3], float gamma );
 // -----------------------------------------------------------------------------
 // sprites
 
-void sprite( texture_t texture, float px, float py, float pz, float rot );
-void sprite_ex( texture_t texture,
+void tile( texture_t texture, vec3 position, uint32_t color /*~0u*/, float rotation /*0*/ );
+
+void sprite( texture_t texture,
     float px, float py, float pz, float rotation, // position(x,y,depth sort), angle
     float ox, float oy, float sx, float sy,       // offset(x,y), scale(x,y)
     int additive, uint32_t rgba,                  // is_additive, tint color
     float frame, float xcells, float ycells       // frame_number in a 8x4 spritesheet
 );
+
+void sprite_update();
 
 // -----------------------------------------------------------------------------
 // cubemaps
@@ -1516,6 +1522,7 @@ void        tty_reset();
 
 int         cpu_cores(void);
 
+const char* app_name();
 const char* app_path();
 const char* app_cache();
 const char* app_temp();
@@ -1523,9 +1530,11 @@ void        app_reload();
 
 double      time_ss();
 double      time_ms();
-uint64_t    time_human(); // YYYYMMDDhhmmss
+uint64_t    time_us();
+uint64_t    date_human(); // YYYYMMDDhhmmss
 double      sleep_ss(double ss);
 double      sleep_ms(double ms);
+uint64_t    sleep_us(uint64_t us);
 
 char*       callstack( int traces ); // write callstack into a temporary string. do not delete it.
 int         callstackf( FILE *fp, int traces ); // write callstack to file. <0 traces to invert order.
@@ -1590,9 +1599,10 @@ int  ui_begin(const char *title, int flags);
     int  ui_label2(const char *label, const char *caption);
     int  ui_slider(const char *label, float *value);
     int  ui_slider2(const char *label, float *value, const char *caption);
-    int  ui_bool_const(const char *label, const double value);
-    int  ui_float_const(const char *label, const double value);
-    int  ui_string_const(const char *label, const char *value);
+    int  ui_const_bool(const char *label, const double value);
+    int  ui_const_float(const char *label, const double value);
+    int  ui_const_string(const char *label, const char *value);
+    #define ui_const_stringf(label, ...) ui_const_string(label, stringf(__VA_ARGS__))
 void ui_end();
 
 int  ui_menu(const char *items); // semicolon- or comma-separated items
@@ -1621,7 +1631,6 @@ void       video_destroy( video_t *v );
 // window framework
 // - rlyeh, public domain
 //
-// @todo: window_icon(ico);
 // @todo: window_cursor(ico);
 // @todo: if WINDOW_PORTRAIT && exist portrait monitor, use that instead of primary one
 // @todo: WINDOW_TRAY
@@ -1640,6 +1649,7 @@ enum {
 
 void   window_create(float zoom, int flags);
 void   window_title(const char *title);
+void   window_icon(const char *file_icon);
 void   window_flush();
 int    window_swap();
 void*  window_handle();

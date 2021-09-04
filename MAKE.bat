@@ -93,15 +93,18 @@ if "%Platform%"=="" (
     ) else if exist "%ProgramFiles(x86)%/microsoft visual studio/2019/community/VC/Auxiliary/Build/vcvarsx86_amd64.bat" (
               @call "%ProgramFiles(x86)%/microsoft visual studio/2019/community/VC/Auxiliary/Build/vcvarsx86_amd64.bat"
     ) else (
-        set Platform=mingw64
-        echo Warning: Could not find x64 environment variables for Visual Studio 2019/2017/2015/2013. Trying MingW64...
-
         cd "%~dp0"
-        gcc.exe 1> nul 2> nul
-        if "%ERRORLEVEL%"=="9009" (
+	where /q gcc
+        if "%ERRORLEVEL%"=="1" (
             set Platform=tcc
-            echo Warning: Mingw64 not found. Trying tcc...
-        )
+            echo Warning: Trying x64 environment variables for Visual Studio 2019/2017/2015/2013 ...
+            echo Warning: Trying Mingw64 ...
+            echo Warning: Trying TCC ...
+        ) else (
+            set Platform=mingw64
+            echo Warning: Trying x64 environment variables for Visual Studio 2019/2017/2015/2013 ...
+            echo Warning: Trying Mingw64 ...
+	)
     )
 )
 
