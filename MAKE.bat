@@ -79,8 +79,11 @@ exit
 
 rem setup
 if "%Platform%"=="" (
+    echo Warning: Trying VS 2013/2015/2017/2019 x64 ...
     set Platform=x64
-           if exist "%VS160COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat" (
+           if exist "%VS190COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat" (
+              @call "%VS190COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat"
+    ) else if exist "%VS160COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat" (
               @call "%VS160COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat"
     ) else if exist "%VS150COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat" (
               @call "%VS150COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat"
@@ -88,23 +91,16 @@ if "%Platform%"=="" (
               @call "%VS140COMNTOOLS%/../../VC/bin/x86_amd64/vcvarsx86_amd64.bat"
     ) else if exist "%VS120COMNTOOLS%/../../VC/bin/x86_amd64/vcvarsx86_amd64.bat" (
               @call "%VS120COMNTOOLS%/../../VC/bin/x86_amd64/vcvarsx86_amd64.bat"
-    ) else if exist "%ProgramFiles(x86)%/microsoft visual studio/2017/community/VC/Auxiliary/Build/vcvarsx86_amd64.bat" (
-              @call "%ProgramFiles(x86)%/microsoft visual studio/2017/community/VC/Auxiliary/Build/vcvarsx86_amd64.bat"
+    ) else if exist "%ProgramFiles%/microsoft visual studio/2022/community/VC/Auxiliary/Build/vcvarsx86_amd64.bat" (
+              @call "%ProgramFiles%/microsoft visual studio/2022/community/VC/Auxiliary/Build/vcvarsx86_amd64.bat"
     ) else if exist "%ProgramFiles(x86)%/microsoft visual studio/2019/community/VC/Auxiliary/Build/vcvarsx86_amd64.bat" (
               @call "%ProgramFiles(x86)%/microsoft visual studio/2019/community/VC/Auxiliary/Build/vcvarsx86_amd64.bat"
+    ) else if exist "%ProgramFiles(x86)%/microsoft visual studio/2017/community/VC/Auxiliary/Build/vcvarsx86_amd64.bat" (
+              @call "%ProgramFiles(x86)%/microsoft visual studio/2017/community/VC/Auxiliary/Build/vcvarsx86_amd64.bat"
     ) else (
-        cd "%~dp0"
-	where /q gcc
-        if "%ERRORLEVEL%"=="1" (
-            set Platform=tcc
-            echo Warning: Trying x64 environment variables for Visual Studio 2019/2017/2015/2013 ...
-            echo Warning: Trying Mingw64 ...
-            echo Warning: Trying TCC ...
-        ) else (
-            set Platform=mingw64
-            echo Warning: Trying x64 environment variables for Visual Studio 2019/2017/2015/2013 ...
-            echo Warning: Trying Mingw64 ...
-	)
+        echo Warning: Trying Mingw64 ...
+        set Platform=mingw64
+        where /q gcc.exe || ( set Platform=tcc&&echo Warning: Trying TCC ... )
     )
 )
 
@@ -139,7 +135,7 @@ if "%Platform%"=="x64" (
     rem gcc art/tools/xml2json.c  -o art/tools/xml2json.exe -w
 
     rem framework
-    echo fwk            && gcc -c fwk.c -std=c99 -w -g
+    echo fwk            && gcc -c fwk.c -std=c99 -w -g -DLDC_NO_ASM
 
     rem demos
     echo demo           && gcc -o demo           demo.c           fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99 -w -g
