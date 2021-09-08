@@ -1,6 +1,7 @@
 // shadertoy viewer
 // - rlyeh, public domain
 
+// @todo: move logic to materials
 // @todo: multipass
 // - https://www.shadertoy.com/view/Mst3Wr - la calanque
 // - https://www.shadertoy.com/view/XsyGWV - sirenian dawn

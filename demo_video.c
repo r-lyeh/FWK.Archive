@@ -3,7 +3,7 @@
 
 #include "fwk.h"
 
-int main( int argc, const char** argv ) {
+int main() {
     // 75% window, msaa x8
     window_create( 75, WINDOW_MSAA8 );
     window_title("FWK");
@@ -14,8 +14,7 @@ int main( int argc, const char** argv ) {
     }
 
     // load video, no flags
-    const char *filename = argc < 2 ? "bjork-all-is-full-of-love.mp4" : argv[1];
-    video_t *v = video( filename, 0 );
+    video_t *v = video( "bjork-all-is-full-of-love.mp4", 0 );
 
 #if WITH_VIDEO_YCBCR
     void (*fullscreen_quad)(texture_t *, float) = fullscreen_ycbcr_quad;

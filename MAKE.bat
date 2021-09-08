@@ -36,6 +36,7 @@ if [ "$(uname)" != "Darwin" ]; then
     echo demo_sprite    && cc -o demo_sprite    demo_sprite.c    fwk.o -lm -ldl -lpthread -w -g &
     echo demo_video     && cc -o demo_video     demo_video.c     fwk.o -lm -ldl -lpthread -w -g &
     echo demo_script    && cc -o demo_script    demo_script.c    fwk.o -lm -ldl -lpthread -w -g &
+    echo demo_socket    && cc -o demo_socket    demo_socket.c    fwk.o -lm -ldl -lpthread -w -g &
 fi
 
 if [ "$(uname)" = "Darwin" ]; then
@@ -68,6 +69,7 @@ if [ "$(uname)" = "Darwin" ]; then
     echo demo_sprite    && cc -o demo_sprite    demo_sprite.c    fwk.o -framework cocoa -framework iokit -w -g &
     echo demo_video     && cc -o demo_video     demo_video.c     fwk.o -framework cocoa -framework iokit -w -g &
     echo demo_script    && cc -o demo_script    demo_script.c    fwk.o -framework cocoa -framework iokit -w -g &
+    echo demo_socket    && cc -o demo_socket    demo_socket.c    fwk.o -framework cocoa -framework iokit -w -g &
 fi
 
 exit
@@ -107,6 +109,26 @@ if "%Platform%"=="" (
 cd "%~dp0"
 echo @%~dp0\art\tools\tcc-win\tcc -I %~dp0\art\tools\tcc-win\include_mingw\winapi -I %~dp0\art\tools\tcc-win\include_mingw\ %%* > tcc.bat
 
+
+if "%1"=="tidy" (
+    del .temp*.*
+    del *.zip
+    del *.mem
+    del *.exp
+    del *.lib
+    del *.exe
+    del *.obj
+    del *.o
+    del *.pdb
+    del *.ilk
+    del *.png
+    del *.def
+    del *.dll
+    rd /q /s .vs
+    exit /b
+)
+
+
 if "%Platform%"=="x64" (
     rem pipeline
     rem cl art/tools/ass2iqe.c   /Feart/tools/ass2iqe.exe  /nologo /openmp /O2 /Oy /MT /DNDEBUG /DFINAL assimp.lib
@@ -127,6 +149,12 @@ if "%Platform%"=="x64" (
     cl demo_sprite.c    fwk.obj /nologo /openmp /Zi
     cl demo_video.c     fwk.obj /nologo /openmp /Zi
     cl demo_script.c    fwk.obj /nologo /openmp /Zi
+    cl demo_socket.c    fwk.obj /nologo /openmp /Zi
+
+    rem fwk.dll demos
+    cl fwk.c /LD /DAPI=EXPORT          /nologo /openmp /Zi 
+    cl demo_dll.c fwk.lib /DAPI=IMPORT /nologo /openmp /Zi
+
 ) else if "%Platform%"=="mingw64" (
     rem pipeline
     rem gcc art/tools/ass2iqe.c   -o art/tools/ass2iqe.exe  -w -lassimp
@@ -135,7 +163,7 @@ if "%Platform%"=="x64" (
     rem gcc art/tools/xml2json.c  -o art/tools/xml2json.exe -w
 
     rem framework
-    echo fwk            && gcc -c fwk.c -std=c99 -w -g -DLDC_NO_ASM
+    echo fwk            && gcc -c fwk.c -std=c99 -w -g
 
     rem demos
     echo demo           && gcc -o demo           demo.c           fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99 -w -g
@@ -147,6 +175,7 @@ if "%Platform%"=="x64" (
     echo demo_sprite    && gcc -o demo_sprite    demo_sprite.c    fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99 -w -g
     echo demo_video     && gcc -o demo_video     demo_video.c     fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99 -w -g
     echo demo_script    && gcc -o demo_script    demo_script.c    fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99 -w -g
+    echo demo_socket    && gcc -o demo_socket    demo_socket.c    fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99 -w -g
 ) else (
     rem pipeline
     rem gcc art/tools/ass2iqe.c   -o art/tools/ass2iqe.exe  -w -lassimp
@@ -167,6 +196,7 @@ if "%Platform%"=="x64" (
     echo demo_sprite    && tcc demo_sprite.c    fwk.o -w
     echo demo_video     && tcc demo_video.c     fwk.o -w
     echo demo_script    && tcc demo_script.c    fwk.o -w
+    echo demo_socket    && tcc demo_socket.c    fwk.o -w
 )
 
 pause

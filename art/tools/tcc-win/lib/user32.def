@@ -303,6 +303,7 @@ GetClassInfoExW
 GetClassInfoW
 GetClassLongA
 GetClassLongW
+GetClassLongPtrW
 GetClassNameA
 GetClassNameW
 GetClassWord

@@ -207,6 +207,7 @@
 {{FILE:fwk_collide.c}}
 {{FILE:fwk_cooker.c}}
 {{FILE:fwk_data.c}}
+{{FILE:fwk_dll.c}}
 {{FILE:fwk_file.c}}
 {{FILE:fwk_input.c}}
 {{FILE:fwk_math.c}}

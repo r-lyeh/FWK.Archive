@@ -90,6 +90,25 @@
 //-----------------------------------------------------------------------------
 // Headers
 
+#line 1 "fwk_dll.h"
+// dll utils
+// - rlyeh, public domain
+
+#ifdef _MSC_VER
+#define IMPORT __declspec(dllimport)
+#define EXPORT __declspec(dllexport)
+#else
+#define IMPORT
+#define EXPORT
+#endif
+
+// msvc users may need to -DAPI=IMPORT/EXPORT as needed when loading/building FWK as DLL.
+#ifndef API
+#define API
+#endif
+
+API void* dll(const char *filename, const char *symbol);
+#line 0
 #line 1 "fwk_main.h"
 // -----------------------------------------------------------------------------
 // config directives
@@ -143,10 +162,19 @@
 #ifdef _MSC_VER
 #define __thread         __declspec(thread)
 #elif defined __TINYC__ && defined _WIN32
-#define __thread         __declspec(thread)
+#define __thread         __declspec(thread) // compiles fine, but does not work apparently
 #elif defined __TINYC__
 #define __thread
 #endif
+
+// util for sanity checks (static_assert)
+
+//#define STATIC_ASSERT_2(COND, LINE) typedef int static_assert_on_line_##LINE[ !!(COND) ]
+#define STATIC_ASSERT_2(COND, LINE) typedef struct { unsigned static_assert_on_line_##LINE : !!(COND); } static_assert_on_line_##LINE
+#define STATIC_ASSERT_1(COND, LINE) STATIC_ASSERT_2(COND, LINE)
+#define STATIC_ASSERT(COND) STATIC_ASSERT_1(COND, __LINE__)
+
+//#define STATIC_ASSERT(exp) typedef char UNIQUE_NAME(_static_assert_on_line)[(exp)?1:-1]
 
 // pragma libs
 
@@ -181,15 +209,15 @@
 #endif
 
 // default allocator (aborts on out-of-mem)
-void*  xrealloc(void* p, size_t sz);
-size_t xsize(void* p);
+API void*  xrealloc(void* p, size_t sz);
+API size_t xsize(void* p);
 
 // stack based allocator (negative bytes does rewind stack, like when entering new frame)
-void*  stack(int bytes);
+API void*  stack(int bytes);
 
 // memory leaks
-void*  watch( void *ptr, int sz );
-void*  forget( void *ptr );
+API void*  watch( void *ptr, int sz );
+API void*  forget( void *ptr );
 
 // memory api
 #define MSIZE(p)       xsize(p)
@@ -207,7 +235,6 @@ static __thread size_t len1_, len2_;
 #define CALLOC(c, n)       memset(MALLOC((c)*(n)), 0, (c)*(n))
 #define STRDUP(s)          strcpy(MALLOC(strlen(s)+1), (s))
 #endif
-
 #line 0
 #line 1 "fwk_math.h"
 // -----------------------------------------------------------------------------
@@ -272,309 +299,308 @@ typedef union coord_system { struct { coord_axis x,y,z; }; } coord_system;
 
 // ----------------------------------------------------------------------------
 
-void     randset(uint64_t state);
-uint64_t rand64(void);
-double   randf(void); // [0, 1) interval
-int      randi(int mini, int maxi); // [mini, maxi) interval
+API void     randset(uint64_t state);
+API uint64_t rand64(void);
+API double   randf(void); // [0, 1) interval
+API int      randi(int mini, int maxi); // [mini, maxi) interval
 
 // ----------------------------------------------------------------------------
 
-float simplex1( float x );
-float simplex2( vec2 xy );
-float simplex3( vec3 xyz );
-float simplex4( vec4 xyzw );
+API float simplex1( float x );
+API float simplex2( vec2 xy );
+API float simplex3( vec3 xyz );
+API float simplex4( vec4 xyzw );
 
 // ----------------------------------------------------------------------------
 
-float ease_linear(float t);
+API float ease_linear(float t);
 
-float ease_out_sine(float t);
-float ease_out_quad(float t);
-float ease_out_cubic(float t);
-float ease_out_quart(float t);
-float ease_out_quint(float t);
-float ease_out_expo(float t);
-float ease_out_circ(float t);
-float ease_out_back(float t);
-float ease_out_elastic(float t);
-float ease_out_bounce(float t);
+API float ease_out_sine(float t);
+API float ease_out_quad(float t);
+API float ease_out_cubic(float t);
+API float ease_out_quart(float t);
+API float ease_out_quint(float t);
+API float ease_out_expo(float t);
+API float ease_out_circ(float t);
+API float ease_out_back(float t);
+API float ease_out_elastic(float t);
+API float ease_out_bounce(float t);
 
-float ease_in_sine(float t);
-float ease_in_quad(float t);
-float ease_in_cubic(float t);
-float ease_in_quart(float t);
-float ease_in_quint(float t);
-float ease_in_expo(float t);
-float ease_in_circ(float t);
-float ease_in_back(float t);
-float ease_in_elastic(float t);
-float ease_in_bounce(float t);
+API float ease_in_sine(float t);
+API float ease_in_quad(float t);
+API float ease_in_cubic(float t);
+API float ease_in_quart(float t);
+API float ease_in_quint(float t);
+API float ease_in_expo(float t);
+API float ease_in_circ(float t);
+API float ease_in_back(float t);
+API float ease_in_elastic(float t);
+API float ease_in_bounce(float t);
 
-float ease_inout_sine(float t);
-float ease_inout_quad(float t);
-float ease_inout_cubic(float t);
-float ease_inout_quart(float t);
-float ease_inout_quint(float t);
-float ease_inout_expo(float t);
-float ease_inout_circ(float t);
-float ease_inout_back(float t);
-float ease_inout_elastic(float t);
-float ease_inout_bounce(float t);
+API float ease_inout_sine(float t);
+API float ease_inout_quad(float t);
+API float ease_inout_cubic(float t);
+API float ease_inout_quart(float t);
+API float ease_inout_quint(float t);
+API float ease_inout_expo(float t);
+API float ease_inout_circ(float t);
+API float ease_inout_back(float t);
+API float ease_inout_elastic(float t);
+API float ease_inout_bounce(float t);
 
-float ease_perlin_inout(float t);
+API float ease_perlin_inout(float t);
 
-float ease_ping_pong(float t, float(*fn1)(float), float(*fn2)(float));
-float ease_pong_ping(float t, float(*fn1)(float), float(*fn2)(float));
-
-// ----------------------------------------------------------------------------
-
-float deg      (float radians)      ;
-float rad      (float degrees)      ;
-
-int   mini     (int    a, int    b);
-int   maxi     (int    a, int    b);
-int   absi     (int    a          );
-float minf     (float  a, float  b);
-float maxf     (float  a, float  b);
-float absf     (float  a          );
-float pmodf    (float  a, float  b);
-float signf    (float  a)           ;
-float clampf(float v,float a,float b);
-float mixf(float a,float b,float t);
+API float ease_ping_pong(float t, float(*fn1)(float), float(*fn2)(float));
+API float ease_pong_ping(float t, float(*fn1)(float), float(*fn2)(float));
 
 // ----------------------------------------------------------------------------
 
-vec2  ptr2     (const float *a    );
+API float deg      (float radians)      ;
+API float rad      (float degrees)      ;
+
+API int   mini     (int    a, int    b);
+API int   maxi     (int    a, int    b);
+API int   absi     (int    a          );
+API float minf     (float  a, float  b);
+API float maxf     (float  a, float  b);
+API float absf     (float  a          );
+API float pmodf    (float  a, float  b);
+API float signf    (float  a)           ;
+API float clampf(float v,float a,float b);
+API float mixf(float a,float b,float t);
+
+// ----------------------------------------------------------------------------
+
+API vec2  ptr2     (const float *a    );
 //
-vec2  neg2     (vec2   a          );
-vec2  add2     (vec2   a, vec2   b);
-vec2  sub2     (vec2   a, vec2   b);
-vec2  mul2     (vec2   a, vec2   b);
-vec2  inc2     (vec2   a, float  b);
-vec2  dec2     (vec2   a, float  b);
-vec2  scale2   (vec2   a, float  b);
-vec2  div2     (vec2   a, float  b);
-vec2  pmod2    (vec2   a, float  b);
-vec2  min2     (vec2   a, vec2   b);
-vec2  max2     (vec2   a, vec2   b);
-vec2  abs2     (vec2   a          );
-vec2  floor2   (vec2   a          );
-vec2  fract2   (vec2   a          );
-vec2  ceil2    (vec2   a          );
-float dot2     (vec2   a, vec2   b);
-vec2  refl2    (vec2   a, vec2   b);
-float cross2   (vec2   a, vec2   b);
-float len2sq   (vec2   a          );
-float len2     (vec2   a          );
-vec2  norm2    (vec2   a          );
-int   finite2  (vec2   a          );
-vec2  mix2  (vec2 a,vec2 b,float t);
-vec2  clamp2(vec2 v,float a,float b);
+API vec2  neg2     (vec2   a          );
+API vec2  add2     (vec2   a, vec2   b);
+API vec2  sub2     (vec2   a, vec2   b);
+API vec2  mul2     (vec2   a, vec2   b);
+API vec2  inc2     (vec2   a, float  b);
+API vec2  dec2     (vec2   a, float  b);
+API vec2  scale2   (vec2   a, float  b);
+API vec2  div2     (vec2   a, float  b);
+API vec2  pmod2    (vec2   a, float  b);
+API vec2  min2     (vec2   a, vec2   b);
+API vec2  max2     (vec2   a, vec2   b);
+API vec2  abs2     (vec2   a          );
+API vec2  floor2   (vec2   a          );
+API vec2  fract2   (vec2   a          );
+API vec2  ceil2    (vec2   a          );
+API float dot2     (vec2   a, vec2   b);
+API vec2  refl2    (vec2   a, vec2   b);
+API float cross2   (vec2   a, vec2   b);
+API float len2sq   (vec2   a          );
+API float len2     (vec2   a          );
+API vec2  norm2    (vec2   a          );
+API int   finite2  (vec2   a          );
+API vec2  mix2  (vec2 a,vec2 b,float t);
+API vec2  clamp2(vec2 v,float a,float b);
 // ----------------------------------------------------------------------------
 
-vec3  ptr3     (const float *a    );
-vec3  vec23    (vec2   a, float z );
+API vec3  ptr3     (const float *a    );
+API vec3  vec23    (vec2   a, float z );
 //
-vec3  neg3     (vec3   a          );
-vec3  add3     (vec3   a, vec3   b);
-vec3  sub3     (vec3   a, vec3   b);
-vec3  mul3     (vec3   a, vec3   b);
-vec3  inc3     (vec3   a, float  b);
-vec3  dec3     (vec3   a, float  b);
-vec3  scale3   (vec3   a, float  b);
-vec3  div3     (vec3   a, float  b);
-vec3  pmod3    (vec3   a, float  b);
-vec3  min3     (vec3   a, vec3   b);
-vec3  max3     (vec3   a, vec3   b);
-vec3  abs3     (vec3   a          );
-vec3  floor3   (vec3   a          );
-vec3  fract3   (vec3   a          );
-vec3  ceil3    (vec3   a          );
-vec3  cross3   (vec3   a, vec3   b);
-float dot3     (vec3   a, vec3   b);
-vec3  refl3    (vec3   a, vec3   b);
-float len3sq   (vec3   a          );
-float len3     (vec3   a          );
-vec3  norm3    (vec3   a          );
-vec3  norm3sq  (vec3   a          );
-int   finite3  (vec3   a          );
-vec3  mix3  (vec3 a,vec3 b,float t);
-vec3  clamp3(vec3 v,float a,float b);
+API vec3  neg3     (vec3   a          );
+API vec3  add3     (vec3   a, vec3   b);
+API vec3  sub3     (vec3   a, vec3   b);
+API vec3  mul3     (vec3   a, vec3   b);
+API vec3  inc3     (vec3   a, float  b);
+API vec3  dec3     (vec3   a, float  b);
+API vec3  scale3   (vec3   a, float  b);
+API vec3  div3     (vec3   a, float  b);
+API vec3  pmod3    (vec3   a, float  b);
+API vec3  min3     (vec3   a, vec3   b);
+API vec3  max3     (vec3   a, vec3   b);
+API vec3  abs3     (vec3   a          );
+API vec3  floor3   (vec3   a          );
+API vec3  fract3   (vec3   a          );
+API vec3  ceil3    (vec3   a          );
+API vec3  cross3   (vec3   a, vec3   b);
+API float dot3     (vec3   a, vec3   b);
+API vec3  refl3    (vec3   a, vec3   b);
+API float len3sq   (vec3   a          );
+API float len3     (vec3   a          );
+API vec3  norm3    (vec3   a          );
+API vec3  norm3sq  (vec3   a          );
+API int   finite3  (vec3   a          );
+API vec3  mix3  (vec3 a,vec3 b,float t);
+API vec3  clamp3(vec3 v,float a,float b);
 //vec3 tricross3 (vec3 a, vec3 b, vec3 c);
-void  ortho3   (vec3 *left, vec3 *up, vec3 v);
+API void  ortho3   (vec3 *left, vec3 *up, vec3 v);
 
 // ----------------------------------------------------------------------------
 
-vec4  ptr4     (const float *a    );
-vec4  vec34    (vec3   a, float w );
+API vec4  ptr4     (const float *a    );
+API vec4  vec34    (vec3   a, float w );
 //
-vec4  neg4     (vec4   a          );
-vec4  add4     (vec4   a, vec4   b);
-vec4  sub4     (vec4   a, vec4   b);
-vec4  mul4     (vec4   a, vec4   b);
-vec4  inc4     (vec4   a, float  b);
-vec4  dec4     (vec4   a, float  b);
-vec4  scale4   (vec4   a, float  b);
-vec4  div4     (vec4   a, float  b);
-vec4  pmod4    (vec4   a, float  b);
-vec4  min4     (vec4   a, vec4   b);
-vec4  max4     (vec4   a, vec4   b);
-vec4  abs4     (vec4   a          );
-vec4  floor4   (vec4   a          );
-vec4  fract4   (vec4   a          );
-vec4  ceil4    (vec4   a          );
-float dot4     (vec4   a, vec4   b);
-vec4  refl4    (vec4   a, vec4   b);
-float len4sq   (vec4   a          );
-float len4     (vec4   a          );
-vec4  norm4    (vec4   a          );
-vec4  norm4sq  (vec4   a          );
-int   finite4  (vec4   a          );
-vec4  mix4  (vec4 a,vec4 b,float t);
-vec4  clamp4(vec4 v,float a,float b);
+API vec4  neg4     (vec4   a          );
+API vec4  add4     (vec4   a, vec4   b);
+API vec4  sub4     (vec4   a, vec4   b);
+API vec4  mul4     (vec4   a, vec4   b);
+API vec4  inc4     (vec4   a, float  b);
+API vec4  dec4     (vec4   a, float  b);
+API vec4  scale4   (vec4   a, float  b);
+API vec4  div4     (vec4   a, float  b);
+API vec4  pmod4    (vec4   a, float  b);
+API vec4  min4     (vec4   a, vec4   b);
+API vec4  max4     (vec4   a, vec4   b);
+API vec4  abs4     (vec4   a          );
+API vec4  floor4   (vec4   a          );
+API vec4  fract4   (vec4   a          );
+API vec4  ceil4    (vec4   a          );
+API float dot4     (vec4   a, vec4   b);
+API vec4  refl4    (vec4   a, vec4   b);
+API float len4sq   (vec4   a          );
+API float len4     (vec4   a          );
+API vec4  norm4    (vec4   a          );
+API vec4  norm4sq  (vec4   a          );
+API int   finite4  (vec4   a          );
+API vec4  mix4  (vec4 a,vec4 b,float t);
+API vec4  clamp4(vec4 v,float a,float b);
 // vec4 cross4(vec4 v0, vec4 v1);
 
 // ----------------------------------------------------------------------------
 
-quat  idq      (                  );
-quat  ptrq     (const float *a    );
-quat  vec3q    (vec3   a, float w );
-quat  vec4q    (vec4   a          );
+API quat  idq      (                  );
+API quat  ptrq     (const float *a    );
+API quat  vec3q    (vec3   a, float w );
+API quat  vec4q    (vec4   a          );
 //
-quat  negq     (quat   a          );
-quat  conjq    (quat   a          );
-quat  addq     (quat   a, quat   b);
-quat  subq     (quat   a, quat   b);
-quat  mulq     (quat   p, quat   q);
-quat  scaleq   (quat   a, float  s);
-quat  normq    (quat   a          );
-float dotq     (quat   a, quat   b);
-quat  mixq(quat a, quat b, float t);
+API quat  negq     (quat   a          );
+API quat  conjq    (quat   a          );
+API quat  addq     (quat   a, quat   b);
+API quat  subq     (quat   a, quat   b);
+API quat  mulq     (quat   p, quat   q);
+API quat  scaleq   (quat   a, float  s);
+API quat  normq    (quat   a          );
+API float dotq     (quat   a, quat   b);
+API quat  mixq(quat a, quat b, float t);
 /* quat lerpq(quat a, quat b, float s);
     return norm(quat((1-s)*a.x + s*b.x, (1-s)*a.y + s*b.y, (1-s)*a.z + s*b.z, (1-s)*a.w + s*b.w));
 }*/
-quat slerpq(quat a, quat b, float s);
+API quat slerpq(quat a, quat b, float s);
 
-quat  rotationq(float deg,float x,float y,float z);
-quat  mat44q   (mat44 M);
+API quat  rotationq(float deg,float x,float y,float z);
+API quat  mat44q   (mat44 M);
 
-vec3 rotate3q_2(vec3 v, quat q);
-vec3 rotate3q(vec3 v, quat r);
+API vec3 rotate3q_2(vec3 v, quat q);
+API vec3 rotate3q(vec3 v, quat r);
 
 // euler <-> quat
-vec3  euler    (quat q);
-quat  eulerq   (vec3 pyr_degrees);
+API vec3  euler    (quat q);
+API quat  eulerq   (vec3 pyr_degrees);
 
 // ----------------------------------------------------------------------------
 
-void scaling33(mat33 m, float x, float y, float z);
-void scale33(mat33 m, float x, float y, float z);
-void id33(mat33 m);
-void extract33(mat33 m, const mat44 m4);
-void copy33(mat33 m, const mat33 a);//
-vec3 mulv33(mat33 m, vec3 v);
-void multiply33x2(mat33 m, const mat33 a, const mat33 b);
+API void scaling33(mat33 m, float x, float y, float z);
+API void scale33(mat33 m, float x, float y, float z);
+API void id33(mat33 m);
+API void extract33(mat33 m, const mat44 m4);
+API void copy33(mat33 m, const mat33 a);//
+API vec3 mulv33(mat33 m, vec3 v);
+API void multiply33x2(mat33 m, const mat33 a, const mat33 b);
 
-void rotation33(mat33 m, float degrees, float x,float y,float z);
-void rotationq33(mat33 m, quat q);
-void rotate33(mat33 r, float degrees, float x,float y,float z);
-void compose33(mat33 m, quat r, vec3 s);
-
-// ----------------------------------------------------------------------------
-
-void id34(mat34 m);
-void copy34(mat34 m, const mat34 a);
-void scale34(mat34 m, float s);
-void add34(mat34 m, mat34 n);
-void muladd34(mat34 m, mat34 n, float s);
-void add34x2(mat34 m, mat34 n, mat34 o);
-void lerp34(mat34 m, mat34 n, mat34 o, float alpha); // mix34?
-void multiply34x2(mat34 m, const mat34 m0, const mat34 m1);
-void multiply34(mat34 m, const mat34 a);
-void multiply34x3(mat34 m, const mat34 a, const mat34 b, const mat34 c);
-void compose34(mat34 m, vec3 t, quat q, vec3 s);
-void invert34(mat34 m, const mat34 o);
+API void rotation33(mat33 m, float degrees, float x,float y,float z);
+API void rotationq33(mat33 m, quat q);
+API void rotate33(mat33 r, float degrees, float x,float y,float z);
+API void compose33(mat33 m, quat r, vec3 s);
 
 // ----------------------------------------------------------------------------
 
-void scaling44(mat44 m, float x, float y, float z);
-void id44(mat44 m);
-void identity44(mat44 m);
-void copy44(mat44 m, const mat44 a);
-void multiply44x2(mat44 m, const mat44 a, const mat44 b);
-void multiply44x3(mat44 m, const mat44 a, const mat44 b, const mat44 c);
-void multiply44(mat44 m, const mat44 a);
+API void id34(mat34 m);
+API void copy34(mat34 m, const mat34 a);
+API void scale34(mat34 m, float s);
+API void add34(mat34 m, mat34 n);
+API void muladd34(mat34 m, mat34 n, float s);
+API void add34x2(mat34 m, mat34 n, mat34 o);
+API void lerp34(mat34 m, mat34 n, mat34 o, float alpha); // mix34?
+API void multiply34x2(mat34 m, const mat34 m0, const mat34 m1);
+API void multiply34(mat34 m, const mat34 a);
+API void multiply34x3(mat34 m, const mat34 a, const mat34 b, const mat34 c);
+API void compose34(mat34 m, vec3 t, quat q, vec3 s);
+API void invert34(mat34 m, const mat34 o);
+
+// ----------------------------------------------------------------------------
+
+API void scaling44(mat44 m, float x, float y, float z);
+API void id44(mat44 m);
+API void identity44(mat44 m);
+API void copy44(mat44 m, const mat44 a);
+API void multiply44x2(mat44 m, const mat44 a, const mat44 b);
+API void multiply44x3(mat44 m, const mat44 a, const mat44 b, const mat44 c);
+API void multiply44(mat44 m, const mat44 a);
 // ---
-void ortho44(mat44 m, float l, float r, float b, float t, float n, float f);
-void frustum44(mat44 m, float l, float r, float b, float t, float n, float f);
-void perspective44(mat44 m, float fovy_degrees, float aspect, float nearp, float farp);
-void lookat44(mat44 m, vec3 eye, vec3 center, vec3 up);
+API void ortho44(mat44 m, float l, float r, float b, float t, float n, float f);
+API void frustum44(mat44 m, float l, float r, float b, float t, float n, float f);
+API void perspective44(mat44 m, float fovy_degrees, float aspect, float nearp, float farp);
+API void lookat44(mat44 m, vec3 eye, vec3 center, vec3 up);
 // ---
-void translation44(mat44 m, float x, float y, float z);
-void translate44(mat44 m, float x, float y, float z);
-void relocate44(mat44 m, float x, float y, float z);
-void rotationq44(mat44 m, quat q);
-void rotation44(mat44 m, float degrees, float x, float y, float z);
-void rotate44(mat44 m, float degrees, float x, float y, float z);
-void scaling44(mat44 m, float x, float y, float z);
-void scale44(mat44 m, float x, float y, float z);
+API void translation44(mat44 m, float x, float y, float z);
+API void translate44(mat44 m, float x, float y, float z);
+API void relocate44(mat44 m, float x, float y, float z);
+API void rotationq44(mat44 m, quat q);
+API void rotation44(mat44 m, float degrees, float x, float y, float z);
+API void rotate44(mat44 m, float degrees, float x, float y, float z);
+API void scaling44(mat44 m, float x, float y, float z);
+API void scale44(mat44 m, float x, float y, float z);
 // ---
-void transpose44(mat44 m, const mat44 a);
-float det44(const mat44 M);
-bool invert44(mat44 T, const mat44 M);
+API void transpose44(mat44 m, const mat44 a);
+API float det44(const mat44 M);
+API bool invert44(mat44 T, const mat44 M);
 
-vec4 transform444(const mat44, const vec4);
-bool unproject44(vec3 *out, vec3 xyd, vec4 viewport, mat44 mvp);
+API vec4 transform444(const mat44, const vec4);
+API bool unproject44(vec3 *out, vec3 xyd, vec4 viewport, mat44 mvp);
 
-vec3 transform_axis(const coord_system, const coord_axis);
-void rebase44(mat44 m, const coord_system src_basis, const coord_system dst_basis);
+API vec3 transform_axis(const coord_system, const coord_axis);
+API void rebase44(mat44 m, const coord_system src_basis, const coord_system dst_basis);
 
-
-void compose44(mat44 m, vec3 t, quat q, vec3 s);
+API void compose44(mat44 m, vec3 t, quat q, vec3 s);
 
 // ----------------------------------------------------------------------------
 
-vec3 transform33(mat33 m, vec3 p);
+API vec3 transform33(mat33 m, vec3 p);
 
-vec4 transform444(const mat44 m, const vec4 p);
+API vec4 transform444(const mat44 m, const vec4 p);
 
-vec3 transform344(const mat44 m, const vec3 p);
+API vec3 transform344(const mat44 m, const vec3 p);
 
-vec3 transformq(const quat q, const vec3 v);
+API vec3 transformq(const quat q, const vec3 v);
 
-vec3 transform_axis(const coord_system basis, const coord_axis to);
+API vec3 transform_axis(const coord_system basis, const coord_axis to);
 
 // A vector is the difference between two points in 3D space, possessing both direction and magnitude
-vec3 transform_vector  (const mat44 m, const vec3 vector)   ;
+API vec3 transform_vector  (const mat44 m, const vec3 vector)   ;
 
 // A point is a specific location within a 3D space
-vec3 transform_point   (const mat44 m, const vec3 p)    ; // return (m * vec4{point,1).xyz()/r.w;
+API vec3 transform_point   (const mat44 m, const vec3 p)    ; // return (m * vec4{point,1).xyz()/r.w;
 
 // A tangent is a unit-length vector which is parallel to a piece of geometry, such as a surface or a curve
-vec3 transform_tangent (const mat44 m, const vec3 tangent)  ;//{ return norm3(transform_vector(m, tangent)); }
+API vec3 transform_tangent (const mat44 m, const vec3 tangent)  ;//{ return norm3(transform_vector(m, tangent)); }
 
 // A normal is a unit-length bivector which is perpendicular to a piece of geometry, such as a surface or a curve
-vec3 transform_normal  (const mat44 m, const vec3 normal)   ;
+API vec3 transform_normal  (const mat44 m, const vec3 normal)   ;
 
 // A quaternion can describe both a rotation and a uniform scaling in 3D space
-quat transform_quat     (const mat44 m, const quat q)      ;
+API quat transform_quat     (const mat44 m, const quat q)      ;
 
 // A matrix can describe a general transformation of homogeneous coordinates in projective space
-float* transform_matrix(mat44 out, const mat44 m, const mat44 matrix);
+API float* transform_matrix(mat44 out, const mat44 m, const mat44 matrix);
 
 // Scaling factors are not a vector, they are a compact representation of a scaling matrix
-vec3 transform_scaling (const mat44 m, const vec3 scaling);
+API vec3 transform_scaling (const mat44 m, const vec3 scaling);
 
 // ----------------------------------------------------------------------------
 // !!! for debugging
 
-void print2( vec2 v );
-void print3( vec3 v );
-void print4( vec4 v );
-void printq( quat q );
-void print33( float *m );
-void print34( float *m );
-void print44( float *m );
+API void print2( vec2 v );
+API void print3( vec3 v );
+API void print4( vec4 v );
+API void printq( quat q );
+API void print33( float *m );
+API void print34( float *m );
+API void print44( float *m );
 #line 0
 #line 1 "fwk_collide.h"
 // -----------------------------------------------------------------------------
@@ -660,79 +686,79 @@ typedef struct hit {
 // ----------------------------------------------------------------------------
 
 /* line/segment */
-float   line_distance2_point(line l, vec3 p);
-vec3    line_closest_point(line l, vec3 p);
+API float   line_distance2_point(line l, vec3 p);
+API vec3    line_closest_point(line l, vec3 p);
 /* ray */
-float   ray_test_plane(ray r, vec4 p4);
-float   ray_test_triangle(ray r, triangle t);
-int     ray_test_sphere(float *t0, float *t1, ray r, sphere s);
-int     ray_test_aabb(float *t0, float *t1, ray r, aabb a);
-hit*    ray_hit_plane(ray r, plane p);
-hit*    ray_hit_triangle(ray r, triangle t);
-hit*    ray_hit_sphere(ray r, sphere s);
-hit*    ray_hit_aabb(ray r, aabb a);
+API float   ray_test_plane(ray r, vec4 p4);
+API float   ray_test_triangle(ray r, triangle t);
+API int     ray_test_sphere(float *t0, float *t1, ray r, sphere s);
+API int     ray_test_aabb(float *t0, float *t1, ray r, aabb a);
+API hit*    ray_hit_plane(ray r, plane p);
+API hit*    ray_hit_triangle(ray r, triangle t);
+API hit*    ray_hit_sphere(ray r, sphere s);
+API hit*    ray_hit_aabb(ray r, aabb a);
 /* sphere */
-vec3    sphere_closest_point(sphere s, vec3 p);
-hit*    sphere_hit_aabb(sphere s, aabb a);
-hit*    sphere_hit_capsule(sphere s, capsule c);
-hit*    sphere_hit_sphere(sphere a, sphere b);
-int     sphere_test_aabb(sphere s, aabb a);
-int     sphere_test_capsule(sphere s, capsule c);
-int     sphere_test_poly(sphere s, poly p);
-int     sphere_test_sphere(sphere a, sphere b);
+API vec3    sphere_closest_point(sphere s, vec3 p);
+API hit*    sphere_hit_aabb(sphere s, aabb a);
+API hit*    sphere_hit_capsule(sphere s, capsule c);
+API hit*    sphere_hit_sphere(sphere a, sphere b);
+API int     sphere_test_aabb(sphere s, aabb a);
+API int     sphere_test_capsule(sphere s, capsule c);
+API int     sphere_test_poly(sphere s, poly p);
+API int     sphere_test_sphere(sphere a, sphere b);
 /* aabb */
-vec3    aabb_closest_point(aabb a, vec3 p);
-float   aabb_distance2_point(aabb a, vec3 p);
-int     aabb_contains_point(aabb a, vec3 p);
-hit*    aabb_hit_aabb(aabb a, aabb b);
-hit*    aabb_hit_capsule(aabb a, capsule c);
-hit*    aabb_hit_sphere(aabb a, sphere s);
-int     aabb_test_aabb(aabb a, aabb b);
-int     aabb_test_capsule(aabb a, capsule c);
-int     aabb_test_poly(aabb a, poly p);
-int     aabb_test_sphere(aabb a, sphere s);
+API vec3    aabb_closest_point(aabb a, vec3 p);
+API float   aabb_distance2_point(aabb a, vec3 p);
+API int     aabb_contains_point(aabb a, vec3 p);
+API hit*    aabb_hit_aabb(aabb a, aabb b);
+API hit*    aabb_hit_capsule(aabb a, capsule c);
+API hit*    aabb_hit_sphere(aabb a, sphere s);
+API int     aabb_test_aabb(aabb a, aabb b);
+API int     aabb_test_capsule(aabb a, capsule c);
+API int     aabb_test_poly(aabb a, poly p);
+API int     aabb_test_sphere(aabb a, sphere s);
 /* capsule */
-float   capsule_distance2_point(capsule c, vec3 p);
-vec3    capsule_closest_point(capsule c, vec3 p);
-hit*    capsule_hit_aabb(capsule c, aabb a);
-hit*    capsule_hit_capsule(capsule a, capsule b);
-hit*    capsule_hit_sphere(capsule c, sphere s);
-int     capsule_test_aabb(capsule c, aabb a);
-int     capsule_test_capsule(capsule a, capsule b);
-int     capsule_test_poly(capsule c, poly p);
-int     capsule_test_sphere(capsule c, sphere s);
+API float   capsule_distance2_point(capsule c, vec3 p);
+API vec3    capsule_closest_point(capsule c, vec3 p);
+API hit*    capsule_hit_aabb(capsule c, aabb a);
+API hit*    capsule_hit_capsule(capsule a, capsule b);
+API hit*    capsule_hit_sphere(capsule c, sphere s);
+API int     capsule_test_aabb(capsule c, aabb a);
+API int     capsule_test_capsule(capsule a, capsule b);
+API int     capsule_test_poly(capsule c, poly p);
+API int     capsule_test_sphere(capsule c, sphere s);
 /* poly: query */
-int     poly_test_sphere(poly p, sphere s);
-int     poly_test_aabb(poly p, aabb a);
-int     poly_test_capsule(poly p, capsule c);
-int     poly_test_poly(poly a, poly b);
+API int     poly_test_sphere(poly p, sphere s);
+API int     poly_test_aabb(poly p, aabb a);
+API int     poly_test_capsule(poly p, capsule c);
+API int     poly_test_poly(poly a, poly b);
 /* poly: query transformed */
-int     poly_test_sphere_transform(poly p, vec3 pos3, mat33 rot33, sphere s);
-int     poly_test_aabb_transform(poly p, vec3 apos3, mat33 arot33, aabb a);
-int     poly_test_capsule_transform(poly p, vec3 pos3, mat33 rot33, capsule c);
-int     poly_test_poly_transform(poly a, vec3 apos3, mat33 arot33, poly b, vec3 bpos3, mat33 brot33);
+API int     poly_test_sphere_transform(poly p, vec3 pos3, mat33 rot33, sphere s);
+API int     poly_test_aabb_transform(poly p, vec3 apos3, mat33 arot33, aabb a);
+API int     poly_test_capsule_transform(poly p, vec3 pos3, mat33 rot33, capsule c);
+API int     poly_test_poly_transform(poly a, vec3 apos3, mat33 arot33, poly b, vec3 bpos3, mat33 brot33);
 /* poly: gjk result */
-int     poly_hit_sphere(struct gjk_result *res, poly p, sphere s);
-int     poly_hit_aabb(struct gjk_result *res, poly p, aabb a);
-int     poly_hit_capsule(struct gjk_result *res, poly p, capsule c);
-int     poly_hit_poly(struct gjk_result *res, poly a, poly b);
+API int     poly_hit_sphere(struct gjk_result *res, poly p, sphere s);
+API int     poly_hit_aabb(struct gjk_result *res, poly p, aabb a);
+API int     poly_hit_capsule(struct gjk_result *res, poly p, capsule c);
+API int     poly_hit_poly(struct gjk_result *res, poly a, poly b);
 /* poly: gjk result transformed */
-int     poly_hit_sphere_transform(struct gjk_result *res, poly p, vec3 pos3, mat33 rot33, sphere s);
-int     poly_hit_aabb_transform(struct gjk_result *res, poly p, vec3 pos3, mat33 rot33, aabb a);
-int     poly_hit_capsule_transform(struct gjk_result *res, poly p, vec3 pos3, mat33 rot33, capsule c);
-int     poly_hit_poly_transform(struct gjk_result *res, poly a, vec3 at3, mat33 ar33, poly b, vec3 bt3, mat33 br33);
+API int     poly_hit_sphere_transform(struct gjk_result *res, poly p, vec3 pos3, mat33 rot33, sphere s);
+API int     poly_hit_aabb_transform(struct gjk_result *res, poly p, vec3 pos3, mat33 rot33, aabb a);
+API int     poly_hit_capsule_transform(struct gjk_result *res, poly p, vec3 pos3, mat33 rot33, capsule c);
+API int     poly_hit_poly_transform(struct gjk_result *res, poly a, vec3 at3, mat33 ar33, poly b, vec3 bt3, mat33 br33);
 
-vec4    plane4(vec3 p, vec3 n);
+API vec4    plane4(vec3 p, vec3 n);
 
-frustum frustum_build(mat44 projview);
-int     frustum_test_sphere(frustum f, sphere s);
-int     frustum_test_aabb(frustum f, aabb a);
+API frustum frustum_build(mat44 projview);
+API int     frustum_test_sphere(frustum f, sphere s);
+API int     frustum_test_aabb(frustum f, aabb a);
 
-poly    poly_alloc(int cnt);
-void    poly_free(poly *p);
+API poly    poly_alloc(int cnt);
+API void    poly_free(poly *p);
 
-poly    pyramid(vec3 from, vec3 to, float size); // poly_free() required
-poly    diamond(vec3 from, vec3 to, float size); // poly_free() required
+API poly    pyramid(vec3 from, vec3 to, float size); // poly_free() required
+API poly    diamond(vec3 from, vec3 to, float size); // poly_free() required
 #line 0
 //---
 #line 1 "fwk_audio.h"
@@ -749,13 +775,13 @@ poly    diamond(vec3 from, vec3 to, float size); // poly_free() required
 
 typedef struct audio_handle* audio_t;
 
-audio_t audio_clip( const char *pathfile );
-audio_t audio_stream( const char *pathfile );
-    int audio_play( audio_t s, int flags );
+API audio_t audio_clip( const char *pathfile );
+API audio_t audio_stream( const char *pathfile );
+API     int audio_play( audio_t s, int flags );
 
-float   audio_volume_clip(float gain);   // set     fx volume if gain is in [0..1] range. return current     fx volume in any case
-float   audio_volume_stream(float gain); // set    bgm volume if gain is in [0..1] range. return current    bgm volume in any case
-float   audio_volume_master(float gain); // set master volume if gain is in [0..1] range. return current master volume in any case
+API float   audio_volume_clip(float gain);   // set     fx volume if gain is in [0..1] range. return current     fx volume in any case
+API float   audio_volume_stream(float gain); // set    bgm volume if gain is in [0..1] range. return current    bgm volume in any case
+API float   audio_volume_master(float gain); // set master volume if gain is in [0..1] range. return current master volume in any case
 
 enum {
     AUDIO_1CH = 0, // default
@@ -770,7 +796,7 @@ enum {
     AUDIO_44KHZ = 16,
 };
 
-int audio_queue( const void *samples, int num_samples, int flags );
+API int audio_queue( const void *samples, int num_samples, int flags );
 #line 0
 #line 1 "fwk_cooker.h"
 // -----------------------------------------------------------------------------
@@ -801,8 +827,8 @@ enum {
 // must return compression level if archive needs to be cooked, else return <0
 typedef int (*cooker_callback_t)(char *filename, const char *ext, const char header[16], FILE *in, FILE *out, const char *info, int threadid);
 
-int  cooker_progress(); // [0..100]
-bool cooker( const char *masks, cooker_callback_t cb, int flags );
+API int  cooker_progress(); // [0..100]
+API bool cooker( const char *masks, cooker_callback_t cb, int flags );
 #line 0
 #line 1 "fwk_data.h"
 // -----------------------------------------------------------------------------
@@ -813,12 +839,12 @@ bool cooker( const char *masks, cooker_callback_t cb, int flags );
 
 // data api
 
-bool    data_push(const char *source);
-int         data_count(const char *keypath);
-#define     data_int(...)    data_get(0,stringf(__VA_ARGS__)).i
-#define     data_float(...)  data_get(0,stringf(__VA_ARGS__)).f
-#define     data_string(...) data_get(1,stringf(__VA_ARGS__)).s
-bool    data_pop();
+API bool    data_push(const char *source);
+API int         data_count(const char *keypath);
+#define         data_int(...)    data_get(0,stringf(__VA_ARGS__)).i
+#define         data_float(...)  data_get(0,stringf(__VA_ARGS__)).f
+#define         data_string(...) data_get(1,stringf(__VA_ARGS__)).s
+API bool    data_pop();
 
 // internal api
 
@@ -830,7 +856,7 @@ typedef union data_t {
     array(union data_t) arr;
 } data_t;
 
-data_t data_get(bool is_string, const char *keypath); // @todo, array(data_t) data_array();
+API data_t data_get(bool is_string, const char *keypath); // @todo, array(data_t) data_array();
 #line 0
 #line 1 "fwk_editor.h"
 // -----------------------------------------------------------------------------
@@ -862,8 +888,8 @@ data_t data_get(bool is_string, const char *keypath); // @todo, array(data_t) da
 // - [ ] cut/copy/paste (ctrl-c to serialize)
 // - [ ] menu: open, save, save as, save all, reload
 
-void editor();
-bool editor_active();
+API void editor();
+API bool editor_active();
 #line 0
 #line 1 "fwk_file.h"
 // -----------------------------------------------------------------------------
@@ -877,44 +903,47 @@ bool editor_active();
 
 // physical filesystem. files
 
-const char** file_list(const char *masks); // **.png;*.c
-char *       file_read(const char *filename);
-char *       file_load(const char *filename, int *len);
-uint64_t     file_size(const char *pathfile);
-bool         file_directory(const char *pathfile);
+API const char** file_list(const char *masks); // **.png;*.c
+API char *       file_read(const char *filename);
+API char *       file_load(const char *filename, int *len);
+API uint64_t     file_size(const char *pathfile);
+API bool         file_directory(const char *pathfile);
 
-char *       file_path(const char *pathfile); // c:/prj/dir/file.ext -> c:/prj/dir/
-char *       file_name(const char *pathfile); // c:/prj/dir/file.ext -> file.ext
-char *       file_ext(const char *pathfile); // c:/prj/dir/file.ext -> .ext
-char *       file_id(const char *pathfile); // c:/prj/dir/file.ext -> file/dir/prj (name then alphabetical)
-char *       file_normalize(const char *pathfile); // c:/prj/dir/file.ext -> c/prj/dir/file_ext
-//char *     file_normalize_with_folder(const char *pathfile); // c:/prj/dir/file.ext -> dir/file_ext
+API char *       file_path(const char *pathfile); // c:/prj/dir/file.ext -> c:/prj/dir/
+API char *       file_name(const char *pathfile); // c:/prj/dir/file.ext -> file.ext
+API char *       file_ext(const char *pathfile); // c:/prj/dir/file.ext -> .ext
+API char *       file_id(const char *pathfile); // c:/prj/dir/file.ext -> file/dir/prj (name then alphabetical)
+API char *       file_normalize(const char *pathfile); // c:/prj/dir/file.ext -> c/prj/dir/file_ext
+//API char *     file_normalize_with_folder(const char *pathfile); // c:/prj/dir/file.ext -> dir/file_ext
 
-uint64_t     file_stamp(const char *pathfile); // 1616153596 (seconds since unix epoch)
-uint64_t     file_stamp_human(const char *pathfile); // 20210319113316 (datetime in base10)
+API uint64_t     file_stamp(const char *pathfile); // 1616153596 (seconds since unix epoch)
+API uint64_t     file_stamp_human(const char *pathfile); // 20210319113316 (datetime in base10)
 
-bool         file_copy(const char *src, const char *dst);
+API bool         file_copy(const char *src, const char *dst);
+
+API FILE*        file_temp();
+API char*        file_tempname();
 
 // @todo file_find() from first file_scan()
 
 
 // virtual filesystem
 
-bool         vfs_mount(const char *mount_point);
-const char** vfs_list(const char *masks); // **.png;*.c
+API bool         vfs_mount(const char *mount_point);
+API const char** vfs_list(const char *masks); // **.png;*.c
 
-char *       vfs_read(const char *pathfile);
-char *       vfs_load(const char *pathfile, int *size);
-int          vfs_size(const char *pathfile);
+API char *       vfs_read(const char *pathfile);
+API char *       vfs_load(const char *pathfile, int *size);
+API int          vfs_size(const char *pathfile);
 
-const char * vfs_resolve(const char *fuzzyname); // guess best match. @todo: fuzzy path
-const char * vfs_find(const char *pathfile); // returns filename to extracted temporary file, so it can be read by foreign/3rd party libs
-FILE*        vfs_handle(const char *pathfile); // same as above, but returns file handle instead. preferred way, will clean descriptors at exit
+API const char * vfs_resolve(const char *fuzzyname); // guess best match. @todo: fuzzy path
+API const char * vfs_find(const char *pathfile); // returns filename to extracted temporary file, so it can be read by foreign/3rd party libs
+API FILE*        vfs_handle(const char *pathfile); // same as above, but returns file handle instead. preferred way, will clean descriptors at exit
 
 // cache
 
-void *       cache_insert(const char *key, void *value, int size);
-void *       cache_lookup(const char *key, int *size);
+API void *       cache_insert(const char *key, void *value, int size);
+API void *       cache_lookup(const char *key, int *size);
 #line 0
 #line 1 "fwk_input.h"
 // -----------------------------------------------------------------------------
@@ -929,49 +958,49 @@ void *       cache_lookup(const char *key, int *size);
 // @todo: fix if logger !60 hz
 // @tofo: fix click2/repeat edge cases
 
-int         input_use( int controller_id ); // [0..3]
+API int         input_use( int controller_id ); // [0..3]
 
 // -- basic polling api (read input at current frame)
 
-float       input( int vk );
-vec2        input2( int vk );
-float       input_diff( int vk );
-vec2        input_diff2( int vk );
+API float       input( int vk );
+API vec2        input2( int vk );
+API float       input_diff( int vk );
+API vec2        input_diff2( int vk );
 
 // -- extended polling api (read input at Nth frame ago)
 
-float       input_frame( int vk, int frame );
-vec2        input_frame2( int vk, int frame );
-const char* input_frames( int vk, int frame );
+API float       input_frame( int vk, int frame );
+API vec2        input_frame2( int vk, int frame );
+API const char* input_frames( int vk, int frame );
 
 // -- events api
 
-int         input_up( int vk ); // ON -> OFF (release)
-int         input_down( int vk ); // OFF -> ON (trigger)
-int         input_held( int vk ); // ON -> ON (pressed)
-int         input_idle( int vk ); // OFF -> OFF
+API int         input_up( int vk ); // ON -> OFF (release)
+API int         input_down( int vk ); // OFF -> ON (trigger)
+API int         input_held( int vk ); // ON -> ON (pressed)
+API int         input_idle( int vk ); // OFF -> OFF
 
-int         input_click( int vk, int ms ); // OFF -> ON -> OFF
-int         input_click2( int vk, int ms ); // OFF -> ON -> OFF -> ON -> OFF
-int         input_repeat( int vk, int ms ); // [...] ON -> ON -> ON
+API int         input_click( int vk, int ms ); // OFF -> ON -> OFF
+API int         input_click2( int vk, int ms ); // OFF -> ON -> OFF -> ON -> OFF
+API int         input_repeat( int vk, int ms ); // [...] ON -> ON -> ON
 
-int         input_chord2( int vk1, int vk2 ); // all vk1 && vk2 are ON
-int         input_chord3( int vk1, int vk2, int vk3 ); // all vk1 && vk2 && vk3 are ON
-int         input_chord4( int vk1, int vk2, int vk3, int vk4 ); // all vk1 && vk2 && vk3 && vk4 are ON
+API int         input_chord2( int vk1, int vk2 ); // all vk1 && vk2 are ON
+API int         input_chord3( int vk1, int vk2, int vk3 ); // all vk1 && vk2 && vk3 are ON
+API int         input_chord4( int vk1, int vk2, int vk3, int vk4 ); // all vk1 && vk2 && vk3 && vk4 are ON
 
 // -- 1d/2d filters
 
-float       input_filter_positive( float v ); // [-1..1] -> [0..1]
-vec2        input_filter_positive2( vec2 v ); // [-1..1] -> [0..1]
-vec2        input_filter_deadzone( vec2 v, float deadzone );
-vec2        input_filter_deadzone_4way( vec2 v, float deadzone );
+API float       input_filter_positive( float v ); // [-1..1] -> [0..1]
+API vec2        input_filter_positive2( vec2 v ); // [-1..1] -> [0..1]
+API vec2        input_filter_deadzone( vec2 v, float deadzone );
+API vec2        input_filter_deadzone_4way( vec2 v, float deadzone );
 
 // -- utils
 
-void        input_demo();
-void        input_send( int vk ); // @todo
-void*       input_save_state( int id, int *size); // @todo
-bool        input_load_state( int id, void *ptr, int size); // @todo
+API void        input_demo();
+API void        input_send( int vk ); // @todo
+API void*       input_save_state( int id, int *size); // @todo
+API bool        input_load_state( int id, void *ptr, int size); // @todo
 
 
 // --
@@ -1017,48 +1046,48 @@ enum {
 // network framework
 // - rlyeh, public domain
 
-int download( FILE *out, const char *url );
-int portname( const char *service_name, unsigned retries );
+API int download( FILE *out, const char *url );
+API int portname( const char *service_name, unsigned retries );
 
 // -----------------------------------------------------------------------------
 // udp wrapper
 // - rlyeh, public domain.
 
 // server
-int   udp_bind(const char *address, const char *port);
+API int   udp_bind(const char *address, const char *port);
 
 // client
-int   udp_open(const char *address, const char *port);
+API int   udp_open(const char *address, const char *port);
 
 // common
-int   udp_send(int, const void *buf, int len ); // <0 error, >0 bytes sent ok
-int   udp_sendto(int, const char *ip, const char *port, const void *buf, int len ); // <0 error, >0 bytes sent ok
-int   udp_recv(int, void *buf, int len ); // <0 error, 0 orderly shutdown, >0 received bytes
-int   udp_peek(int); // <0 error, 0 timeout, >0 data
+API int   udp_send(int, const void *buf, int len ); // <0 error, >0 bytes sent ok
+API int   udp_sendto(int, const char *ip, const char *port, const void *buf, int len ); // <0 error, >0 bytes sent ok
+API int   udp_recv(int, void *buf, int len ); // <0 error, 0 orderly shutdown, >0 received bytes
+API int   udp_peek(int); // <0 error, 0 timeout, >0 data
 
 // -----------------------------------------------------------------------------
 // tcp wrapper
 // - rlyeh, public domain
 
 // client
-int   tcp_open(const char *address, const char *port);
+API int   tcp_open(const char *address, const char *port);
 
 // server
-int   tcp_bind(const char *interface_, const char *port, int queue);
-int   tcp_peek(int, int(*callback)(int));
+API int   tcp_bind(const char *interface_, const char *port, int queue);
+API int   tcp_peek(int, int(*callback)(int));
 
 // common
-int   tcp_send(int, const void* buf, int len);
-int   tcp_recv(int, void* buf, int len);
-char* tcp_host(int); // info
-char* tcp_port(int); // info
+API int   tcp_send(int, const void* buf, int len);
+API int   tcp_recv(int, void* buf, int len);
+API char* tcp_host(int); // info
+API char* tcp_port(int); // info
 
-int   tcp_close(int);
+API int   tcp_close(int);
 
 // extras
-int   tcp_debug(int); // toggle traffic monitoring on/off for given socket
-//int   tcp_printf(int, const char *fmt, ...); // printf message in remote end
-//int   tcp_crypt(int,uint64_t);               // set shared secret
+API int   tcp_debug(int); // toggle traffic monitoring on/off for given socket
+//API int   tcp_printf(int, const char *fmt, ...); // printf message in remote end
+//API int   tcp_crypt(int,uint64_t);               // set shared secret
 #line 0
 #line 1 "fwk_render.h"
 // -----------------------------------------------------------------------------
@@ -1074,9 +1103,9 @@ typedef unsigned handle; // GLuint
 // -----------------------------------------------------------------------------
 // colors
 
-uint32_t rgba( uint8_t r, uint8_t g, uint8_t b, uint8_t a );
-uint32_t bgra( uint8_t r, uint8_t g, uint8_t b, uint8_t a );
-float    alpha( uint32_t rgba );
+API uint32_t rgba( uint8_t r, uint8_t g, uint8_t b, uint8_t a );
+API uint32_t bgra( uint8_t r, uint8_t g, uint8_t b, uint8_t a );
+API float    alpha( uint32_t rgba );
 
 #define RGBX(rgb,x)   ( ((rgb)&0xFFFFFF) | ((x)<<24) )
 #define RGB3(r,g,b)   ( ((r)<<16) | ((g)<<8) | (b) )
@@ -1111,9 +1140,9 @@ typedef struct image_t {
     union { void *pixels; unsigned char *pixels8; unsigned short *pixels16; unsigned *pixels32; float *pixelsf; };
 } image_t;
 
-image_t image(const char *pathfile, int flags);
-image_t image_from_mem(const char *ptr, int len, int flags);
-void    image_destroy(image_t *img);
+API image_t image(const char *pathfile, int flags);
+API image_t image_from_mem(const char *ptr, int len, int flags);
+API void    image_destroy(image_t *img);
 
 // -----------------------------------------------------------------------------
 // textures
@@ -1160,34 +1189,34 @@ typedef struct {
     unsigned flags;
 } texture_t;
 
-texture_t texture(const char* filename, int flags);
-texture_t texture_from_mem(const char* ptr, int len, int flags);
-texture_t texture_create(unsigned w, unsigned h, unsigned n, void *pixels, int flags);
-texture_t texture_checker();
-void      texture_destroy(texture_t *t);
+API texture_t texture(const char* filename, int flags);
+API texture_t texture_from_mem(const char* ptr, int len, int flags);
+API texture_t texture_create(unsigned w, unsigned h, unsigned n, void *pixels, int flags);
+API texture_t texture_checker();
+API void      texture_destroy(texture_t *t);
 // textureLod(filename, dir, lod);
-//void texture_add_loader( int(*loader)(const char *filename, int *w, int *h, int *bpp, int reqbpp, int flags) );
-unsigned  texture_update(texture_t *t, unsigned w, unsigned h, unsigned n, void *pixels, int flags);
+// void texture_add_loader( int(*loader)(const char *filename, int *w, int *h, int *bpp, int reqbpp, int flags) );
+API unsigned  texture_update(texture_t *t, unsigned w, unsigned h, unsigned n, void *pixels, int flags);
 
 // -----------------------------------------------------------------------------
 // fullscreen quads
 
-void  fullscreen_rgb_quad( texture_t texture_rgb, float gamma );
-void  fullscreen_ycbcr_quad( texture_t texture_YCbCr[3], float gamma );
+API void  fullscreen_rgb_quad( texture_t texture_rgb, float gamma );
+API void  fullscreen_ycbcr_quad( texture_t texture_YCbCr[3], float gamma );
 
 // -----------------------------------------------------------------------------
 // sprites
 
-void tile( texture_t texture, vec3 position, uint32_t color /*~0u*/, float rotation /*0*/ );
+API void tile( texture_t texture, vec3 position, uint32_t color /*~0u*/, float rotation /*0*/ );
 
-void sprite( texture_t texture,
+API void sprite( texture_t texture,
     float px, float py, float pz, float rotation, // position(x,y,depth sort), angle
     float ox, float oy, float sx, float sy,       // offset(x,y), scale(x,y)
     int additive, uint32_t rgba,                  // is_additive, tint color
     float frame, float xcells, float ycells       // frame_number in a 8x4 spritesheet
 );
 
-void sprite_update();
+API void sprite_update();
 
 // -----------------------------------------------------------------------------
 // cubemaps
@@ -1197,18 +1226,18 @@ typedef struct cubemap_t {
     vec3 sh[9];     // precomputed spherical harmonics coefficients
 } cubemap_t;
 
-cubemap_t  cubemap( const image_t image, int flags ); // 1 equirectangular panorama
-cubemap_t  cubemap6( const image_t images[6], int flags ); // 6 cubemap faces
-void       cubemap_destroy(cubemap_t *c);
-cubemap_t* cubemap_get_active();
+API cubemap_t  cubemap( const image_t image, int flags ); // 1 equirectangular panorama
+API cubemap_t  cubemap6( const image_t images[6], int flags ); // 6 cubemap faces
+API void       cubemap_destroy(cubemap_t *c);
+API cubemap_t* cubemap_get_active();
 
 // -----------------------------------------------------------------------------
 // fbos
 
-unsigned fbo( unsigned texture_color, unsigned texture_depth, int wr_flags );
-void     fbo_bind(unsigned id);
-void     fbo_unbind();
-void     fbo_destroy(unsigned id);
+API unsigned fbo( unsigned texture_color, unsigned texture_depth, int wr_flags );
+API void     fbo_bind(unsigned id);
+API void     fbo_unbind();
+API void     fbo_destroy(unsigned id);
 
 // -----------------------------------------------------------------------------
 // shadowmaps
@@ -1225,32 +1254,32 @@ typedef struct shadowmap_t {
     int texture_width;
 } shadowmap_t;
 
-shadowmap_t shadowmap(int texture_width); // = 1024
-void shadowmap_destroy(shadowmap_t *s);
+API shadowmap_t shadowmap(int texture_width); // = 1024
+API void shadowmap_destroy(shadowmap_t *s);
 
-void shadowmap_set_shadowmatrix(shadowmap_t *s, vec3 aLightPos, vec3 aLightAt, vec3 aLightUp, const mat44 projection);
-void shadowmap_begin(shadowmap_t *s);
-void shadowmap_end(shadowmap_t *s);
+API void shadowmap_set_shadowmatrix(shadowmap_t *s, vec3 aLightPos, vec3 aLightAt, vec3 aLightUp, const mat44 projection);
+API void shadowmap_begin(shadowmap_t *s);
+API void shadowmap_end(shadowmap_t *s);
 
 // shadowmap utils
 
-void shadowmatrix_proj(mat44 shm_proj, float aLightFov, float znear, float zfar);
-void shadowmatrix_ortho(mat44 shm_proj, float left, float right, float bottom, float top, float znear, float zfar);
+API void shadowmatrix_proj(mat44 shm_proj, float aLightFov, float znear, float zfar);
+API void shadowmatrix_ortho(mat44 shm_proj, float left, float right, float bottom, float top, float znear, float zfar);
 
 // -----------------------------------------------------------------------------
 // shaders
 
-unsigned shader(const char *vs, const char *fs, const char *attribs, const char *fragcolor);
-unsigned shader_bind(unsigned program);
-    void shader_int(const char *uniform, int i);
-    void shader_float(const char *uniform, float f);
-    void shader_vec2(const char *uniform, vec2 v);
-    void shader_vec3(const char *uniform, vec3 v);
-    void shader_vec4(const char *uniform, vec4 v);
-    void shader_mat44(const char *uniform, mat44 m);
-    void shader_texture(const char *sampler, unsigned texture, unsigned unit);
-unsigned shader_get_active();
-void     shader_destroy(unsigned shader);
+API unsigned shader(const char *vs, const char *fs, const char *attribs, const char *fragcolor);
+API unsigned shader_bind(unsigned program);
+API     void shader_int(const char *uniform, int i);
+API     void shader_float(const char *uniform, float f);
+API     void shader_vec2(const char *uniform, vec2 v);
+API     void shader_vec3(const char *uniform, vec3 v);
+API     void shader_vec4(const char *uniform, vec4 v);
+API     void shader_mat44(const char *uniform, mat44 m);
+API     void shader_texture(const char *sampler, unsigned texture, unsigned unit);
+API unsigned shader_get_active();
+API void     shader_destroy(unsigned shader);
 
 // -----------------------------------------------------------------------------
 // meshes (@fixme: deprecate?)
@@ -1268,13 +1297,13 @@ typedef struct mesh_t {
     unsigned flags;
 } mesh_t;
 
-mesh_t mesh_create(const char *format, int vertex_stride,int vertex_count,const void *interleaved_vertex_data, int index_count,const void *index_data, int flags);
-  void mesh_upgrade(mesh_t *m, const char *format, int vertex_stride,int vertex_count,const void *interleaved_vertex_data, int index_count,const void *index_data, int flags);
-  void mesh_push_state(mesh_t *m, unsigned program, unsigned texture_id, float model[16], float view[16], float proj[16], unsigned billboard);
-  void mesh_pop_state(mesh_t *m);
-  void mesh_render(mesh_t *m);
-  void mesh_destroy(mesh_t *m);
-  aabb mesh_bounds(mesh_t *m);
+API mesh_t mesh_create(const char *format, int vertex_stride,int vertex_count,const void *interleaved_vertex_data, int index_count,const void *index_data, int flags);
+API   void mesh_upgrade(mesh_t *m, const char *format, int vertex_stride,int vertex_count,const void *interleaved_vertex_data, int index_count,const void *index_data, int flags);
+API   void mesh_push_state(mesh_t *m, unsigned program, unsigned texture_id, float model[16], float view[16], float proj[16], unsigned billboard);
+API   void mesh_pop_state(mesh_t *m);
+API   void mesh_render(mesh_t *m);
+API   void mesh_destroy(mesh_t *m);
+API   aabb mesh_bounds(mesh_t *m);
 
 // -----------------------------------------------------------------------------
 // materials (@todo)
@@ -1306,14 +1335,14 @@ typedef struct model_t {
     mat44 pivot;
 } model_t;
 
-model_t  model(const char *filename, int flags);
-model_t  model_from_mem(const void *mem, int sz, int flags);
-float    model_animate(model_t, float curframe);
-float    model_animate_clip(model_t, float curframe, int minframe, int maxframe, bool loop);
-aabb     model_aabb(model_t, mat44 transform);
-void     model_render2(model_t, mat44 proj, mat44 view, mat44 model, int shader);
-void     model_render(model_t, mat44 proj, mat44 view, mat44 model);
-void     model_destroy(model_t);
+API model_t  model(const char *filename, int flags);
+API model_t  model_from_mem(const void *mem, int sz, int flags);
+API float    model_animate(model_t, float curframe);
+API float    model_animate_clip(model_t, float curframe, int minframe, int maxframe, bool loop);
+API aabb     model_aabb(model_t, mat44 transform);
+API void     model_render2(model_t, mat44 proj, mat44 view, mat44 model, int shader);
+API void     model_render(model_t, mat44 proj, mat44 view, mat44 model);
+API void     model_destroy(model_t);
 
 // -----------------------------------------------------------------------------
 // skyboxes
@@ -1325,30 +1354,30 @@ typedef struct skybox_t {
     int flags;
 } skybox_t;
 
-skybox_t skybox(const char *panorama_or_cubemap_folder, int flags);
-int      skybox_push_state(skybox_t *sky, mat44 proj, mat44 view);
-int      skybox_pop_state(skybox_t *sky);
-void     skybox_destroy(skybox_t *sky);
+API skybox_t skybox(const char *panorama_or_cubemap_folder, int flags);
+API int      skybox_push_state(skybox_t *sky, mat44 proj, mat44 view);
+API int      skybox_pop_state(skybox_t *sky);
+API void     skybox_destroy(skybox_t *sky);
 
 // -----------------------------------------------------------------------------
 // post-fxs
 
-void     viewport_color(vec3 color);
-void     viewport_clear(bool color, bool depth);
-void     viewport_clip(vec2 from, vec2 to);
+API void     viewport_color(vec3 color);
+API void     viewport_clear(bool color, bool depth);
+API void     viewport_clip(vec2 from, vec2 to);
 
-void     fx_load(const char *file);
-void     fx_begin();
-void     fx_end();
-void     fx_enable(int pass, int enabled);
-int      fx_enabled(int pass);
-void     fx_enable_all(int enabled);
-char *   fx_name(int pass);
+API void     fx_load(const char *file);
+API void     fx_begin();
+API void     fx_end();
+API void     fx_enable(int pass, int enabled);
+API int      fx_enabled(int pass);
+API void     fx_enable_all(int enabled);
+API char *   fx_name(int pass);
 
 // -----------------------------------------------------------------------------
 // utils
 
-void*    screenshot(unsigned components); // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA
+API void*    screenshot(unsigned components); // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA
 #line 0
 #line 1 "fwk_renderdd.h"
 // -----------------------------------------------------------------------------
@@ -1364,44 +1393,44 @@ void*    screenshot(unsigned components); // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA
 // [ ] bone (pyramid?), ring,
 // [ ] camera, light bulb, light probe,
 
-void ddraw_color(unsigned rgb);
-void ddraw_ontop(int enabled);
+API void ddraw_color(unsigned rgb);
+API void ddraw_ontop(int enabled);
 //
-void ddraw_aabb(vec3 minbb, vec3 maxbb);
-void ddraw_aabb_corners(vec3 minbb, vec3 maxbb);
-void ddraw_arrow(vec3 begin, vec3 end);
-void ddraw_axis(float units);
-void ddraw_boid(vec3 pos, vec3 dir);
-void ddraw_bone(vec3 center, vec3 end); // @todo: use me
-void ddraw_bounds(const vec3 points[8]);
-void ddraw_box(vec3 c, vec3 extents);
-void ddraw_capsule(vec3 from, vec3 to, float radius);
-void ddraw_circle(vec3 pos, vec3 n, float radius);
-void ddraw_cone(vec3 center, vec3 top, float radius);
-void ddraw_cube(vec3 center, float radius);
-void ddraw_diamond(vec3 from, vec3 to, float size);
-void ddraw_frustum(float projview[16]);
-void ddraw_ground(float scale);
-void ddraw_grid(float scale);
-void ddraw_hexagon(vec3 pos, float radius);
-void ddraw_line(vec3 from, vec3 to);
-void ddraw_line_dashed(vec3 from, vec3 to);
-void ddraw_line_thin(vec3 from, vec3 to);
-void ddraw_normal(vec3 pos, vec3 n);
-void ddraw_pentagon(vec3 pos, float radius);
-void ddraw_plane(vec3 p, vec3 n, float scale);
-void ddraw_point(vec3 from);
-void ddraw_position(vec3 pos, float radius);
-void ddraw_position_dir(vec3 pos, vec3 dir, float radius);
-void ddraw_pyramid(vec3 center, float height, int segments);
-void ddraw_sphere(vec3 pos, float radius);
-void ddraw_square(vec3 pos, float radius);
-void ddraw_text(vec3 pos, float scale, const char *text);
-void ddraw_text2d(vec2 pos, float scale, const char *text);
-void ddraw_triangle(vec3 p1, vec3 p2, vec3 p3);
+API void ddraw_aabb(vec3 minbb, vec3 maxbb);
+API void ddraw_aabb_corners(vec3 minbb, vec3 maxbb);
+API void ddraw_arrow(vec3 begin, vec3 end);
+API void ddraw_axis(float units);
+API void ddraw_boid(vec3 pos, vec3 dir);
+API void ddraw_bone(vec3 center, vec3 end); // @todo: use me
+API void ddraw_bounds(const vec3 points[8]);
+API void ddraw_box(vec3 c, vec3 extents);
+API void ddraw_capsule(vec3 from, vec3 to, float radius);
+API void ddraw_circle(vec3 pos, vec3 n, float radius);
+API void ddraw_cone(vec3 center, vec3 top, float radius);
+API void ddraw_cube(vec3 center, float radius);
+API void ddraw_diamond(vec3 from, vec3 to, float size);
+API void ddraw_frustum(float projview[16]);
+API void ddraw_ground(float scale);
+API void ddraw_grid(float scale);
+API void ddraw_hexagon(vec3 pos, float radius);
+API void ddraw_line(vec3 from, vec3 to);
+API void ddraw_line_dashed(vec3 from, vec3 to);
+API void ddraw_line_thin(vec3 from, vec3 to);
+API void ddraw_normal(vec3 pos, vec3 n);
+API void ddraw_pentagon(vec3 pos, float radius);
+API void ddraw_plane(vec3 p, vec3 n, float scale);
+API void ddraw_point(vec3 from);
+API void ddraw_position(vec3 pos, float radius);
+API void ddraw_position_dir(vec3 pos, vec3 dir, float radius);
+API void ddraw_pyramid(vec3 center, float height, int segments);
+API void ddraw_sphere(vec3 pos, float radius);
+API void ddraw_square(vec3 pos, float radius);
+API void ddraw_text(vec3 pos, float scale, const char *text);
+API void ddraw_text2d(vec2 pos, float scale, const char *text);
+API void ddraw_triangle(vec3 p1, vec3 p2, vec3 p3);
 //
-void ddraw_demo();
-void ddraw_flush();
+API void ddraw_demo();
+API void ddraw_flush();
 
 #define ddraw_text(pos, scale, ...) ddraw_text(pos, scale, stringf(__VA_ARGS__))
 #define ddraw_text2d(pos, scale, ...) ddraw_text2d(pos, scale, stringf(__VA_ARGS__))
@@ -1422,11 +1451,11 @@ typedef struct {
     vec3 last_look, last_move; // used for friction and smoothing
 } camera_t;
 
-camera_t camera();
-void camera_move(camera_t *cam, float x, float y, float z);
-void camera_fps(camera_t *cam, float yaw, float pitch);
-void camera_lookat(camera_t *cam, vec3 target);
-camera_t *camera_get_active();
+API camera_t camera();
+API void camera_move(camera_t *cam, float x, float y, float z);
+API void camera_fps(camera_t *cam, float yaw, float pitch);
+API void camera_lookat(camera_t *cam, vec3 target);
+API camera_t *camera_get_active();
 
 // object
 
@@ -1441,17 +1470,17 @@ typedef struct {
     unsigned billboard; // [0..7] x(4),y(2),z(1) masks
 } object_t;
 
-object_t object();
-void object_rotate(object_t *obj, vec3 euler);
-void object_pivot(object_t *obj, vec3 euler);
-void object_teleport(object_t *obj, vec3 pos);
-void object_move(object_t *obj, vec3 inc);
-vec3 object_position(object_t *obj);
-void object_scale(object_t *obj, vec3 sca);
+API object_t object();
+API void object_rotate(object_t *obj, vec3 euler);
+API void object_pivot(object_t *obj, vec3 euler);
+API void object_teleport(object_t *obj, vec3 pos);
+API void object_move(object_t *obj, vec3 inc);
+API vec3 object_position(object_t *obj);
+API void object_scale(object_t *obj, vec3 sca);
 //
-void object_model(object_t *obj, model_t model);
-void object_diffuse(object_t *obj, texture_t tex);
-void object_billboard(object_t *obj, unsigned mode);
+API void object_model(object_t *obj, model_t model);
+API void object_diffuse(object_t *obj, texture_t tex);
+API void object_billboard(object_t *obj, unsigned mode);
 
 // object_pose(transform); // @todo
 
@@ -1474,29 +1503,29 @@ typedef struct {
     int u_coefficients_sh;
 } scene_t;
 
-scene_t*  scene_push();
-void      scene_pop();
-scene_t*  scene_get_active();
+API scene_t*  scene_push();
+API void      scene_pop();
+API scene_t*  scene_get_active();
 
-int       scene_merge(const char *source);
-void      scene_render(int flags);
+API int       scene_merge(const char *source);
+API void      scene_render(int flags);
 
-object_t* scene_spawn();
-unsigned  scene_count();
-object_t* scene_index(unsigned index);
+API object_t* scene_spawn();
+API unsigned  scene_count();
+API object_t* scene_index(unsigned index);
 #line 0
 #line 1 "fwk_script.h"
 // -----------------------------------------------------------------------------
 // script framework
 // - rlyeh, public domain
 
-void script_init();
-void script_run(const char *script);
-void script_runfile(const char *pathfile);
+API void script_init();
+API void script_run(const char *script);
+API void script_runfile(const char *pathfile);
 
-void script_bind_class(const char *objname, int num_methods, const char **c_names, void **c_functions);
-void script_bind_function(const char *c_name, void *c_function);
-void script_call(const char *lua_function);
+API void script_bind_class(const char *objname, int num_methods, const char **c_names, void **c_functions);
+API void script_bind_function(const char *c_name, void *c_function);
+API void script_call(const char *lua_function);
 #line 0
 #line 1 "fwk_system.h"
 // -----------------------------------------------------------------------------
@@ -1506,72 +1535,72 @@ void script_call(const char *lua_function);
 // Note: Windows users add `/Zi` compilation flags, else add `-g` and/or `-ldl` flags
 // Note: If you are linking your binary using GNU ld you need to add --export-dynamic
 
-int         argc();
-char*       argv(int);
+API int         argc();
+API char*       argv(int);
 
-const char* option(const char *commalist, const char *defaults);
-int         optioni(const char *commalist, int defaults);
-float       optionf(const char *commalist, float defaults);
+API const char* option(const char *commalist, const char *defaults);
+API int         optioni(const char *commalist, int defaults);
+API float       optionf(const char *commalist, float defaults);
 
-char*       os_exec_output();
-int         os_exec(const char *command);
-#define     os_exec(...) os_exec(file_normalize(stringf(__VA_ARGS__)))
+API char*       os_exec_output();
+API int         os_exec(const char *command);
+#define         os_exec(...) os_exec(file_normalize(stringf(__VA_ARGS__)))
 
-void        tty_color(unsigned color);
-void        tty_reset();
+API void        tty_color(unsigned color);
+API void        tty_reset();
 
-int         cpu_cores(void);
+API int         cpu_cores(void);
 
-const char* app_name();
-const char* app_path();
-const char* app_cache();
-const char* app_temp();
-void        app_reload();
+API const char* app_name();
+API const char* app_path();
+API const char* app_cache();
+API const char* app_temp();
+API void        app_reload();
 
-double      time_ss();
-double      time_ms();
-uint64_t    time_us();
-uint64_t    date_human(); // YYYYMMDDhhmmss
-double      sleep_ss(double ss);
-double      sleep_ms(double ms);
-uint64_t    sleep_us(uint64_t us);
+API double      time_ss();
+API double      time_ms();
+API uint64_t    time_us();
+API uint64_t    date_human(); // YYYYMMDDhhmmss
+API double      sleep_ss(double ss);
+API double      sleep_ms(double ms);
+API uint64_t    sleep_us(uint64_t us);
 
-char*       callstack( int traces ); // write callstack into a temporary string. do not delete it.
-int         callstackf( FILE *fp, int traces ); // write callstack to file. <0 traces to invert order.
+API char*       callstack( int traces ); // write callstack into a temporary string. do not delete it.
+API int         callstackf( FILE *fp, int traces ); // write callstack to file. <0 traces to invert order.
 
-void        die(const char *message);
-void        alert(const char *message);
-void        hexdump( const void *ptr, unsigned len );
-void        hexdumpf( FILE *fp, const void *ptr, unsigned len, int width );
-void        breakpoint(const char *reason);
-bool        has_debugger();
+API void        die(const char *message);
+API void        alert(const char *message);
+API void        hexdump( const void *ptr, unsigned len );
+API void        hexdumpf( FILE *fp, const void *ptr, unsigned len, int width );
+API void        breakpoint(const char *reason);
+API bool        has_debugger();
 
-uint16_t    lil16(uint16_t n); // swap16 as lil
-uint32_t    lil32(uint32_t n); // swap32 as lil
-float       lil32f(float n);   // swap32 as lil
-uint64_t    lil64(uint64_t n); // swap64 as lil
-double      lil64f(double n);  // swap64 as lil
-uint16_t    big16(uint16_t n); // swap16 as big
-uint32_t    big32(uint32_t n); // swap32 as big
-float       big32f(float n);   // swap32 as big
-uint64_t    big64(uint64_t n); // swap64 as big
-double      big64f(double n);  // swap64 as big
+API uint16_t    lil16(uint16_t n); // swap16 as lil
+API uint32_t    lil32(uint32_t n); // swap32 as lil
+API float       lil32f(float n);   // swap32 as lil
+API uint64_t    lil64(uint64_t n); // swap64 as lil
+API double      lil64f(double n);  // swap64 as lil
+API uint16_t    big16(uint16_t n); // swap16 as big
+API uint32_t    big32(uint32_t n); // swap32 as big
+API float       big32f(float n);   // swap32 as big
+API uint64_t    big64(uint64_t n); // swap64 as big
+API double      big64f(double n);  // swap64 as big
 
-uint16_t*   lil16p(void *n, int sz);
-uint32_t*   lil32p(void *n, int sz);
-float*      lil32pf(void *n, int sz);
-uint64_t*   lil64p(void *n, int sz);
-double*     lil64pf(void *n, int sz);
-uint16_t*   big16p(void *n, int sz);
-uint32_t*   big32p(void *n, int sz);
-float*      big32pf(void *n, int sz);
-uint64_t*   big64p(void *n, int sz);
-double*     big64pf(void *n, int sz);
+API uint16_t*   lil16p(void *n, int sz);
+API uint32_t*   lil32p(void *n, int sz);
+API float*      lil32pf(void *n, int sz);
+API uint64_t*   lil64p(void *n, int sz);
+API double*     lil64pf(void *n, int sz);
+API uint16_t*   big16p(void *n, int sz);
+API uint32_t*   big32p(void *n, int sz);
+API float*      big32pf(void *n, int sz);
+API uint64_t*   big64p(void *n, int sz);
+API double*     big64pf(void *n, int sz);
 
 #define alert(...)   alert(stringf(__VA_ARGS__))
 #define PANIC(...)   PANIC(stringf(__VA_ARGS__), __FILE__, __LINE__) // die() ?
-int (PRINTF)(const char *text, const char *stack, const char *file, int line, const char *function);
-int (PANIC)(const char *error, const char *file, int line);
+API int (PRINTF)(const char *text, const char *stack, const char *file, int line, const char *function);
+API int (PANIC)(const char *error, const char *file, int line);
 #line 0
 #line 1 "fwk_ui.h"
 // -----------------------------------------------------------------------------
@@ -1580,37 +1609,37 @@ int (PANIC)(const char *error, const char *file, int line);
 //
 // @todo: logger/console
 
-int  ui_begin(const char *title, int flags);
-    int  ui_int(const char *label, int *value);
-    int  ui_bool(const char *label, bool *value);
-    int  ui_short(const char *label, short *value);
-    int  ui_float(const char *label, float *value);
-    int  ui_float2(const char *label, float value[2]);
-    int  ui_float3(const char *label, float value[3]);
-    int  ui_string(const char *label, char *buffer, int buflen);
-    int  ui_color3(const char *label, float *color3);
-    int  ui_color4(const char *label, float *color4);
-    int  ui_button(const char *label);
-    int  ui_toggle(const char *label, bool *value);
-    int  ui_dialog(const char *title, const char *text, int choices, bool *show); // @fixme: return
-    int  ui_list(const char *label, const char **items, int num_items, int *selector);
-    int  ui_separator();
-    int  ui_label(const char *label);
-    int  ui_label2(const char *label, const char *caption);
-    int  ui_slider(const char *label, float *value);
-    int  ui_slider2(const char *label, float *value, const char *caption);
-    int  ui_const_bool(const char *label, const double value);
-    int  ui_const_float(const char *label, const double value);
-    int  ui_const_string(const char *label, const char *value);
-    #define ui_const_stringf(label, ...) ui_const_string(label, stringf(__VA_ARGS__))
-void ui_end();
+API int  ui_begin(const char *title, int flags);
+API int    ui_int(const char *label, int *value);
+API int    ui_bool(const char *label, bool *value);
+API int    ui_short(const char *label, short *value);
+API int    ui_float(const char *label, float *value);
+API int    ui_float2(const char *label, float value[2]);
+API int    ui_float3(const char *label, float value[3]);
+API int    ui_string(const char *label, char *buffer, int buflen);
+API int    ui_color3(const char *label, float *color3);
+API int    ui_color4(const char *label, float *color4);
+API int    ui_button(const char *label);
+API int    ui_toggle(const char *label, bool *value);
+API int    ui_dialog(const char *title, const char *text, int choices, bool *show); // @fixme: return
+API int    ui_list(const char *label, const char **items, int num_items, int *selector);
+API int    ui_separator();
+API int    ui_label(const char *label);
+API int    ui_label2(const char *label, const char *caption);
+API int    ui_slider(const char *label, float *value);
+API int    ui_slider2(const char *label, float *value, const char *caption);
+API int    ui_const_bool(const char *label, const double value);
+API int    ui_const_float(const char *label, const double value);
+API int    ui_const_string(const char *label, const char *value);
+#define    ui_const_stringf(label, ...) ui_const_string(label, stringf(__VA_ARGS__))
+API void ui_end();
 
-int  ui_menu(const char *items); // semicolon- or comma-separated items
-int  ui_item();
+API int  ui_menu(const char *items); // semicolon- or comma-separated items
+API int  ui_item();
 
-int  ui_hover(); // ui_is_hover()?
-int  ui_active(); // ui_is_active()?
-void ui_demo();
+API int  ui_hover(); // ui_is_hover()?
+API int  ui_active(); // ui_is_active()?
+API void ui_demo();
 #line 0
 #line 1 "fwk_video.h"
 // -----------------------------------------------------------------------------
@@ -1622,9 +1651,13 @@ void ui_demo();
 
 typedef struct video_t video_t;
 
-video_t*   video( const char *filename, int flags );
-texture_t* video_decode( video_t *v ); // decodes next frame, returns associated texture(s)
-void       video_destroy( video_t *v );
+API video_t*   video( const char *filename, int flags );
+API texture_t*  video_decode( video_t *v ); // decodes next frame, returns associated texture(s)
+API int         video_has_finished(video_t *v);
+API double      video_duration(video_t *v);
+API int         video_seek(video_t *v, double seek_to);
+API double      video_position(video_t *v);
+API void       video_destroy( video_t *v );
 #line 0
 #line 1 "fwk_window.h"
 // -----------------------------------------------------------------------------
@@ -1647,37 +1680,37 @@ enum {
     WINDOW_LANDSCAPE = 0x80,
 };
 
-void   window_create(float zoom, int flags);
-void   window_title(const char *title);
-void   window_icon(const char *file_icon);
-void   window_flush();
-int    window_swap();
-void*  window_handle();
+API void   window_create(float zoom, int flags);
+API void   window_title(const char *title);
+API void   window_icon(const char *file_icon);
+API void   window_flush();
+API int    window_swap();
+API void*  window_handle();
 
-int    window_width();
-int    window_height();
-double window_aspect();
-double window_time();
-double window_delta();
-double window_fps();
+API int    window_width();
+API int    window_height();
+API double window_aspect();
+API double window_time();
+API double window_delta();
+API double window_fps();
 
-bool   window_hook(void (*func)(), void* userdata);
-void   window_unhook(void (*func)());
+API bool   window_hook(void (*func)(), void* userdata);
+API void   window_unhook(void (*func)());
 
-void   window_focus(); // window attribute api using haz catz language for now
-int    window_has_focus();
-void   window_fullscreen(int enabled);
-int    window_has_fullscreen();
-void   window_cursor(int visible);
-int    window_has_cursor();
-void   window_pause();
-int    window_has_pause();
-void   window_visible(int visible);
-int    window_has_visible();
-void   window_videorec(const char* filename_mpg);
-int    window_has_videorec();
+API void   window_focus(); // window attribute api using haz catz language for now
+API int    window_has_focus();
+API void   window_fullscreen(int enabled);
+API int    window_has_fullscreen();
+API void   window_cursor(int visible);
+API int    window_has_cursor();
+API void   window_pause();
+API int    window_has_pause();
+API void   window_visible(int visible);
+API int    window_has_visible();
+API void   window_videorec(const char* filename_mpg);
+API int    window_has_videorec();
 
-void   window_screenshot(const char* filename_png);
+API void   window_screenshot(const char* filename_png);
 
 #define window_title(...) window_title(stringf(__VA_ARGS__))
 #line 0
@@ -1999,14 +2032,14 @@ typedef struct set {
     int count;
 } set;
 
-void  (set_init)(set *m);
-void  (set_free)(set *m);
+API void  (set_init)(set *m);
+API void  (set_free)(set *m);
 
-void  (set_insert)(set *m, set_item *p, void *key, uint64_t keyhash, void *super);
-void  (set_erase)(set *m, void *key, uint64_t keyhash);
-void* (set_find)(const set *m, void *key, uint64_t keyhash);
-int   (set_count)(const set *m);
-void  (set_gc)(set *m); // only if using SET_DONT_ERASE
+API void  (set_insert)(set *m, set_item *p, void *key, uint64_t keyhash, void *super);
+API void  (set_erase)(set *m, void *key, uint64_t keyhash);
+API void* (set_find)(const set *m, void *key, uint64_t keyhash);
+API int   (set_count)(const set *m);
+API void  (set_gc)(set *m); // only if using SET_DONT_ERASE
 
 // -----------------------------------------------------------------------------
 // map<K,V>
@@ -2114,14 +2147,14 @@ typedef struct map {
     int count;
 } map;
 
-void  (map_init)(map *m);
-void  (map_free)(map *m);
+API void  (map_init)(map *m);
+API void  (map_free)(map *m);
 
-void  (map_insert)(map *m, pair *p, void *key, void *value, uint64_t keyhash, void *super);
-void  (map_erase)(map *m, void *key, uint64_t keyhash);
-void* (map_find)(map *m, void *key, uint64_t keyhash);
-int   (map_count)(map *m);
-void  (map_gc)(map *m); // only if using MAP_DONT_ERASE
+API void  (map_insert)(map *m, pair *p, void *key, void *value, uint64_t keyhash, void *super);
+API void  (map_erase)(map *m, void *key, uint64_t keyhash);
+API void* (map_find)(map *m, void *key, uint64_t keyhash);
+API int   (map_count)(map *m);
+API void  (map_gc)(map *m); // only if using MAP_DONT_ERASE
 
 #endif // DS_H
 #line 0
@@ -2133,14 +2166,14 @@ void  (map_gc)(map *m); // only if using MAP_DONT_ERASE
 #define STRING_H
 
 // string: temporary api (stack)
-char*   stringf(const char *fmt, ...);
-#define stringf(...) (printf || printf(__VA_ARGS__), stringf(__VA_ARGS__))  // vs2015 check trick
+API char*   stringf(const char *fmt, ...);
+#define     stringf(...) (printf || printf(__VA_ARGS__), stringf(__VA_ARGS__))  // vs2015 check trick
 
 #if 1
 // string: allocated api (heap)
-char*   stringf_cat(char *x, const char *buf);
-#define stringf_cat(s,fmt,...)  stringf_cat((s), stringf(fmt, __VA_ARGS__)) // stringfcat ?
-#define stringf_del(s)         ((REALLOC((s), 0)), (s)=0) // stringfdel ?
+API char*   stringf_cat(char *x, const char *buf);
+#define     stringf_cat(s,fmt,...)  stringf_cat((s), stringf(fmt, __VA_ARGS__)) // stringfcat ?
+#define     stringf_del(s)         ((REALLOC((s), 0)), (s)=0) // stringfdel ?
 #endif
 
 #if defined _MSC_VER || (defined __TINYC__ && defined _WIN32)
@@ -2154,31 +2187,31 @@ char*   stringf_cat(char *x, const char *buf);
 
 // utils
 
-int          strmatch(const char *s, const char *wildcard);
+API int          strmatch(const char *s, const char *wildcard);
 
-int          strcmp_qsort(const void *a, const void *b);
-int          strcmpi_qsort(const void *a, const void *b);
+API int          strcmp_qsort(const void *a, const void *b);
+API int          strcmpi_qsort(const void *a, const void *b);
 
-bool         strbegi(const char *src, const char *sub);  // returns true if both strings match at beginning. case insensitive
-bool         strendi(const char *src, const char *sub);  // returns true if both strings match at end. case insensitive
-const char * strstri(const char *src, const char *sub);  // returns find first substring in string. case insensitive.
-#define      strcmpi  ifdef(msc, _stricmp, strcasecmp)
+API bool         strbegi(const char *src, const char *sub);  // returns true if both strings match at beginning. case insensitive
+API bool         strendi(const char *src, const char *sub);  // returns true if both strings match at end. case insensitive
+API const char * strstri(const char *src, const char *sub);  // returns find first substring in string. case insensitive.
+#define          strcmpi  ifdef(msc, _stricmp, strcasecmp)
 
-char *       strrepl(char **copy, const char *target, const char *replace); // replace any 'target' as 'repl' in 'copy'. returns 'copy'
-char *       strswap(char *copy, const char *target, const char *replace);  // replaced only if repl is shorter than target. no allocations.
-char *       strcut(char *copy, const char *target);                        // remove any 'target' in 'copy'. returns 'copy'
+API char *       strrepl(char **copy, const char *target, const char *replace); // replace any 'target' as 'repl' in 'copy'. returns 'copy'
+API char *       strswap(char *copy, const char *target, const char *replace);  // replaced only if repl is shorter than target. no allocations.
+API char *       strcut(char *copy, const char *target);                        // remove any 'target' in 'copy'. returns 'copy'
 
-char *       str16to8(const wchar_t *str); // convert from wchar16(win) to utf8/ascii
+API char *       str16to8(const wchar_t *str); // convert from wchar16(win) to utf8/ascii
 
-const char * strlerp(unsigned numpairs, const char **pairs, const char *str); // using key-value pairs, null-terminated
+API const char * strlerp(unsigned numpairs, const char **pairs, const char *str); // using key-value pairs, null-terminated
 
 #ifndef __APPLE__ // BSD provides these
-size_t       strlcat(char *dst, const char *src, size_t dstcap); // concat 2 strings safely. always NUL terminates. may truncate.
-size_t       strlcpy(char *dst, const char *src, size_t dstcap); // copy 2 strings safely. always NUL terminates. truncates if retval>=dstcap
+API size_t       strlcat(char *dst, const char *src, size_t dstcap); // concat 2 strings safely. always NUL terminates. may truncate.
+API size_t       strlcpy(char *dst, const char *src, size_t dstcap); // copy 2 strings safely. always NUL terminates. truncates if retval>=dstcap
 #endif
 
-array(char*) strsplit(const char *string, const char *delimiters);
-char*        strjoin(array(char*) list, const char *separator);
+API array(char*) strsplit(const char *string, const char *delimiters);
+API char*        strjoin(array(char*) list, const char *separator);
 
 #endif // STRING_H
 #line 0

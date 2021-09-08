@@ -16,7 +16,7 @@
 ## Features ᕦ(ᐛ)ᕤ (stuff done ~~and yet to be done~~)
 - [x] OS: Windows, Linux and OSX.
 - [x] Compiler: MSVC, MINGW64, TCC, GCC and clang.
-- [x] Window: fullscreen, msaa, cursor handling.
+- [x] Window: windowed, fullscreen, msaa, icon, cursor handling.
 - [x] Input: keyboard, mouse and gamepads.
 - [x] Script: Lua, bindings ~~and FFI~~.
 - [x] Network: downloads (HTTPS), sockets (TCP/UDP) ~~and messages (enet/websocket)~~.
@@ -41,13 +41,13 @@
 - [x] Profiler, stats and leaks finder.
 - [x] Level data: JSON, JSON5, SJSON, XML.
 
-## Roadmap ᕕ(ᐛ)ᕗ (in order of arrival; `*` partial support)
+## Roadmap ᕕ(ᐛ)ᕗ (in order of arrival; `*`: partial support)
 - [ ] Network: message api and pub/sub wrappers (enet/websocket).
-- [ ] Script: DLL, Teal and TypeScript.
+- [ ] Script: DLL`*`, Lua`*`, Teal and TypeScript.
 - [ ] Script: Refl/meta binding tool (during cook stage).
 - [ ] Level editor: gizmos`*`, scene tree, property editor, load/save, undo/redo, copy/paste.
-- [ ] Level objects: volumes, triggers, platforms, streaming.
-- [ ] Render: Materials (colors, textures, matcaps`*`, videos, shadertoys`*`).
+- [ ] Level objects: volumes`*`, triggers, platforms, streaming.
+- [ ] Render: Materials (colors, textures`*`, matcaps`*`, videos`*`, shadertoys`*`).
 - [ ] Render: Shadow mapping and baked lightmaps.
 - [ ] Pipeline: Make asset pipeline configurable. Extend: shaders, bindings, textures. Per-type, per-asset options.
 - [ ] Maybe: Animation pass.
@@ -164,6 +164,7 @@ echo OSX (gcc+clang)       && cc  demo.c -ObjC fwk.c -o demo -w -framework cocoa
 ```
 <!-- - Note: Windows: Assimp.dll may need [this package installed](https://www.microsoft.com/en-us/download/confirmation.aspx?id=30679).-->
 - Note: TCC is partially supported on Windows+Linux. Beware, no threading.
+- Note: FWK as DLL: `cl fwk.c /LD /DAPI=EXPORT`, then `cl demo_dll.c fwk.lib /DAPI=IMPORT`.
 
 ## Amalgamation
 - Split FWK into separate files by running `art/tools/split.bat` (or `sh art/tools/split.bat` in Linux/OSX).

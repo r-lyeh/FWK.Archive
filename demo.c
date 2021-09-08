@@ -205,7 +205,7 @@ int main() {
     }
 
     // network test (https)
-    FILE *webfile = tmpfile();
+    FILE *webfile = file_temp();
     download(webfile, "https://www.google.com/");
     printf("Network test: %d bytes downloaded from google.com\n", (int)ftell(webfile));
 
