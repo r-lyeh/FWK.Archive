@@ -111,8 +111,43 @@ if "%Platform%"=="" (
 cd "%~dp0"
 echo @%~dp0\art\tools\tcc-win\tcc -I %~dp0\art\tools\tcc-win\include_mingw\winapi -I %~dp0\art\tools\tcc-win\include_mingw\ %%* > tcc.bat
 
+rem generate documentation
+if "%1"=="docs" (
+    if not exist "fwk_window.h" call art\tools\split.bat
+
+    rem create fwk.html: css + intro
+    type art\tools\docs.css  > fwk.html
+    type art\tools\docs.md  >> fwk.html
+
+    echo # API >> fwk.html
+
+    rem append parsed fwk headers
+    setlocal enabledelayedexpansion
+    for %%i in (fwk_*.h) do (
+        set file=%%i
+        set header=!file:fwk_=!
+        set section=!header:.h=!
+        if "!section!"=="compat" (
+        rem skipped
+        ) else if "!section!"=="main" (
+        rem skipped
+        ) else (
+        rem extract markdown from headers
+        echo ## !section! >> fwk.html
+        art\tools\src2doc.exe %%i >> fwk.html
+        rem functions
+        echo ```C linenumbers >> fwk.html
+        type %%i | find "API " >> fwk.html
+        echo ```>> fwk.html
+        )
+    )
+    exit /b
+)
+
+rem copy demos to root folder. local changes are preserved
 echo n | copy /-y demos\*.c 1> nul 2> nul
 
+rem tidy environment
 if "%1"=="tidy" (
     del .temp*.*
     del *.zip
@@ -131,7 +166,6 @@ if "%1"=="tidy" (
     rd /q /s .vs
     exit /b
 )
-
 
 if "%Platform%"=="x64" (
     rem pipeline

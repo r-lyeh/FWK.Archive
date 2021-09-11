@@ -40,6 +40,7 @@
 - [x] Integrated asset pipeline.
 - [x] Profiler, stats and leaks finder.
 - [x] Level data: JSON, JSON5, SJSON, XML.
+- [ ] Documentation: [self-generated link](https://r-lyeh.github.io/FWK/fwk.html).
 
 ## Roadmap ᕕ(ᐛ)ᕗ (in order of arrival; `*`: partial support)
 - [ ] Network: message api and pub/sub wrappers (enet/websocket).
@@ -49,13 +50,14 @@
 - [ ] Level objects: volumes`*`, triggers, platforms, streaming.
 - [ ] Render: Materials (colors, textures`*`, matcaps`*`, videos`*`, shadertoys`*`).
 - [ ] Render: Shadow mapping and baked lightmaps.
-- [ ] Pipeline: Make asset pipeline configurable. Extend: shaders, bindings, textures. Per-type, per-asset options.
+- [ ] Pipeline: Extend: shaders, bindings, textures. Per-type, per-asset options.
+- [ ] Pipeline: Make asset pipeline configurable (maybe move/override logic to external script).
 - [ ] Maybe: Animation pass.
 - [ ] Maybe: AI/Logic pass.
 - [ ] Maybe: Lighting/PBR pass.
 - [ ] Maybe: VM/ECS/Replication pass.
-- [ ] API: More examples.
-- [ ] API: Documentation. Generator (during cook stage).
+- [ ] API: More examples. Also, less examples.
+- [ ] API: Documentation. Generator `*`. Generator during cook stage.
 - [ ] API: Review API, clean it up and lock it.
 
 <!--

@@ -1217,7 +1217,7 @@ API void sprite( texture_t texture,
     float px, float py, float pz, float rotation, // position(x,y,depth sort), angle
     float ox, float oy, float sx, float sy,       // offset(x,y), scale(x,y)
     int additive, uint32_t rgba,                  // is_additive, tint color
-    float frame, float xcells, float ycells       // frame_number in a 8x4 spritesheet
+    float frame, float xcells, float ycells       // frame_number in a X*Y spritesheet
 );
 
 API void sprite_update();
