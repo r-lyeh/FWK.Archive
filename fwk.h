@@ -890,6 +890,10 @@ API data_t data_get(bool is_string, const char *keypath); // @todo, array(data_t
 
 API void editor();
 API bool editor_active();
+
+API int  gizmo(vec3 *pos, vec3 *rot, vec3 *sca);
+API bool gizmo_active();
+
 #line 0
 #line 1 "fwk_file.h"
 // -----------------------------------------------------------------------------
