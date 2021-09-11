@@ -3,6 +3,8 @@
 # linux + osx -----------------------------------------------------------------
 cd `dirname $0`
 
+cp demos/*.c -n
+
 if [ "$(uname)" != "Darwin" ]; then
     # setup (linux)
      sudo apt-get update
@@ -109,6 +111,7 @@ if "%Platform%"=="" (
 cd "%~dp0"
 echo @%~dp0\art\tools\tcc-win\tcc -I %~dp0\art\tools\tcc-win\include_mingw\winapi -I %~dp0\art\tools\tcc-win\include_mingw\ %%* > tcc.bat
 
+echo n | copy /-y demos\*.c 1> nul 2> nul
 
 if "%1"=="tidy" (
     del .temp*.*
@@ -124,6 +127,7 @@ if "%1"=="tidy" (
     del *.png
     del *.def
     del *.dll
+    del demo_*.c
     rd /q /s .vs
     exit /b
 )
