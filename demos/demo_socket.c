@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
             puts("ready at 8080");
             for(;;) {
                 tcp_peek(srv, echo_server);
-                Sleep(1);
+                sleep_ms(100);
             }
             tcp_close(srv);
         }

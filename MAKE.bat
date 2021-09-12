@@ -3,7 +3,7 @@
 # linux + osx -----------------------------------------------------------------
 cd `dirname $0`
 
-cp demos/*.c -n
+cp demos/*.c . -n
 
 if [ "$(uname)" != "Darwin" ]; then
     # setup (linux)
