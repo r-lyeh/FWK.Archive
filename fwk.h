@@ -827,8 +827,9 @@ enum {
 // must return compression level if archive needs to be cooked, else return <0
 typedef int (*cooker_callback_t)(char *filename, const char *ext, const char header[16], FILE *in, FILE *out, const char *info, int threadid);
 
+API void cooker_config( const char *art_path, const char *tools_path ); // "art/", "art/tools/"
+API bool cooker_process( const char *masks, cooker_callback_t cb, int flags );
 API int  cooker_progress(); // [0..100]
-API bool cooker( const char *masks, cooker_callback_t cb, int flags );
 #line 0
 #line 1 "fwk_data.h"
 // -----------------------------------------------------------------------------
@@ -907,7 +908,7 @@ API bool gizmo_active();
 
 // physical filesystem. files
 
-API const char** file_list(const char *masks); // **.png;*.c
+API const char** file_list(const char *path, const char *masks); // **.png;*.c
 API char *       file_read(const char *filename);
 API char *       file_load(const char *filename, int *len);
 API uint64_t     file_size(const char *pathfile);
