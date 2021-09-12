@@ -40,7 +40,7 @@
 - [x] Integrated asset pipeline.
 - [x] Profiler, stats and leaks finder.
 - [x] Level data: JSON, JSON5, SJSON, XML.
-- [ ] Documentation: [self-generated link](https://r-lyeh.github.io/FWK/fwk.html).
+- [ ] Documentation: [self-generated link](https://raw.githack.com/r-lyeh/FWK/master/fwk.html).
 
 ## Roadmap ᕕ(ᐛ)ᕗ (in order of arrival; `*`: partial support)
 - [ ] Network: message api and pub/sub wrappers (enet/websocket).
