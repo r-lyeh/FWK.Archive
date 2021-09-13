@@ -87,6 +87,16 @@
 #ifndef FWK_H
 #define FWK_H
 
+// -----------------------------------------------------------------------------
+// doc, force documentation on a given line
+/*
+#define DOC
+#define ENUM
+#define MACRO
+#define MEMBER(t)
+#define TYPEDEF
+*/
+
 //-----------------------------------------------------------------------------
 // Headers
 
@@ -97,15 +107,19 @@
 #ifdef _MSC_VER
 #define IMPORT __declspec(dllimport)
 #define EXPORT __declspec(dllexport)
+#define STATIC
 #else
 #define IMPORT
 #define EXPORT
+#define STATIC
 #endif
 
 // msvc users may need to -DAPI=IMPORT/EXPORT as needed when loading/building FWK as DLL.
 #ifndef API
 #define API
 #endif
+
+#define GLAD_API_CALL API // keep glad linkage on par, @r-lyeh
 
 API void* dll(const char *filename, const char *symbol);
 #line 0
@@ -167,12 +181,13 @@ API void* dll(const char *filename, const char *symbol);
 #define __thread
 #endif
 
-// util for sanity checks (static_assert)
+// -----------------------------------------------------------------------------
+// utils
 
-//#define STATIC_ASSERT_2(COND, LINE) typedef int static_assert_on_line_##LINE[ !!(COND) ]
-#define STATIC_ASSERT_2(COND, LINE) typedef struct { unsigned static_assert_on_line_##LINE : !!(COND); } static_assert_on_line_##LINE
-#define STATIC_ASSERT_1(COND, LINE) STATIC_ASSERT_2(COND, LINE)
-#define STATIC_ASSERT(COND) STATIC_ASSERT_1(COND, __LINE__)
+//#define STATIC_ASSERT_2(EXPR, LINE) typedef int static_assert_on_line_##LINE[ !!(EXPR) ]
+#define STATIC_ASSERT_2(EXPR, LINE) typedef struct { unsigned static_assert_on_line_##LINE : !!(EXPR); } static_assert_on_line_##LINE
+#define STATIC_ASSERT_1(EXPR, LINE) STATIC_ASSERT_2(EXPR, LINE)
+#define STATIC_ASSERT(EXPR)         STATIC_ASSERT_1(EXPR, __LINE__)
 
 //#define STATIC_ASSERT(exp) typedef char UNIQUE_NAME(_static_assert_on_line)[(exp)?1:-1]
 
@@ -348,26 +363,27 @@ API float ease_inout_back(float t);
 API float ease_inout_elastic(float t);
 API float ease_inout_bounce(float t);
 
-API float ease_perlin_inout(float t);
+API float ease_inout_perlin(float t);
 
 API float ease_ping_pong(float t, float(*fn1)(float), float(*fn2)(float));
 API float ease_pong_ping(float t, float(*fn1)(float), float(*fn2)(float));
 
 // ----------------------------------------------------------------------------
 
-API float deg      (float radians)      ;
-API float rad      (float degrees)      ;
+API float deg      (float radians);
+API float rad      (float degrees);
 
 API int   mini     (int    a, int    b);
 API int   maxi     (int    a, int    b);
 API int   absi     (int    a          );
+
 API float minf     (float  a, float  b);
 API float maxf     (float  a, float  b);
 API float absf     (float  a          );
 API float pmodf    (float  a, float  b);
 API float signf    (float  a)           ;
-API float clampf(float v,float a,float b);
-API float mixf(float a,float b,float t);
+API float clampf   (float v,float a,float b);
+API float mixf     (float a,float b,float t);
 
 // ----------------------------------------------------------------------------
 
@@ -1142,7 +1158,7 @@ typedef struct image_t {
     union { unsigned x, w; };
     union { unsigned y, h; };
     union { unsigned n, comps; };
-    union { void *pixels; unsigned char *pixels8; unsigned short *pixels16; unsigned *pixels32; float *pixelsf; };
+    union { void *pixels; uint8_t *pixels8; uint16_t *pixels16; uint32_t *pixels32; float *pixelsf; };
 } image_t;
 
 API image_t image(const char *pathfile, int flags);
@@ -1214,12 +1230,8 @@ API void  fullscreen_ycbcr_quad( texture_t texture_YCbCr[3], float gamma );
 
 API void tile( texture_t texture, vec3 position, uint32_t color /*~0u*/, float rotation /*0*/ );
 
-API void sprite( texture_t texture,
-    float px, float py, float pz, float rotation, // position(x,y,depth sort), angle
-    float ox, float oy, float sx, float sy,       // offset(x,y), scale(x,y)
-    int additive, uint32_t rgba,                  // is_additive, tint color
-    float frame, float xcells, float ycells       // frame_number in a X*Y spritesheet
-);
+// texture id, position(x,y,depth sort), rotation angle, offset(x,y), scale(x,y), is_additive, tint color, spritesheet(frameNumber,X,Y) (frame in a X*Y spritesheet)
+API void sprite( texture_t texture, float position[3], float rotation, float offset[2], float scale[2], int is_additive, uint32_t rgba, float spritesheet[3]);
 
 API void sprite_update();
 
@@ -2244,11 +2256,11 @@ API char*        strjoin(array(char*) list, const char *separator);
         } } while(0)
 struct profile_t { double stat; int32_t cost, avg; };
 typedef map(char *, struct profile_t) profiler_t;
-extern profiler_t profiler;
+extern API profiler_t profiler;
 #else
-#   define profile_init() do {} while(0)
+#   define profile_init()               do {} while(0)
 #   define profile_incstat(name, accum) do {} while(0)
-#   define profile(...) if(1) // for(int _p = 1; _p; _p = 0)
+#   define profile(...)                 if(1) // for(int _p = 1; _p; _p = 0)
 #   define profile_render()
 #endif
 #line 0

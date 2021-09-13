@@ -1,5 +1,5 @@
 <h1 align="center">F·W·K</h1>
-<p align="center">Minimalist C framework for quick 3D game development.</p>
+<p align="center">3D game framework in C.</p>
 
 <!--## Gallery-->
 <p align="center">
@@ -43,42 +43,42 @@
 - [ ] Documentation: [self-generated link](https://raw.githack.com/r-lyeh/FWK/master/fwk.html).
 
 ## Roadmap ᕕ(ᐛ)ᕗ (in order of arrival; `*`: partial support)
-- [ ] Network: message api and pub/sub wrappers (enet/websocket).
-- [ ] Script: DLL`*`, Lua`*`, Teal and TypeScript.
-- [ ] Script: Refl/meta binding tool (during cook stage).
+- [ ] API: Documentation generator, during cook stage.
+- [ ] Network: socketless api. NAT traversal. also, message api and pub/sub wrappers (enet/websocket).
+- [ ] Render: Materials (colors, textures`*`, matcaps`*`, videos`*`, shadertoys`*`).
+- [ ] Render: Flags (billboards `*`, un/lit). Hard/soft shadow mapping and baked lightmaps.
 - [ ] Level editor: gizmos`*`, scene tree, property editor, load/save, undo/redo, copy/paste.
 - [ ] Level objects: volumes`*`, triggers, platforms, streaming.
-- [ ] Render: Materials (colors, textures`*`, matcaps`*`, videos`*`, shadertoys`*`).
-- [ ] Render: Shadow mapping and baked lightmaps.
-- [ ] Pipeline: Extend: shaders, bindings, textures. Per-type, per-asset options.
-- [ ] Pipeline: Make asset pipeline configurable (maybe move/override logic to external script).
+- [ ] Script: DLL`*`, Lua`*`, Teal and TypeScript.
+- [ ] Script: Refl/meta binding tool (during cook stage).
+- [ ] Pipeline: Extend: shaders, bindings, textures. Per-platform, per-type, per-asset options.
+- [ ] Pipeline: Atlassing (sprite/lightmaps). Fit packing (fonts/sprites).
+- [ ] Pipeline: Make asset pipeline configurable (maybe move/override logic to external scripts?).
 - [ ] Maybe: Animation pass.
 - [ ] Maybe: AI/Logic pass.
 - [ ] Maybe: Lighting/PBR pass.
 - [ ] Maybe: VM/ECS/Replication pass.
 - [ ] API: More examples. Also, less examples.
-- [ ] API: Documentation. Generator `*`. Generator during cook stage.
 - [ ] API: Review API, clean it up and lock it.
+- [ ] API: Document.
 
 <!--
 // almost done:
 // [x] shadertoy textures
-// [ ] billboards
+// [ ] billboards (follow sprite API? state instead? ie, billboard(true); before rendering?)
 // [ ] soft shadows (vsm, vsmcube)
 // nice to have:
-// [ ] fixed leaks
-// [ ] fwk_app: app state manager, options, app icon, cpu usage, battery, orientation
+// [ ] fixed leaks and todos
+// [ ] fwk_app: options, cpu usage, battery, orientation
 // [ ] fwk_input: cursor, mouse clip, mouse wrap,
 // [ ] sprites: pixel perfect zooming (demo+wheel)
 // [ ] zip0 seek-vfs optimization
 -->
 
 <!--
-//[ ] Script: Teal and typescript.
 //[ ] Script: Refl/meta binding tool (during cook stage).
 //    fwk_cook (*.c, *.h) as .proto/.pbc maybe, free reflection+automatic bindings
-//[ ] Level editor: gizmos, ~~scene tree, property editor, load/save~~.
-// 4) (json) editor: load/save jsons, property editor for anything (remote osc server/client)
+// 4) (json) level editor: load/save jsons, property editor for anything (remote osc server/client)
 //    cam: friction, projections (dimetric, isometric, ...)
 //    gizmo: proportional, arcball XY (+shift for Z/tilt)
 //    scene: scenegraph, obj naming, ~~obj picking, obj bounds,~~ obj collisions, obj/scene streaming
@@ -92,8 +92,6 @@
 //[ ] Render: Materials (textures, matcaps, videos, shadertoys).
 //    material: fixed color, texture or script that returns color
 //    animated textures (shadertoys)
-//[ ] Render: Shadow mapping and baked lightmaps.
-// [ ] soft shadows (vsm, vsmcube)
 //[ ] Pipeline: Extend configurable asset pipeline (shaders, bindings, xml, textures). Asset options.
 //    extending asset pipeline
 //      cook: img2png (spot, stbi), tex2pvr (spot, soil2)
@@ -101,15 +99,15 @@
 //      cook: ogg2wav, mp32wav, mp22wav, flac2wav
 //      cook: xml2json, mp2json
 //      cook: tiled2json, spine2json, tlfx22json
-//[ ] Maybe: Animation pass.
 // 6) anims, I (playlist: forward/backwards/loop/rewind), II (blend/shapes), III (ik/bone), IV (graph/controller)
 //    blend anims, animtracks+animevents, draw skeleton, additive anims,
 //    fwk_data: quantization: ~~half, quant, microfloat~~.
 //    anim; keyframes[] { frame+delay,frame+delay,... }, anim duration, anim flip
 //[ ] Maybe: AI/Logic pass.
+//    app: app state manager (h/fsm modules)
 //    scripts: states, signals, h/fsm, coroutines, load/save context
 //    ai: h/fsm for level objects and small enemies, planning GOAL, BTrees,
-//    nav: navpaths, waypoints, navigation, pathfinding (jps.hh), a*, swarm/flocks,
+//    nav: navpaths, waypoints, navigation, pathfinding (jps.hh), A*, A* GOAL planning, swarm/flocks,
 //[ ] Maybe: VM/ECS/Replication pass.
 // 8) vm/ecs core + engines: custom frontends & backends
 //    vm: ram, workqueues, threading, priorities, load/save
@@ -149,8 +147,7 @@
 //    }
 //[ ] API: Review API and lock it.
 // 3) lock API and release first stable version.
-//[ ] API: Documentation.
-    //src2doc
+//[ ] API: Documentation. src2doc
 //[ ] API: More examples.
 -->
 
@@ -166,7 +163,7 @@ echo OSX (gcc+clang)       && cc  demo.c -ObjC fwk.c -o demo -w -framework cocoa
 ```
 <!-- - Note: Windows: Assimp.dll may need [this package installed](https://www.microsoft.com/en-us/download/confirmation.aspx?id=30679).-->
 - Note: TCC is partially supported on Windows+Linux. Beware, no threading.
-- Note: FWK as DLL: `cl fwk.c /LD /DAPI=EXPORT`, then `cl demo_dll.c fwk.lib /DAPI=IMPORT`.
+- Note: FWK as DLL: `cl fwk.c /LD /DAPI=EXPORT && cl demo.c fwk.lib /DAPI=IMPORT`.
 
 ## Amalgamation
 - Split FWK into separate files by running `art/tools/split.bat` (or `sh art/tools/split.bat` in Linux/OSX).

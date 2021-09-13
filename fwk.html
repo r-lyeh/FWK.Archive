@@ -455,7 +455,7 @@ hr.pagebreak
 <!-- <style class="fallback">body{visibility:hidden}</style><script>markdeepOptions={tocStyle:'long'};</script> -->
 <!-- Markdeep: --><script src="https://casual-effects.com/markdeep/latest/markdeep.min.js?" charset="utf-8"></script>
 <h1 align="center">F·W·K</h1>
-<p align="center">Minimalist C framework for quick 3D game development.</p>
+<p align="center">3D game framework in C.</p>
 
 <!--## Gallery-->
 <p align="center">
@@ -500,7 +500,7 @@ int main(int argc, char **argv) {
 # API 
 ## audio 
 
-```C linenumbers 
+```C linenumbers            
 API audio_t audio_clip( const char *pathfile );
 API audio_t audio_stream( const char *pathfile );
 API     int audio_play( audio_t s, int flags );
@@ -511,7 +511,7 @@ API int audio_queue( const void *samples, int num_samples, int flags );
 ```
 ## collide 
 
-```C linenumbers 
+```C linenumbers            
 API float   line_distance2_point(line l, vec3 p);
 API vec3    line_closest_point(line l, vec3 p);
 API float   ray_test_plane(ray r, vec4 p4);
@@ -576,14 +576,14 @@ API poly    diamond(vec3 from, vec3 to, float size); // poly_free() required
 ```
 ## cooker 
 
-```C linenumbers 
+```C linenumbers            
 API void cooker_config( const char *art_path, const char *tools_path ); // "art/", "art/tools/"
 API bool cooker_process( const char *masks, cooker_callback_t cb, int flags );
 API int  cooker_progress(); // [0..100]
 ```
 ## data 
 
-```C linenumbers 
+```C linenumbers            
 API bool    data_push(const char *source);
 API int         data_count(const char *keypath);
 API bool    data_pop();
@@ -591,12 +591,13 @@ API data_t data_get(bool is_string, const char *keypath); // @todo, array(data_t
 ```
 ## dll 
 
-```C linenumbers 
+```C linenumbers            
+#define GLAD_API_CALL API // keep glad linkage on par, @r-lyeh
 API void* dll(const char *filename, const char *symbol);
 ```
 ## ds 
 
-```C linenumbers 
+```C linenumbers            
 API void  (set_init)(set *m);
 API void  (set_free)(set *m);
 API void  (set_insert)(set *m, set_item *p, void *key, uint64_t keyhash, void *super);
@@ -614,7 +615,7 @@ API void  (map_gc)(map *m); // only if using MAP_DONT_ERASE
 ```
 ## editor 
 
-```C linenumbers 
+```C linenumbers            
 API void editor();
 API bool editor_active();
 API int  gizmo(vec3 *pos, vec3 *rot, vec3 *sca);
@@ -622,7 +623,7 @@ API bool gizmo_active();
 ```
 ## file 
 
-```C linenumbers 
+```C linenumbers            
 API const char** file_list(const char *path, const char *masks); // **.png;*.c
 API char *       file_read(const char *filename);
 API char *       file_load(const char *filename, int *len);
@@ -652,7 +653,7 @@ API void *       cache_lookup(const char *key, int *size);
 ```
 ## input 
 
-```C linenumbers 
+```C linenumbers            
 API int         input_use( int controller_id ); // [0..3]
 API float       input( int vk );
 API vec2        input2( int vk );
@@ -685,7 +686,7 @@ API bool        input_load_state( int id, void *ptr, int size); // @todo
 
 
 
-```C linenumbers 
+```C linenumbers            
 API void     randset(uint64_t state);
 API uint64_t rand64(void);
 API double   randf(void); // [0, 1) interval
@@ -725,11 +726,11 @@ API float ease_inout_circ(float t);
 API float ease_inout_back(float t);
 API float ease_inout_elastic(float t);
 API float ease_inout_bounce(float t);
-API float ease_perlin_inout(float t);
+API float ease_inout_perlin(float t);
 API float ease_ping_pong(float t, float(*fn1)(float), float(*fn2)(float));
 API float ease_pong_ping(float t, float(*fn1)(float), float(*fn2)(float));
-API float deg      (float radians)      ;
-API float rad      (float degrees)      ;
+API float deg      (float radians);
+API float rad      (float degrees);
 API int   mini     (int    a, int    b);
 API int   maxi     (int    a, int    b);
 API int   absi     (int    a          );
@@ -738,8 +739,8 @@ API float maxf     (float  a, float  b);
 API float absf     (float  a          );
 API float pmodf    (float  a, float  b);
 API float signf    (float  a)           ;
-API float clampf(float v,float a,float b);
-API float mixf(float a,float b,float t);
+API float clampf   (float v,float a,float b);
+API float mixf     (float a,float b,float t);
 API vec2  ptr2     (const float *a    );
 API vec2  neg2     (vec2   a          );
 API vec2  add2     (vec2   a, vec2   b);
@@ -911,7 +912,7 @@ API void print44( float *m );
 ```
 ## memory 
 
-```C linenumbers 
+```C linenumbers            
 API void*  xrealloc(void* p, size_t sz);
 API size_t xsize(void* p);
 API void*  stack(int bytes);
@@ -920,7 +921,7 @@ API void*  forget( void *ptr );
 ```
 ## network 
 
-```C linenumbers 
+```C linenumbers            
 API int download( FILE *out, const char *url );
 API int portname( const char *service_name, unsigned retries );
 API int   udp_bind(const char *address, const char *port);
@@ -943,11 +944,12 @@ API int   tcp_debug(int); // toggle traffic monitoring on/off for given socket
 ```
 ## profile 
 
-```C linenumbers 
+```C linenumbers            
+extern API profiler_t profiler;
 ```
 ## render 
 
-```C linenumbers 
+```C linenumbers            
 API uint32_t rgba( uint8_t r, uint8_t g, uint8_t b, uint8_t a );
 API uint32_t bgra( uint8_t r, uint8_t g, uint8_t b, uint8_t a );
 API float    alpha( uint32_t rgba );
@@ -963,7 +965,7 @@ API unsigned  texture_update(texture_t *t, unsigned w, unsigned h, unsigned n, v
 API void  fullscreen_rgb_quad( texture_t texture_rgb, float gamma );
 API void  fullscreen_ycbcr_quad( texture_t texture_YCbCr[3], float gamma );
 API void tile( texture_t texture, vec3 position, uint32_t color /*~0u*/, float rotation /*0*/ );
-API void sprite( texture_t texture,
+API void sprite( texture_t texture, float position[3], float rotation, float offset[2], float scale[2], int is_additive, uint32_t rgba, float spritesheet[3]);
 API void sprite_update();
 API cubemap_t  cubemap( const image_t image, int flags ); // 1 equirectangular panorama
 API cubemap_t  cubemap6( const image_t images[6], int flags ); // 6 cubemap faces
@@ -1024,7 +1026,7 @@ API void*    screenshot(unsigned components); // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA
 ```
 ## renderdd 
 
-```C linenumbers 
+```C linenumbers            
 API void ddraw_color(unsigned rgb);
 API void ddraw_ontop(int enabled);
 API void ddraw_aabb(vec3 minbb, vec3 maxbb);
@@ -1064,7 +1066,7 @@ API void ddraw_flush();
 ```
 ## scene 
 
-```C linenumbers 
+```C linenumbers            
 API camera_t camera();
 API void camera_move(camera_t *cam, float x, float y, float z);
 API void camera_fps(camera_t *cam, float yaw, float pitch);
@@ -1091,7 +1093,7 @@ API object_t* scene_index(unsigned index);
 ```
 ## script 
 
-```C linenumbers 
+```C linenumbers            
 API void script_init();
 API void script_run(const char *script);
 API void script_runfile(const char *pathfile);
@@ -1101,7 +1103,7 @@ API void script_call(const char *lua_function);
 ```
 ## string 
 
-```C linenumbers 
+```C linenumbers            
 API char*   stringf(const char *fmt, ...);
 API char*   stringf_cat(char *x, const char *buf);
 API int          strmatch(const char *s, const char *wildcard);
@@ -1122,7 +1124,7 @@ API char*        strjoin(array(char*) list, const char *separator);
 ```
 ## system 
 
-```C linenumbers 
+```C linenumbers            
 API int         argc();
 API char*       argv(int);
 API const char* option(const char *commalist, const char *defaults);
@@ -1178,7 +1180,7 @@ API int (PANIC)(const char *error, const char *file, int line);
 ```
 ## ui 
 
-```C linenumbers 
+```C linenumbers            
 API int  ui_begin(const char *title, int flags);
 API int    ui_int(const char *label, int *value);
 API int    ui_bool(const char *label, bool *value);
@@ -1210,7 +1212,7 @@ API void ui_demo();
 ```
 ## video 
 
-```C linenumbers 
+```C linenumbers            
 API video_t*   video( const char *filename, int flags );
 API texture_t*  video_decode( video_t *v ); // decodes next frame, returns associated texture(s)
 API int         video_has_finished(video_t *v);
@@ -1221,7 +1223,7 @@ API void       video_destroy( video_t *v );
 ```
 ## window 
 
-```C linenumbers 
+```C linenumbers            
 API void   window_create(float zoom, int flags);
 API void   window_title(const char *title);
 API void   window_icon(const char *file_icon);

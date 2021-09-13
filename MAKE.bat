@@ -136,8 +136,13 @@ if "%1"=="docs" (
         echo ## !section! >> fwk.html
         art\tools\src2doc.exe %%i >> fwk.html
         rem functions
-        echo ```C linenumbers >> fwk.html
-        type %%i | find "API " >> fwk.html
+        echo ```C linenumbers            >> fwk.html
+        type %%i | find "DOC "           >> fwk.html
+        type %%i | find "ENUM "          >> fwk.html
+        type %%i | find "TYPEDEF "       >> fwk.html
+        type %%i | find "MEMBER("        >> fwk.html
+        type %%i | find "API "           >> fwk.html
+        type %%i | find "MACRO "         >> fwk.html
         echo ```>> fwk.html
         )
     )
@@ -174,8 +179,16 @@ if "%Platform%"=="x64" (
     rem cl art/tools/mid2wav.c   /Feart/tools/mid2wav.exe  /nologo /openmp /O2 /Oy /MT /DNDEBUG /DFINAL
     rem cl art/tools/xml2json.c  /Feart/tools/xml2json.exe /nologo /openmp /O2 /Oy /MT /DNDEBUG /DFINAL
 
+    rem [HINT] static linking vs dll
+    rem SLL: cl fwk.c && cl demo.c fwk.obj
+    rem DLL: cl fwk.c /LD /DAPI=EXPORT && cl demo.c fwk.lib /DAPI=IMPORT
+
+    rem [HINT] optimization flags for release builds
+    rem method 1: /Ox /Oy /MT /DNDEBUG /DFINAL
+    rem method 2:     /O1 /MT /DNDEBUG /DFINAL /GL /GF /arch:AVX2
+
     rem framework
-    cl fwk.c /nologo /openmp /Zi /c
+    cl fwk.c /c /nologo /openmp /Zi
 
     rem demos
     cl demo.c           fwk.obj /nologo /openmp /Zi
@@ -188,10 +201,6 @@ if "%Platform%"=="x64" (
     cl demo_video.c     fwk.obj /nologo /openmp /Zi
     cl demo_script.c    fwk.obj /nologo /openmp /Zi
     cl demo_socket.c    fwk.obj /nologo /openmp /Zi
-
-    rem fwk.dll demos
-    cl fwk.c /LD /DAPI=EXPORT          /nologo /openmp /Zi 
-    cl demo_dll.c fwk.lib /DAPI=IMPORT /nologo /openmp /Zi
 
 ) else if "%Platform%"=="mingw64" (
     rem pipeline
@@ -237,5 +246,7 @@ if "%Platform%"=="x64" (
     echo demo_socket    && tcc demo_socket.c    fwk.o -w
 )
 
-pause
+rem PAUSE only if double-clicked from Windows
+(((echo.%cmdcmdline%)|%WINDIR%\system32\find.exe /I "%~0")>nul)&&pause
+
 exit /b

@@ -1,5 +1,5 @@
 <h1 align="center">F·W·K</h1>
-<p align="center">Minimalist C framework for quick 3D game development.</p>
+<p align="center">3D game framework in C.</p>
 
 <!--## Gallery-->
 <p align="center">

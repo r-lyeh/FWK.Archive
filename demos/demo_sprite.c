@@ -81,17 +81,20 @@ void demo_cats() {
         // Get x scale based on flip flag
         int xscale = yscale * (c->flip ? -1 : 1);
         // Draw
+        float scale[2] = {xscale, yscale};
+        float position[3] = { c->x,c->y,c->y }, no_offset[2] = {0,0}, spritesheet[3] = { frame_num,8,4 };
         sprite(catImage,
-            c->x,c->y,c->y, 0,          // position(x,y,depth: sort by Y), angle
-            0,0, xscale,yscale,         // offset(x,y), scale(x,y)
+            position, 0,                // position(x,y,depth: sort by Y), angle
+            no_offset, scale,           // offset(x,y), scale(x,y)
             0,white,                    // is_additive, tint color
-            frame_num, 8,4              // frame_number in a 8x4 spritesheet
+            spritesheet                 // frame_number in a 8x4 spritesheet
         );
+        float position_neg_sort[3] = { c->x,c->y,-c->y }, offset[2] = {-1,5}, no_spritesheet[3] = {0,0,0};
         sprite(shadowImage,
-            c->x,c->y,-c->y, 0,         // position(x,y,depth: sort by Y), angle
-            -1,5, xscale,yscale,        // offset(x,y), scale(x,y)
+            position_neg_sort, 0,       // position(x,y,depth: sort by Y), angle
+            offset, scale,              // offset(x,y), scale(x,y)
             0,alpha,                    // is_additive, tint color
-            0, 0,0                      // no frame_number (0x0 spritesheet)
+            no_spritesheet              // no frame_number (0x0 spritesheet)
         );
     }
 }
@@ -125,11 +128,12 @@ void demo_kids() {
         int col = ((x[i] / 10) % 4); // 4x4 tilesheet
         int row = ((y[i] / 10) % 4);
         int num_frame = col * 4 + row;
+        float position[3] = {x[i],y[i],y[i]}, offset[2]={0,0}, scale[2]={1,1}, spritesheet[3]={num_frame,4,4};
         sprite(kids,
-            x[i],y[i],y[i], angle,    // position(x,y,depth: sort by Y), angle
-            0,0, 1,1,                 // offset(x,y), scale(x,y)
-            0, ~0u,                   // is_additive, tint color
-            num_frame, 4,4            // num_frame in a 4x4 spritesheet
+            position, angle,  // position(x,y,depth: sort by Y), angle
+            offset, scale,    // offset(x,y), scale(x,y)
+            0, ~0u,           // is_additive, tint color
+            spritesheet       // num_frame in a 4x4 spritesheet
         );
     }
 }
