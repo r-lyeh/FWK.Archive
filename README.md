@@ -40,7 +40,7 @@
 - [x] Integrated asset pipeline.
 - [x] Profiler, stats and leaks finder.
 - [x] Level data: JSON, JSON5, SJSON, XML.
-- [ ] Documentation: [self-generated link](https://raw.githack.com/r-lyeh/FWK/master/fwk.html).
+- [ ] Documentation: [self-generated](https://raw.githack.com/r-lyeh/FWK/master/fwk.html) ~~and fully documented API~~.
 
 ## Roadmap ᕕ(ᐛ)ᕗ (in order of arrival; `*`: partial support)
 - [ ] API: Documentation generator, during cook stage.

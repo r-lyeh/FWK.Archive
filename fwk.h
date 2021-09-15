@@ -87,16 +87,6 @@
 #ifndef FWK_H
 #define FWK_H
 
-// -----------------------------------------------------------------------------
-// doc, force documentation on a given line
-/*
-#define DOC
-#define ENUM
-#define MACRO
-#define MEMBER(t)
-#define TYPEDEF
-*/
-
 //-----------------------------------------------------------------------------
 // Headers
 
@@ -1379,7 +1369,7 @@ API void     skybox_destroy(skybox_t *sky);
 // -----------------------------------------------------------------------------
 // post-fxs
 
-API void     viewport_color(vec3 color);
+API void     viewport_color(vec3 color); // background(uint32_t) instead?
 API void     viewport_clear(bool color, bool depth);
 API void     viewport_clip(vec2 from, vec2 to);
 
@@ -1555,7 +1545,8 @@ API void script_call(const char *lua_function);
 API int         argc();
 API char*       argv(int);
 
-API const char* option(const char *commalist, const char *defaults);
+API int         flag(const char *commalist); // --arg
+API const char* option(const char *commalist, const char *defaults); // --arg=key or --arg key
 API int         optioni(const char *commalist, int defaults);
 API float       optionf(const char *commalist, float defaults);
 
@@ -1674,6 +1665,8 @@ API int         video_has_finished(video_t *v);
 API double      video_duration(video_t *v);
 API int         video_seek(video_t *v, double seek_to);
 API double      video_position(video_t *v);
+API void        video_pause(video_t *v, bool paused);
+API bool        video_is_paused(video_t *v);
 API void       video_destroy( video_t *v );
 #line 0
 #line 1 "fwk_window.h"

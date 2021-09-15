@@ -8,11 +8,6 @@ int main() {
     window_create( 75, WINDOW_MSAA8 );
     window_title("FWK");
 
-    // load all fx files
-    for(const char **list = vfs_list("fx**.fs"); *list; list++) {
-        fx_load(*list);
-    }
-
     // load video, no flags
     video_t *v = video( "bjork-all-is-full-of-love.mp4", 0 );
 
@@ -23,8 +18,6 @@ int main() {
 #endif
 
     while( window_swap() ) {
-        fx_begin();
-
         // decode video frame and get associated textures (audio is automatically sent to audiomixer)
         texture_t *textures;
         profile( video decoder ) {
@@ -36,23 +29,14 @@ int main() {
             fullscreen_quad( textures, 1.3f );
         }
 
-        fx_end();
-
         // input controls
         if( input(KEY_ESC) ) break;
-        if( input(KEY_LEFT ) ) video_seek(v, video_position(v) - 3);
-        if( input(KEY_RIGHT) ) video_seek(v, video_position(v) + 3);
 
-        // post-fx
-        if( ui_begin("FX", 0) ) {
-            if(ui_button("Clear all")) {
-                fx_enable_all(0);
-            }
-            for( int i = 0; i < 64; ++i ) {
-                char *name = fx_name(i); if( !name ) break;
-                bool b = fx_enabled(i);
-                if( ui_bool(name, &b) ) fx_enable(i, fx_enabled(i) ^ 1);
-            }
+        // ui video
+        if( ui_begin("Video", 0) ) {
+            if( ui_button("Rewind") )  video_seek(v, video_position(v) - 3);
+            if( ui_button("Pause") )   video_pause(v, video_is_paused(v) ^ 1);
+            if( ui_button("Forward") ) video_seek(v, video_position(v) + 3);
             ui_end();
         }
         // audio
