@@ -87,6 +87,10 @@
 #ifndef FWK_H
 #define FWK_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 //-----------------------------------------------------------------------------
 // Headers
 
@@ -247,6 +251,10 @@
 #define EXPAND_RETURN_COUNT(_1_, _2_, _3_, _4_, _5_, _6_, _7_, _8_, _9_, count, ...) count
 
 // ----
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 #endif // FWK_H
 

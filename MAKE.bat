@@ -113,39 +113,9 @@ echo @%~dp0\art\tools\tcc-win\tcc -I %~dp0\art\tools\tcc-win\include_mingw\winap
 
 rem generate documentation
 if "%1"=="docs" (
-    if not exist "fwk_window.h" call art\tools\split.bat
-
-    rem create fwk.html: css + intro
-    type art\tools\docs.css  > fwk.html
-    type art\tools\docs.md  >> fwk.html
-
-    echo # API >> fwk.html
-
-    rem append parsed fwk headers
-    setlocal enabledelayedexpansion
-    for %%i in (fwk_*.h) do (
-        set file=%%i
-        set header=!file:fwk_=!
-        set section=!header:.h=!
-        if "!section!"=="compat" (
-        rem skipped
-        ) else if "!section!"=="main" (
-        rem skipped
-        ) else (
-        rem extract markdown from headers
-        echo ## !section! >> fwk.html
-        art\tools\src2doc.exe %%i >> fwk.html
-        rem functions
-        echo ```C linenumbers            >> fwk.html
-        type %%i | find "DOC "           >> fwk.html
-        type %%i | find "ENUM "          >> fwk.html
-        type %%i | find "TYPEDEF "       >> fwk.html
-        type %%i | find "MEMBER("        >> fwk.html
-        type %%i | find "API "           >> fwk.html
-        type %%i | find "MACRO "         >> fwk.html
-        echo ```>> fwk.html
-        )
-    )
+    cl art\docs\docs.c fwk.c -I.
+    docs fwk.h -x=3rd_glad.h,fwk.h,fwk_main.h,fwk_compat.h, > fwk.html
+    copy /y fwk.html art\docs\docs.html
     exit /b
 )
 

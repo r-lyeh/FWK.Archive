@@ -1,4 +1,4 @@
-<h1 align="center">F·W·K</h1>
+<h1 align="center"><a href="https://raw.githack.com/r-lyeh/FWK/master/fwk.html">F·W·K</a></h1>
 <p align="center">3D game framework in C.</p>
 
 <!--## Gallery-->
@@ -40,10 +40,9 @@
 - [x] Integrated asset pipeline.
 - [x] Profiler, stats and leaks finder.
 - [x] Level data: JSON, JSON5, SJSON, XML.
-- [ ] Documentation: [self-generated](https://raw.githack.com/r-lyeh/FWK/master/fwk.html) ~~and fully documented API~~.
 
 ## Roadmap ᕕ(ᐛ)ᕗ (in order of arrival; `*`: partial support)
-- [ ] API: Documentation generator, during cook stage.
+- [ ] API: [Documentation](https://raw.githack.com/r-lyeh/FWK/master/fwk.html) generator, during cook stage.
 - [ ] Network: socketless api. NAT traversal. also, message api and pub/sub wrappers (enet/websocket).
 - [ ] Render: Materials (colors, textures`*`, matcaps`*`, videos`*`, shadertoys`*`).
 - [ ] Render: Flags (billboards `*`, un/lit). Hard/soft shadow mapping and baked lightmaps.
@@ -181,6 +180,7 @@ echo #endif // FWK_C >> fwk-single-header.h
 ## Extra tips
 - Dropped files into game window will be imported & saved in [`art/import`](art/import) folder.
 - Linux/OSX users can optionally install wine to use the Windows pipeline as an alternate asset pipeline.
+- Depending on your IDE, you might need to [split all amalgamated](#Amalgamation) files when debugging FWK.
 
 ## License
 This software is released into the [public domain](https://unlicense.org/).<br/>
