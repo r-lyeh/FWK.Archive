@@ -87,6 +87,10 @@
 #ifndef FWK_H
 #define FWK_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 //-----------------------------------------------------------------------------
 // Headers
 
@@ -109,7 +113,7 @@
 #define API
 #endif
 
-#define GLAD_API_CALL API // keep glad linkage on par, @r-lyeh
+#define GLAD_API_CALL API extern // keep glad linkage on par, @r-lyeh
 
 API void* dll(const char *filename, const char *symbol);
 #line 0
@@ -2390,6 +2394,10 @@ extern API profiler_t profiler;
 
 // ----
 
+#ifdef __cplusplus
+} // extern "C"
+#endif
+
 #endif // FWK_H
 
 #line 1 "3rd_glad.h"
@@ -2431,7 +2439,7 @@ extern API profiler_t profiler;
 
 
 #define GLAD_GL
-#define GLAD_OPTION_GL_HEADER_ONLY
+//#define GLAD_OPTION_GL_HEADER_ONLY
 
 #ifdef __cplusplus
 extern "C" {
