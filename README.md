@@ -1,4 +1,4 @@
-<h1 align="center"><a href="https://raw.githack.com/r-lyeh/FWK/master/fwk.html">F·W·K</a></h1>
+<h1 align="center"><a href="https://raw.githack.com/r-lyeh/FWK/master/fwk.html#toc1">F·W·K</a></h1>
 <p align="center">3D game framework in C.</p>
 
 <!--## Gallery-->
@@ -42,7 +42,7 @@
 - [x] Level data: JSON, JSON5, SJSON, XML.
 
 ## Roadmap ᕕ(ᐛ)ᕗ (in order of arrival; `*`: partial support)
-- [ ] API: [Documentation](https://raw.githack.com/r-lyeh/FWK/master/fwk.html) generator, during cook stage.
+- [ ] API: [Documentation](https://raw.githack.com/r-lyeh/FWK/master/fwk.html#toc1) generator, during cook stage.
 - [ ] Network: socketless api. NAT traversal. also, message api and pub/sub wrappers (enet/websocket).
 - [ ] Render: Materials (colors, textures`*`, matcaps`*`, videos`*`, shadertoys`*`).
 - [ ] Render: Flags (billboards `*`, un/lit). Hard/soft shadow mapping and baked lightmaps.
@@ -150,6 +150,20 @@
 //[ ] API: More examples.
 -->
 
+## API
+- Documentation can be found [here](https://raw.githack.com/r-lyeh/FWK/master/fwk.html#toc1).
+```C
+// Minimal sample
+#include "fwk.h"
+int main(int argc, char **argv) {
+    // Create window, 75% size, no extra flags
+    window_create(75.0, 0);
+    // Game loop
+    while( window_swap() && !input(KEY_ESC) ) {
+        puts("hello");
+    }
+}
+```
 
 ## Build
 Type `MAKE.bat` (Win) or `sh MAKE.bat` (Linux/OSX) to build everything. Alternatively,

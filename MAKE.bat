@@ -3,7 +3,7 @@
 # linux + osx -----------------------------------------------------------------
 cd `dirname $0`
 
-cp demos/*.c . -n
+cp art/demos/*.c . -n
 
 if [ "$(uname)" != "Darwin" ]; then
     # setup (linux)
@@ -113,14 +113,25 @@ echo @%~dp0\art\tools\tcc-win\tcc -I %~dp0\art\tools\tcc-win\include_mingw\winap
 
 rem generate documentation
 if "%1"=="docs" (
-    cl art\docs\docs.c fwk.c -I.
-    docs fwk.h -x=3rd_glad.h,fwk.h,fwk_main.h,fwk_compat.h, > fwk.html
+
+    rem set symbols for upcoming doc generation
+    set VERSION=2021.9
+    date /t > info.obj
+    set /p LAST_MODIFIED=<info.obj
+    rem set git symbols too
+    git rev-list --count --first-parent HEAD > info.obj
+    set /p GIT_REVISION=<info.obj
+    git rev-parse --abbrev-ref HEAD > info.obj
+    set /p GIT_BRANCH=<info.obj
+
+    cl art\docs\docs.c fwk.c -I. %2
+    docs fwk.h --excluded=3rd_glad.h,fwk.h,fwk_main.h,fwk_compat.h, > fwk.html
     copy /y fwk.html art\docs\docs.html
     exit /b
 )
 
 rem copy demos to root folder. local changes are preserved
-echo n | copy /-y demos\*.c 1> nul 2> nul
+echo n | copy /-y art\demos\*.c 1> nul 2> nul
 
 rem tidy environment
 if "%1"=="tidy" (
@@ -139,6 +150,7 @@ if "%1"=="tidy" (
     del *.dll
     del demo_*.c
     rd /q /s .vs
+    del tcc.bat
     exit /b
 )
 

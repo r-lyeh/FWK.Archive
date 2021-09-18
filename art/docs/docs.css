@@ -1,9 +1,10 @@
 <meta charset="utf-8" lang="en"><style class="fallback">body{visibility:hidden;}</style><!--
-If you are reading this you are not browsing this file as intended. please visit https://raw.githack.com/r-lyeh/FWK/master/fwk.html instead
--->
+                                            ****
+                       You are not browsing this file as intended!
+                Please visit https://raw.githack.com/r-lyeh/FWK/master/fwk.html instead
+                                            ****
+--><style>
 
-
-<style>
 /* original .css from: https://autodesk.github.io/standard-surface/style/style.css */
 
 /******************************************************************************/
@@ -84,7 +85,7 @@ If you are reading this you are not browsing this file as intended. please visit
 
 body
 {
-    max-width: 800px;
+    max-width: 900px;
     font-family: 'Artifakt Element', sans-serif; /*'PT Serif', serif;*/ /*<@r-lyeh*/
     padding: 70px 10px 0px 10px;
     min-width: 260px;
@@ -113,20 +114,26 @@ body
 {
     .md .longTOC, .md .mediumTOC, .md .shortTOC
     {
-        max-width: 300px; /*<@r-lyeh*/
+        max-width: 200px; /*<@r-lyeh*/
         left: 1em; /*right: 0em;*/ /*<@r-lyeh*/
         display: block;
         position: fixed;
-        top: 0;
+        top: -30px; /*0;*/ /*<@r-lyeh*/
+        padding: 0em 1em 0 0; /*1em 1em 0 0;*/ /*<@r-lyeh*/
         bottom: 0;
         margin-top: 0;
         margin-bottom: 0;
-        padding: 1em 1em 0 0;
         font-size: 85%;
         line-height: 120%;
         border: 0;
         opacity: 0.66;
         font-family: 'Artifakt Element', sans-serif;
+    }
+
+    .md .shortTOC
+    {
+        top: 0;
+        padding: 1em 1em 0 0;
     }
 
     .md .longTOC, .md .mediumTOC
@@ -341,7 +348,7 @@ contents, .md .tocHeader,
 
 .md a
 {
-    /*font-family: 'PT Serif';*/
+    font-family: 'Artifakt Element', sans-serif; /*'PT Serif';*/ /*<@r-lyeh*/
 }
 
 .md a:link, .md a:visited
@@ -368,9 +375,9 @@ contents, .md .tocHeader,
     padding: 0;
     border: none;
     font-family: 'Roboto Mono', monospace;
-    font-size: 92%;
+    font-size: 88%; /*92%*/ /*<@r-lyeh*/
 
-    overflow-x: hidden;  /*<@r-lyeh*/
+    /*overflow-x: hidden;*/  /*<@r-lyeh*/
 }
 
 .md pre.listing
@@ -382,7 +389,7 @@ contents, .md .tocHeader,
     padding: 6px 10px;
     text-align: left;
 
-    overflow-x: hidden;  /*<@r-lyeh*/
+    /*overflow-x: hidden;*/  /*<@r-lyeh*/
     width: 97%; /*hack, i dont know how to align this width with every other element <@r-lyeh*/
 }
 
@@ -540,30 +547,19 @@ details > summary::-webkit-details-marker {
 }
 
 
-</style>
+/*<@r-lyeh*/
+/*<!--link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.2.0/styles/base16/horizon-dark.min.css" /-->*/
 
-<!--/*<@r-lyeh*/-->
-<!--link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.2.0/styles/base16/horizon-dark.min.css" /-->
-<!--
-tested: 
-    monokai, agate, 
-    >>night-owl >tomorrow-night-blue
-    atom-one-dark-reasonable,srcery,snazzy,framer,hybrid,monokai-sublime,github-dark-dimmed
-base16/
-    rebecca,mocha,materia,material-palenight,material,monokai,papercolor-dark,horizon-dark,
--->
-<style>
 /* .hljs-comment,.hljs-quote{color:#969896}.hljs-variable,.hljs-template-variable,.hljs-tag,.hljs-name,.hljs-selector-id,.hljs-selector-class,.hljs-regexp,.hljs-deletion{color:#cc6666}.hljs-number,.hljs-built_in,.hljs-builtin-name,.hljs-literal,.hljs-type,.hljs-params,.hljs-meta,.hljs-link{color:#de935f}.hljs-attribute{color:#f0c674}.hljs-string,.hljs-symbol,.hljs-bullet,.hljs-addition{color:#b5bd68}.hljs-title,.hljs-section{color:#81a2be}.hljs-keyword,.hljs-selector-tag{color:#b294bb}.hljs{display:block;overflow-x:auto;background:#1d1f21;color:#c5c8c6;padding:0.5em}.hljs-emphasis{font-style:italic}.hljs-strong{font-weight:bold} */
 /*.hljs{display:block;overflow-x:auto;padding:0.5em;background:#272822;color:#ddd}.hljs-tag,.hljs-keyword,.hljs-selector-tag,.hljs-literal,.hljs-strong,.hljs-name{color:#f92672}.hljs-code{color:#66d9ef}.hljs-class .hljs-title{color:white}.hljs-attribute,.hljs-symbol,.hljs-regexp,.hljs-link{color:#bf79db}.hljs-string,.hljs-bullet,.hljs-subst,.hljs-title,.hljs-section,.hljs-emphasis,.hljs-type,.hljs-built_in,.hljs-builtin-name,.hljs-selector-attr,.hljs-selector-pseudo,.hljs-addition,.hljs-variable,.hljs-template-tag,.hljs-template-variable{color:#a6e22e}.hljs-comment,.hljs-quote,.hljs-deletion,.hljs-meta{color:#75715e}.hljs-keyword,.hljs-selector-tag,.hljs-literal,.hljs-doctag,.hljs-title,.hljs-section,.hljs-type,.hljs-selector-id{font-weight:bold}*/
 /*.hljs{display:block;overflow-x:auto;padding:0.5em;background:#333;color:white}.hljs-name,.hljs-strong{font-weight:bold}.hljs-code,.hljs-emphasis{font-style:italic}.hljs-tag{color:#62c8f3}.hljs-variable,.hljs-template-variable,.hljs-selector-id,.hljs-selector-class{color:#ade5fc}.hljs-string,.hljs-bullet{color:#a2fca2}.hljs-type,.hljs-title,.hljs-section,.hljs-attribute,.hljs-quote,.hljs-built_in,.hljs-builtin-name{color:#ffa}.hljs-number,.hljs-symbol,.hljs-bullet{color:#d36363}.hljs-keyword,.hljs-selector-tag,.hljs-literal{color:#fcc28c}.hljs-comment,.hljs-deletion,.hljs-code{color:#888}.hljs-regexp,.hljs-link{color:#c6b4f0}.hljs-meta{color:#fc9b9b}.hljs-deletion{background-color:#fc9b9b;color:#333}.hljs-addition{background-color:#a2fca2;color:#333}.hljs a{color:inherit}.hljs a:focus,.hljs a:hover{color:inherit;text-decoration:underline}*/
 .hljs{display:block;overflow-x:auto;padding:.5em;background:#011627;color:#d6deeb}.hljs-keyword{color:#c792ea;font-style:italic}.hljs-built_in{color:#addb67;font-style:italic}.hljs-type{color:#82aaff}.hljs-literal{color:#ff5874}.hljs-number{color:#f78c6c}.hljs-regexp{color:#5ca7e4}.hljs-string{color:#ecc48d}.hljs-subst{color:#d3423e}.hljs-symbol{color:#82aaff}.hljs-class{color:#ffcb8b}.hljs-function{color:#82aaff}.hljs-title{color:#dcdcaa;font-style:italic}.hljs-params{color:#7fdbca}.hljs-comment{color:#637777;font-style:italic}.hljs-doctag{color:#7fdbca}.hljs-meta{color:#82aaff}.hljs-meta-keyword{color:#82aaff}.hljs-meta-string{color:#ecc48d}.hljs-section{color:#82b1ff}.hljs-builtin-name,.hljs-name,.hljs-tag{color:#7fdbca}.hljs-attr{color:#7fdbca}.hljs-attribute{color:#80cbc4}.hljs-variable{color:#addb67}.hljs-bullet{color:#d9f5dd}.hljs-code{color:#80cbc4}.hljs-emphasis{color:#c792ea;font-style:italic}.hljs-strong{color:#addb67;font-weight:700}.hljs-formula{color:#c792ea}.hljs-link{color:#ff869a}.hljs-quote{color:#697098;font-style:italic}.hljs-selector-tag{color:#ff6363}.hljs-selector-id{color:#fad430}.hljs-selector-class{color:#addb67;font-style:italic}.hljs-selector-attr,.hljs-selector-pseudo{color:#c792ea;font-style:italic}.hljs-template-tag{color:#c792ea}.hljs-template-variable{color:#addb67}.hljs-addition{color:#addb67ff;font-style:italic}.hljs-deletion{color:#ef535090;font-style:italic}
-</style>
-<style>
+
 /* Remove numbers from headers */
 /* .md h1:before, .md h2:before, .md h3:before, .md h4:before, .md h5:before {content: none;} */
 /* Examples background and text to match Observable Dark */
 /*.md code { color:#f00; }*/
-.md pre.listing.tilde {background-color:#333; color:#FFF;}
+.md pre.listing.tilde, .md pre.listing.backtick {background-color:#333; color:#FFF;}
 /* Change color of diagrams and darken circle around open dots */
 /*.md svg.diagram {stroke: #C5C5C5; fill: #C5C5C5;}*/
 /*.md svg.diagram .opendot {stroke: #858585; fill: #FFF;}*/
@@ -573,18 +569,13 @@ base16/
 .hljs-function .hljs-title {color: #00C0FF;}
 .hljs-class .hljs-title {color: #00FFC0;}
 .md code { color: rgb(255,255,235); } /* default unclassified #text and punctuation */
-</style>
 
+</style>
 <script>
 markdeepOptions = {
-    tocStyle:'auto', // auto,none,short,medium,long
-    definitionStyle:'auto',  // auto,short,long
-    linkAPIDefinitions: true, // true
-};</script>
+    tocStyle:'medium', /* auto,none,short,medium,long */
+    definitionStyle:'auto',  /* auto,short,long */
+    linkAPIDefinitions: true, /* true */
+};
 </script>
-
 <!-- Markdeep: --><script src="https://casual-effects.com/markdeep/latest/markdeep.min.js?" charset="utf-8"></script>
-
-<script>
-hljs.getLanguage('C').k/*eywords*/ += ' vec2 vec3 vec4 quat quat2'; // note the leading space
-</script>

@@ -130,12 +130,12 @@ API void* dll(const char *filename, const char *symbol);
 #define WITH_XREALLOC_POISON 0
 #define WITH_VIDEO_YCBCR     1
 #else
-#define WITH_COOKER          1
-#define WITH_FASTCALL_LUA    0
-#define WITH_LEAK_DETECTOR   0
-#define WITH_PROFILE         1
-#define WITH_XREALLOC_POISON 1
-#define WITH_VIDEO_YCBCR     1
+#define WITH_COOKER          1 ///+
+#define WITH_FASTCALL_LUA    0 ///+
+#define WITH_LEAK_DETECTOR   0 ///+
+#define WITH_PROFILE         1 ///+
+#define WITH_XREALLOC_POISON 1 ///+
+#define WITH_VIDEO_YCBCR     1 ///+
 #endif
 
 //#define WITH_ASSIMP        0      // Only art/tools/ass2iqe.c would define this.
@@ -303,8 +303,8 @@ typedef float mat44[16];
 
 // A value type representing an abstract direction vector in 3D space, independent of any coordinate system.
 // A concrete 3D coordinate system with defined x, y, and z axes.
-typedef enum { axis_front, axis_back, axis_left, axis_right, axis_up, axis_down } coord_axis;
-typedef union coord_system { struct { coord_axis x,y,z; }; } coord_system;
+typedef enum AXIS_ENUMS { axis_front, axis_back, axis_left, axis_right, axis_up, axis_down } AXIS_ENUMS;
+typedef union coord_system { struct { AXIS_ENUMS x,y,z; }; } coord_system;
 
 // ----------------------------------------------------------------------------
 
@@ -563,7 +563,7 @@ API bool invert44(mat44 T, const mat44 M);
 API vec4 transform444(const mat44, const vec4);
 API bool unproject44(vec3 *out, vec3 xyd, vec4 viewport, mat44 mvp);
 
-API vec3 transform_axis(const coord_system, const coord_axis);
+API vec3 transform_axis(const coord_system, const AXIS_ENUMS);
 API void rebase44(mat44 m, const coord_system src_basis, const coord_system dst_basis);
 
 API void compose44(mat44 m, vec3 t, quat q, vec3 s);
@@ -578,7 +578,7 @@ API vec3 transform344(const mat44 m, const vec3 p);
 
 API vec3 transformq(const quat q, const vec3 v);
 
-API vec3 transform_axis(const coord_system basis, const coord_axis to);
+API vec3 transform_axis(const coord_system basis, const AXIS_ENUMS to);
 
 // A vector is the difference between two points in 3D space, possessing both direction and magnitude
 API vec3 transform_vector  (const mat44 m, const vec3 vector)   ;
@@ -793,7 +793,7 @@ API float   audio_volume_clip(float gain);   // set     fx volume if gain is in 
 API float   audio_volume_stream(float gain); // set    bgm volume if gain is in [0..1] range. return current    bgm volume in any case
 API float   audio_volume_master(float gain); // set master volume if gain is in [0..1] range. return current master volume in any case
 
-enum {
+enum AUDIO_FLAGS {
     AUDIO_1CH = 0, // default
     AUDIO_2CH = 1,
 
@@ -827,7 +827,7 @@ API int audio_queue( const void *samples, int num_samples, int flags );
 // @todo: idle threads should steal jobs from busy threads (maybe use jobs/coroutines for this?)
 // @todo: ... and should compress them in the original cook[N] bucket
 
-enum {
+enum COOKER_FLAGS {
     COOKER_ASYNC = 1,
 };
 
@@ -1020,7 +1020,7 @@ API bool        input_load_state( int id, void *ptr, int size); // @todo
 
 // --
 
-enum {
+enum INPUT_ENUMS {
     // -- bits: x104 keyboard, x3 mouse, x15 gamepad, x7 window
     // keyboard gaming keys (53-bit): first-class keys for gaming
     KEY_ESC,
@@ -1140,7 +1140,7 @@ API float    alpha( uint32_t rgba );
 // -----------------------------------------------------------------------------
 // images
 
-enum {
+enum IMAGE_FLAGS {
     IMAGE_R    = 0x01000,
     IMAGE_RG   = 0x02000,
     IMAGE_RGB  = 0x04000,
@@ -1162,7 +1162,7 @@ API void    image_destroy(image_t *img);
 // -----------------------------------------------------------------------------
 // textures
 
-enum {
+enum TEXTURE_FLAGS {
     // UNIT[0..7]
 
     TEXTURE_BC1 = 8,  // DXT1, RGB with 8:1 compression ratio (+ optional 1bpp for alpha)
@@ -1196,7 +1196,7 @@ enum {
     TEXTURE_ARRAY = 1 << 26,
 };
 
-typedef struct {
+typedef struct texture_t {
     union { unsigned x, w; };
     union { unsigned y, h; };
     union { unsigned n, bpp; };
@@ -1328,7 +1328,7 @@ API   aabb mesh_bounds(mesh_t *m);
 // -----------------------------------------------------------------------------
 // models
 
-enum {
+enum MODEL_FLAGS {
     MODEL_NO_ANIMATIONS = 1,
     MODEL_NO_MESHES = 2,
     MODEL_NO_TEXTURES = 4,
@@ -1455,7 +1455,7 @@ API void ddraw_flush();
 
 // camera
 
-typedef struct {
+typedef struct camera_t {
     mat44 view, proj;
     vec3 position, up, look; // position, updir, lookdir
     float yaw, pitch, speed; // mirror_x, mirror_y;
@@ -1470,7 +1470,7 @@ API camera_t *camera_get_active();
 
 // object
 
-typedef struct {
+typedef struct object_t {
     uint64_t renderbucket;
     mat44 transform;
     quat rot;
@@ -1497,14 +1497,14 @@ API void object_billboard(object_t *obj, unsigned mode);
 
 // scene
 
-enum {
+enum SCENE_FLAGS {
     SCENE_WIREFRAME = 1,
     SCENE_CULLFACE = 2,
     SCENE_BACKGROUND = 4,
     SCENE_FOREGROUND = 8,
 };
 
-typedef struct {
+typedef struct scene_t {
     handle program;
 
     array(object_t) objs;
@@ -1682,7 +1682,7 @@ API void       video_destroy( video_t *v );
 // @todo: if WINDOW_PORTRAIT && exist portrait monitor, use that instead of primary one
 // @todo: WINDOW_TRAY
 
-enum {
+enum WINDOW_FLAGS {
     WINDOW_NO_MOUSE = 0x01,
 
     WINDOW_MSAA2 = 0x02,
@@ -2237,12 +2237,12 @@ API char*        strjoin(array(char*) list, const char *separator);
 #   define profile_init() do { map_init(profiler, less_str, hash_str); } while(0)
 #   define profile(...) for( \
         struct profile_t *found = map_find_or_add(profiler, #__VA_ARGS__ "@" FILELINE, (struct profile_t){NAN} ), *dummy = (\
-        found->cost = -time_ms() * 1000, found); found->cost < 0; found->cost += time_ms() * 1000, found->avg = found->cost * 0.25 + found->avg * 0.75)
+        found->cost = -time_ms() * 1000, found); found->cost < 0; found->cost += time_ms() * 1000, found->avg = found->cost * 0.25 + found->avg * 0.75)  ///+
 #   define profile_incstat(name, accum) do { if(profiler) { \
         struct profile_t *found = map_find(profiler, name); \
         if(!found) found = map_insert(profiler, name, (struct profile_t){0}); \
         found->stat += accum; \
-        } } while(0)
+        } } while(0) ///+
 #   define profile_render() if(profiler) do { \
         for(float _i = ui_begin("Profiler",0), _r; _i ; ui_end(), _i = 0) { \
             for each_map_ptr(profiler, const char *, key, struct profile_t, val ) \
@@ -2251,9 +2251,9 @@ API char*        strjoin(array(char*) list, const char *separator);
             for each_map_ptr(profiler, const char *, key, struct profile_t, val ) \
                 if( isnan(val->stat) ) ui_slider2(*key, (_r = val->avg/1000.0, &_r), stringf("%.2f ms", val->avg/1000.0)); \
         } } while(0)
-struct profile_t { double stat; int32_t cost, avg; };
-typedef map(char *, struct profile_t) profiler_t;
-extern API profiler_t profiler;
+struct profile_t { double stat; int32_t cost, avg; }; ///-
+typedef map(char *, struct profile_t) profiler_t; ///-
+extern API profiler_t profiler; ///-
 #else
 #   define profile_init()               do {} while(0)
 #   define profile_incstat(name, accum) do {} while(0)
