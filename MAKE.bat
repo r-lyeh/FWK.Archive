@@ -3,7 +3,7 @@
 # linux + osx -----------------------------------------------------------------
 cd `dirname $0`
 
-cp art/demos/*.c . -n
+cp art/demos/* . -n
 
 if [ "$(uname)" != "Darwin" ]; then
     # setup (linux)
@@ -111,6 +111,13 @@ if "%Platform%"=="" (
 cd "%~dp0"
 echo @%~dp0\art\tools\tcc-win\tcc -I %~dp0\art\tools\tcc-win\include_mingw\winapi -I %~dp0\art\tools\tcc-win\include_mingw\ %%* > tcc.bat
 
+rem generate bindings
+if "%1"=="bindings" (
+    rem luajit
+    art\tools\luajit art\tools\make_luajit_bindings.lua > fwk.lua
+
+    exit /b
+)
 rem generate documentation
 if "%1"=="docs" (
 
@@ -127,11 +134,12 @@ if "%1"=="docs" (
     cl art\docs\docs.c fwk.c -I. %2
     docs fwk.h --excluded=3rd_glad.h,fwk.h,fwk_main.h,fwk_compat.h, > fwk.html
     copy /y fwk.html art\docs\docs.html
+
     exit /b
 )
 
 rem copy demos to root folder. local changes are preserved
-echo n | copy /-y art\demos\*.c 1> nul 2> nul
+echo n | copy /-y art\demos\* 1> nul 2> nul
 
 rem tidy environment
 if "%1"=="tidy" (
@@ -148,7 +156,7 @@ if "%1"=="tidy" (
     del *.png
     del *.def
     del *.dll
-    del demo_*.c
+    del demo_*.*
     rd /q /s .vs
     del tcc.bat
     exit /b
@@ -183,6 +191,10 @@ if "%Platform%"=="x64" (
     cl demo_video.c     fwk.obj /nologo /openmp /Zi
     cl demo_script.c    fwk.obj /nologo /openmp /Zi
     cl demo_socket.c    fwk.obj /nologo /openmp /Zi
+
+    rem luajit+fwk.dll demo
+    rem cl fwk.c /LD /DAPI=EXPORT /O2 /Oy /MT /DNDEBUG
+    rem art\tools\luajit demo_luajit.lua
 
 ) else if "%Platform%"=="mingw64" (
     rem pipeline

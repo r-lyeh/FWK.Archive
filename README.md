@@ -18,7 +18,7 @@
 - [x] Compiler: MSVC, MINGW64, TCC, GCC and clang.
 - [x] Window: windowed, fullscreen, msaa, icon, cursor handling.
 - [x] Input: keyboard, mouse and gamepads.
-- [x] Script: Lua, bindings ~~and FFI~~.
+- [x] Script: embedded Lua, Luajit bindings ~~and FFI~~.
 - [x] Network: downloads (HTTPS), sockets (TCP/UDP) ~~and messages (enet/websocket)~~.
 - [x] UI: color3/4, button, list, slider, toggle, checkbox, editbox, dialog, menus.
 - [x] Math: rand, noise, ease, vec2/3/4, mat33/34/44, quat ~~and quat2, bezier, catmull~~.
@@ -42,13 +42,13 @@
 - [x] Level data: JSON, JSON5, SJSON, XML.
 
 ## Roadmap ᕕ(ᐛ)ᕗ (in order of arrival; `*`: partial support)
-- [ ] API: [Documentation](https://raw.githack.com/r-lyeh/FWK/master/fwk.html#toc1) generator, during cook stage.
-- [ ] Network: socketless api. NAT traversal. also, message api and pub/sub wrappers (enet/websocket).
+- [ ] API: Documentation generator, during cook stage.
+- [ ] Network: NAT traversal. Socketless API, message API and pub/sub wrappers (enet/websocket).
 - [ ] Render: Materials (colors, textures`*`, matcaps`*`, videos`*`, shadertoys`*`).
 - [ ] Render: Flags (billboards `*`, un/lit). Hard/soft shadow mapping and baked lightmaps.
 - [ ] Level editor: gizmos`*`, scene tree, property editor, load/save, undo/redo, copy/paste.
 - [ ] Level objects: volumes`*`, triggers, platforms, streaming.
-- [ ] Script: DLL`*`, Lua`*`, Teal and TypeScript.
+- [ ] Script: DLL`*`, Lua`*`, Luajit`*`, Teal and TypeScript.
 - [ ] Script: Refl/meta binding tool (during cook stage).
 - [ ] Pipeline: Extend: shaders, bindings, textures. Per-platform, per-type, per-asset options.
 - [ ] Pipeline: Atlassing (sprite/lightmaps). Fit packing (fonts/sprites).
@@ -59,7 +59,7 @@
 - [ ] Maybe: VM/ECS/Replication pass.
 - [ ] API: More examples. Also, less examples.
 - [ ] API: Review API, clean it up and lock it.
-- [ ] API: Document.
+- [ ] API: Document everything.
 
 <!--
 // almost done:
@@ -151,18 +151,24 @@
 -->
 
 ## API
-- Documentation can be found [here](https://raw.githack.com/r-lyeh/FWK/master/fwk.html#toc1).
+- [WIP Documentation](https://raw.githack.com/r-lyeh/FWK/master/fwk.html#toc1).
 ```C
-// Minimal sample
+// Minimal C sample
 #include "fwk.h"
 int main(int argc, char **argv) {
-    // Create window, 75% size, no extra flags
-    window_create(75.0, 0);
-    // Game loop
-    while( window_swap() && !input(KEY_ESC) ) {
-        puts("hello");
+    window_create(75.0, 0); // 75% size, no extra flags
+    while( window_swap() && !input(KEY_ESC) ) { // game loop
+        puts("hello fwk");
     }
 }
+```
+```lua
+-- Minimal Lua sample
+local fwk = require("fwk")
+fwk.window_create(75.0,0) -- 75% size, no extra flags
+while fwk.window_swap() == 1 do -- game loop
+    print("hello fwk")
+end
 ```
 
 ## Build
@@ -213,9 +219,10 @@ Any contribution to this repository is implicitly subjected to the same release 
 - [Assimp authors](https://github.com/assimp/assimp), for assimp (BSD3).
 - [Bernhard Schelling](https://github.com/schellingb/TinySoundFont), for tml.h (Zlib) and tsf.h (MIT).
 - [Krzysztof Gabis](https://github.com/kgabis/ape), for split.py/join.py (MIT).
-- [Mattias Gustavsson](https://github.com/mattiasgustavsson/libs), for mid.h (PD).
-- [Tor Andersson](https://github.com/ccxvii/asstools), for assiqe.c (BSD).
 - [Lee Salzman](https://github.com/lsalzman/iqm/tree/5882b8c32fa622eba3861a621bb715d693573420/demo), for iqm.cpp (PD).
+- [Mattias Gustavsson](https://github.com/mattiasgustavsson/libs), for mid.h (PD).
+- [Michael Schmoock](http://github.com/willsteel/lcpp), for lcpp (MIT).
+- [Tor Andersson](https://github.com/ccxvii/asstools), for assiqe.c (BSD).
 
 ## Credits (Runtime)
 - [Barerose](https://github.com/barerose), for swrap (CC0).
