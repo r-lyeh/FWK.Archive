@@ -346,9 +346,14 @@ contents, .md .tocHeader,
 /* Links
 /******************************************************************************/
 
+html {
+    scroll-behavior: smooth; /*<@r-lyeh*/
+}
+
 .md a
 {
     font-family: 'Artifakt Element', sans-serif; /*'PT Serif';*/ /*<@r-lyeh*/
+    scroll-margin-top: 20px; /*<@r-lyeh*/
 }
 
 .md a:link, .md a:visited
@@ -513,6 +518,12 @@ details {
 }
 summary {
     padding-left: 16px; /*<@r-lyeh*/
+
+
+    text-overflow: ellipsis;
+    /* Both of the following are required for text-overflow */
+    white-space: nowrap;
+    overflow: hidden;
 }
 details[open] {
   padding-bottom: var(--padding);
@@ -590,6 +601,7 @@ markdeepOptions = {
 
 ![Image from demo.c](https://i.imgur.com/sInbRoA.gif)
 
+<details open><summary>Code style</summary>
 ```C linenumbers
 /// ## Markdown comments when documenting (3 slashes)
 // C++ comments allowed
@@ -598,12 +610,37 @@ markdeepOptions = {
 #define puts my_puts                 // lowercase API aliases (macros)
 enum { ZERO = 0 };                   // uppercase enums. also, one-liners allowed
 void assert_positive( int my_int ) { // snake_case everywhere
-    int *x = &my_int;                // variables and pointers usually together
+    int *x = &my_int;                // no spacing between pointers and variables
     if( *x < ZERO ) {                // no padding space after if,do,while,for,switch
         puts( "Negative" );          // space padding around operators and parenthesis
     }                                // 4-spaces indents, 1TBS brackets
 }                                    // when in doubt, dont worry & mimic style from codebase
 ```
+</details>
+
+<details><summary>Minimal C sample</summary>
+```C
+// Minimal C sample
+#include "fwk.h"
+int main(int argc, char **argv) {
+    window_create(75.0, 0); // 75% size, no extra flags
+    while( window_swap() && !input(KEY_ESC) ) { // game loop
+        puts("hello fwk");
+    }
+}
+```
+</details>
+
+<details><summary>Minimal lua sample</summary>
+```Lua
+-- Minimal Lua sample
+local fwk = require("fwk")
+fwk.window_create(75.0,0) -- 75% size, no extra flags
+while fwk.window_swap() == 1 do -- game loop
+    print("hello fwk")
+end
+```
+</details>
 
 !!! Note
     Ready to browse documentation? This is a very common note.
@@ -617,11 +654,11 @@ void assert_positive( int my_int ) { // snake_case everywhere
 !!! ERROR: Watch out
     Really **important notes**. Beware of these.
 
-| Documentation last modified | 21/09/2021        |
+| Documentation last modified | 22/09/2021        |
 |:--------------|:------------|
 |Version:       | 2021.9      |
 |Branch:        | master         |
-|Commit:        | 22               |
+|Commit:        | 24               |
 
 
 ## dll
@@ -765,7 +802,7 @@ Return|{{return}}
 <a name="vec2"></a>
 <details><summary><code lang=C>🅂 union vec2;</code></summary>
 ~~~~~~C
-🅂 union vec2 {
+union vec2 {
     struct {
         float x,y;
     };
@@ -804,7 +841,7 @@ Return|{{return}}
 <a name="vec3"></a>
 <details><summary><code lang=C>🅂 union vec3;</code></summary>
 ~~~~~~C
-🅂 union vec3 {
+union vec3 {
     struct {
         float x,y,z;
     };
@@ -843,7 +880,7 @@ Return|{{return}}
 <a name="vec4"></a>
 <details><summary><code lang=C>🅂 union vec4;</code></summary>
 ~~~~~~C
-🅂 union vec4 {
+union vec4 {
     struct {
         float x,y,z,w;
     };
@@ -882,7 +919,7 @@ Return|{{return}}
 <a name="quat"></a>
 <details><summary><code lang=C>🅂 union quat;</code></summary>
 ~~~~~~C
-🅂 union quat {
+union quat {
     struct {
         float x,y,z,w;
     };
@@ -980,7 +1017,7 @@ Return|{{return}}
 <a name="AXIS_ENUMS"></a>
 <details><summary><code lang=C>🄴 enum AXIS_ENUMS;</code></summary>
 ~~~~~~C
-🄴 enum AXIS_ENUMS {
+enum AXIS_ENUMS {
     axis_front,
     axis_back,
     axis_left,
@@ -1012,7 +1049,7 @@ Return|{{return}}
 <a name="coord_system"></a>
 <details><summary><code lang=C>🅂 union coord_system;</code></summary>
 ~~~~~~C
-🅂 union coord_system {
+union coord_system {
     struct {
         AXIS_ENUMS x,y,z;
     };
@@ -5927,7 +5964,7 @@ Return|{{return}}
 <a name="gjk_support"></a>
 <details><summary><code lang=C>🅂 struct gjk_support;</code></summary>
 ~~~~~~C
-🅂 struct gjk_support {
+struct gjk_support {
     int aid,bid;
     vec3 a;
     vec3 b;
@@ -5956,7 +5993,7 @@ Return|{{return}}
 <a name="gjk_vertex"></a>
 <details><summary><code lang=C>🅂 struct gjk_vertex;</code></summary>
 ~~~~~~C
-🅂 struct gjk_vertex {
+struct gjk_vertex {
     vec3 a;
     vec3 b;
     vec3 p;
@@ -5986,7 +6023,7 @@ Return|{{return}}
 <a name="gjk_simplex"></a>
 <details><summary><code lang=C>🅂 struct gjk_simplex;</code></summary>
 ~~~~~~C
-🅂 struct gjk_simplex {
+struct gjk_simplex {
     int max_iter,iter;
     int hit,cnt;
     gjk_vertex v[4];
@@ -6016,7 +6053,7 @@ Return|{{return}}
 <a name="gjk_result"></a>
 <details><summary><code lang=C>🅂 struct gjk_result;</code></summary>
 ~~~~~~C
-🅂 struct gjk_result {
+struct gjk_result {
     int hit;
     vec3 p0;
     vec3 p1;
@@ -6113,7 +6150,7 @@ Return|{{return}}
 <a name="line"></a>
 <details><summary><code lang=C>🅂 struct line;</code></summary>
 ~~~~~~C
-🅂 struct line {
+struct line {
     vec3 a,b;
 };
 ~~~~~~
@@ -6140,7 +6177,7 @@ Return|{{return}}
 <a name="sphere"></a>
 <details><summary><code lang=C>🅂 struct sphere;</code></summary>
 ~~~~~~C
-🅂 struct sphere {
+struct sphere {
     vec3 c;
     float r;
 };
@@ -6168,7 +6205,7 @@ Return|{{return}}
 <a name="aabb"></a>
 <details><summary><code lang=C>🅂 struct aabb;</code></summary>
 ~~~~~~C
-🅂 struct aabb {
+struct aabb {
     vec3 min,max;
 };
 ~~~~~~
@@ -6195,7 +6232,7 @@ Return|{{return}}
 <a name="plane"></a>
 <details><summary><code lang=C>🅂 struct plane;</code></summary>
 ~~~~~~C
-🅂 struct plane {
+struct plane {
     vec3 p,n;
 };
 ~~~~~~
@@ -6222,7 +6259,7 @@ Return|{{return}}
 <a name="capsule"></a>
 <details><summary><code lang=C>🅂 struct capsule;</code></summary>
 ~~~~~~C
-🅂 struct capsule {
+struct capsule {
     vec3 a,b;
     float r;
 };
@@ -6250,7 +6287,7 @@ Return|{{return}}
 <a name="ray"></a>
 <details><summary><code lang=C>🅂 struct ray;</code></summary>
 ~~~~~~C
-🅂 struct ray {
+struct ray {
     vec3 p,d;
 };
 ~~~~~~
@@ -6277,7 +6314,7 @@ Return|{{return}}
 <a name="triangle"></a>
 <details><summary><code lang=C>🅂 struct triangle;</code></summary>
 ~~~~~~C
-🅂 struct triangle {
+struct triangle {
     vec3 p0,p1,p2;
 };
 ~~~~~~
@@ -6304,7 +6341,7 @@ Return|{{return}}
 <a name="poly"></a>
 <details><summary><code lang=C>🅂 struct poly;</code></summary>
 ~~~~~~C
-🅂 struct poly {
+struct poly {
     vec3* verts;
     int cnt;
 };
@@ -6332,7 +6369,7 @@ Return|{{return}}
 <a name="frustum"></a>
 <details><summary><code lang=C>🅂 union frustum;</code></summary>
 ~~~~~~C
-🅂 union frustum {
+union frustum {
     struct {
         vec4 l,r,t,b,n,f;
     };
@@ -6363,7 +6400,7 @@ Return|{{return}}
 <a name="hit"></a>
 <details><summary><code lang=C>🅂 struct hit;</code></summary>
 ~~~~~~C
-🅂 struct hit {
+struct hit {
     union {
         float depth;
         struct {
@@ -7907,7 +7944,7 @@ Return|{{return}}
 <a name="AUDIO_FLAGS"></a>
 <details><summary><code lang=C>🄴 enum AUDIO_FLAGS;</code></summary>
 ~~~~~~C
-🄴 enum AUDIO_FLAGS {
+enum AUDIO_FLAGS {
     AUDIO_1CH = 0,
     AUDIO_2CH = 1,
     AUDIO_8 = 2,
@@ -7965,7 +8002,7 @@ Return|{{return}}
 <a name="COOKER_FLAGS"></a>
 <details><summary><code lang=C>🄴 enum COOKER_FLAGS;</code></summary>
 ~~~~~~C
-🄴 enum COOKER_FLAGS {
+enum COOKER_FLAGS {
     COOKER_ASYNC = 1
 };
 ~~~~~~
@@ -7992,7 +8029,7 @@ Return|{{return}}
 <a name="cooker_callback_t"></a>
 <details><summary><code lang=C>🅃 typedef cooker_callback_t;</code></summary>
 ~~~~~~C
-🅃 typedef int (*cooker_callback_t)(char* filename,const char* ext,const char header[16],FILE* in,FILE* out,const char* info,int threadid);
+typedef int (*cooker_callback_t)(char* filename,const char* ext,const char header[16],FILE* in,FILE* out,const char* info,int threadid);
 ~~~~~~
 
 Reposition the `video_t` stream. See also: [video_seek](#video_seek)
@@ -8151,7 +8188,7 @@ Return|{{return}}
 <a name="data_t"></a>
 <details><summary><code lang=C>🅂 union data_t;</code></summary>
 ~~~~~~C
-🅂 union data_t {
+union data_t {
     char* s;
     double f;
     int64_t i;
@@ -9420,7 +9457,7 @@ Return|{{return}}
 <a name="INPUT_ENUMS"></a>
 <details><summary><code lang=C>🄴 enum INPUT_ENUMS;</code></summary>
 ~~~~~~C
-🄴 enum INPUT_ENUMS {
+enum INPUT_ENUMS {
     KEY_ESC,
     KEY_TICK,
     KEY_1,
@@ -10066,7 +10103,7 @@ Return|{{return}}
 <a name="IMAGE_FLAGS"></a>
 <details><summary><code lang=C>🄴 enum IMAGE_FLAGS;</code></summary>
 ~~~~~~C
-🄴 enum IMAGE_FLAGS {
+enum IMAGE_FLAGS {
     IMAGE_R = 0x01000,
     IMAGE_RG = 0x02000,
     IMAGE_RGB = 0x04000,
@@ -10097,7 +10134,7 @@ Return|{{return}}
 <a name="image_t"></a>
 <details><summary><code lang=C>🅂 struct image_t;</code></summary>
 ~~~~~~C
-🅂 struct image_t {
+struct image_t {
     union {
         unsigned x,w;
     };
@@ -10205,7 +10242,7 @@ Return|{{return}}
 <a name="TEXTURE_FLAGS"></a>
 <details><summary><code lang=C>🄴 enum TEXTURE_FLAGS;</code></summary>
 ~~~~~~C
-🄴 enum TEXTURE_FLAGS {
+enum TEXTURE_FLAGS {
     TEXTURE_BC1 = 8,
     TEXTURE_BC2 = 16,
     TEXTURE_BC3 = 32,
@@ -10252,7 +10289,7 @@ Return|{{return}}
 <a name="texture_t"></a>
 <details><summary><code lang=C>🅂 struct texture_t;</code></summary>
 ~~~~~~C
-🅂 struct texture_t {
+struct texture_t {
     union {
         unsigned x,w;
     };
@@ -10531,7 +10568,7 @@ Return|{{return}}
 <a name="cubemap_t"></a>
 <details><summary><code lang=C>🅂 struct cubemap_t;</code></summary>
 ~~~~~~C
-🅂 struct cubemap_t {
+struct cubemap_t {
     unsigned id;
     vec3 sh[9];
 };
@@ -10735,7 +10772,7 @@ Return|{{return}}
 <a name="shadowmap_t"></a>
 <details><summary><code lang=C>🅂 struct shadowmap_t;</code></summary>
 ~~~~~~C
-🅂 struct shadowmap_t {
+struct shadowmap_t {
     mat44 shadowmatrix;
     mat44 mvp;
     mat44 mv;
@@ -11166,7 +11203,7 @@ Return|{{return}}
 <a name="MESH_FLAGS"></a>
 <details><summary><code lang=C>🄴 enum MESH_FLAGS;</code></summary>
 ~~~~~~C
-🄴 enum MESH_FLAGS {
+enum MESH_FLAGS {
     MESH_STATIC = 0,
     MESH_STREAM = 1,
     MESH_TRIANGLE_STRIP = 2
@@ -11195,7 +11232,7 @@ Return|{{return}}
 <a name="mesh_t"></a>
 <details><summary><code lang=C>🅂 struct mesh_t;</code></summary>
 ~~~~~~C
-🅂 struct mesh_t {
+struct mesh_t {
     handle vao,vbo,ibo;
     unsigned vertex_count;
     unsigned index_count;
@@ -11379,7 +11416,7 @@ Return|{{return}}
 <a name="MODEL_FLAGS"></a>
 <details><summary><code lang=C>🄴 enum MODEL_FLAGS;</code></summary>
 ~~~~~~C
-🄴 enum MODEL_FLAGS {
+enum MODEL_FLAGS {
     MODEL_NO_ANIMATIONS = 1,
     MODEL_NO_MESHES = 2,
     MODEL_NO_TEXTURES = 4
@@ -11408,7 +11445,7 @@ Return|{{return}}
 <a name="model_t"></a>
 <details><summary><code lang=C>🅂 struct model_t;</code></summary>
 ~~~~~~C
-🅂 struct model_t {
+struct model_t {
     struct iqm_t* iqm;
     unsigned num_meshes;
     unsigned num_triangles;
@@ -11619,7 +11656,7 @@ Return|{{return}}
 <a name="skybox_t"></a>
 <details><summary><code lang=C>🅂 struct skybox_t;</code></summary>
 ~~~~~~C
-🅂 struct skybox_t {
+struct skybox_t {
     handle program;
     mesh_t geometry;
     cubemap_t cubemap;
@@ -12775,7 +12812,7 @@ Return|{{return}}
 <a name="camera_t"></a>
 <details><summary><code lang=C>🅂 struct camera_t;</code></summary>
 ~~~~~~C
-🅂 struct camera_t {
+struct camera_t {
     mat44 view,proj;
     vec3 position,up,look;
     float yaw,pitch,speed;
@@ -12915,7 +12952,7 @@ Return|{{return}}
 <a name="object_t"></a>
 <details><summary><code lang=C>🅂 struct object_t;</code></summary>
 ~~~~~~C
-🅂 struct object_t {
+struct object_t {
     uint64_t renderbucket;
     mat44 transform;
     quat rot;
@@ -13169,7 +13206,7 @@ Return|{{return}}
 <a name="SCENE_FLAGS"></a>
 <details><summary><code lang=C>🄴 enum SCENE_FLAGS;</code></summary>
 ~~~~~~C
-🄴 enum SCENE_FLAGS {
+enum SCENE_FLAGS {
     SCENE_WIREFRAME = 1,
     SCENE_CULLFACE = 2,
     SCENE_BACKGROUND = 4,
@@ -13199,7 +13236,7 @@ Return|{{return}}
 <a name="scene_t"></a>
 <details><summary><code lang=C>🅂 struct scene_t;</code></summary>
 ~~~~~~C
-🅂 struct scene_t {
+struct scene_t {
     handle program;
     array(object_t) objs;
     skybox_t skybox;
@@ -15549,7 +15586,7 @@ Return|{{return}}
 <a name="WINDOW_FLAGS"></a>
 <details><summary><code lang=C>🄴 enum WINDOW_FLAGS;</code></summary>
 ~~~~~~C
-🄴 enum WINDOW_FLAGS {
+enum WINDOW_FLAGS {
     WINDOW_NO_MOUSE = 0x01,
     WINDOW_MSAA2 = 0x02,
     WINDOW_MSAA4 = 0x04,
@@ -16464,7 +16501,7 @@ Return|{{return}}
 <a name="set_item"></a>
 <details><summary><code lang=C>🅂 struct set_item;</code></summary>
 ~~~~~~C
-🅂 struct set_item {
+struct set_item {
     struct set_item* next;
     uint64_t keyhash;
     void* key;
@@ -16494,7 +16531,7 @@ Return|{{return}}
 <a name="set"></a>
 <details><summary><code lang=C>🅂 struct set;</code></summary>
 ~~~~~~C
-🅂 struct set {
+struct set {
     array(set_item*) array;
     int (*cmp)(void*, void*);
     uint64_t (*hash)(void*);
@@ -16678,7 +16715,7 @@ Return|{{return}}
 <a name="pair"></a>
 <details><summary><code lang=C>🅂 struct pair;</code></summary>
 ~~~~~~C
-🅂 struct pair {
+struct pair {
     struct pair* next;
     uint64_t keyhash;
     void* key;
@@ -16709,7 +16746,7 @@ Return|{{return}}
 <a name="map"></a>
 <details><summary><code lang=C>🅂 struct map;</code></summary>
 ~~~~~~C
-🅂 struct map {
+struct map {
     array(pair*) array;
     int (*cmp)(void*, void*);
     uint64_t (*hash)(void*);
@@ -17315,12 +17352,10 @@ Return|{{return}}
 
 ## 🄳 defines
 [_AND](#_AND), [_BSD](#_BSD), [_CLA](#_CLA), [_GCC](#_GCC), [_LIN](#_LIN), [_MSC](#_MSC), [_OSX](#_OSX), [_TCC](#_TCC), [_WIN](#_WIN), [API](#API), [ASSERT](#ASSERT), [BLACK](#BLACK), [BLUE](#BLUE), [C_EPSILON](#C_EPSILON), [C_PI](#C_PI), [CALLOC](#CALLOC), [CYAN](#CYAN), [DS_H](#DS_H), [EXPAND](#EXPAND), [EXPAND_ARGS](#EXPAND_ARGS), [EXPAND_COUNT_ARGS](#EXPAND_COUNT_ARGS), [EXPAND_J01N](#EXPAND_J01N), [EXPAND_J0IN](#EXPAND_J0IN), [EXPAND_JOIN](#EXPAND_JOIN), [EXPAND_QUOTE](#EXPAND_QUOTE), [EXPAND_RETURN_COUNT](#EXPAND_RETURN_COUNT), [EXPORT](#EXPORT), [FILELINE](#FILELINE), [FORGET](#FORGET), [FREE](#FREE), [GJK_H](#GJK_H), [GJK_MAX_ITERATIONS](#GJK_MAX_ITERATIONS), [GLAD_API_CALL](#GLAD_API_CALL), [GRAY](#GRAY), [GREEN](#GREEN), [IMPORT](#IMPORT), [M_CAST](#M_CAST), [MALLOC](#MALLOC), [MAP_DONT_ERASE](#MAP_DONT_ERASE), [MAP_HASHSIZE](#MAP_HASHSIZE), [MAP_REALLOC](#MAP_REALLOC), [MSIZE](#MSIZE), [ORANGE](#ORANGE), [PANIC](#PANIC), [PRINTF](#PRINTF), [PURPLE](#PURPLE), [REALLOC](#REALLOC), [RED](#RED), [RGB3](#RGB3), [RGB4](#RGB4), [RGBX](#RGBX), [SET_DONT_ERASE](#SET_DONT_ERASE), [SET_HASHSIZE](#SET_HASHSIZE), [SET_REALLOC](#SET_REALLOC), [STATIC](#STATIC), [STRDUP](#STRDUP), [STRING_H](#STRING_H), [STRINGIZ3](#STRINGIZ3), [STRINGIZE](#STRINGIZE), [TO_DEG](#TO_DEG), [TO_RAD](#TO_RAD), [WATCH](#WATCH), [WHITE](#WHITE)
-## 🅃 typedefs
-[cooker_callback_t](#cooker_callback_t), [handle](#handle), [mat33](#mat33), [mat34](#mat34), [mat44](#mat44)
 ## 🄴 enums
 [AUDIO_FLAGS](#AUDIO_FLAGS), [AXIS_ENUMS](#AXIS_ENUMS), [COOKER_FLAGS](#COOKER_FLAGS), [IMAGE_FLAGS](#IMAGE_FLAGS), [INPUT_ENUMS](#INPUT_ENUMS), [MESH_FLAGS](#MESH_FLAGS), [MODEL_FLAGS](#MODEL_FLAGS), [SCENE_FLAGS](#SCENE_FLAGS), [TEXTURE_FLAGS](#TEXTURE_FLAGS), [WINDOW_FLAGS](#WINDOW_FLAGS)
-## 🅂 structs
-[aabb](#aabb), [audio_handle*](#audio_handle*), [camera_t](#camera_t), [capsule](#capsule), [coord_system](#coord_system), [cubemap_t](#cubemap_t), [data_t](#data_t), [frustum](#frustum), [gjk_result](#gjk_result), [gjk_simplex](#gjk_simplex), [gjk_support](#gjk_support), [gjk_vertex](#gjk_vertex), [hit](#hit), [image_t](#image_t), [line](#line), [map](#map), [mesh_t](#mesh_t), [model_t](#model_t), [object_t](#object_t), [pair](#pair), [plane](#plane), [poly](#poly), [quat](#quat), [ray](#ray), [scene_t](#scene_t), [set](#set), [set_item](#set_item), [shadowmap_t](#shadowmap_t), [skybox_t](#skybox_t), [sphere](#sphere), [texture_t](#texture_t), [triangle](#triangle), [vec2](#vec2), [vec3](#vec3), [vec4](#vec4), [video_t](#video_t)
+## 🅃 types
+[aabb](#aabb), [audio_handle*](#audio_handle*), [camera_t](#camera_t), [capsule](#capsule), [cooker_callback_t](#cooker_callback_t), [coord_system](#coord_system), [cubemap_t](#cubemap_t), [data_t](#data_t), [frustum](#frustum), [gjk_result](#gjk_result), [gjk_simplex](#gjk_simplex), [gjk_support](#gjk_support), [gjk_vertex](#gjk_vertex), [handle](#handle), [hit](#hit), [image_t](#image_t), [line](#line), [map](#map), [mat33](#mat33), [mat34](#mat34), [mat44](#mat44), [mesh_t](#mesh_t), [model_t](#model_t), [object_t](#object_t), [pair](#pair), [plane](#plane), [poly](#poly), [quat](#quat), [ray](#ray), [scene_t](#scene_t), [set](#set), [set_item](#set_item), [shadowmap_t](#shadowmap_t), [skybox_t](#skybox_t), [sphere](#sphere), [texture_t](#texture_t), [triangle](#triangle), [vec2](#vec2), [vec3](#vec3), [vec4](#vec4), [video_t](#video_t)
 ## 🄵 functions
 [aabb_closest_point](#aabb_closest_point), [aabb_contains_point](#aabb_contains_point), [aabb_distance2_point](#aabb_distance2_point), [aabb_hit_aabb](#aabb_hit_aabb), [aabb_hit_capsule](#aabb_hit_capsule), [aabb_hit_sphere](#aabb_hit_sphere), [aabb_test_aabb](#aabb_test_aabb), [aabb_test_capsule](#aabb_test_capsule), [aabb_test_poly](#aabb_test_poly), [aabb_test_sphere](#aabb_test_sphere), [abs2](#abs2), [abs3](#abs3), [abs4](#abs4), [absf](#absf), [absi](#absi), [add2](#add2), [add3](#add3), [add34](#add34), [add34x2](#add34x2), [add4](#add4), [addq](#addq), [alert](#alert), [alpha](#alpha), [app_cache](#app_cache), [app_name](#app_name), [app_path](#app_path), [app_reload](#app_reload), [app_temp](#app_temp), [argc](#argc), [argv](#argv), [audio_clip](#audio_clip), [audio_play](#audio_play), [audio_queue](#audio_queue), [audio_stream](#audio_stream), [audio_volume_clip](#audio_volume_clip), [audio_volume_master](#audio_volume_master), [audio_volume_stream](#audio_volume_stream), [bgra](#bgra), [big16](#big16), [big16p](#big16p), [big32](#big32), [big32f](#big32f), [big32p](#big32p), [big32pf](#big32pf), [big64](#big64), [big64f](#big64f), [big64p](#big64p), [big64pf](#big64pf), [breakpoint](#breakpoint), [cache_insert](#cache_insert), [cache_lookup](#cache_lookup), [callstack](#callstack), [callstackf](#callstackf), [camera](#camera), [camera_fps](#camera_fps), [camera_get_active](#camera_get_active), [camera_lookat](#camera_lookat), [camera_move](#camera_move), [capsule_closest_point](#capsule_closest_point), [capsule_distance2_point](#capsule_distance2_point), [capsule_hit_aabb](#capsule_hit_aabb), [capsule_hit_capsule](#capsule_hit_capsule), [capsule_hit_sphere](#capsule_hit_sphere), [capsule_test_aabb](#capsule_test_aabb), [capsule_test_capsule](#capsule_test_capsule), [capsule_test_poly](#capsule_test_poly), [capsule_test_sphere](#capsule_test_sphere), [ceil2](#ceil2), [ceil3](#ceil3), [ceil4](#ceil4), [clamp2](#clamp2), [clamp3](#clamp3), [clamp4](#clamp4), [clampf](#clampf), [compose33](#compose33), [compose34](#compose34), [compose44](#compose44), [conjq](#conjq), [cooker_config](#cooker_config), [cooker_process](#cooker_process), [cooker_progress](#cooker_progress), [copy33](#copy33), [copy34](#copy34), [copy44](#copy44), [cpu_cores](#cpu_cores), [cross2](#cross2), [cross3](#cross3), [cubemap](#cubemap), [cubemap6](#cubemap6), [cubemap_destroy](#cubemap_destroy), [cubemap_get_active](#cubemap_get_active), [data_count](#data_count), [data_get](#data_get), [data_pop](#data_pop), [data_push](#data_push), [date_human](#date_human), [ddraw_aabb](#ddraw_aabb), [ddraw_aabb_corners](#ddraw_aabb_corners), [ddraw_arrow](#ddraw_arrow), [ddraw_axis](#ddraw_axis), [ddraw_boid](#ddraw_boid), [ddraw_bone](#ddraw_bone), [ddraw_bounds](#ddraw_bounds), [ddraw_box](#ddraw_box), [ddraw_capsule](#ddraw_capsule), [ddraw_circle](#ddraw_circle), [ddraw_color](#ddraw_color), [ddraw_cone](#ddraw_cone), [ddraw_cube](#ddraw_cube), [ddraw_demo](#ddraw_demo), [ddraw_diamond](#ddraw_diamond), [ddraw_flush](#ddraw_flush), [ddraw_frustum](#ddraw_frustum), [ddraw_grid](#ddraw_grid), [ddraw_ground](#ddraw_ground), [ddraw_hexagon](#ddraw_hexagon), [ddraw_line](#ddraw_line), [ddraw_line_dashed](#ddraw_line_dashed), [ddraw_line_thin](#ddraw_line_thin), [ddraw_normal](#ddraw_normal), [ddraw_ontop](#ddraw_ontop), [ddraw_pentagon](#ddraw_pentagon), [ddraw_plane](#ddraw_plane), [ddraw_point](#ddraw_point), [ddraw_position](#ddraw_position), [ddraw_position_dir](#ddraw_position_dir), [ddraw_pyramid](#ddraw_pyramid), [ddraw_sphere](#ddraw_sphere), [ddraw_square](#ddraw_square), [ddraw_text](#ddraw_text), [ddraw_text2d](#ddraw_text2d), [ddraw_triangle](#ddraw_triangle), [dec2](#dec2), [dec3](#dec3), [dec4](#dec4), [deg](#deg), [det44](#det44), [diamond](#diamond), [die](#die), [div2](#div2), [div3](#div3), [div4](#div4), [dll](#dll), [dot2](#dot2), [dot3](#dot3), [dot4](#dot4), [dotq](#dotq), [download](#download), [ease_in_back](#ease_in_back), [ease_in_bounce](#ease_in_bounce), [ease_in_circ](#ease_in_circ), [ease_in_cubic](#ease_in_cubic), [ease_in_elastic](#ease_in_elastic), [ease_in_expo](#ease_in_expo), [ease_in_quad](#ease_in_quad), [ease_in_quart](#ease_in_quart), [ease_in_quint](#ease_in_quint), [ease_in_sine](#ease_in_sine), [ease_inout_back](#ease_inout_back), [ease_inout_bounce](#ease_inout_bounce), [ease_inout_circ](#ease_inout_circ), [ease_inout_cubic](#ease_inout_cubic), [ease_inout_elastic](#ease_inout_elastic), [ease_inout_expo](#ease_inout_expo), [ease_inout_perlin](#ease_inout_perlin), [ease_inout_quad](#ease_inout_quad), [ease_inout_quart](#ease_inout_quart), [ease_inout_quint](#ease_inout_quint), [ease_inout_sine](#ease_inout_sine), [ease_linear](#ease_linear), [ease_out_back](#ease_out_back), [ease_out_bounce](#ease_out_bounce), [ease_out_circ](#ease_out_circ), [ease_out_cubic](#ease_out_cubic), [ease_out_elastic](#ease_out_elastic), [ease_out_expo](#ease_out_expo), [ease_out_quad](#ease_out_quad), [ease_out_quart](#ease_out_quart), [ease_out_quint](#ease_out_quint), [ease_out_sine](#ease_out_sine), [ease_ping_pong](#ease_ping_pong), [ease_pong_ping](#ease_pong_ping), [editor](#editor), [editor_active](#editor_active), [euler](#euler), [eulerq](#eulerq), [extract33](#extract33), [fbo](#fbo), [fbo_bind](#fbo_bind), [fbo_destroy](#fbo_destroy), [fbo_unbind](#fbo_unbind), [file_copy](#file_copy), [file_directory](#file_directory), [file_ext](#file_ext), [file_id](#file_id), [file_list](#file_list), [file_load](#file_load), [file_name](#file_name), [file_normalize](#file_normalize), [file_path](#file_path), [file_read](#file_read), [file_size](#file_size), [file_stamp](#file_stamp), [file_stamp_human](#file_stamp_human), [file_temp](#file_temp), [file_tempname](#file_tempname), [finite2](#finite2), [finite3](#finite3), [finite4](#finite4), [flag](#flag), [floor2](#floor2), [floor3](#floor3), [floor4](#floor4), [forget](#forget), [fract2](#fract2), [fract3](#fract3), [fract4](#fract4), [frustum44](#frustum44), [frustum_build](#frustum_build), [frustum_test_aabb](#frustum_test_aabb), [frustum_test_sphere](#frustum_test_sphere), [fullscreen_rgb_quad](#fullscreen_rgb_quad), [fullscreen_ycbcr_quad](#fullscreen_ycbcr_quad), [fx_begin](#fx_begin), [fx_enable](#fx_enable), [fx_enable_all](#fx_enable_all), [fx_enabled](#fx_enabled), [fx_end](#fx_end), [fx_load](#fx_load), [fx_name](#fx_name), [gizmo](#gizmo), [gizmo_active](#gizmo_active), [gjk](#gjk), [gjk_analyze](#gjk_analyze), [gjk_quad](#gjk_quad), [has_debugger](#has_debugger), [hash_32](#hash_32), [hash_64](#hash_64), [hash_flt](#hash_flt), [hash_int](#hash_int), [hash_ptr](#hash_ptr), [hash_str](#hash_str), [hexdump](#hexdump), [hexdumpf](#hexdumpf), [id33](#id33), [id34](#id34), [id44](#id44), [identity44](#identity44), [idq](#idq), [image](#image), [image_destroy](#image_destroy), [image_from_mem](#image_from_mem), [inc2](#inc2), [inc3](#inc3), [inc4](#inc4), [input](#input), [input2](#input2), [input_chord2](#input_chord2), [input_chord3](#input_chord3), [input_chord4](#input_chord4), [input_click](#input_click), [input_click2](#input_click2), [input_demo](#input_demo), [input_diff](#input_diff), [input_diff2](#input_diff2), [input_down](#input_down), [input_filter_deadzone](#input_filter_deadzone), [input_filter_deadzone_4way](#input_filter_deadzone_4way), [input_filter_positive](#input_filter_positive), [input_filter_positive2](#input_filter_positive2), [input_frame](#input_frame), [input_frame2](#input_frame2), [input_frames](#input_frames), [input_held](#input_held), [input_idle](#input_idle), [input_load_state](#input_load_state), [input_repeat](#input_repeat), [input_save_state](#input_save_state), [input_send](#input_send), [input_up](#input_up), [input_use](#input_use), [invert34](#invert34), [invert44](#invert44), [len2](#len2), [len2sq](#len2sq), [len3](#len3), [len3sq](#len3sq), [len4](#len4), [len4sq](#len4sq), [lerp34](#lerp34), [less_int](#less_int), [less_ptr](#less_ptr), [less_str](#less_str), [less_u64](#less_u64), [lil16](#lil16), [lil16p](#lil16p), [lil32](#lil32), [lil32f](#lil32f), [lil32p](#lil32p), [lil32pf](#lil32pf), [lil64](#lil64), [lil64f](#lil64f), [lil64p](#lil64p), [lil64pf](#lil64pf), [line_closest_point](#line_closest_point), [line_distance2_point](#line_distance2_point), [lookat44](#lookat44), [map_count](#map_count), [map_erase](#map_erase), [map_find](#map_find), [map_free](#map_free), [map_gc](#map_gc), [map_init](#map_init), [map_insert](#map_insert), [mat44q](#mat44q), [max2](#max2), [max3](#max3), [max4](#max4), [maxf](#maxf), [maxi](#maxi), [mesh_bounds](#mesh_bounds), [mesh_create](#mesh_create), [mesh_destroy](#mesh_destroy), [mesh_pop_state](#mesh_pop_state), [mesh_push_state](#mesh_push_state), [mesh_render](#mesh_render), [mesh_upgrade](#mesh_upgrade), [min2](#min2), [min3](#min3), [min4](#min4), [minf](#minf), [mini](#mini), [mix2](#mix2), [mix3](#mix3), [mix4](#mix4), [mixf](#mixf), [mixq](#mixq), [model](#model), [model_aabb](#model_aabb), [model_animate](#model_animate), [model_animate_clip](#model_animate_clip), [model_destroy](#model_destroy), [model_from_mem](#model_from_mem), [model_render](#model_render), [model_render2](#model_render2), [mul2](#mul2), [mul3](#mul3), [mul4](#mul4), [muladd34](#muladd34), [mulq](#mulq), [multiply33x2](#multiply33x2), [multiply34](#multiply34), [multiply34x2](#multiply34x2), [multiply34x3](#multiply34x3), [multiply44](#multiply44), [multiply44x2](#multiply44x2), [multiply44x3](#multiply44x3), [mulv33](#mulv33), [neg2](#neg2), [neg3](#neg3), [neg4](#neg4), [negq](#negq), [norm2](#norm2), [norm3](#norm3), [norm3sq](#norm3sq), [norm4](#norm4), [norm4sq](#norm4sq), [normq](#normq), [object](#object), [object_billboard](#object_billboard), [object_diffuse](#object_diffuse), [object_model](#object_model), [object_move](#object_move), [object_pivot](#object_pivot), [object_position](#object_position), [object_rotate](#object_rotate), [object_scale](#object_scale), [object_teleport](#object_teleport), [option](#option), [optionf](#optionf), [optioni](#optioni), [ortho3](#ortho3), [ortho44](#ortho44), [os_exec](#os_exec), [os_exec_output](#os_exec_output), [PANIC](#PANIC), [perspective44](#perspective44), [plane4](#plane4), [pmod2](#pmod2), [pmod3](#pmod3), [pmod4](#pmod4), [pmodf](#pmodf), [poly_alloc](#poly_alloc), [poly_free](#poly_free), [poly_hit_aabb](#poly_hit_aabb), [poly_hit_aabb_transform](#poly_hit_aabb_transform), [poly_hit_capsule](#poly_hit_capsule), [poly_hit_capsule_transform](#poly_hit_capsule_transform), [poly_hit_poly](#poly_hit_poly), [poly_hit_poly_transform](#poly_hit_poly_transform), [poly_hit_sphere](#poly_hit_sphere), [poly_hit_sphere_transform](#poly_hit_sphere_transform), [poly_test_aabb](#poly_test_aabb), [poly_test_aabb_transform](#poly_test_aabb_transform), [poly_test_capsule](#poly_test_capsule), [poly_test_capsule_transform](#poly_test_capsule_transform), [poly_test_poly](#poly_test_poly), [poly_test_poly_transform](#poly_test_poly_transform), [poly_test_sphere](#poly_test_sphere), [poly_test_sphere_transform](#poly_test_sphere_transform), [portname](#portname), [print2](#print2), [print3](#print3), [print33](#print33), [print34](#print34), [print4](#print4), [print44](#print44), [PRINTF](#PRINTF), [printq](#printq), [ptr2](#ptr2), [ptr3](#ptr3), [ptr4](#ptr4), [ptrq](#ptrq), [pyramid](#pyramid), [rad](#rad), [rand64](#rand64), [randf](#randf), [randi](#randi), [randset](#randset), [ray_hit_aabb](#ray_hit_aabb), [ray_hit_plane](#ray_hit_plane), [ray_hit_sphere](#ray_hit_sphere), [ray_hit_triangle](#ray_hit_triangle), [ray_test_aabb](#ray_test_aabb), [ray_test_plane](#ray_test_plane), [ray_test_sphere](#ray_test_sphere), [ray_test_triangle](#ray_test_triangle), [rebase44](#rebase44), [refl2](#refl2), [refl3](#refl3), [refl4](#refl4), [relocate44](#relocate44), [rgba](#rgba), [rotate33](#rotate33), [rotate3q](#rotate3q), [rotate3q_2](#rotate3q_2), [rotate44](#rotate44), [rotation33](#rotation33), [rotation44](#rotation44), [rotationq](#rotationq), [rotationq33](#rotationq33), [rotationq44](#rotationq44), [scale2](#scale2), [scale3](#scale3), [scale33](#scale33), [scale34](#scale34), [scale4](#scale4), [scale44](#scale44), [scaleq](#scaleq), [scaling33](#scaling33), [scaling44](#scaling44), [scene_count](#scene_count), [scene_get_active](#scene_get_active), [scene_index](#scene_index), [scene_merge](#scene_merge), [scene_pop](#scene_pop), [scene_push](#scene_push), [scene_render](#scene_render), [scene_spawn](#scene_spawn), [screenshot](#screenshot), [script_bind_class](#script_bind_class), [script_bind_function](#script_bind_function), [script_call](#script_call), [script_init](#script_init), [script_run](#script_run), [script_runfile](#script_runfile), [set_count](#set_count), [set_erase](#set_erase), [set_find](#set_find), [set_free](#set_free), [set_gc](#set_gc), [set_init](#set_init), [set_insert](#set_insert), [shader](#shader), [shader_bind](#shader_bind), [shader_destroy](#shader_destroy), [shader_float](#shader_float), [shader_get_active](#shader_get_active), [shader_int](#shader_int), [shader_mat44](#shader_mat44), [shader_texture](#shader_texture), [shader_vec2](#shader_vec2), [shader_vec3](#shader_vec3), [shader_vec4](#shader_vec4), [shadowmap](#shadowmap), [shadowmap_begin](#shadowmap_begin), [shadowmap_destroy](#shadowmap_destroy), [shadowmap_end](#shadowmap_end), [shadowmap_set_shadowmatrix](#shadowmap_set_shadowmatrix), [shadowmatrix_ortho](#shadowmatrix_ortho), [shadowmatrix_proj](#shadowmatrix_proj), [signf](#signf), [simplex1](#simplex1), [simplex2](#simplex2), [simplex3](#simplex3), [simplex4](#simplex4), [skybox](#skybox), [skybox_destroy](#skybox_destroy), [skybox_pop_state](#skybox_pop_state), [skybox_push_state](#skybox_push_state), [sleep_ms](#sleep_ms), [sleep_ss](#sleep_ss), [sleep_us](#sleep_us), [slerpq](#slerpq), [sphere_closest_point](#sphere_closest_point), [sphere_hit_aabb](#sphere_hit_aabb), [sphere_hit_capsule](#sphere_hit_capsule), [sphere_hit_sphere](#sphere_hit_sphere), [sphere_test_aabb](#sphere_test_aabb), [sphere_test_capsule](#sphere_test_capsule), [sphere_test_poly](#sphere_test_poly), [sphere_test_sphere](#sphere_test_sphere), [sprite](#sprite), [sprite_update](#sprite_update), [stack](#stack), [str16to8](#str16to8), [strbegi](#strbegi), [strcmp_qsort](#strcmp_qsort), [strcmpi_qsort](#strcmpi_qsort), [strcut](#strcut), [strendi](#strendi), [stringf](#stringf), [stringf_cat](#stringf_cat), [strjoin](#strjoin), [strlcat](#strlcat), [strlcpy](#strlcpy), [strlerp](#strlerp), [strmatch](#strmatch), [strrepl](#strrepl), [strsplit](#strsplit), [strstri](#strstri), [strswap](#strswap), [sub2](#sub2), [sub3](#sub3), [sub4](#sub4), [subq](#subq), [tcp_bind](#tcp_bind), [tcp_close](#tcp_close), [tcp_debug](#tcp_debug), [tcp_host](#tcp_host), [tcp_open](#tcp_open), [tcp_peek](#tcp_peek), [tcp_port](#tcp_port), [tcp_recv](#tcp_recv), [tcp_send](#tcp_send), [texture](#texture), [texture_checker](#texture_checker), [texture_create](#texture_create), [texture_destroy](#texture_destroy), [texture_from_mem](#texture_from_mem), [texture_update](#texture_update), [tile](#tile), [time_ms](#time_ms), [time_ss](#time_ss), [time_us](#time_us), [transform33](#transform33), [transform344](#transform344), [transform444](#transform444), [transform_axis](#transform_axis), [transform_matrix](#transform_matrix), [transform_normal](#transform_normal), [transform_point](#transform_point), [transform_quat](#transform_quat), [transform_scaling](#transform_scaling), [transform_tangent](#transform_tangent), [transform_vector](#transform_vector), [transformq](#transformq), [translate44](#translate44), [translation44](#translation44), [transpose44](#transpose44), [tty_color](#tty_color), [tty_reset](#tty_reset), [udp_bind](#udp_bind), [udp_open](#udp_open), [udp_peek](#udp_peek), [udp_recv](#udp_recv), [udp_send](#udp_send), [udp_sendto](#udp_sendto), [ui_active](#ui_active), [ui_begin](#ui_begin), [ui_bool](#ui_bool), [ui_button](#ui_button), [ui_color3](#ui_color3), [ui_color4](#ui_color4), [ui_const_bool](#ui_const_bool), [ui_const_float](#ui_const_float), [ui_const_string](#ui_const_string), [ui_demo](#ui_demo), [ui_dialog](#ui_dialog), [ui_end](#ui_end), [ui_float](#ui_float), [ui_float2](#ui_float2), [ui_float3](#ui_float3), [ui_hover](#ui_hover), [ui_int](#ui_int), [ui_item](#ui_item), [ui_label](#ui_label), [ui_label2](#ui_label2), [ui_list](#ui_list), [ui_menu](#ui_menu), [ui_separator](#ui_separator), [ui_short](#ui_short), [ui_slider](#ui_slider), [ui_slider2](#ui_slider2), [ui_string](#ui_string), [ui_toggle](#ui_toggle), [unhash_32](#unhash_32), [unproject44](#unproject44), [vec23](#vec23), [vec34](#vec34), [vec3q](#vec3q), [vec4q](#vec4q), [vfs_find](#vfs_find), [vfs_handle](#vfs_handle), [vfs_list](#vfs_list), [vfs_load](#vfs_load), [vfs_mount](#vfs_mount), [vfs_read](#vfs_read), [vfs_resolve](#vfs_resolve), [vfs_size](#vfs_size), [video](#video), [video_decode](#video_decode), [video_destroy](#video_destroy), [video_duration](#video_duration), [video_has_finished](#video_has_finished), [video_is_paused](#video_is_paused), [video_pause](#video_pause), [video_position](#video_position), [video_seek](#video_seek), [viewport_clear](#viewport_clear), [viewport_clip](#viewport_clip), [viewport_color](#viewport_color), [vlen](#vlen), [vrealloc](#vrealloc), [watch](#watch), [window_aspect](#window_aspect), [window_create](#window_create), [window_cursor](#window_cursor), [window_delta](#window_delta), [window_flush](#window_flush), [window_focus](#window_focus), [window_fps](#window_fps), [window_fullscreen](#window_fullscreen), [window_handle](#window_handle), [window_has_cursor](#window_has_cursor), [window_has_focus](#window_has_focus), [window_has_fullscreen](#window_has_fullscreen), [window_has_pause](#window_has_pause), [window_has_videorec](#window_has_videorec), [window_has_visible](#window_has_visible), [window_height](#window_height), [window_hook](#window_hook), [window_icon](#window_icon), [window_pause](#window_pause), [window_screenshot](#window_screenshot), [window_swap](#window_swap), [window_time](#window_time), [window_title](#window_title), [window_unhook](#window_unhook), [window_videorec](#window_videorec), [window_visible](#window_visible), [window_width](#window_width), [xrealloc](#xrealloc)
 ## 🄼 macros

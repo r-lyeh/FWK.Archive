@@ -14,11 +14,13 @@
 - [x] ~Royaltie fee~. Free and unlicensed.
 
 ## Features ᕦ(ᐛ)ᕤ (stuff done ~~and yet to be done~~)
+- [x] Amalgamation: single-file, all dependencies included.
 - [x] OS: Windows, Linux and OSX.
 - [x] Compiler: MSVC, MINGW64, TCC, GCC and clang.
-- [x] Window: windowed, fullscreen, msaa, icon, cursor handling.
+- [x] Window: windowed, soft/hard fullscreen, msaa, icon, cursor handling.
 - [x] Input: keyboard, mouse and gamepads.
-- [x] Script: embedded Lua, Luajit bindings ~~and FFI~~.
+- [x] Script: Lua scripting, Luajit bindings.
+- [x] FFI: Framework can be im/exported as DLL.
 - [x] Network: downloads (HTTPS), sockets (TCP/UDP) ~~and messages (enet/websocket)~~.
 - [x] UI: color3/4, button, list, slider, toggle, checkbox, editbox, dialog, menus.
 - [x] Math: rand, noise, ease, vec2/3/4, mat33/34/44, quat ~~and quat2, bezier, catmull~~.
@@ -40,9 +42,9 @@
 - [x] Integrated asset pipeline.
 - [x] Profiler, stats and leaks finder.
 - [x] Level data: JSON, JSON5, SJSON, XML.
+- [ ] [Documentation (wip)](https://raw.githack.com/r-lyeh/FWK/master/fwk.html#toc1).
 
 ## Roadmap ᕕ(ᐛ)ᕗ (in order of arrival; `*`: partial support)
-- [ ] API: Documentation generator, during cook stage.
 - [ ] Network: NAT traversal. Socketless API, message API and pub/sub wrappers (enet/websocket).
 - [ ] Render: Materials (colors, textures`*`, matcaps`*`, videos`*`, shadertoys`*`).
 - [ ] Render: Flags (billboards `*`, un/lit). Hard/soft shadow mapping and baked lightmaps.
@@ -150,27 +152,6 @@
 //[ ] API: More examples.
 -->
 
-## API
-- [WIP Documentation](https://raw.githack.com/r-lyeh/FWK/master/fwk.html#toc1).
-```C
-// Minimal C sample
-#include "fwk.h"
-int main(int argc, char **argv) {
-    window_create(75.0, 0); // 75% size, no extra flags
-    while( window_swap() && !input(KEY_ESC) ) { // game loop
-        puts("hello fwk");
-    }
-}
-```
-```lua
--- Minimal Lua sample
-local fwk = require("fwk")
-fwk.window_create(75.0,0) -- 75% size, no extra flags
-while fwk.window_swap() == 1 do -- game loop
-    print("hello fwk")
-end
-```
-
 ## Build
 Type `MAKE.bat` (Win) or `sh MAKE.bat` (Linux/OSX) to build everything. Alternatively,
 
@@ -198,7 +179,7 @@ echo #endif // FWK_C >> fwk-single-header.h
 ```
 
 ## Extra tips
-- Dropped files into game window will be imported & saved in [`art/import`](art/import) folder.
+- Dropped files into game window will be imported & saved into [`art/import`](art/import) folder.
 - Linux/OSX users can optionally install wine to use the Windows pipeline as an alternate asset pipeline.
 - Depending on your IDE, you might need to [split all amalgamated](#Amalgamation) files when debugging FWK.
 

@@ -8,6 +8,7 @@
 
 ![Image from demo.c](https://i.imgur.com/sInbRoA.gif)
 
+<details open><summary>Code style</summary>
 ```C linenumbers
 /// ## Markdown comments when documenting (3 slashes)
 // C++ comments allowed
@@ -16,12 +17,37 @@
 #define puts my_puts                 // lowercase API aliases (macros)
 enum { ZERO = 0 };                   // uppercase enums. also, one-liners allowed
 void assert_positive( int my_int ) { // snake_case everywhere
-    int *x = &my_int;                // variables and pointers usually together
+    int *x = &my_int;                // no spacing between pointers and variables
     if( *x < ZERO ) {                // no padding space after if,do,while,for,switch
         puts( "Negative" );          // space padding around operators and parenthesis
     }                                // 4-spaces indents, 1TBS brackets
 }                                    // when in doubt, dont worry & mimic style from codebase
 ```
+</details>
+
+<details><summary>Minimal C sample</summary>
+```C
+// Minimal C sample
+#include "fwk.h"
+int main(int argc, char **argv) {
+    window_create(75.0, 0); // 75% size, no extra flags
+    while( window_swap() && !input(KEY_ESC) ) { // game loop
+        puts("hello fwk");
+    }
+}
+```
+</details>
+
+<details><summary>Minimal lua sample</summary>
+```Lua
+-- Minimal Lua sample
+local fwk = require("fwk")
+fwk.window_create(75.0,0) -- 75% size, no extra flags
+while fwk.window_swap() == 1 do -- game loop
+    print("hello fwk")
+end
+```
+</details>
 
 !!! Note
     Ready to browse documentation? This is a very common note.

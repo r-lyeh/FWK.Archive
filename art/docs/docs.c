@@ -204,43 +204,6 @@ bool parse_c_function(const char *raw, int *out_name_pos, int *out_name_len, int
     }
     return false;
 }
-bool parse_c_function_NEW(const char *raw, char **out_name, char **out_args, bool clean_parens) {
-    // try to clean up name from worst pathological case with parentheses. ie:
-    // API __declspec(dllexport) int(*)(int,...)(MACRO_CALLBACK)(int(*my_callback)(int,...));
-    // split declaration into 3 parts: return value, function name, and arguments.
-    // 1. string is parsed backwards, from tail to head.
-    // 2. arguments are parsed till all matching ( ) chars are balanced.
-    // 3. function name is parsed then till '(' or ' ' are found. we remove any parens if present.
-    // 4. everything else is the return type.
-    bool is_function = false;
-    int name = 0, args = 0;
-    const char *eos = raw + strlen(raw) - 1;
-    for( int i = eos - raw, open = 0; i >= 0; --i ) {
-        if( raw[i] == ')' ) ++open;
-        if( raw[i] == '(' ) if(open > 0) --open;
-
-        if( raw[i] == '(' && open == 0 ) {
-            /**/ if( args == 0 ) args = i;
-            else if( name == 0 ) name = i;
-        }
-        if( (raw[i] == ' ' || raw[i] == '*') && open == 0 && args != 0 && name == 0 ) {
-            name = i;
-        }
-
-        if( i == 0 ) is_function = (open == 0); // if parens are not balanced, this is not a function
-    }
-    if( is_function ) {
-        // printf("%d %d\n", name, args);
-        // printf(">> %.*s\n", args-name, raw+name);
-        // printf(">> %s\n", raw + args);
-        int namelen = args-name;
-        clean_parens = clean_parens && raw[name] == '(' && raw[args-1] == ')';
-        *out_args = stringf("%s", raw + args);
-        *out_name = stringf("%.*s", namelen -clean_parens*2, raw+name +clean_parens );
-        return true;
-    }
-    return false;
-}
 
 // reintroduce spacing and tabs where due, so code is pretty much readable again.
 // some difficult notes when indenting7cleaning up:
@@ -452,13 +415,11 @@ int sort_strcmp( const void *str1, const void *str2 ) {
 // db cache
 map(char*,array(char*)) db;
 array(char*) doc;
-array(char*) macros;
 array(char*) defines;
-array(char*) structs;
-array(char*) unions;
 array(char*) enums;
-array(char*) typedefs;
+array(char*) types; // unions,structs,typedefs
 array(char*) functions;
+array(char*) macros;
 
 char *learn(char *line) {
     // @todo: learn markdeep from [line] based on array(context)
@@ -470,10 +431,10 @@ char *learn(char *line) {
     line = prettify(strdup(line), &typename);
 
     if( typename[0] == 'd' ) array_push(defines, typename+1);
-    if( typename[0] == 't' ) array_push(typedefs, typename+1);
+    if( typename[0] == 't' ) array_push(types/*typedefs*/, typename+1);
     if( typename[0] == 'e' ) array_push(enums, typename+1);
-    if( typename[0] == 's' ) array_push(structs, typename+1);
-    if( typename[0] == 'u' ) array_push(structs/*unions*/, typename+1);
+    if( typename[0] == 's' ) array_push(types/*structs*/, typename+1);
+    if( typename[0] == 'u' ) array_push(types/*unions*/, typename+1);
     if( typename[0] == 'f' ) array_push(functions, typename+1);
     if( typename[0] == 'm' ) array_push(macros, typename+1);
 
@@ -522,15 +483,37 @@ void print_decl(char *line) { // non-const, since prettify can modify input
 
     // make pretty->oneliner
     bool truncated = 0;
-    char *oneliner = strdup(pretty);
-    if( strchr(oneliner, '\n') ) {
+    char *oneliner = CALLOC(1, strlen(pretty) + 64); strcpy(oneliner, pretty);
+    if( strchr(oneliner, '\n') ) { // union,struct,enum
         char *patch = strstr(oneliner, name);
         if( patch ) patch += strlen(name), *patch++ = ';', *patch++ = 0, truncated = 1;
     }
+    else // typedef
     if( strbegi(oneliner, "typedef") && strchr(oneliner, '(') ) {
         sprintf(oneliner, "typedef %s;", name); // truncate pointer-to-functions to max
         truncated = 1;
     }
+    else // function
+    if( 0 && strchr(oneliner, '(') ) {
+#if 0
+        // ret name(args); >> name(args)->ret
+        char *name_args = stringf("%s%s", name,strstr(pretty,name)+strlen(name));
+        char *ret = stringf("%.*s", (int)(strstr(pretty,name)-pretty),pretty);
+        sprintf(oneliner, "%.*s; // -> %s", (int)strlen(name_args)-1, name_args, ret);
+#else
+        // ret name(args); >> name(args)->ret
+        char *open = stringf("%s(", name);
+        char *ret = stringf("%.*s", (int)(strstr(pretty,open)-pretty),pretty);
+        char *args = stringf("%s", strstr(pretty,name)+strlen(name));
+//        sprintf(oneliner, "%16s %-16s%s", ret, name, args);  //      API void print44     (mat44 m)
+//        sprintf(oneliner, "%-16s %-16s%s", ret, name, args); // API void      print44     (mat44 m)
+          sprintf(oneliner, "%-16s %s%s", ret, name, args);
+        strrepl(&oneliner, " ", "·"); // windows 0xA0 character nbsp, 0xB7 char middle dot
+#endif
+        truncated = 1;
+    }
+    else // macro, define
+    {}
 
     // anchor
     printf("<a name=\"%s\"></a>\n", name);
@@ -540,7 +523,7 @@ void print_decl(char *line) { // non-const, since prettify can modify input
 
     if( truncated ) {
         printf("~~~~~~C\n"); // linenumbers\n");
-        printf("%s %s\n", header, pretty);
+        printf("%s\n", pretty); // header, pretty);
         printf("~~~~~~\n");
     }
 
@@ -697,25 +680,15 @@ int main(int argc, char **argv) {
     array_unique(defines, sort_strcmp);
     { char *sep = ""; for(int i = 0, end = array_count(defines); i < end; ++i)    printf("%s[%s](#%s)", sep, defines[i], defines[i]), sep = ", "; }
 
-    puts("\n## 🅃 typedefs");
-    array_sort(typedefs, sort_strcmp);
-    array_unique(typedefs, sort_strcmp);
-    { char *sep = ""; for(int i = 0, end = array_count(typedefs); i < end; ++i)   printf("%s[%s](#%s)", sep, typedefs[i], typedefs[i]), sep = ", "; }
-
     puts("\n## 🄴 enums");
     array_sort(enums, sort_strcmp);
     array_unique(enums, sort_strcmp);
     { char *sep = ""; for(int i = 0, end = array_count(enums); i < end; ++i)      printf("%s[%s](#%s)", sep, enums[i], enums[i]), sep = ", "; }
 
-    puts("\n## 🅂 structs");
-    array_sort(structs, sort_strcmp);
-    array_unique(structs, sort_strcmp);
-    { char *sep = ""; for(int i = 0, end = array_count(structs); i < end; ++i)    printf("%s[%s](#%s)", sep, structs[i], structs[i]), sep = ", "; }
-
-    //puts("\n## 🅄 unions");
-    //array_sort(unions, sort_strcmp);
-    //array_sort(unions, sort_strcmp);
-    //{ char *sep = ""; for(int i = 0, end = array_count(unions); i < end; ++i)     printf("%s[%s](#%s)", sep, unions[i], unions[i]), sep = ", "; }
+    puts("\n## 🅃 types");
+    array_sort(types, sort_strcmp);
+    array_unique(types, sort_strcmp);
+    { char *sep = ""; for(int i = 0, end = array_count(types); i < end; ++i)   printf("%s[%s](#%s)", sep, types[i], types[i]), sep = ", "; }
 
     puts("\n## 🄵 functions");
     array_sort(functions, sort_strcmp);

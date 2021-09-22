@@ -346,9 +346,14 @@ contents, .md .tocHeader,
 /* Links
 /******************************************************************************/
 
+html {
+    scroll-behavior: smooth; /*<@r-lyeh*/
+}
+
 .md a
 {
     font-family: 'Artifakt Element', sans-serif; /*'PT Serif';*/ /*<@r-lyeh*/
+    scroll-margin-top: 20px; /*<@r-lyeh*/
 }
 
 .md a:link, .md a:visited
@@ -513,6 +518,12 @@ details {
 }
 summary {
     padding-left: 16px; /*<@r-lyeh*/
+
+
+    text-overflow: ellipsis;
+    /* Both of the following are required for text-overflow */
+    white-space: nowrap;
+    overflow: hidden;
 }
 details[open] {
   padding-bottom: var(--padding);
