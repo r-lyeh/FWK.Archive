@@ -136,6 +136,7 @@ API void* dll(const char *filename, const char *symbol);
 #define WITH_PROFILE         1 ///+
 #define WITH_XREALLOC_POISON 1 ///+
 #define WITH_VIDEO_YCBCR     1 ///+
+// WITH_SELFIES
 #endif
 
 //#define WITH_ASSIMP        0      // Only art/tools/ass2iqe.c would define this.

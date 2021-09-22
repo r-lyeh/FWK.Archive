@@ -178,19 +178,19 @@ if "%Platform%"=="x64" (
     rem method 2:     /O1 /MT /DNDEBUG /DFINAL /GL /GF /arch:AVX2
 
     rem framework
-    cl fwk.c /c /nologo /openmp /Zi
+    cl fwk.c /c /nologo /openmp /Zi %*
 
     rem demos
-    cl demo.c           fwk.obj /nologo /openmp /Zi
-    cl demo_cubemap.c   fwk.obj /nologo /openmp /Zi
-    cl demo_collide.c   fwk.obj /nologo /openmp /Zi
-    cl demo_model.c     fwk.obj /nologo /openmp /Zi
-    cl demo_scene.c     fwk.obj /nologo /openmp /Zi
-    cl demo_shadertoy.c fwk.obj /nologo /openmp /Zi
-    cl demo_sprite.c    fwk.obj /nologo /openmp /Zi
-    cl demo_video.c     fwk.obj /nologo /openmp /Zi
-    cl demo_script.c    fwk.obj /nologo /openmp /Zi
-    cl demo_socket.c    fwk.obj /nologo /openmp /Zi
+    cl demo.c           fwk.obj /nologo /openmp /Zi %*
+    cl demo_cubemap.c   fwk.obj /nologo /openmp /Zi %*
+    cl demo_collide.c   fwk.obj /nologo /openmp /Zi %*
+    cl demo_model.c     fwk.obj /nologo /openmp /Zi %*
+    cl demo_scene.c     fwk.obj /nologo /openmp /Zi %*
+    cl demo_shadertoy.c fwk.obj /nologo /openmp /Zi %*
+    cl demo_sprite.c    fwk.obj /nologo /openmp /Zi %*
+    cl demo_video.c     fwk.obj /nologo /openmp /Zi %*
+    cl demo_script.c    fwk.obj /nologo /openmp /Zi %*
+    cl demo_socket.c    fwk.obj /nologo /openmp /Zi %*
 
     rem luajit+fwk.dll demo
     rem cl fwk.c /LD /DAPI=EXPORT /O2 /Oy /MT /DNDEBUG

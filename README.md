@@ -1,7 +1,6 @@
 <h1 align="center"><a href="https://raw.githack.com/r-lyeh/FWK/master/fwk.html#toc1">F·W·K</a></h1>
 <p align="center">3D game framework in C.</p>
 
-<!--## Gallery-->
 <p align="center">
 <img src="https://i.imgur.com/sInbRoA.gif"/><br/>
 </p>
@@ -14,13 +13,13 @@
 - [x] ~Royaltie fee~. Free and unlicensed.
 
 ## Features ᕦ(ᐛ)ᕤ (stuff done ~~and yet to be done~~)
-- [x] Amalgamation: single-file, all dependencies included.
+- [x] Embedded: single-file, all dependencies included.
 - [x] OS: Windows, Linux and OSX.
 - [x] Compiler: MSVC, MINGW64, TCC, GCC and clang.
 - [x] Window: windowed, soft/hard fullscreen, msaa, icon, cursor handling.
 - [x] Input: keyboard, mouse and gamepads.
 - [x] Script: Lua scripting, Luajit bindings.
-- [x] FFI: Framework can be im/exported as DLL.
+- [x] FFI: Built DLL can be imported from most foreign languages that support FFI.
 - [x] Network: downloads (HTTPS), sockets (TCP/UDP) ~~and messages (enet/websocket)~~.
 - [x] UI: color3/4, button, list, slider, toggle, checkbox, editbox, dialog, menus.
 - [x] Math: rand, noise, ease, vec2/3/4, mat33/34/44, quat ~~and quat2, bezier, catmull~~.
@@ -171,11 +170,13 @@ echo OSX (gcc+clang)       && cc  demo.c -ObjC fwk.c -o demo -w -framework cocoa
 - Optionally, generate a single-header distribution by executing following script:
 
 ```lua
-type fwk.h            > fwk-single-header.h
-echo #ifdef FWK_C    >> fwk-single-header.h
-echo #pragma once    >> fwk-single-header.h
-type fwk.c           >> fwk-single-header.h
-echo #endif // FWK_C >> fwk-single-header.h
+echo // This C file is a header that you can #include. Do #define FWK_C  > fwk-single-header.c
+echo // early in **one** compilation unit to unroll the implementation. >> fwk-single-header.c
+type fwk.h           >> fwk-single-header.c
+echo #ifdef FWK_C    >> fwk-single-header.c
+echo #pragma once    >> fwk-single-header.c
+type fwk.c           >> fwk-single-header.c
+echo #endif // FWK_C >> fwk-single-header.c
 ```
 
 ## Extra tips
@@ -187,6 +188,19 @@ echo #endif // FWK_C >> fwk-single-header.h
 This software is released into the [public domain](https://unlicense.org/).<br/>
 Also dual-licensed as [0-BSD](https://opensource.org/licenses/FPL-1.0.0) or [MIT (No Attribution)](https://github.com/aws/mit-0) for those countries where public domain is a concern (sigh).<br/>
 Any contribution to this repository is implicitly subjected to the same release conditions aforementioned.
+
+## Gallery
+<p align="center">
+<img src="art/demos/demo_script.png"    width="204px" title="Script.">
+<img src="art/demos/demo_collide.png"   width="204px" title="Collision.">
+<img src="art/demos/demo_model.png"     width="204px" title="Model.">
+<img src="art/demos/demo_scene.png"     width="204px" title="Scene.">
+<img src="art/demos/demo_sprite.png"    width="204px" title="Sprite.">
+<img src="art/demos/demo_shadertoy.png" width="204px" title="Shadertoy.">
+<img src="art/demos/demo_cubemap.png"   width="204px" title="Cubemaps and SH.">
+<img src="art/demos/demo_video.png"     width="204px" title="Video.">
+<br/>
+</p>
 
 ## Credits (Artwork + demos)
 - [FMS_Cat](https://gist.github.com/FMS-Cat/a1ccea3ce866c34706084e3526204f4f), for nicest VHS/VCR shader around (MIT).
