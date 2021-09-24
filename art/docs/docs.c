@@ -1,26 +1,77 @@
 // C documentation generator using markdeep.
 // - rlyeh, public domain
 //
-// it works this way:
-// 1. source files are firstly parsed:
-//   - for every parsed function, all of its //markdeep comments are appended to a cache.
-// 2. then, header files are parsed:
-//   - ///markdeep comments, enums, structs, variables and typedefs are extracted and printed as-is.
-//   - macros are extracted and printed only if requested with /// comment.
-//   - functions are extracted and printed as-is. optionally, extra infos are printed if there are stored comments present in the cache.
-// 3. explicit `symbols` in comments are converted into links to ease browsing.
-
 // build:
 // cl docs.c && docs ..\..\fwk.h -x=3rd_glad.h,fwk.h,fwk_main.h,fwk_compat.h, > docs.html
-
-// @todo: learn, then by group: 1st pure typedefs, 2nd enums, 3rd structs, 4th funcs
-// @todo: pretty enum as table of name/comment instead of name/value
-// @todo: pretty struct as table of type/name/comment
+//
+// how to document:
+// - start documentation on a blank line with a /// 3 slashes comment.
+// - all comments must be typed right before the symbol declaration.
+// - use `see: symbol1,symbol2^` to create links. `^` char indicates an external link.
+// - use `keyword: comment` to create tables. `return:` and `returns` are reserved keywords for function returns.
+// - use `> code` to create a snippet. snippets will be multi-lined.
+// - use `!!! text` to create a note. severity based on number of exclamations (1:note,2:tip,3:warn,4:alert)
+//
+// exceptions:
+// - a ///- comment can be used to exclude a symbol from any further documentation processing.
+// - this ///- comment must be appended to any declaration, at the very end of string.
+//
+//          #define my_macro() macro_implementation_here() ///-
+//
+// some examples below:
+//
+//   /// !!! `filename` must contain extension
+//   /// load dynamic library `file` and search for `symbol`
+//   /// return: NULL if not found, found symbol otherwise.
+//   /// filename: path to dynamic library file. must contain extension.
+//   /// symbol: symbol name. must not be NULL.
+//   /// see: dlopen^, dlclose^
+//   /// > bool (*plugin_init)(void) = dll("plugin.dll", "init");
+//   /// > assert(plugin_init());
+//   API void* dll(const char *filename, const char *symbol);
+//
+//   /// split `string` after any of `delimiters` character is found.
+//   /// returns temporary array of split strings. see: strjoin
+//   /// > array(char*) tokens = strsplit("hello! world!", " !"); // [0]="hello",[1]="world",
+//   API array(char*) strsplit(const char *string, const char *delimiters);
+//
+//   /// concatenate all elements within `list`, with `separator` string in between.
+//   /// returns: temporary joint string. see: strsplit
+//   /// > array(char*) tokens = strsplit("hello! world!", " !"); // [0]="hello",[1]="world",
+//   /// > char *joint = strjoin(tokens, "+"); // joint="hello+world"
+//   API char*        strjoin(array(char*) list, const char *separator);
+//
+//   /// flags when constructing the image_t type. see: image, image_from_mem
+//   /// IMAGE_R: 1-channel image (R)
+//   /// IMAGE_RG: 2-channel image (R,G)
+//   /// IMAGE_RGB: 3-channel image (R,G,B)
+//   /// IMAGE_RGBA: 4-channel image (R,G,B,A)
+//   /// IMAGE_FLIP: Flip image vertically
+//   enum IMAGE_FLAGS {
+//       IMAGE_R    = 0x01000,
+//       IMAGE_RG   = 0x02000,
+//       IMAGE_RGB  = 0x04000,
+//       IMAGE_RGBA = 0x08000,
+//       IMAGE_FLIP = 0x10000,
+//   };
+//
+//   /// type that holds linear uncompressed bitmap of any given dimensions.
+//   /// w,h: image dimensions in pixels. `x,y` alias.
+//   /// comps: number of components per pixel. `n` alias.
+//   /// pixels: untyped pointer to linear bitmap data. typed pointers use `pixels8/16/32/f` aliases.
+//   /// see: texture_t
+//   typedef struct image_t {
+//       union { unsigned x, w; };
+//       union { unsigned y, h; };
+//       union { unsigned n, comps; };
+//       union { void *pixels; uint8_t *pixels8; uint16_t *pixels16; uint32_t *pixels32; float *pixelsf; };
+//   } image_t;
 
 #include "fwk.h"
 
 int DO_CSS = 1;
 int DO_DEBUG = 0;
+int DO_README = 1;
 
 // C preprocessor:
 // 1. remove all /* C comments */
@@ -121,7 +172,7 @@ char* preprocess_md(char *raw) {
     return raw;
 }
 
-// remove whitespaces within a line, unless they are present in a \"string\"
+// remove whitespaces within a line, unless they are present within a \"string\"
 char *minify( const char *line ) {
     // skip initial whitespaces
     line += strspn(line, " \t\r\n");
@@ -131,6 +182,12 @@ char *minify( const char *line ) {
 
     for(int in_string = 0, seen_alphanum = 0; *line; ++line ) {
         if( !in_string ) {
+            // early return till eos if literal /// comment is found.
+            if( line[0] == '/' && line[1] == '/' && line[2] == '/' ) {
+                strcpy(s, line);
+                return bak;
+            }
+            // detect string open
             if( *line == '\"' || *line == '\'' ) if( line[-1] != '\\' ) {
                 in_string = *line;
                 *s++ = *line;
@@ -140,8 +197,8 @@ char *minify( const char *line ) {
             if( *line > 0 && *line <= 32 ) {
                 // keep spacing only if previous char was alphanum && next char is not operator
                 const char *next_nbsp = line+1 + strspn(line+1, " \t\r\n");
-                #define PUNCTUATORS "#" "!&|~" "+-/*%()" "<=>" "[]{}" "?:;" ",'\"\\"
-                if(seen_alphanum && !strchr(PUNCTUATORS, *next_nbsp)) *s++ = ' ';
+                #define PUNCT_CHARSET "#" "!&|~" "+-/*%()" "<=>" "[]{}" "?:;" ",'\"\\"
+                if(seen_alphanum && !strchr(PUNCT_CHARSET, *next_nbsp)) *s++ = ' ';
 
                 while( *line > 0 && *line <= 32 ) ++line;
 
@@ -214,6 +271,9 @@ bool parse_c_function(const char *raw, int *out_name_pos, int *out_name_len, int
 // 5. rename functions that are declared between parens to disambiguate macros: int (print)(...);
 // 6. do ellipsis on macro contents: #define print(args) ...
 char *prettify(char *raw, char **opt_name) {
+    if( strbegi(raw, "/""//") ) { raw[0] = 0; return raw; }
+    if( strstr(raw, "/""//") ) { *strstr(raw, "/""//") = '\0'; }
+
     enum { TABS = 4 };
 
     if(DO_DEBUG) puts(raw);
@@ -233,6 +293,7 @@ char *prettify(char *raw, char **opt_name) {
     // hide macro details. expose only name and args
     int is_macro = strbegi(raw, "#define ");
     if( is_macro ) {
+        if( raw[8] == '_' && raw[8+1] == '_' ) return raw[0] = 0, raw; // do not process compiler __symbols
         #define KEYWORD_CHARSET "_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
         #define MACRO_CHARSET KEYWORD_CHARSET "$"
         int wordlen = strspn(raw+8, MACRO_CHARSET);
@@ -413,8 +474,13 @@ int sort_strcmp( const void *str1, const void *str2 ) {
 }
 
 // db cache
-map(char*,array(char*)) db;
-array(char*) doc;
+array(char*) description;
+array(char*) arguments;
+array(char*) returns;
+array(char*) example;
+array(char*) links;
+array(char*) notes;
+
 array(char*) defines;
 array(char*) enums;
 array(char*) types; // unions,structs,typedefs
@@ -427,9 +493,62 @@ char *learn(char *line) {
     // [...]
 
     // continue with pretty line
-    char *typename;
-    line = prettify(strdup(line), &typename);
+    char* typename = 0;
+    char *pretty = prettify(strdup(line), &typename);
 
+if( strbegi(line, "/""//") && line[3] != '/' ) {
+    char *md = line + 3 + (line[3] == ' ');
+
+    if( strbegi(md, "returns" ) ) {
+        // inline replacement
+        memcpy(md, "return:", 7);
+    }
+
+    // grab links & truncate line if needed
+    if( strstr(md, "see:") ) {
+        char *found = strstr(md, "see:");
+        array(char*) tokens = strsplit(found+4, " ,.");
+        for( int i = 0, end = array_count(tokens); i < end; ++i) {
+            array_push(links, tokens[i]);
+        }
+        *found = '\0';
+    }
+
+    if( strbegi(md, "example:") ) {
+        array_push(example, stringf("%s", md+8));
+    }
+    else if( strbegi(md, "> ") ) {
+        array_push(example, stringf("%s", md+2));
+    }
+    else if( strbegi(md, "!!!! ") ) {
+        array_push(notes, stringf("%d%s", 4, md+5));
+    }
+    else if( strbegi(md, "!!! ") ) {
+        array_push(notes, stringf("%d%s", 3, md+4));
+    }
+    else if( strbegi(md, "!! ") ) {
+        array_push(notes, stringf("%d%s", 2, md+3));
+    }
+    else if( strbegi(md, "! ") ) {
+        array_push(notes, stringf("%d%s", 1, md+2));
+    }
+    else if( md[0] ) {
+        char heading[512]; sscanf(md, "%s", heading);
+        char *text = heading[0] && strendi(heading, ":") ? md+strlen(heading) : 0;
+        if( text ) {
+            if( strbegi(heading, "return") ) {
+                array_push(returns, text);
+            } else {
+                text[-1] = '\0'; // remove ':'
+                array_push(arguments, md); // heading
+                array_push(arguments, text);
+            }
+        } else {
+            array_push(description, md);
+        }
+    }
+}
+else if( typename ) {
     if( typename[0] == 'd' ) array_push(defines, typename+1);
     if( typename[0] == 't' ) array_push(types/*typedefs*/, typename+1);
     if( typename[0] == 'e' ) array_push(enums, typename+1);
@@ -437,6 +556,7 @@ char *learn(char *line) {
     if( typename[0] == 'u' ) array_push(types/*unions*/, typename+1);
     if( typename[0] == 'f' ) array_push(functions, typename+1);
     if( typename[0] == 'm' ) array_push(macros, typename+1);
+}
 
     return line;
 }
@@ -467,6 +587,8 @@ void print_markdeep(const char *line) { // "/// #hello markdeep"
 }
 
 void print_decl(char *line) { // non-const, since prettify can modify input
+    if(strbegi(line, "/""//")) return;
+
     char *typename;
     char *pretty = prettify(line, &typename);
 
@@ -494,13 +616,14 @@ void print_decl(char *line) { // non-const, since prettify can modify input
         truncated = 1;
     }
     else // function
-    if( 0 && strchr(oneliner, '(') ) {
+    if( strchr(oneliner, '(') ) {
 #if 0
         // ret name(args); >> name(args)->ret
         char *name_args = stringf("%s%s", name,strstr(pretty,name)+strlen(name));
         char *ret = stringf("%.*s", (int)(strstr(pretty,name)-pretty),pretty);
         sprintf(oneliner, "%.*s; // -> %s", (int)strlen(name_args)-1, name_args, ret);
-#else
+        truncated = 1;
+#elif 0
         // ret name(args); >> name(args)->ret
         char *open = stringf("%s(", name);
         char *ret = stringf("%.*s", (int)(strstr(pretty,open)-pretty),pretty);
@@ -509,8 +632,8 @@ void print_decl(char *line) { // non-const, since prettify can modify input
 //        sprintf(oneliner, "%-16s %-16s%s", ret, name, args); // API void      print44     (mat44 m)
           sprintf(oneliner, "%-16s %s%s", ret, name, args);
         strrepl(&oneliner, " ", "·"); // windows 0xA0 character nbsp, 0xB7 char middle dot
-#endif
         truncated = 1;
+#endif
     }
     else // macro, define
     {}
@@ -527,21 +650,83 @@ void print_decl(char *line) { // non-const, since prettify can modify input
         printf("~~~~~~\n");
     }
 
-    printf("\nReposition the `video_t` stream. See also: [video_seek](#video_seek)\n", name);
+    if(1) {
+        if( description ) {
+            puts("");
+            for( int i = 0, end = array_count(description); i < end; ++i) {
+                description[i][0] = toupper(description[i][0]);
+                printf("%s%s\n", description[i], strendi(description[i], ".") || strendi(description[i], ". ") ? "":".");
+            }
+        }
+        if( arguments || returns ) {
+            char *glue = returns ? strjoin(returns, ". ") : "";
 
-    printf("\nReturn|{{return}}\n");
-    printf("-----|------\n");
-    printf("`arg1`|{{description}}\n\n");
+            glue[0] = toupper(glue[0]);
 
-    printf("\n~~~~~~C linenumbers\n");
-    printf("{{example.c}}\n");
-    printf("~~~~~~\n");
+            if( !arguments ) {
+                printf("\nReturns: %s\n", glue);
+            } else {
+                const char *head =
+                    type == 'e' ? "Enum" :
+                    type == 'u' || type == 's' ? "Member" :
+                    /*type == 'f' ? */ (glue ? "Return" : "Argument");
 
-    printf("\n!!! Tip\n");
-    printf("    Use `WITH_VIDEO_YCBCR=1` directive to optimize video decoding.\n");
+                printf("\n\n|%s|%s|\n", head, glue);
+                printf("|-----|------|\n");
+                for( int i = 0, end = array_count(arguments)/2; i < end; ++i ) {
+                    char *arg = arguments[i*2+0]; // arg[0] = toupper(arg[0]);
+                    char *nfo = arguments[i*2+1]; nfo[0] = toupper(nfo[0]);
+                    printf("|`%s`|%s|\n", arg, nfo);
+                }
+            }
+        }
+        if( notes ) {
+            for( int i = 0, end = array_count(notes); i < end; ++i) {
+                int level = notes[i][0] - '0';
+                const char *severity[] = { "Note", "Note", "Tip", "WARNING", "ERROR" }; 
+                notes[i][1] = toupper(notes[i][1]);
+                if( level < 4 )
+                printf("!!! %s\n%4s%s\n", severity[ level ], "", notes[i]+1);
+                else
+                printf("!!! %s: ALERT\n%4s%s\n", severity[ level ], "", notes[i]+1);
+            }
+        }
+        if( example ) {
+            puts("\n~~~~~~C linenumbers");
+            printf("/* %s example */\n", name);
+            for( int i = 0, end = array_count(example); i < end; ++i) {
+                puts(example[i]);
+            }
+            puts("~~~~~~\n");
+        }
+        if( links ) {
+            printf("\nSee also: ");
+            const char *sep = "";
+            for( int i = 0, end = array_count(links); i < end; ++i) {
+                int slen = strlen(links[i]);
+                char is_external = links[i][slen-1] == '^';
+                if( is_external ) {
+                    printf("%s<a href=\"https://google.com/search?q=%.*s\" target=\"_blank\">%.*s</a>", sep, slen-1, links[i], slen-1, links[i]);
+                } else {
+                    printf("%s[%s](#%s)", sep, links[i], links[i]);
+                }
+                sep = ", ";
+            }
+            puts("");
+        }
 
-    printf("\n!!! WARNING\n");
-    printf("    Fix me: *Audio decoder might exhaust buffers on Linux!*\n");
+        if(!(description || example || notes || links || returns || arguments)) {
+            puts("\nYet to be documented. Under construction.");
+            puts("\nOther documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).");
+        }
+
+        array_free(description);
+        array_free(example);
+        array_free(notes);
+        array_free(links);
+        array_free(returns);
+        array_free(arguments);
+    }
 
     printf("\n</details>\n\n");
 }
@@ -560,10 +745,25 @@ int main(int argc, char **argv) {
         puts( css );
         puts( preprocess_md(md) );
     }
+    if( DO_README ) {
+        char *md = file_read("README.md");
+        strrepl(&md, "\r\n", "\n");
+        // seek to first header
+        md = strstr(md, "## ");
+        // process headers
+        while( md && *md ) {
+            char *header = strstr(md, "## ") + 3;
+            char *footer = strchr(header, '\n'); if(!footer) footer = header + strlen(header) - 1;
+            printf("</details>\n\n<details><summary>%.*s</summary>\n\n", (int)(footer - header), header);
+            md = strstr(footer, "## ");
+            if( md ) printf("%.*s", (int)(md - footer), footer);
+            else printf("%s</details>\n\n", footer);
+        }
+    }
 
     // headers are enabled by default. sources do not.
     const char *fname = argc > 1 ? argv[1] : __FILE__;
-    int is_header_file = strstr(".h.H", file_ext(fname)) ? 1 : 0;
+    int is_header_file = 1; // strstr(".h.H", file_ext(fname)) ? 1 : 0;
     char *section = STRDUP(file_name(fname));
 
     // read & preprocess C file
@@ -648,28 +848,6 @@ int main(int argc, char **argv) {
             continue;
         }
         if( is_block ) {
-            print_decl(line);
-            continue;
-        }
-
-        if( 0 == strcmp(line, "/""//") ) {
-            // markdeep blank line
-            puts("");
-            continue;
-        }
-        else
-        if( strbegi(line, "/""//" ) ) {
-            // markdeep literal
-            print_markdeep(line);
-            continue;
-        }
-        else
-        if( strstr(line, "/""//") ) {
-            // inlined markdeep: print markdeep comment, then code
-            puts("");
-            char *md = strstr(line, "/""//");
-            if( md[3] ) { print_markdeep(md); md[0] = 0; }
-
             print_decl(line);
             continue;
         }

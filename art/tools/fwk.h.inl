@@ -91,35 +91,6 @@
 extern "C" {
 #endif
 
-//-----------------------------------------------------------------------------
-// Headers
-
-{{FILE:fwk_dll.h}}
-{{FILE:fwk_main.h}}
-{{FILE:fwk_memory.h}}
-{{FILE:fwk_math.h}}
-{{FILE:fwk_collide.h}}
-//---
-{{FILE:fwk_audio.h}}
-{{FILE:fwk_cooker.h}}
-{{FILE:fwk_data.h}}
-{{FILE:fwk_editor.h}}
-{{FILE:fwk_file.h}}
-{{FILE:fwk_input.h}}
-{{FILE:fwk_network.h}}
-{{FILE:fwk_render.h}}
-{{FILE:fwk_renderdd.h}}
-{{FILE:fwk_scene.h}}
-{{FILE:fwk_script.h}}
-{{FILE:fwk_system.h}}
-{{FILE:fwk_ui.h}}
-{{FILE:fwk_video.h}}
-{{FILE:fwk_window.h}}
-
-{{FILE:fwk_ds.h}}
-{{FILE:fwk_string.h}}
-{{FILE:fwk_profile.h}}
-
 // -----------------------------------------------------------------------------
 // if/n/def hell
 
@@ -145,7 +116,7 @@ extern "C" {
 #define ifdef_mingw                    ifdef_true
 #define ifdef_tcc                      ifdef_false
 #define ifdef_msc                      ifdef_false
-#else
+#else // also __clang__
 #define ifdef_gcc                      ifdef_true
 #define ifdef_mingw                    ifdef_false
 #define ifdef_tcc                      ifdef_false
@@ -192,30 +163,6 @@ extern "C" {
 #define ifdef_ems                      ifdef_false
 #endif
 
-#if 0
-#  if defined __ANDROID_API__
-#define _AND
-#elif defined __APPLE__
-#define _OSX
-#elif defined __FreeBSD__
-#define _BSD
-#elif defined _WIN32
-#define _WIN
-#else
-#define _LIN
-#endif
-
-#  if defined _MSC_VER
-#define _MSC
-#elif defined __clang__
-#define _CLA
-#elif defined __TINYC__
-#define _TCC
-#else
-#define _GCC
-#endif
-#endif
-
 // -----------------------------------------------------------------------------
 // new C keywords
 // @todo: autorun (needed?)
@@ -249,6 +196,34 @@ extern "C" {
 #define EXPAND_COUNT_ARGS(...)     EXPAND_ARGS((__VA_ARGS__, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0))
 #define EXPAND_ARGS(args)          EXPAND_RETURN_COUNT args
 #define EXPAND_RETURN_COUNT(_1_, _2_, _3_, _4_, _5_, _6_, _7_, _8_, _9_, count, ...) count
+
+//-----------------------------------------------------------------------------
+// Headers
+
+{{FILE:fwk_config.h}}
+{{FILE:fwk_math.h}}
+
+{{FILE:fwk_audio.h}}
+{{FILE:fwk_collide.h}}
+{{FILE:fwk_cooker.h}}
+{{FILE:fwk_data.h}}
+{{FILE:fwk_dll.h}}
+{{FILE:fwk_ds.h}}
+{{FILE:fwk_editor.h}}
+{{FILE:fwk_file.h}}
+{{FILE:fwk_input.h}}
+{{FILE:fwk_memory.h}}
+{{FILE:fwk_network.h}}
+{{FILE:fwk_profile.h}}
+{{FILE:fwk_render.h}}
+{{FILE:fwk_renderdd.h}}
+{{FILE:fwk_scene.h}}
+{{FILE:fwk_script.h}}
+{{FILE:fwk_string.h}}
+{{FILE:fwk_system.h}}
+{{FILE:fwk_ui.h}}
+{{FILE:fwk_video.h}}
+{{FILE:fwk_window.h}}
 
 // ----
 

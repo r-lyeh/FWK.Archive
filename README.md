@@ -6,11 +6,12 @@
 </p>
 
 ## Goals
-- [x] ~C++~. C.
-- [x] ~Fast~. Naive.
-- [x] ~Modern~. Simple.
-- [x] ~Full featured~. Small.
-- [x] ~Royaltie fee~. Free and unlicensed.
+- [x] ~~C++~~. C.
+- [x] ~~Fast~~. Naive.
+- [x] ~~Modern~~. Simple.
+- [x] ~~Full featured~~. Small.
+- [x] ~~Rich build system~~. Single file.
+- [x] ~~Royaltie fee~~. Free and unlicensed.
 
 ## Features ᕦ(ᐛ)ᕤ (stuff done ~~and yet to be done~~)
 - [x] Embedded: single-file, all dependencies included.
@@ -43,13 +44,13 @@
 - [x] Level data: JSON, JSON5, SJSON, XML.
 - [ ] [Documentation (wip)](https://raw.githack.com/r-lyeh/FWK/master/fwk.html#toc1).
 
-## Roadmap ᕕ(ᐛ)ᕗ (in order of arrival; `*`: partial support)
+## Roadmap ᕕ(ᐛ)ᕗ (in order of arrival; ✱: partial support)
 - [ ] Network: NAT traversal. Socketless API, message API and pub/sub wrappers (enet/websocket).
-- [ ] Render: Materials (colors, textures`*`, matcaps`*`, videos`*`, shadertoys`*`).
-- [ ] Render: Flags (billboards `*`, un/lit). Hard/soft shadow mapping and baked lightmaps.
-- [ ] Level editor: gizmos`*`, scene tree, property editor, load/save, undo/redo, copy/paste.
-- [ ] Level objects: volumes`*`, triggers, platforms, streaming.
-- [ ] Script: DLL`*`, Lua`*`, Luajit`*`, Teal and TypeScript.
+- [ ] Render: Materials (colors, textures✱, matcaps✱, videos✱, shadertoys✱).
+- [ ] Render: Flags (billboards✱, un/lit). Hard/soft shadow mapping and baked lightmaps.
+- [ ] Level editor: gizmos✱, scene tree, property editor, load/save, undo/redo, copy/paste.
+- [ ] Level objects: volumes✱, triggers, platforms, streaming.
+- [ ] Script: DLL✱, Lua✱, Luajit✱, Teal and TypeScript.
 - [ ] Script: Refl/meta binding tool (during cook stage).
 - [ ] Pipeline: Extend: shaders, bindings, textures. Per-platform, per-type, per-asset options.
 - [ ] Pipeline: Atlassing (sprite/lightmaps). Fit packing (fonts/sprites).
@@ -183,6 +184,11 @@ echo #endif // FWK_C >> fwk-single-header.c
 - Dropped files into game window will be imported & saved into [`art/import`](art/import) folder.
 - Linux/OSX users can optionally install wine to use the Windows pipeline as an alternate asset pipeline.
 - Depending on your IDE, you might need to [split all amalgamated](#Amalgamation) files when debugging FWK.
+<!-- - On windows + vc, you can use `make bindings` or `make docs` to generate everything prior to a release -->
+
+## Bindings
+- Luajit bindings are provided in the [fwk.lua](fwk.lua) auto-generated file.
+- You can test it by typing `cl fwk.c /LD /DAPI=EXPORT && art\tools\luajit art\demos\demo_luajit.lua`
 
 ## License
 This software is released into the [public domain](https://unlicense.org/).<br/>

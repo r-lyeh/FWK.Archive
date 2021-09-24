@@ -132,7 +132,7 @@ if "%1"=="docs" (
     set /p GIT_BRANCH=<info.obj
 
     cl art\docs\docs.c fwk.c -I. %2
-    docs fwk.h --excluded=3rd_glad.h,fwk.h,fwk_main.h,fwk_compat.h, > fwk.html
+    docs fwk.h --excluded=3rd_glad.h,fwk.h,fwk_compat.h, > fwk.html
     copy /y fwk.html art\docs\docs.html
 
     exit /b

@@ -1,6 +1,11 @@
-# [F·W·K 2021.9](https://github.com/r-lyeh/FWK)
+| Documentation last modified | {{LAST_MODIFIED}} |
+|:--------------|:------------|
+|Version:       | {{VERSION}} |
+|Branch:        | {{GIT_BRANCH}} |
+|Commit:        | {{GIT_REVISION}} |
 
-## About
+# [F·W·K 2021.9](https://github.com/r-lyeh/FWK)
+## a b o u t
 
 - https://github.com/r-lyeh/FWK is a 3D game framework in C.
 - Download latest: https://github.com/r-lyeh/FWK/archive/refs/heads/master.zip
@@ -8,7 +13,31 @@
 
 ![Image from demo.c](https://i.imgur.com/sInbRoA.gif)
 
-<details open><summary>Code style</summary>
+<details open><summary>Minimal C sample</summary>
+```C
+// Minimal C sample
+#include "fwk.h"
+int main(int argc, char **argv) {
+    window_create(75.0, 0); // 75% size, no extra flags
+    while( window_swap() && !input(KEY_ESC) ) { // game loop
+        puts("hello fwk");
+    }
+}
+```
+</details>
+
+<details><summary>Minimal Luajit sample</summary>
+```Lua
+-- Minimal Lua sample
+local fwk = require("fwk")
+fwk.window_create(75.0,0) -- 75% size, no extra flags
+while fwk.window_swap() == 1 do -- game loop
+    print("hello fwk")
+end
+```
+</details>
+
+<details><summary>Code style</summary>
 ```C linenumbers
 /// ## Markdown comments when documenting (3 slashes)
 // C++ comments allowed
@@ -25,30 +54,7 @@ void assert_positive( int my_int ) { // snake_case everywhere
 ```
 </details>
 
-<details><summary>Minimal C sample</summary>
-```C
-// Minimal C sample
-#include "fwk.h"
-int main(int argc, char **argv) {
-    window_create(75.0, 0); // 75% size, no extra flags
-    while( window_swap() && !input(KEY_ESC) ) { // game loop
-        puts("hello fwk");
-    }
-}
-```
-</details>
-
-<details><summary>Minimal lua sample</summary>
-```Lua
--- Minimal Lua sample
-local fwk = require("fwk")
-fwk.window_create(75.0,0) -- 75% size, no extra flags
-while fwk.window_swap() == 1 do -- game loop
-    print("hello fwk")
-end
-```
-</details>
-
+<!--
 !!! Note
     Ready to browse documentation? This is a very common note.
 
@@ -60,10 +66,6 @@ end
 
 !!! ERROR: Watch out
     Really **important notes**. Beware of these.
+-->
 
-| Documentation last modified | {{LAST_MODIFIED}} |
-|:--------------|:------------|
-|Version:       | {{VERSION}} |
-|Branch:        | {{GIT_BRANCH}} |
-|Commit:        | {{GIT_REVISION}} |
-
+## r e a d m e

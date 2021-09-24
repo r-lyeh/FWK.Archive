@@ -1,4 +1,4 @@
--- this will run on vanilla luajit.exe, provided that fwk.dll+fwk.lua are present in folder
+-- this will run on vanilla luajit.exe, provided that fwk.dll+fwk.lua are both present in folder
 
 local fwk=require('fwk')
 

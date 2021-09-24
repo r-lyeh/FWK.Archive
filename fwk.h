@@ -91,12 +91,116 @@
 extern "C" {
 #endif
 
+// -----------------------------------------------------------------------------
+// if/n/def hell
+
+#define ifdef(macro, yes, /*no*/...)   ifdef_##macro(yes, __VA_ARGS__)
+#define ifndef(macro, yes, /*no*/...)  ifdef_##macro(__VA_ARGS__, yes)
+#define is(macro)                      ifdef_##macro(1,0)
+#define isnt(macro)                    ifdef_##macro(0,1)
+#define ifdef_true(yes, /*no*/...)     yes
+#define ifdef_false(yes, /*no*/...)    __VA_ARGS__
+
+#ifdef _MSC_VER
+#define ifdef_gcc                      ifdef_false
+#define ifdef_mingw                    ifdef_false
+#define ifdef_tcc                      ifdef_false
+#define ifdef_msc                      ifdef_true
+#elif defined __TINYC__
+#define ifdef_gcc                      ifdef_false
+#define ifdef_mingw                    ifdef_false
+#define ifdef_tcc                      ifdef_true
+#define ifdef_msc                      ifdef_false
+#elif defined __MINGW64__ // __MINGW__ ?
+#define ifdef_gcc                      ifdef_true
+#define ifdef_mingw                    ifdef_true
+#define ifdef_tcc                      ifdef_false
+#define ifdef_msc                      ifdef_false
+#else // also __clang__
+#define ifdef_gcc                      ifdef_true
+#define ifdef_mingw                    ifdef_false
+#define ifdef_tcc                      ifdef_false
+#define ifdef_msc                      ifdef_false
+#endif
+
+#ifdef __cplusplus
+#define ifdef_cpp                      ifdef_true
+#define ifdef_c                        ifdef_false
+#else
+#define ifdef_c                        ifdef_true
+#define ifdef_cpp                      ifdef_false
+#endif
+
+#if defined _WIN32
+#define ifdef_win32                    ifdef_true
+#define ifdef_linux                    ifdef_false
+#define ifdef_osx                      ifdef_false
+#define ifdef_bsd                      ifdef_false
+#define ifdef_ems                      ifdef_false
+#elif defined __linux__
+#define ifdef_win32                    ifdef_false
+#define ifdef_linux                    ifdef_true
+#define ifdef_osx                      ifdef_false
+#define ifdef_bsd                      ifdef_false
+#define ifdef_ems                      ifdef_false
+#elif defined __APPLE__
+#define ifdef_win32                    ifdef_false
+#define ifdef_linux                    ifdef_false
+#define ifdef_osx                      ifdef_true
+#define ifdef_bsd                      ifdef_false
+#define ifdef_ems                      ifdef_false
+#elif defined __EMSCRIPTEN__
+#define ifdef_win32                    ifdef_false
+#define ifdef_linux                    ifdef_false
+#define ifdef_osx                      ifdef_false
+#define ifdef_bsd                      ifdef_false
+#define ifdef_ems                      ifdef_true
+#else // __FreeBSD__ || @todo: __ANDROID_API__
+#define ifdef_win32                    ifdef_false
+#define ifdef_linux                    ifdef_false
+#define ifdef_osx                      ifdef_false
+#define ifdef_bsd                      ifdef_true
+#define ifdef_ems                      ifdef_false
+#endif
+
+// -----------------------------------------------------------------------------
+// new C keywords
+// @todo: autorun (needed?)
+
+#define countof(x)       (sizeof (x) / sizeof 0[x])
+
+#define macro(name)      concat(name, __LINE__)
+#define concat(a,b)      conc4t(a,b)
+#define conc4t(a,b)      a##b
+
+#define benchmark        for(double macro(t) = -time_ss(); macro(t) < 0; printf("%.2fs\n", macro(t)+=time_ss()))
+#define do_once          static int macro(once) = 0; for(;!macro(once);macro(once)=1)
+#define defer(begin,end) for(int macro(i) = ((begin), 0); !macro(i); macro(i) = ((end), 1))
+#define scope(end)       defer((void)0, end)
+
+//-----------------------------------------------------------------------------
+// new C macros
+
+#define ASSERT(expr, ...)   do { int fool_msvc[] = {0,}; if(!(expr)) { fool_msvc[0]++; breakpoint(stringf("!Expression failed: " #expr " " FILELINE "\n" __VA_ARGS__)); } } while(0)
+#define PRINTF(...)         PRINTF(stringf(__VA_ARGS__), 1[#__VA_ARGS__] == '!' ? callstack(+48) : "", __FILE__, __LINE__, __FUNCTION__)
+
+#define FILELINE            __FILE__ ":" STRINGIZE(__LINE__)
+#define STRINGIZE(x)        STRINGIZ3(x)
+#define STRINGIZ3(x)        #x
+
+#define EXPAND(name, ...)          EXPAND_QUOTE(EXPAND_JOIN(name, EXPAND_COUNT_ARGS(__VA_ARGS__)), (__VA_ARGS__))
+#define EXPAND_QUOTE(x, y)         x y
+#define EXPAND_JOIN(name, count)   EXPAND_J0IN(name, count)
+#define EXPAND_J0IN(name, count)   EXPAND_J01N(name, count)
+#define EXPAND_J01N(name, count)   name##count
+#define EXPAND_COUNT_ARGS(...)     EXPAND_ARGS((__VA_ARGS__, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0))
+#define EXPAND_ARGS(args)          EXPAND_RETURN_COUNT args
+#define EXPAND_RETURN_COUNT(_1_, _2_, _3_, _4_, _5_, _6_, _7_, _8_, _9_, count, ...) count
+
 //-----------------------------------------------------------------------------
 // Headers
 
-#line 1 "fwk_dll.h"
-// dll utils
-// - rlyeh, public domain
+#line 1 "fwk_config.h"
 
 #ifdef _MSC_VER
 #define IMPORT __declspec(dllimport)
@@ -115,9 +219,6 @@ extern "C" {
 
 #define GLAD_API_CALL API extern // keep glad linkage on par, @r-lyeh
 
-API void* dll(const char *filename, const char *symbol);
-#line 0
-#line 1 "fwk_main.h"
 // -----------------------------------------------------------------------------
 // config directives
 // debug /O0 /D3 > debugopt /O1 /D2 > release (+ndebug) /O2 /D1 > final (+ndebug+final) /O3 /D0
@@ -202,48 +303,6 @@ API void* dll(const char *filename, const char *symbol);
 #pragma comment(lib, "dl")
 #pragma comment(lib, "m")
 #pragma comment(lib, "pthread")
-#endif
-#line 0
-#line 1 "fwk_memory.h"
-// -----------------------------------------------------------------------------
-// memory framework
-// - rlyeh, public domain
-
-// memory leaks detector
-#if WITH_LEAK_DETECTOR
-#define WATCH(ptr,sz) watch((ptr), (sz))
-#define FORGET(ptr)   forget(ptr)
-#else
-#define WATCH(ptr,sz) (ptr)
-#define FORGET(ptr)   (ptr)
-#endif
-
-// default allocator (aborts on out-of-mem)
-API void*  xrealloc(void* p, size_t sz);
-API size_t xsize(void* p);
-
-// stack based allocator (negative bytes does rewind stack, like when entering new frame)
-API void*  stack(int bytes);
-
-// memory leaks
-API void*  watch( void *ptr, int sz );
-API void*  forget( void *ptr );
-
-// memory api
-#define MSIZE(p)       xsize(p)
-#define REALLOC(p,n)   (len1_ = (n), (len1_ ? WATCH(xrealloc((p),len1_),len1_) : xrealloc(FORGET(p),0)))
-#define MALLOC(n)      REALLOC(0,(n))
-#define FREE(p)        REALLOC(FORGET(p), 0)
-#define CALLOC(m,n)    (len2_ = (m)*(n), memset(REALLOC(0,len2_),0,len2_))
-#define STRDUP(s)      (len2_ = strlen(s)+1, ((char*)memcpy(REALLOC(0,len2_), (s), len2_)))
-static __thread size_t len1_, len2_;
-
-#if 0 // ifndef REALLOC
-#define REALLOC            realloc
-#define MALLOC(n)          REALLOC(0, n)
-#define FREE(p)            REALLOC(p, 0)
-#define CALLOC(c, n)       memset(MALLOC((c)*(n)), 0, (c)*(n))
-#define STRDUP(s)          strcpy(MALLOC(strlen(s)+1), (s))
 #endif
 #line 0
 #line 1 "fwk_math.h"
@@ -613,6 +672,44 @@ API void print33( float *m );
 API void print34( float *m );
 API void print44( float *m );
 #line 0
+
+#line 1 "fwk_audio.h"
+// -----------------------------------------------------------------------------
+// audio framework
+// - rlyeh, public domain
+//
+// fixme: leaks, audio_delete
+// fixme: sfxr (hack)
+// @todo: audio_volume_fx, audio_volume_bgm, audio_volume_master instead?
+// @todo: destroystream()    if( ss->type == WAV ) drwav_uninit(&ss->wav);
+// @todo: destroystream()    if( ss->type == MOD ) jar_mod_unload(&ss->mod);
+// @todo: destroystream()    if( ss->type == XM && ss->xm ) jar_xm_free_context(ss->xm);
+
+typedef struct audio_handle* audio_t;
+
+API audio_t audio_clip( const char *pathfile );
+API audio_t audio_stream( const char *pathfile );
+API     int audio_play( audio_t s, int flags );
+
+API float   audio_volume_clip(float gain);   // set     fx volume if gain is in [0..1] range. return current     fx volume in any case
+API float   audio_volume_stream(float gain); // set    bgm volume if gain is in [0..1] range. return current    bgm volume in any case
+API float   audio_volume_master(float gain); // set master volume if gain is in [0..1] range. return current master volume in any case
+
+enum AUDIO_FLAGS {
+    AUDIO_1CH = 0, // default
+    AUDIO_2CH = 1,
+
+    AUDIO_8 = 2,
+    AUDIO_16 = 0, // default
+    AUDIO_32 = 4,
+    AUDIO_FLOAT = 8,
+
+    AUDIO_22KHZ = 0, // default
+    AUDIO_44KHZ = 16,
+};
+
+API int audio_queue( const void *samples, int num_samples, int flags );
+#line 0
 #line 1 "fwk_collide.h"
 // -----------------------------------------------------------------------------
 // original code by @vurtun (PD) and @barerose (CC0).
@@ -771,44 +868,6 @@ API void    poly_free(poly *p);
 API poly    pyramid(vec3 from, vec3 to, float size); // poly_free() required
 API poly    diamond(vec3 from, vec3 to, float size); // poly_free() required
 #line 0
-//---
-#line 1 "fwk_audio.h"
-// -----------------------------------------------------------------------------
-// audio framework
-// - rlyeh, public domain
-//
-// fixme: leaks, audio_delete
-// fixme: sfxr (hack)
-// @todo: audio_volume_fx, audio_volume_bgm, audio_volume_master instead?
-// @todo: destroystream()    if( ss->type == WAV ) drwav_uninit(&ss->wav);
-// @todo: destroystream()    if( ss->type == MOD ) jar_mod_unload(&ss->mod);
-// @todo: destroystream()    if( ss->type == XM && ss->xm ) jar_xm_free_context(ss->xm);
-
-typedef struct audio_handle* audio_t;
-
-API audio_t audio_clip( const char *pathfile );
-API audio_t audio_stream( const char *pathfile );
-API     int audio_play( audio_t s, int flags );
-
-API float   audio_volume_clip(float gain);   // set     fx volume if gain is in [0..1] range. return current     fx volume in any case
-API float   audio_volume_stream(float gain); // set    bgm volume if gain is in [0..1] range. return current    bgm volume in any case
-API float   audio_volume_master(float gain); // set master volume if gain is in [0..1] range. return current master volume in any case
-
-enum AUDIO_FLAGS {
-    AUDIO_1CH = 0, // default
-    AUDIO_2CH = 1,
-
-    AUDIO_8 = 2,
-    AUDIO_16 = 0, // default
-    AUDIO_32 = 4,
-    AUDIO_FLOAT = 8,
-
-    AUDIO_22KHZ = 0, // default
-    AUDIO_44KHZ = 16,
-};
-
-API int audio_queue( const void *samples, int num_samples, int flags );
-#line 0
 #line 1 "fwk_cooker.h"
 // -----------------------------------------------------------------------------
 // asset pipeline framework
@@ -869,6 +928,388 @@ typedef union data_t {
 } data_t;
 
 API data_t data_get(bool is_string, const char *keypath); // @todo, array(data_t) data_array();
+#line 0
+#line 1 "fwk_dll.h"
+// dll utils
+// - rlyeh, public domain
+
+/// !!! `filename` must contain extension
+/// load dynamic library `file` and search for `symbol`
+/// return: NULL if not found, found symbol otherwise.
+/// filename: path to dynamic library file. must contain extension.
+/// symbol: symbol name. must not be NULL.
+/// see: dlopen^, dlclose^
+/// > bool (*plugin_init)(void) = dll("plugin.dll", "init");
+/// > assert(plugin_init());
+API void* dll(const char *filename, const char *symbol);
+#line 0
+#line 1 "fwk_ds.h"
+// data structures and utils: array, set, map, hash, sort.
+// - rlyeh, public domain
+
+#ifndef DS_H
+#define DS_H
+
+// -----------------------------------------------------------------------------
+// less/sort
+
+API int less_int(int a, int b);
+API int less_u64(uint64_t a, uint64_t b);
+API int less_ptr(void *a, void *b);
+API int less_str(char *a, char *b);
+
+// -----------------------------------------------------------------------------
+// un/hash
+
+API uint32_t unhash_32(uint32_t x);
+API uint32_t hash_32(uint32_t x);
+API uint64_t hash_64(uint64_t x);
+API uint64_t hash_flt(double x);
+API uint64_t hash_str(const char* str);
+API uint64_t hash_int(int key);
+API uint64_t hash_ptr(const void *ptr);
+
+// -----------------------------------------------------------------------------
+// vector based allocator (x1.75 enlarge factor)
+
+API void* vrealloc( void* p, size_t sz );
+API size_t vlen( void* p );
+
+// -----------------------------------------------------------------------------
+// arrays
+
+#ifdef __cplusplus
+#define array_cast(x) (decltype x)
+#else
+#define array_cast(x) (void *)
+#endif
+
+#define array(t) t*
+#define array_init(t) ( (t) = 0 )
+#define array_resize(t, n) ( array_c_ = array_count(t), array_realloc_((t),(n)), ((n)>array_c_? memset(array_c_+(t),0,((n)-array_c_)*sizeof(0[t])) : (void*)0), (t) )
+#define array_push(t, ...) ( array_realloc_((t),array_count(t)+1), (t)[ array_count(t) - 1 ] = (__VA_ARGS__) )
+#define array_pop(t) ( array_realloc_((t), array_count(t)-1) )
+#define array_back(t) ( &(t)[ array_count(t)-1 ] ) // ( (t) ? &(t)[ array_count(t)-1 ] : NULL )
+#define array_data(t) (t)
+#define array_at(t,i) (t[i])
+#define array_count(t) (int)( (t) ? array_vlen_(t) / sizeof(0[t]) : 0u )
+#define array_bytes(t) (int)( (t) ? array_vlen_(t) : 0u )
+#define array_sort(t, cmpfunc) qsort( t, array_count(t), sizeof(0[t]), cmpfunc )
+#define array_empty(t) ( !array_count(t) )
+static __thread unsigned array_c_;
+
+#if 0 // original: no reserve support
+#define array_reserve(t, n) ((void)0) // not implemented
+#define array_clear(t) ( array_realloc_((t), 0), (t) = 0 )
+#define array_vlen_(t)  ( vlen(t) - 0 )
+#define array_realloc_(t,n)  ( (t) = array_cast(t) vrealloc((t), ((n)+0) * sizeof(0[t])) )
+#define array_free(t) array_clear(t)
+#else // new: with reserve support (buggy still?)
+#define array_reserve(t, n) ( array_realloc_((t),(n)), array_clear(t) )
+#define array_clear(t) ( array_realloc_((t),0) ) // -1
+#define array_vlen_(t)  ( vlen(t) - sizeof(0[t]) ) // -1
+#define array_realloc_(t,n)  ( (t) = array_cast(t) vrealloc((t), ((n)+1) * sizeof(0[t])) ) // +1
+#define array_free(t) ( array_realloc_((t), -1), (t) = 0 ) // -1
+#endif
+
+#define array_reverse(t) \
+    do if( array_count(t) ) { \
+        for(int l = array_count(t), e = l-1, i = (array_push(t, 0[t]), 0); i <= e/2; ++i ) \
+            { l[t] = i[t]; i[t] = (e-i)[t]; (e-i)[t] = l[t]; } \
+        array_pop(t); \
+    } while(0)
+
+//#define array_foreach2(t,val_t,v) \
+//    for( val_t *v = &0[t]; v < (&0[t] + array_count(t)); ++v )
+
+//#define array_foreach(t, it) \
+//    for( void *end__ = (it = &0[t]) + array_count(t); it != end__; ++it )
+
+#define array_foreach(t,val_t,v) for each_array(t,val_t,v)
+#define each_array(t,val_t,v) \
+    ( val_t *it__ = &0[t]; it__ < (&0[t] + array_count(t)); ++it__ ) \
+        for( val_t v = *it__, *on__ = &v; on__; on__ = 0 )
+
+#define array_foreach_ptr(t,val_t,v) for each_array_ptr(t,val_t,v)
+#define each_array_ptr(t,val_t,v) \
+    ( val_t *it__ = &0[t]; it__ < (&0[t] + array_count(t)); ++it__ ) \
+        for( val_t *v = it__; v; v = 0 )
+
+#define array_search(t, key, cmpfn) /* requires sorted array beforehand */ \
+    bsearch(&key, t, array_count(t), sizeof(t[0]), cmpfn )
+
+#define array_insert(t, i, n) do { \
+    int ac = array_count(t); \
+    if( i >= ac ) { \
+        array_push(t, n); \
+    } else { \
+        array_push(t, array_back(t)); \
+        memmove( &(t)[(i)+1], &(t)[i], (ac - (i)) * sizeof(t[0]) ); \
+        (t)[ i ] = (n); \
+    } \
+} while(0)
+
+#define array_copy(t, src) do { /*todo: review old vrealloc call!*/ \
+    array_free(t); \
+    (t) = vrealloc( (t), array_count(src) * sizeof(0[t])); \
+    memcpy( (t), src, array_count(src) * sizeof(0[t])); \
+} while(0)
+
+#define array_erase(t, i) do { \
+    memcpy( &(t)[i], &(t)[array_count(t) - 1], sizeof(0[t])); \
+    array_pop(t); \
+} while(0)
+
+#define array_unique(t, cmpfunc) do { /*todo: review old vrealloc call!*/ \
+    int cnt = array_count(t), dupes = 0; \
+    if( cnt > 1 ) { \
+        const void *prev = &(t)[0]; \
+        array_sort(t, cmpfunc); \
+        for( int i = 1; i < cnt; ) { \
+            if( cmpfunc(&t[i], prev) == 0 ) { \
+                memmove( &t[i], &t[i+1], (cnt - 1 - i) * sizeof(t[0]) ) ; \
+                --cnt; \
+                ++dupes; \
+            } else { \
+                prev = &(t)[i]; \
+                ++i; \
+            } \
+        } \
+        if( dupes ) { \
+            (t) = vrealloc((t), (array_count(t) - dupes) * sizeof(0[t])); \
+        } \
+    } \
+} while(0)
+
+// -----------------------------------------------------------------------------
+// set<K>
+// ideas from: https://en.wikipedia.org/wiki/Hash_table
+// ideas from: https://probablydance.com/2017/02/26/i-wrote-the-fastest-hashtable/
+// ideas from: http://www.idryman.org/blog/2017/05/03/writing-a-damn-fast-hash-table-with-tiny-memory-footprints/
+
+// config
+#ifndef SET_REALLOC
+#define SET_REALLOC REALLOC
+#endif
+#ifndef SET_HASHSIZE
+#define SET_HASHSIZE (4096 << 4)
+#endif
+#ifndef SET_DONT_ERASE
+#define SET_DONT_ERASE 1
+#endif
+
+// public api
+#define set(K) \
+    struct { set base; struct { set_item p; K key; } tmp, *ptr; \
+        int (*typed_cmp)(K, K); uint64_t (*typed_hash)(K); } *
+
+#define set_init(m, cmpfn, hashfn) ( \
+    (m) = set_cast(m) SET_REALLOC(0, sizeof(*m)), \
+    set_init(&(m)->base), \
+    (m)->base.cmp = (int(*)(void*,void*))( (m)->typed_cmp = cmpfn), \
+    (m)->base.hash = (uint64_t(*)(void*))( (m)->typed_hash = hashfn ) \
+    )
+
+#define set_free(m) ( \
+    set_clear(m), \
+    set_free(&(m)->base), \
+    (m) = set_cast(m) SET_REALLOC((m), 0), \
+    (m) = 0 \
+    )
+
+#define set_insert(m, k) ( \
+    (m)->ptr = set_cast((m)->ptr) SET_REALLOC(0, sizeof((m)->tmp)), \
+    (m)->ptr->p.keyhash = (m)->typed_hash((m)->ptr->key = (k)), \
+    set_insert(&(m)->base, &(m)->ptr->p, &(m)->ptr->key, (m)->ptr->p.keyhash, (m)->ptr), \
+    &(m)->ptr->key \
+    )
+
+#define set_find(m, k) ( \
+    (m)->ptr = &(m)->tmp, \
+    (m)->ptr->p.keyhash = (m)->typed_hash((m)->ptr->key = (k)), \
+    (m)->ptr = set_cast((m)->ptr) set_find(&(m)->base, &(m)->ptr->key, (m)->ptr->p.keyhash), \
+    (m)->ptr ? &(m)->ptr->key : 0 \
+    )
+
+#define set_find_or_add(m, k) ( \
+    (m)->tmp.key = (k), \
+    (m)->tmpval = set_find((m), ((m)->tmp.key)), \
+    (m)->tmpval = (m)->tmpval ? (m)->tmpval : set_insert((m), ((m)->tmp.key)) \
+    )
+
+#define set_erase(m, k) ( \
+    (m)->ptr = &(m)->tmp, \
+    (m)->ptr->p.keyhash = (m)->typed_hash((m)->ptr->key = (k)), \
+    set_erase(&(m)->base, &(m)->ptr->key, (m)->ptr->p.keyhash) \
+    )
+
+#define set_foreach(m,key_t,k) for each_set(m,key_t,k)
+#define each_set(m,key_t,k) \
+    ( int i_ = (m)->set.count ? 0 : SET_HASHSIZE; i_ < SET_HASHSIZE; ++i_) \
+        for( set_item *cur_ = (m)->base.array[i_], *on_ = cur_; cur_; on_ = cur_ = cur_->next ) \
+            for( key_t k = *(key_t *)cur_->key; on_; on_ = 0 )
+
+#define set_foreach_ptr(m,key_t,k) for each_set_ptr(m,key_t,k)
+#define each_set_ptr(m,key_t,k) \
+    ( int i_ = (m)->set.count ? 0 : SET_HASHSIZE; i_ < SET_HASHSIZE; ++i_) \
+        for( set_item *cur_ = (m)->base.array[i_], *on_ = cur_; cur_; on_ = cur_ = cur_->next ) \
+            for( key_t *k = (key_t *)cur_->key; on_; on_ = 0 )
+
+#define set_clear(m) ( \
+    set_clear(&(m)->base) \
+    )
+
+#define set_count(m)        set_count(&(m)->base)
+#define set_gc(m)           set_gc(&(m)->base)
+
+// private:
+
+#ifdef __cplusplus
+#define set_cast(t) (decltype(t))
+#else
+#define set_cast(t) (void *)
+#endif
+
+typedef struct set_item {
+    struct set_item *next;
+
+    uint64_t keyhash;
+    void *key;
+    void *super;
+} set_item;
+
+typedef struct set {
+    array(set_item*) array;
+    int (*cmp)(void *, void *);
+    uint64_t (*hash)(void *);
+    int count;
+} set;
+
+API void  (set_init)(set *m);
+API void  (set_free)(set *m);
+
+API void  (set_insert)(set *m, set_item *p, void *key, uint64_t keyhash, void *super);
+API void  (set_erase)(set *m, void *key, uint64_t keyhash);
+API void* (set_find)(const set *m, void *key, uint64_t keyhash);
+API int   (set_count)(const set *m);
+API void  (set_gc)(set *m); // only if using SET_DONT_ERASE
+
+// -----------------------------------------------------------------------------
+// map<K,V>
+// ideas from: https://en.wikipedia.org/wiki/Hash_table
+// ideas from: https://probablydance.com/2017/02/26/i-wrote-the-fastest-hashtable/
+// ideas from: http://www.idryman.org/blog/2017/05/03/writing-a-damn-fast-hash-table-with-tiny-memory-footprints/
+
+// config
+#ifndef MAP_REALLOC
+#define MAP_REALLOC REALLOC
+#endif
+#ifndef MAP_HASHSIZE
+#define MAP_HASHSIZE (4096 << 4)
+#endif
+#ifndef MAP_DONT_ERASE
+#define MAP_DONT_ERASE 1
+#endif
+
+// public api
+#define map(K,V) \
+    struct { map base; struct { pair p; K key; V val; } tmp, *ptr; V* tmpval; \
+        int (*typed_cmp)(K, K); uint64_t (*typed_hash)(K); } *
+
+#define map_init(m, cmpfn, hashfn) ( \
+    (m) = map_cast(m) MAP_REALLOC(0, sizeof(*(m))), \
+    map_init(&(m)->base), \
+    (m)->base.cmp = (int(*)(void*,void*))( (m)->typed_cmp = map_cast((m)->typed_cmp) cmpfn), \
+    (m)->base.hash = (uint64_t(*)(void*))( (m)->typed_hash = map_cast((m)->typed_hash) hashfn ) \
+    )
+
+#define map_free(m) ( \
+    map_free(&(m)->base), \
+    map_cast(m) MAP_REALLOC((m), sizeof(*(m))), (m) = 0 \
+    )
+
+#define map_insert(m, k, v) ( \
+    (m)->ptr = map_cast((m)->ptr) MAP_REALLOC(0, sizeof((m)->tmp)), \
+    (m)->ptr->val = (v), \
+    (m)->ptr->p.keyhash = (m)->typed_hash((m)->ptr->key = (k)), \
+    map_insert(&(m)->base, &(m)->ptr->p, &(m)->ptr->key, &(m)->ptr->val, (m)->ptr->p.keyhash, (m)->ptr), \
+    &(m)->ptr->val \
+    )
+
+#define map_find(m, k) ( \
+    (m)->ptr = &(m)->tmp, \
+    (m)->ptr->p.keyhash = (m)->typed_hash((m)->ptr->key = (k)), \
+    (m)->ptr = map_cast((m)->ptr) map_find(&(m)->base, &(m)->ptr->key, (m)->ptr->p.keyhash), \
+    (m)->ptr ? &(m)->ptr->val : 0 \
+    )
+
+#define map_find_or_add(m, k, v) ( \
+    (m)->tmp.key = (k), (m)->tmp.val = (v), \
+    (m)->tmpval = map_find((m), ((m)->tmp.key)), \
+    (m)->tmpval = (m)->tmpval ? (m)->tmpval : map_insert((m), ((m)->tmp.key), ((m)->tmp.val)) \
+    )
+
+#define map_erase(m, k) ( \
+    (m)->ptr = &(m)->tmp, \
+    (m)->ptr->p.keyhash = (m)->typed_hash((m)->ptr->key = (k)), \
+    map_erase(&(m)->base, &(m)->ptr->key, (m)->ptr->p.keyhash) \
+    )
+
+#define map_foreach(m,key_t,k,val_t,v) for each_map(m,key_t,k,val_t,v)
+#define each_map(m,key_t,k,val_t,v) \
+    ( int i_ = (m)->base.count ? 0 : MAP_HASHSIZE; i_ < MAP_HASHSIZE; ++i_) \
+        for( pair *cur_ = (m)->base.array[i_], *on_ = cur_; cur_; on_ = cur_ = cur_->next ) \
+            for( key_t k = *(key_t *)cur_->key; on_; ) \
+                for( val_t v = *(val_t *)cur_->value; on_; on_ = 0 )
+
+#define map_foreach_ptr(m,key_t,k,val_t,v) for each_map_ptr(m,key_t,k,val_t,v)
+#define each_map_ptr(m,key_t,k,val_t,v) \
+    ( int i_ = (m)->base.count ? 0 : MAP_HASHSIZE; i_ < MAP_HASHSIZE; ++i_) \
+        for( pair *cur_ = (m)->base.array[i_], *on_ = cur_; cur_; on_ = cur_ = cur_->next ) \
+            for( key_t *k = (key_t *)cur_->key; on_; ) \
+                for( val_t *v = (val_t *)cur_->value; on_; on_ = 0 )
+
+#define map_clear(m) ( \
+    map_clear(&(m)->base) \
+    )
+
+#define map_count(m)        map_count(&(m)->base)
+#define map_gc(m)           map_gc(&(m)->base)
+
+// private:
+
+#ifdef __cplusplus
+#define map_cast(t) (decltype(t))
+#else
+#define map_cast(t) (void *)
+#endif
+
+typedef struct pair {
+    struct pair *next;
+
+    uint64_t keyhash;
+    void *key;
+    void *value;
+    void *super;
+} pair;
+
+typedef struct map {
+    array(pair*) array;
+    int (*cmp)(void *, void *);
+    uint64_t (*hash)(void *);
+    int count;
+} map;
+
+API void  (map_init)(map *m);
+API void  (map_free)(map *m);
+
+API void  (map_insert)(map *m, pair *p, void *key, void *value, uint64_t keyhash, void *super);
+API void  (map_erase)(map *m, void *key, uint64_t keyhash);
+API void* (map_find)(map *m, void *key, uint64_t keyhash);
+API int   (map_count)(map *m);
+API void  (map_gc)(map *m); // only if using MAP_DONT_ERASE
+
+#endif // DS_H
 #line 0
 #line 1 "fwk_editor.h"
 // -----------------------------------------------------------------------------
@@ -1057,6 +1498,48 @@ enum INPUT_ENUMS {
     GAMEPAD_GUID, GAMEPAD_NAME,
 };
 #line 0
+#line 1 "fwk_memory.h"
+// -----------------------------------------------------------------------------
+// memory framework
+// - rlyeh, public domain
+
+// memory leaks detector
+#if WITH_LEAK_DETECTOR
+#define WATCH(ptr,sz) watch((ptr), (sz))
+#define FORGET(ptr)   forget(ptr)
+#else
+#define WATCH(ptr,sz) (ptr)
+#define FORGET(ptr)   (ptr)
+#endif
+
+// default allocator (aborts on out-of-mem)
+API void*  xrealloc(void* p, size_t sz);
+API size_t xsize(void* p);
+
+// stack based allocator (negative bytes does rewind stack, like when entering new frame)
+API void*  stack(int bytes);
+
+// memory leaks
+API void*  watch( void *ptr, int sz );
+API void*  forget( void *ptr );
+
+// memory api
+#define MSIZE(p)       xsize(p)
+#define REALLOC(p,n)   (len1_ = (n), (len1_ ? WATCH(xrealloc((p),len1_),len1_) : xrealloc(FORGET(p),0)))
+#define MALLOC(n)      REALLOC(0,(n))
+#define FREE(p)        REALLOC(FORGET(p), 0)
+#define CALLOC(m,n)    (len2_ = (m)*(n), memset(REALLOC(0,len2_),0,len2_))
+#define STRDUP(s)      (len2_ = strlen(s)+1, ((char*)memcpy(REALLOC(0,len2_), (s), len2_)))
+static __thread size_t len1_, len2_;
+
+#if 0 // ifndef REALLOC
+#define REALLOC            realloc
+#define MALLOC(n)          REALLOC(0, n)
+#define FREE(p)            REALLOC(p, 0)
+#define CALLOC(c, n)       memset(MALLOC((c)*(n)), 0, (c)*(n))
+#define STRDUP(s)          strcpy(MALLOC(strlen(s)+1), (s))
+#endif
+#line 0
 #line 1 "fwk_network.h"
 // -----------------------------------------------------------------------------
 // network framework
@@ -1105,6 +1588,38 @@ API int   tcp_debug(int); // toggle traffic monitoring on/off for given socket
 //API int   tcp_printf(int, const char *fmt, ...); // printf message in remote end
 //API int   tcp_crypt(int,uint64_t);               // set shared secret
 #line 0
+#line 1 "fwk_profile.h"
+// -----------------------------------------------------------------------------
+// profiler & stats (@fixme: threadsafe)
+
+#if WITH_PROFILE
+#   define profile_init() do { map_init(profiler, less_str, hash_str); } while(0)
+#   define profile(...) for( \
+        struct profile_t *found = map_find_or_add(profiler, #__VA_ARGS__ "@" FILELINE, (struct profile_t){NAN} ), *dummy = (\
+        found->cost = -time_ms() * 1000, found); found->cost < 0; found->cost += time_ms() * 1000, found->avg = found->cost * 0.25 + found->avg * 0.75)  ///+
+#   define profile_incstat(name, accum) do { if(profiler) { \
+        struct profile_t *found = map_find(profiler, name); \
+        if(!found) found = map_insert(profiler, name, (struct profile_t){0}); \
+        found->stat += accum; \
+        } } while(0) ///+
+#   define profile_render() if(profiler) do { \
+        for(float _i = ui_begin("Profiler",0), _r; _i ; ui_end(), _i = 0) { \
+            for each_map_ptr(profiler, const char *, key, struct profile_t, val ) \
+                if( !isnan(val->stat) ) ui_slider2(stringf("Stat: %s", *key), (_r = val->stat, &_r), stringf("%.2f", val->stat)), val->stat = 0; \
+            ui_separator(); \
+            for each_map_ptr(profiler, const char *, key, struct profile_t, val ) \
+                if( isnan(val->stat) ) ui_slider2(*key, (_r = val->avg/1000.0, &_r), stringf("%.2f ms", val->avg/1000.0)); \
+        } } while(0)
+struct profile_t { double stat; int32_t cost, avg; }; ///-
+typedef map(char *, struct profile_t) profiler_t; ///-
+extern API profiler_t profiler; ///-
+#else
+#   define profile_init()               do {} while(0)
+#   define profile_incstat(name, accum) do {} while(0)
+#   define profile(...)                 if(1) // for(int _p = 1; _p; _p = 0)
+#   define profile_render()
+#endif
+#line 0
 #line 1 "fwk_render.h"
 // -----------------------------------------------------------------------------
 // naive rendering framework
@@ -1141,6 +1656,12 @@ API float    alpha( uint32_t rgba );
 // -----------------------------------------------------------------------------
 // images
 
+/// flags when constructing the image_t type. see: image, image_from_mem
+/// IMAGE_R: 1-channel image (R)
+/// IMAGE_RG: 2-channel image (R,G)
+/// IMAGE_RGB: 3-channel image (R,G,B)
+/// IMAGE_RGBA: 4-channel image (R,G,B,A)
+/// IMAGE_FLIP: Flip image vertically
 enum IMAGE_FLAGS {
     IMAGE_R    = 0x01000,
     IMAGE_RG   = 0x02000,
@@ -1149,6 +1670,11 @@ enum IMAGE_FLAGS {
     IMAGE_FLIP = 0x10000,
 };
 
+/// type that holds linear uncompressed bitmap of any given dimensions.
+/// w,h: image dimensions in pixels. `x,y` alias.
+/// comps: number of components per pixel. `n` alias.
+/// pixels: untyped pointer to linear bitmap data. typed pointers use `pixels8/16/32/f` aliases.
+/// see: texture_t
 typedef struct image_t {
     union { unsigned x, w; };
     union { unsigned y, h; };
@@ -1539,6 +2065,71 @@ API void script_bind_class(const char *objname, int num_methods, const char **c_
 API void script_bind_function(const char *c_name, void *c_function);
 API void script_call(const char *lua_function);
 #line 0
+#line 1 "fwk_string.h"
+// string framework
+// - rlyeh, public domain
+
+#ifndef STRING_H
+#define STRING_H
+
+// string: temporary api (stack)
+API char*   stringf(const char *fmt, ...);
+#define     stringf(...) (printf || printf(__VA_ARGS__), stringf(__VA_ARGS__))  // vs2015 check trick
+
+#if 1
+// string: allocated api (heap)
+API char*   stringf_cat(char *x, const char *buf);
+#define     stringf_cat(s,fmt,...)  stringf_cat((s), stringf(fmt, __VA_ARGS__)) // stringfcat ?
+#define     stringf_del(s)         ((REALLOC((s), 0)), (s)=0) // stringfdel ?
+#endif
+
+#if defined _MSC_VER || (defined __TINYC__ && defined _WIN32)
+#define strtok_r strtok_s
+#endif
+
+#define each_substring(str, delims, keyname) \
+    ( int len_ = strlen(str) + 1; len_; len_ = 0 ) \
+    for( char buf_[1024], *ptr_ = len_ < 1024 ? buf_ : REALLOC(0, len_), *lit_ = (char*)(str), *_bak = (snprintf(ptr_, len_, "%s", lit_), ptr_); _bak; _bak = 0, (ptr_ == buf_ ? 0 : REALLOC(ptr_, 0)) ) \
+    for( char *next_token = 0, *keyname = strtok_r(_bak, delims, &next_token); keyname; keyname = strtok_r(NULL, delims, &next_token) )
+
+// utils
+
+API int          strmatch(const char *s, const char *wildcard);
+
+API int          strcmp_qsort(const void *a, const void *b);
+API int          strcmpi_qsort(const void *a, const void *b);
+
+API bool         strbegi(const char *src, const char *sub);  // returns true if both strings match at beginning. case insensitive
+API bool         strendi(const char *src, const char *sub);  // returns true if both strings match at end. case insensitive
+API const char * strstri(const char *src, const char *sub);  // returns find first substring in string. case insensitive.
+#define          strcmpi  ifdef(msc, _stricmp, strcasecmp)
+
+API char *       strrepl(char **copy, const char *target, const char *replace); // replace any 'target' as 'repl' in 'copy'. returns 'copy'
+API char *       strswap(char *copy, const char *target, const char *replace);  // replaced only if repl is shorter than target. no allocations.
+API char *       strcut(char *copy, const char *target);                        // remove any 'target' in 'copy'. returns 'copy'
+
+API char *       str16to8(const wchar_t *str); // convert from wchar16(win) to utf8/ascii
+
+API const char * strlerp(unsigned numpairs, const char **pairs, const char *str); // using key-value pairs, null-terminated
+
+#ifndef __APPLE__ // BSD provides these
+API size_t       strlcat(char *dst, const char *src, size_t dstcap); // concat 2 strings safely. always NUL terminates. may truncate.
+API size_t       strlcpy(char *dst, const char *src, size_t dstcap); // copy 2 strings safely. always NUL terminates. truncates if retval>=dstcap
+#endif
+
+/// split `string` after any of `delimiters` character is found.
+/// returns temporary array of split strings. see: strjoin
+/// > array(char*) tokens = strsplit("hello! world!", " !"); // [0]="hello",[1]="world",
+API array(char*) strsplit(const char *string, const char *delimiters);
+
+/// concatenate all elements within `list`, with `separator` string in between.
+/// returns: temporary joint string. see: strsplit
+/// > array(char*) tokens = strsplit("hello! world!", " !"); // [0]="hello",[1]="world",
+/// > char *joint = strjoin(tokens, "+"); // joint="hello+world"
+API char*        strjoin(array(char*) list, const char *separator);
+
+#endif // STRING_H
+#line 0
 #line 1 "fwk_system.h"
 // -----------------------------------------------------------------------------
 // system framework utils
@@ -1636,6 +2227,7 @@ API int    ui_button(const char *label);
 API int    ui_toggle(const char *label, bool *value);
 API int    ui_dialog(const char *title, const char *text, int choices, bool *show); // @fixme: return
 API int    ui_list(const char *label, const char **items, int num_items, int *selector);
+API int    ui_image(const char *label, texture_t img);
 API int    ui_separator();
 API int    ui_label(const char *label);
 API int    ui_label2(const char *label, const char *caption);
@@ -1729,669 +2321,6 @@ API void   window_screenshot(const char* filename_png);
 
 #define window_title(...) window_title(stringf(__VA_ARGS__))
 #line 0
-
-#line 1 "fwk_ds.h"
-// data structures and utils: array, set, map, hash, sort.
-// - rlyeh, public domain
-
-#ifndef DS_H
-#define DS_H
-
-#include <assert.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-// -----------------------------------------------------------------------------
-// less/sort
-
-static inline int less_int(int a, int b) {
-    return a - b;
-}
-static inline int less_u64(uint64_t a, uint64_t b) {
-    return a > b ? +1 : -!!(a - b);
-}
-static inline int less_ptr(void *a, void *b) {
-    return (uintptr_t)a > (uintptr_t)b ? +1 : -!!((uintptr_t)a - (uintptr_t)b);
-}
-static inline int less_str(char *a, char *b) {
-    return strcmp((const char *)a, (const char *)b);
-}
-
-// -----------------------------------------------------------------------------
-// un/hash
-
-static inline uint32_t unhash_32(uint32_t x) {
-    // Thomas Mueller at https://stackoverflow.com/questions/664014/ - says no collisions for 32bits!
-    x = ((x >> 16) ^ x) * 0x119de1f3;
-    x = ((x >> 16) ^ x) * 0x119de1f3;
-    x = (x >> 16) ^ x;
-    return x;
-}
-static inline uint32_t hash_32(uint32_t x) {
-    // Thomas Mueller at https://stackoverflow.com/questions/664014/ - says no collisions for 32bits!
-    x = ((x >> 16) ^ x) * 0x45d9f3b;
-    x = ((x >> 16) ^ x) * 0x45d9f3b;
-    x = (x >> 16) ^ x;
-    return x;
-}
-static inline uint64_t hash_64(uint64_t x) {
-    x = (x ^ (x >> 30)) * UINT64_C(0xbf58476d1ce4e5b9);
-    x = (x ^ (x >> 27)) * UINT64_C(0x94d049bb133111eb);
-    x = x ^ (x >> 31);
-    return x;
-}
-static inline uint64_t hash_flt(double x) {
-    union { double d; uint64_t i; } c;
-    return c.d = x, hash_64(c.i);
-}
-static inline uint64_t hash_str(const char* str) {
-    uint64_t hash = 14695981039346656037ULL; // hash(0),mul(131) faster than fnv1a, a few more collisions though
-    while( *str ) hash = ( (unsigned char)*str++ ^ hash ) * 0x100000001b3ULL;
-    return hash;
-}
-static inline uint64_t hash_int(int key) {
-    return hash_32((uint32_t)key);
-}
-static inline uint64_t hash_ptr(const void *ptr) {
-    uint64_t key = (uint64_t)(uintptr_t)ptr;
-    return hash_64(key >> 3); // >> 4? needed?
-}
-
-// -----------------------------------------------------------------------------
-// vector based allocator (x1.75 enlarge factor)
-
-static inline void* vrealloc( void* p, size_t sz ) {
-    if( !sz ) {
-        if( p ) {
-            size_t *ret = (size_t*)p - 2;
-            ret[0] = 0;
-            ret[1] = 0;
-            REALLOC( ret, 0 );
-        }
-        return 0;
-    } else {
-        size_t *ret = (size_t*)p - 2;
-        if( !p ) {
-            ret = (size_t*)REALLOC( 0, sizeof(size_t) * 2 + sz );
-            ret[0] = sz;
-            ret[1] = 0;
-        } else {
-            size_t osz = ret[0];
-            size_t ocp = ret[1];
-            if( sz <= (osz + ocp) ) {
-                ret[0] = sz;
-                ret[1] = ocp - (sz - osz);
-            } else {
-                ret = (size_t*)REALLOC( ret, sizeof(size_t) * 2 + sz * 1.75 );
-                ret[0] = sz;
-                ret[1] = (size_t)(sz * 1.75) - sz;
-            }
-        }
-        return &ret[2];
-    }
-}
-static inline size_t vlen( void* p ) {
-    return p ? 0[ (size_t*)p - 2 ] : 0;
-}
-
-// -----------------------------------------------------------------------------
-// arrays
-
-#ifdef __cplusplus
-#define array_cast(x) (decltype x)
-#else
-#define array_cast(x) (void *)
-#endif
-
-#define array(t) t*
-#define array_init(t) ( (t) = 0 )
-#define array_resize(t, n) ( array_c_ = array_count(t), array_realloc_((t),(n)), ((n)>array_c_? memset(array_c_+(t),0,((n)-array_c_)*sizeof(0[t])) : (void*)0), (t) )
-#define array_push(t, ...) ( array_realloc_((t),array_count(t)+1), (t)[ array_count(t) - 1 ] = (__VA_ARGS__) )
-#define array_pop(t) ( array_realloc_((t), array_count(t)-1) )
-#define array_back(t) ( &(t)[ array_count(t)-1 ] ) // ( (t) ? &(t)[ array_count(t)-1 ] : NULL )
-#define array_data(t) (t)
-#define array_at(t,i) (t[i])
-#define array_count(t) (int)( (t) ? array_vlen_(t) / sizeof(0[t]) : 0u )
-#define array_bytes(t) (int)( (t) ? array_vlen_(t) : 0u )
-#define array_sort(t, cmpfunc) qsort( t, array_count(t), sizeof(0[t]), cmpfunc )
-#define array_empty(t) ( !array_count(t) )
-static __thread unsigned array_c_;
-
-#if 0 // original: no reserve support
-#define array_reserve(t, n) ((void)0) // not implemented
-#define array_clear(t) ( array_realloc_((t), 0), (t) = 0 )
-#define array_vlen_(t)  ( vlen(t) - 0 )
-#define array_realloc_(t,n)  ( (t) = array_cast(t) vrealloc((t), ((n)+0) * sizeof(0[t])) )
-#define array_free(t) array_clear(t)
-#else // new: with reserve support (buggy still?)
-#define array_reserve(t, n) ( array_realloc_((t),(n)), array_clear(t) )
-#define array_clear(t) ( array_realloc_((t),0) ) // -1
-#define array_vlen_(t)  ( vlen(t) - sizeof(0[t]) ) // -1
-#define array_realloc_(t,n)  ( (t) = array_cast(t) vrealloc((t), ((n)+1) * sizeof(0[t])) ) // +1
-#define array_free(t) ( array_realloc_((t), -1), (t) = 0 ) // -1
-#endif
-
-#define array_reverse(t) \
-    do if( array_count(t) ) { \
-        for(int l = array_count(t), e = l-1, i = (array_push(t, 0[t]), 0); i <= e/2; ++i ) \
-            { l[t] = i[t]; i[t] = (e-i)[t]; (e-i)[t] = l[t]; } \
-        array_pop(t); \
-    } while(0)
-
-//#define array_foreach2(t,val_t,v) \
-//    for( val_t *v = &0[t]; v < (&0[t] + array_count(t)); ++v )
-
-//#define array_foreach(t, it) \
-//    for( void *end__ = (it = &0[t]) + array_count(t); it != end__; ++it )
-
-#define array_foreach(t,val_t,v) for each_array(t,val_t,v)
-#define each_array(t,val_t,v) \
-    ( val_t *it__ = &0[t]; it__ < (&0[t] + array_count(t)); ++it__ ) \
-        for( val_t v = *it__, *on__ = &v; on__; on__ = 0 )
-
-#define array_foreach_ptr(t,val_t,v) for each_array_ptr(t,val_t,v)
-#define each_array_ptr(t,val_t,v) \
-    ( val_t *it__ = &0[t]; it__ < (&0[t] + array_count(t)); ++it__ ) \
-        for( val_t *v = it__; v; v = 0 )
-
-#define array_search(t, key, cmpfn) /* requires sorted array beforehand */ \
-    bsearch(&key, t, array_count(t), sizeof(t[0]), cmpfn )
-
-#define array_insert(t, i, n) do { \
-    int ac = array_count(t); \
-    if( i >= ac ) { \
-        array_push(t, n); \
-    } else { \
-        array_push(t, array_back(t)); \
-        memmove( &(t)[(i)+1], &(t)[i], (ac - (i)) * sizeof(t[0]) ); \
-        (t)[ i ] = (n); \
-    } \
-} while(0)
-
-#define array_copy(t, src) do { /*todo: review old vrealloc call!*/ \
-    array_free(t); \
-    (t) = vrealloc( (t), array_count(src) * sizeof(0[t])); \
-    memcpy( (t), src, array_count(src) * sizeof(0[t])); \
-} while(0)
-
-#define array_erase(t, i) do { \
-    memcpy( &(t)[i], &(t)[array_count(t) - 1], sizeof(0[t])); \
-    array_pop(t); \
-} while(0)
-
-#define array_unique(t, cmpfunc) do { /*todo: review old vrealloc call!*/ \
-    int cnt = array_count(t), dupes = 0; \
-    if( cnt > 1 ) { \
-        const void *prev = &(t)[0]; \
-        array_sort(t, cmpfunc); \
-        for( int i = 1; i < cnt; ) { \
-            if( cmpfunc(&t[i], prev) == 0 ) { \
-                memmove( &t[i], &t[i+1], (cnt - 1 - i) * sizeof(t[0]) ) ; \
-                --cnt; \
-                ++dupes; \
-            } else { \
-                prev = &(t)[i]; \
-                ++i; \
-            } \
-        } \
-        if( dupes ) { \
-            (t) = vrealloc((t), (array_count(t) - dupes) * sizeof(0[t])); \
-        } \
-    } \
-} while(0)
-
-// -----------------------------------------------------------------------------
-// set<K>
-// ideas from: https://en.wikipedia.org/wiki/Hash_table
-// ideas from: https://probablydance.com/2017/02/26/i-wrote-the-fastest-hashtable/
-// ideas from: http://www.idryman.org/blog/2017/05/03/writing-a-damn-fast-hash-table-with-tiny-memory-footprints/
-
-// config
-#ifndef SET_REALLOC
-#define SET_REALLOC REALLOC
-#endif
-#ifndef SET_HASHSIZE
-#define SET_HASHSIZE (4096 << 4)
-#endif
-#ifndef SET_DONT_ERASE
-#define SET_DONT_ERASE 1
-#endif
-
-// public api
-#define set(K) \
-    struct { set base; struct { set_item p; K key; } tmp, *ptr; \
-        int (*typed_cmp)(K, K); uint64_t (*typed_hash)(K); } *
-
-#define set_init(m, cmpfn, hashfn) ( \
-    (m) = set_cast(m) SET_REALLOC(0, sizeof(*m)), \
-    set_init(&(m)->base), \
-    (m)->base.cmp = (int(*)(void*,void*))( (m)->typed_cmp = cmpfn), \
-    (m)->base.hash = (uint64_t(*)(void*))( (m)->typed_hash = hashfn ) \
-    )
-
-#define set_free(m) ( \
-    set_clear(m), \
-    set_free(&(m)->base), \
-    (m) = set_cast(m) SET_REALLOC((m), 0), \
-    (m) = 0 \
-    )
-
-#define set_insert(m, k) ( \
-    (m)->ptr = set_cast((m)->ptr) SET_REALLOC(0, sizeof((m)->tmp)), \
-    (m)->ptr->p.keyhash = (m)->typed_hash((m)->ptr->key = (k)), \
-    set_insert(&(m)->base, &(m)->ptr->p, &(m)->ptr->key, (m)->ptr->p.keyhash, (m)->ptr), \
-    &(m)->ptr->key \
-    )
-
-#define set_find(m, k) ( \
-    (m)->ptr = &(m)->tmp, \
-    (m)->ptr->p.keyhash = (m)->typed_hash((m)->ptr->key = (k)), \
-    (m)->ptr = set_cast((m)->ptr) set_find(&(m)->base, &(m)->ptr->key, (m)->ptr->p.keyhash), \
-    (m)->ptr ? &(m)->ptr->key : 0 \
-    )
-
-#define set_find_or_add(m, k) ( \
-    (m)->tmp.key = (k), \
-    (m)->tmpval = set_find((m), ((m)->tmp.key)), \
-    (m)->tmpval = (m)->tmpval ? (m)->tmpval : set_insert((m), ((m)->tmp.key)) \
-    )
-
-#define set_erase(m, k) ( \
-    (m)->ptr = &(m)->tmp, \
-    (m)->ptr->p.keyhash = (m)->typed_hash((m)->ptr->key = (k)), \
-    set_erase(&(m)->base, &(m)->ptr->key, (m)->ptr->p.keyhash) \
-    )
-
-#define set_foreach(m,key_t,k) for each_set(m,key_t,k)
-#define each_set(m,key_t,k) \
-    ( int i_ = (m)->set.count ? 0 : SET_HASHSIZE; i_ < SET_HASHSIZE; ++i_) \
-        for( set_item *cur_ = (m)->base.array[i_], *on_ = cur_; cur_; on_ = cur_ = cur_->next ) \
-            for( key_t k = *(key_t *)cur_->key; on_; on_ = 0 )
-
-#define set_foreach_ptr(m,key_t,k) for each_set_ptr(m,key_t,k)
-#define each_set_ptr(m,key_t,k) \
-    ( int i_ = (m)->set.count ? 0 : SET_HASHSIZE; i_ < SET_HASHSIZE; ++i_) \
-        for( set_item *cur_ = (m)->base.array[i_], *on_ = cur_; cur_; on_ = cur_ = cur_->next ) \
-            for( key_t *k = (key_t *)cur_->key; on_; on_ = 0 )
-
-#define set_clear(m) ( \
-    set_clear(&(m)->base) \
-    )
-
-#define set_count(m)        set_count(&(m)->base)
-#define set_gc(m)           set_gc(&(m)->base)
-
-// private:
-
-#ifdef __cplusplus
-#define set_cast(t) (decltype(t))
-#else
-#define set_cast(t) (void *)
-#endif
-
-typedef struct set_item {
-    struct set_item *next;
-
-    uint64_t keyhash;
-    void *key;
-    void *super;
-} set_item;
-
-typedef struct set {
-    array(set_item*) array;
-    int (*cmp)(void *, void *);
-    uint64_t (*hash)(void *);
-    int count;
-} set;
-
-API void  (set_init)(set *m);
-API void  (set_free)(set *m);
-
-API void  (set_insert)(set *m, set_item *p, void *key, uint64_t keyhash, void *super);
-API void  (set_erase)(set *m, void *key, uint64_t keyhash);
-API void* (set_find)(const set *m, void *key, uint64_t keyhash);
-API int   (set_count)(const set *m);
-API void  (set_gc)(set *m); // only if using SET_DONT_ERASE
-
-// -----------------------------------------------------------------------------
-// map<K,V>
-// ideas from: https://en.wikipedia.org/wiki/Hash_table
-// ideas from: https://probablydance.com/2017/02/26/i-wrote-the-fastest-hashtable/
-// ideas from: http://www.idryman.org/blog/2017/05/03/writing-a-damn-fast-hash-table-with-tiny-memory-footprints/
-
-// config
-#ifndef MAP_REALLOC
-#define MAP_REALLOC REALLOC
-#endif
-#ifndef MAP_HASHSIZE
-#define MAP_HASHSIZE (4096 << 4)
-#endif
-#ifndef MAP_DONT_ERASE
-#define MAP_DONT_ERASE 1
-#endif
-
-// public api
-#define map(K,V) \
-    struct { map base; struct { pair p; K key; V val; } tmp, *ptr; V* tmpval; \
-        int (*typed_cmp)(K, K); uint64_t (*typed_hash)(K); } *
-
-#define map_init(m, cmpfn, hashfn) ( \
-    (m) = map_cast(m) MAP_REALLOC(0, sizeof(*(m))), \
-    map_init(&(m)->base), \
-    (m)->base.cmp = (int(*)(void*,void*))( (m)->typed_cmp = map_cast((m)->typed_cmp) cmpfn), \
-    (m)->base.hash = (uint64_t(*)(void*))( (m)->typed_hash = map_cast((m)->typed_hash) hashfn ) \
-    )
-
-#define map_free(m) ( \
-    map_free(&(m)->base), \
-    map_cast(m) MAP_REALLOC((m), sizeof(*(m))), (m) = 0 \
-    )
-
-#define map_insert(m, k, v) ( \
-    (m)->ptr = map_cast((m)->ptr) MAP_REALLOC(0, sizeof((m)->tmp)), \
-    (m)->ptr->val = (v), \
-    (m)->ptr->p.keyhash = (m)->typed_hash((m)->ptr->key = (k)), \
-    map_insert(&(m)->base, &(m)->ptr->p, &(m)->ptr->key, &(m)->ptr->val, (m)->ptr->p.keyhash, (m)->ptr), \
-    &(m)->ptr->val \
-    )
-
-#define map_find(m, k) ( \
-    (m)->ptr = &(m)->tmp, \
-    (m)->ptr->p.keyhash = (m)->typed_hash((m)->ptr->key = (k)), \
-    (m)->ptr = map_cast((m)->ptr) map_find(&(m)->base, &(m)->ptr->key, (m)->ptr->p.keyhash), \
-    (m)->ptr ? &(m)->ptr->val : 0 \
-    )
-
-#define map_find_or_add(m, k, v) ( \
-    (m)->tmp.key = (k), (m)->tmp.val = (v), \
-    (m)->tmpval = map_find((m), ((m)->tmp.key)), \
-    (m)->tmpval = (m)->tmpval ? (m)->tmpval : map_insert((m), ((m)->tmp.key), ((m)->tmp.val)) \
-    )
-
-#define map_erase(m, k) ( \
-    (m)->ptr = &(m)->tmp, \
-    (m)->ptr->p.keyhash = (m)->typed_hash((m)->ptr->key = (k)), \
-    map_erase(&(m)->base, &(m)->ptr->key, (m)->ptr->p.keyhash) \
-    )
-
-#define map_foreach(m,key_t,k,val_t,v) for each_map(m,key_t,k,val_t,v)
-#define each_map(m,key_t,k,val_t,v) \
-    ( int i_ = (m)->base.count ? 0 : MAP_HASHSIZE; i_ < MAP_HASHSIZE; ++i_) \
-        for( pair *cur_ = (m)->base.array[i_], *on_ = cur_; cur_; on_ = cur_ = cur_->next ) \
-            for( key_t k = *(key_t *)cur_->key; on_; ) \
-                for( val_t v = *(val_t *)cur_->value; on_; on_ = 0 )
-
-#define map_foreach_ptr(m,key_t,k,val_t,v) for each_map_ptr(m,key_t,k,val_t,v)
-#define each_map_ptr(m,key_t,k,val_t,v) \
-    ( int i_ = (m)->base.count ? 0 : MAP_HASHSIZE; i_ < MAP_HASHSIZE; ++i_) \
-        for( pair *cur_ = (m)->base.array[i_], *on_ = cur_; cur_; on_ = cur_ = cur_->next ) \
-            for( key_t *k = (key_t *)cur_->key; on_; ) \
-                for( val_t *v = (val_t *)cur_->value; on_; on_ = 0 )
-
-#define map_clear(m) ( \
-    map_clear(&(m)->base) \
-    )
-
-#define map_count(m)        map_count(&(m)->base)
-#define map_gc(m)           map_gc(&(m)->base)
-
-// private:
-
-#ifdef __cplusplus
-#define map_cast(t) (decltype(t))
-#else
-#define map_cast(t) (void *)
-#endif
-
-typedef struct pair {
-    struct pair *next;
-
-    uint64_t keyhash;
-    void *key;
-    void *value;
-    void *super;
-} pair;
-
-typedef struct map {
-    array(pair*) array;
-    int (*cmp)(void *, void *);
-    uint64_t (*hash)(void *);
-    int count;
-} map;
-
-API void  (map_init)(map *m);
-API void  (map_free)(map *m);
-
-API void  (map_insert)(map *m, pair *p, void *key, void *value, uint64_t keyhash, void *super);
-API void  (map_erase)(map *m, void *key, uint64_t keyhash);
-API void* (map_find)(map *m, void *key, uint64_t keyhash);
-API int   (map_count)(map *m);
-API void  (map_gc)(map *m); // only if using MAP_DONT_ERASE
-
-#endif // DS_H
-#line 0
-#line 1 "fwk_string.h"
-// string framework
-// - rlyeh, public domain
-
-#ifndef STRING_H
-#define STRING_H
-
-// string: temporary api (stack)
-API char*   stringf(const char *fmt, ...);
-#define     stringf(...) (printf || printf(__VA_ARGS__), stringf(__VA_ARGS__))  // vs2015 check trick
-
-#if 1
-// string: allocated api (heap)
-API char*   stringf_cat(char *x, const char *buf);
-#define     stringf_cat(s,fmt,...)  stringf_cat((s), stringf(fmt, __VA_ARGS__)) // stringfcat ?
-#define     stringf_del(s)         ((REALLOC((s), 0)), (s)=0) // stringfdel ?
-#endif
-
-#if defined _MSC_VER || (defined __TINYC__ && defined _WIN32)
-#define strtok_r strtok_s
-#endif
-
-#define each_substring(str, delims, keyname) \
-    ( int len_ = strlen(str) + 1; len_; len_ = 0 ) \
-    for( char buf_[1024], *ptr_ = len_ < 1024 ? buf_ : REALLOC(0, len_), *lit_ = (char*)(str), *_bak = (snprintf(ptr_, len_, "%s", lit_), ptr_); _bak; _bak = 0, (ptr_ == buf_ ? 0 : REALLOC(ptr_, 0)) ) \
-    for( char *next_token = 0, *keyname = strtok_r(_bak, delims, &next_token); keyname; keyname = strtok_r(NULL, delims, &next_token) )
-
-// utils
-
-API int          strmatch(const char *s, const char *wildcard);
-
-API int          strcmp_qsort(const void *a, const void *b);
-API int          strcmpi_qsort(const void *a, const void *b);
-
-API bool         strbegi(const char *src, const char *sub);  // returns true if both strings match at beginning. case insensitive
-API bool         strendi(const char *src, const char *sub);  // returns true if both strings match at end. case insensitive
-API const char * strstri(const char *src, const char *sub);  // returns find first substring in string. case insensitive.
-#define          strcmpi  ifdef(msc, _stricmp, strcasecmp)
-
-API char *       strrepl(char **copy, const char *target, const char *replace); // replace any 'target' as 'repl' in 'copy'. returns 'copy'
-API char *       strswap(char *copy, const char *target, const char *replace);  // replaced only if repl is shorter than target. no allocations.
-API char *       strcut(char *copy, const char *target);                        // remove any 'target' in 'copy'. returns 'copy'
-
-API char *       str16to8(const wchar_t *str); // convert from wchar16(win) to utf8/ascii
-
-API const char * strlerp(unsigned numpairs, const char **pairs, const char *str); // using key-value pairs, null-terminated
-
-#ifndef __APPLE__ // BSD provides these
-API size_t       strlcat(char *dst, const char *src, size_t dstcap); // concat 2 strings safely. always NUL terminates. may truncate.
-API size_t       strlcpy(char *dst, const char *src, size_t dstcap); // copy 2 strings safely. always NUL terminates. truncates if retval>=dstcap
-#endif
-
-API array(char*) strsplit(const char *string, const char *delimiters);
-API char*        strjoin(array(char*) list, const char *separator);
-
-#endif // STRING_H
-#line 0
-#line 1 "fwk_profile.h"
-// -----------------------------------------------------------------------------
-// profiler & stats (@fixme: threadsafe)
-
-#if WITH_PROFILE
-#   define profile_init() do { map_init(profiler, less_str, hash_str); } while(0)
-#   define profile(...) for( \
-        struct profile_t *found = map_find_or_add(profiler, #__VA_ARGS__ "@" FILELINE, (struct profile_t){NAN} ), *dummy = (\
-        found->cost = -time_ms() * 1000, found); found->cost < 0; found->cost += time_ms() * 1000, found->avg = found->cost * 0.25 + found->avg * 0.75)  ///+
-#   define profile_incstat(name, accum) do { if(profiler) { \
-        struct profile_t *found = map_find(profiler, name); \
-        if(!found) found = map_insert(profiler, name, (struct profile_t){0}); \
-        found->stat += accum; \
-        } } while(0) ///+
-#   define profile_render() if(profiler) do { \
-        for(float _i = ui_begin("Profiler",0), _r; _i ; ui_end(), _i = 0) { \
-            for each_map_ptr(profiler, const char *, key, struct profile_t, val ) \
-                if( !isnan(val->stat) ) ui_slider2(stringf("Stat: %s", *key), (_r = val->stat, &_r), stringf("%.2f", val->stat)), val->stat = 0; \
-            ui_separator(); \
-            for each_map_ptr(profiler, const char *, key, struct profile_t, val ) \
-                if( isnan(val->stat) ) ui_slider2(*key, (_r = val->avg/1000.0, &_r), stringf("%.2f ms", val->avg/1000.0)); \
-        } } while(0)
-struct profile_t { double stat; int32_t cost, avg; }; ///-
-typedef map(char *, struct profile_t) profiler_t; ///-
-extern API profiler_t profiler; ///-
-#else
-#   define profile_init()               do {} while(0)
-#   define profile_incstat(name, accum) do {} while(0)
-#   define profile(...)                 if(1) // for(int _p = 1; _p; _p = 0)
-#   define profile_render()
-#endif
-#line 0
-
-// -----------------------------------------------------------------------------
-// if/n/def hell
-
-#define ifdef(macro, yes, /*no*/...)   ifdef_##macro(yes, __VA_ARGS__)
-#define ifndef(macro, yes, /*no*/...)  ifdef_##macro(__VA_ARGS__, yes)
-#define is(macro)                      ifdef_##macro(1,0)
-#define isnt(macro)                    ifdef_##macro(0,1)
-#define ifdef_true(yes, /*no*/...)     yes
-#define ifdef_false(yes, /*no*/...)    __VA_ARGS__
-
-#ifdef _MSC_VER
-#define ifdef_gcc                      ifdef_false
-#define ifdef_mingw                    ifdef_false
-#define ifdef_tcc                      ifdef_false
-#define ifdef_msc                      ifdef_true
-#elif defined __TINYC__
-#define ifdef_gcc                      ifdef_false
-#define ifdef_mingw                    ifdef_false
-#define ifdef_tcc                      ifdef_true
-#define ifdef_msc                      ifdef_false
-#elif defined __MINGW64__ // __MINGW__ ?
-#define ifdef_gcc                      ifdef_true
-#define ifdef_mingw                    ifdef_true
-#define ifdef_tcc                      ifdef_false
-#define ifdef_msc                      ifdef_false
-#else
-#define ifdef_gcc                      ifdef_true
-#define ifdef_mingw                    ifdef_false
-#define ifdef_tcc                      ifdef_false
-#define ifdef_msc                      ifdef_false
-#endif
-
-#ifdef __cplusplus
-#define ifdef_cpp                      ifdef_true
-#define ifdef_c                        ifdef_false
-#else
-#define ifdef_c                        ifdef_true
-#define ifdef_cpp                      ifdef_false
-#endif
-
-#if defined _WIN32
-#define ifdef_win32                    ifdef_true
-#define ifdef_linux                    ifdef_false
-#define ifdef_osx                      ifdef_false
-#define ifdef_bsd                      ifdef_false
-#define ifdef_ems                      ifdef_false
-#elif defined __linux__
-#define ifdef_win32                    ifdef_false
-#define ifdef_linux                    ifdef_true
-#define ifdef_osx                      ifdef_false
-#define ifdef_bsd                      ifdef_false
-#define ifdef_ems                      ifdef_false
-#elif defined __APPLE__
-#define ifdef_win32                    ifdef_false
-#define ifdef_linux                    ifdef_false
-#define ifdef_osx                      ifdef_true
-#define ifdef_bsd                      ifdef_false
-#define ifdef_ems                      ifdef_false
-#elif defined __EMSCRIPTEN__
-#define ifdef_win32                    ifdef_false
-#define ifdef_linux                    ifdef_false
-#define ifdef_osx                      ifdef_false
-#define ifdef_bsd                      ifdef_false
-#define ifdef_ems                      ifdef_true
-#else // __FreeBSD__ || @todo: __ANDROID_API__
-#define ifdef_win32                    ifdef_false
-#define ifdef_linux                    ifdef_false
-#define ifdef_osx                      ifdef_false
-#define ifdef_bsd                      ifdef_true
-#define ifdef_ems                      ifdef_false
-#endif
-
-#if 0
-#  if defined __ANDROID_API__
-#define _AND
-#elif defined __APPLE__
-#define _OSX
-#elif defined __FreeBSD__
-#define _BSD
-#elif defined _WIN32
-#define _WIN
-#else
-#define _LIN
-#endif
-
-#  if defined _MSC_VER
-#define _MSC
-#elif defined __clang__
-#define _CLA
-#elif defined __TINYC__
-#define _TCC
-#else
-#define _GCC
-#endif
-#endif
-
-// -----------------------------------------------------------------------------
-// new C keywords
-// @todo: autorun (needed?)
-
-#define countof(x)       (sizeof (x) / sizeof 0[x])
-
-#define macro(name)      concat(name, __LINE__)
-#define concat(a,b)      conc4t(a,b)
-#define conc4t(a,b)      a##b
-
-#define benchmark        for(double macro(t) = -time_ss(); macro(t) < 0; printf("%.2fs\n", macro(t)+=time_ss()))
-#define do_once          static int macro(once) = 0; for(;!macro(once);macro(once)=1)
-#define defer(begin,end) for(int macro(i) = ((begin), 0); !macro(i); macro(i) = ((end), 1))
-#define scope(end)       defer((void)0, end)
-
-//-----------------------------------------------------------------------------
-// new C macros
-
-#define ASSERT(expr, ...)   do { int fool_msvc[] = {0,}; if(!(expr)) { fool_msvc[0]++; breakpoint(stringf("!Expression failed: " #expr " " FILELINE "\n" __VA_ARGS__)); } } while(0)
-#define PRINTF(...)         PRINTF(stringf(__VA_ARGS__), 1[#__VA_ARGS__] == '!' ? callstack(+48) : "", __FILE__, __LINE__, __FUNCTION__)
-
-#define FILELINE            __FILE__ ":" STRINGIZE(__LINE__)
-#define STRINGIZE(x)        STRINGIZ3(x)
-#define STRINGIZ3(x)        #x
-
-#define EXPAND(name, ...)          EXPAND_QUOTE(EXPAND_JOIN(name, EXPAND_COUNT_ARGS(__VA_ARGS__)), (__VA_ARGS__))
-#define EXPAND_QUOTE(x, y)         x y
-#define EXPAND_JOIN(name, count)   EXPAND_J0IN(name, count)
-#define EXPAND_J0IN(name, count)   EXPAND_J01N(name, count)
-#define EXPAND_J01N(name, count)   name##count
-#define EXPAND_COUNT_ARGS(...)     EXPAND_ARGS((__VA_ARGS__, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0))
-#define EXPAND_ARGS(args)          EXPAND_RETURN_COUNT args
-#define EXPAND_RETURN_COUNT(_1_, _2_, _3_, _4_, _5_, _6_, _7_, _8_, _9_, count, ...) count
 
 // ----
 
