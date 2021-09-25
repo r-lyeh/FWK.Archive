@@ -188,7 +188,7 @@ echo #endif // FWK_C >> fwk-single-header.c
 
 ## Bindings
 - Luajit bindings are provided in the [fwk.lua](fwk.lua) auto-generated file.
-- You can test it by typing `cl fwk.c /LD /DAPI=EXPORT && art\tools\luajit art\demos\demo_luajit.lua`
+- You can test it by typing `art\tools\luajit art\demos\demo_luajit.lua`.
 
 ## License
 This software is released into the [public domain](https://unlicense.org/).<br/>

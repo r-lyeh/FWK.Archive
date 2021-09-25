@@ -155,7 +155,7 @@ if "%1"=="tidy" (
     del *.ilk
     del *.png
     del *.def
-    del *.dll
+    rem del *.dll
     del demo_*.*
     rd /q /s .vs
     del tcc.bat
