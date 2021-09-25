@@ -155,7 +155,7 @@ if "%1"=="tidy" (
     del *.ilk
     del *.png
     del *.def
-    del *.dll
+    rem del *.dll
     del demo_*.*
     rd /q /s .vs
     del tcc.bat
@@ -174,8 +174,10 @@ if "%Platform%"=="x64" (
     rem DLL: cl fwk.c /LD /DAPI=EXPORT && cl demo.c fwk.lib /DAPI=IMPORT
 
     rem [HINT] optimization flags for release builds
-    rem method 1: /Ox /Oy /MT /DNDEBUG /DFINAL
-    rem method 2:     /O1 /MT /DNDEBUG /DFINAL /GL /GF /arch:AVX2
+    rem method 1:         /Ox /Oy /MT /DNDEBUG /DFINAL
+    rem method 2:         /O2 /Oy /MT /DNDEBUG /DFINAL
+    rem method 3:             /O1 /MT /DNDEBUG /DFINAL /GL /GF /arch:AVX2
+    rem method 3: /Os /Ox /O2 /Oy /MT /DNDEBUG /DFINAL /GL /GF /arch:AVX2 > small binaries!
 
     rem framework
     cl fwk.c /c /nologo /openmp /Zi %*
@@ -193,7 +195,9 @@ if "%Platform%"=="x64" (
     cl demo_socket.c    fwk.obj /nologo /openmp /Zi %*
 
     rem luajit+fwk.dll demo
-    rem cl fwk.c /LD /DAPI=EXPORT /O2 /Oy /MT /DNDEBUG
+    rem cl fwk.c /LD /DAPI=EXPORT      && rem 6.6MiB
+    rem cl fwk.c /LD /DAPI=EXPORT /O2  && rem 5.3MiB
+    rem cl fwk.c /LD /DAPI=EXPORT /Os /Ox /O2 /Oy /GL /GF && rem 4.7MiB
     rem art\tools\luajit demo_luajit.lua
 
 ) else if "%Platform%"=="mingw64" (
@@ -225,19 +229,19 @@ if "%Platform%"=="x64" (
     rem gcc art/tools/xml2json.c  -o art/tools/xml2json.exe -w
 
     rem framework
-    echo fwk            && tcc -c fwk.c -w
+    echo fwk            && tcc -c fwk.c -w %*
 
     rem demos
-    echo demo           && tcc demo.c           fwk.o -w
-    echo demo_cubemap   && tcc demo_cubemap.c   fwk.o -w
-    echo demo_collide   && tcc demo_collide.c   fwk.o -w
-    echo demo_model     && tcc demo_model.c     fwk.o -w
-    echo demo_scene     && tcc demo_scene.c     fwk.o -w
-    echo demo_shadertoy && tcc demo_shadertoy.c fwk.o -w
-    echo demo_sprite    && tcc demo_sprite.c    fwk.o -w
-    echo demo_video     && tcc demo_video.c     fwk.o -w
-    echo demo_script    && tcc demo_script.c    fwk.o -w
-    echo demo_socket    && tcc demo_socket.c    fwk.o -w
+    echo demo           && tcc demo.c           fwk.o %*
+    echo demo_cubemap   && tcc demo_cubemap.c   fwk.o %*
+    echo demo_collide   && tcc demo_collide.c   fwk.o %*
+    echo demo_model     && tcc demo_model.c     fwk.o %*
+    echo demo_scene     && tcc demo_scene.c     fwk.o %*
+    echo demo_shadertoy && tcc demo_shadertoy.c fwk.o %*
+    echo demo_sprite    && tcc demo_sprite.c    fwk.o %*
+    echo demo_video     && tcc demo_video.c     fwk.o %*
+    echo demo_script    && tcc demo_script.c    fwk.o %*
+    echo demo_socket    && tcc demo_socket.c    fwk.o %*
 )
 
 rem PAUSE only if double-clicked from Windows
