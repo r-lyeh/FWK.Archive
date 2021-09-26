@@ -14,7 +14,7 @@ int echo_server(int cli) {
 
 int main(int argc, char **argv) {
     if( argc > 1 && 0 == strcmp(argv[1], "--server") ) {
-        int srv = tcp_bind("0.0.0.0", "8080", 10);
+        int srv = tcp_bind("0.0.0.0", "8080", 10); // port "0" for auto
         if( srv >= 0 ) {
             puts("ready at 8080");
             for(;;) {

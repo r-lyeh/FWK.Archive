@@ -1,5 +1,5 @@
-<h1 align="center"><a href="https://raw.githack.com/r-lyeh/FWK/master/fwk.html#toc1">F·W·K</a></h1>
-<p align="center">3D game framework in C.</p>
+<h1 align="center"><a href="https://bit.ly/f-w-k">F·W·K</a></h1>
+<p align="center">3D game framework in C, with Luajit bindings now.</p>
 
 <p align="center">
 <img src="https://i.imgur.com/sInbRoA.gif"/><br/>
@@ -13,28 +13,27 @@
 - [x] ~~Rich build system~~. Single file.
 - [x] ~~Royaltie fee~~. Free and unlicensed.
 
-## Features ᕦ(ᐛ)ᕤ (stuff done ~~and yet to be done~~)
+## Features ᕦ(ᐛ)ᕤ
 - [x] Embedded: single-file, all dependencies included.
-- [x] OS: Windows, Linux and OSX.
 - [x] Compiler: MSVC, MINGW64, TCC, GCC and clang.
+- [x] Platform: Windows, Linux and OSX.
 - [x] Window: windowed, soft/hard fullscreen, msaa, icon, cursor handling.
 - [x] Input: keyboard, mouse and gamepads.
 - [x] Script: Lua scripting, Luajit bindings.
-- [x] FFI: Built DLL can be imported from most foreign languages that support FFI.
-- [x] Network: downloads (HTTPS), sockets (TCP/UDP) ~~and messages (enet/websocket)~~.
-- [x] UI: color3/4, button, list, slider, toggle, checkbox, editbox, dialog, menus.
-- [x] Math: rand, noise, ease, vec2/3/4, mat33/34/44, quat ~~and quat2, bezier, catmull~~.
+- [x] Network: downloads (HTTPS) and sockets (TCP/UDP).
+- [x] UI: color3/4, button, list, slider, toggle, checkbox, editbox, dialog, image, menus.
+- [x] Math: rand, noise, ease, vec2/3/4, mat33/34/44, quat.
 - [x] Geometry: ray, line, plane, aabb, sphere, capsule, triangle, poly and frustum.
-- [x] Image: JPG, PNG, TGA, BMP, PSD, HDR, PIC, PNM ~~and GIF~~.
-- [x] Texture: BCn 1/2/3/~~4/5/6/7, DDS, KTX, PVR, PKM, ETC~~.
-- [x] Audio: WAV, MOD, XM, FLAC, OGG, MP1, MP3, MID ~~and SFXR~~.
+- [x] Image: JPG, PNG, TGA, BMP, PSD, HDR, PIC and PNM.
+- [x] Texture: R, RG, RGB, RGBA, Depth and BC1/2/3.
+- [x] Audio: WAV, MOD, XM, FLAC, OGG, MP1, MP3, and MID.
 - [x] Video: MP4, MPG, OGV, MKV, WMV and AVI.
 - [x] Model: IQM, GLTF/2, FBX, OBJ, DAE, BLEND, MD3, MD5, MS3D, SMD, X, 3DS, BVH, DXF, LWO.
-- [x] Render: 2D Sprites, spritesheets, batching, ~~tiled and 2D Spines~~.
+- [x] Render: 2D Sprites, spritesheets and batching.
 - [x] Render: 3D Anims, skeletal anims and hardware skinning.
 - [x] Render: 3D Debugdraw, batching and vectorial font.
 - [x] Render: Cubemaps, panoramas and spherical harmonics. Rayleigh/Mie scattering.
-- [x] Render: Post-effects (SSAO,FXAA1/3,CRT,Contrast,Grain,Outline,Vignette...) ~~and shadertoys~~.
+- [x] Render: Post-effects (SSAO,FXAA1/3,CRT,Contrast,Grain,Outline,Vignette...).
 - [x] Compression: DEFLATE, LZMA, LZ4, ULZ, BALZ, BCM, CRUSH, LZW3, LZSS and PPP.
 - [x] Virtual filesystem: ZIP, PAK, TAR and DIR.
 - [x] Disk cache.
@@ -42,25 +41,29 @@
 - [x] Integrated asset pipeline.
 - [x] Profiler, stats and leaks finder.
 - [x] Level data: JSON, JSON5, SJSON, XML.
-- [ ] [Documentation (wip)](https://raw.githack.com/r-lyeh/FWK/master/fwk.html#toc1).
+- [x] [Documentation (wip)](https://bit.ly/f-w-k).
 
 ## Roadmap ᕕ(ᐛ)ᕗ (in order of arrival; ✱: partial support)
 - [ ] Network: NAT traversal. Socketless API, message API and pub/sub wrappers (enet/websocket).
-- [ ] Render: Materials (colors, textures✱, matcaps✱, videos✱, shadertoys✱).
-- [ ] Render: Flags (billboards✱, un/lit). Hard/soft shadow mapping and baked lightmaps.
+- [ ] Render: Materials (colors✱, textures✱, matcaps✱, videos✱, shadertoys✱). Shadertoys as post-fx✱. <!--materials as postfx, as they have an update() method -->
+- [ ] Render: Hard/soft shadow mapping and baked lightmaps.
+- [ ] Render: Flags (billboards✱, un/lit, cast shadows on/off, skybox/mie).
+- [ ] Math: quat2, bezier, catmull.
 - [ ] Level editor: gizmos✱, scene tree, property editor, load/save, undo/redo, copy/paste.
 - [ ] Level objects: volumes✱, triggers, platforms, streaming.
-- [ ] Script: DLL✱, Lua✱, Luajit✱, Teal and TypeScript.
+- [ ] Script: DLL✱ (module->plugin/sys), Lua✱, Luajit✱, Teal and TypeScript.
 - [ ] Script: Refl/meta binding tool (during cook stage).
 - [ ] Pipeline: Extend: shaders, bindings, textures. Per-platform, per-type, per-asset options.
+- [ ] Pipeline: GIF, SFXR, BC4/5/6/7, DDS, KTX, PVR, PKM, ETC.
 - [ ] Pipeline: Atlassing (sprite/lightmaps). Fit packing (fonts/sprites).
 - [ ] Pipeline: Make asset pipeline configurable (maybe move/override logic to external scripts?).
+- [ ] Maybe: Tiled maps and 2D spines.
 - [ ] Maybe: Animation pass.
 - [ ] Maybe: AI/Logic pass.
 - [ ] Maybe: Lighting/PBR pass.
 - [ ] Maybe: VM/ECS/Replication pass.
 - [ ] API: More examples. Also, less examples.
-- [ ] API: Review API, clean it up and lock it.
+- [ ] API: Discuss API and lock it.
 - [ ] API: Document everything.
 
 <!--
@@ -70,10 +73,14 @@
 // [ ] soft shadows (vsm, vsmcube)
 // nice to have:
 // [ ] fixed leaks and todos
-// [ ] fwk_app: options, cpu usage, battery, orientation
+// [ ] fwk_app: cpu usage, battery, orientation
+// [x] app: app options, app flags, app tty, app paths
+// [x] DS: array, map, set, string, sort, hash.
+// [x] system: debugger, callstack, exec, time/date.
 // [ ] fwk_input: cursor, mouse clip, mouse wrap,
 // [ ] sprites: pixel perfect zooming (demo+wheel)
 // [ ] zip0 seek-vfs optimization
+// [ ] expose uniforms as ui options, also model_uniform();
 -->
 
 <!--
@@ -92,7 +99,7 @@
 //    level: 60s, 70s, 80s, 90s
 //[ ] Render: Materials (textures, matcaps, videos, shadertoys).
 //    material: fixed color, texture or script that returns color
-//    animated textures (shadertoys)
+//    animated textures (shadertoys, videos)
 //[ ] Pipeline: Extend configurable asset pipeline (shaders, bindings, xml, textures). Asset options.
 //    extending asset pipeline
 //      cook: img2png (spot, stbi), tex2pvr (spot, soil2)
@@ -146,10 +153,6 @@
 //    proj matrix: float a = zfar / (zfar - znear); -> float a = -znear / (zfar - znear);
 //    proj matrix: float b = (-znear * zfar) / (zfar - znear); -> float b = (znear * zfar) / (zfar - znear);
 //    }
-//[ ] API: Review API and lock it.
-// 3) lock API and release first stable version.
-//[ ] API: Documentation. src2doc
-//[ ] API: More examples.
 -->
 
 ## Build
@@ -188,7 +191,7 @@ echo #endif // FWK_C >> fwk-single-header.c
 
 ## Bindings
 - Luajit bindings are provided in the [fwk.lua](fwk.lua) auto-generated file.
-- You can test it by typing `art\tools\luajit art\demos\demo_luajit.lua`.
+- You can test it by typing `cl fwk.c /LD /DAPI=EXPORT && art\tools\luajit art\demos\demo_luajit.lua`
 
 ## License
 This software is released into the [public domain](https://unlicense.org/).<br/>

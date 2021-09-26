@@ -71,7 +71,7 @@ int main(int argc, char** argv) {
             glUseProgram(mdl.program);
             glUniform3fv(glGetUniformLocation(mdl.program, "u_coefficients_sh"), 9, &sky.cubemap.sh[0].x);
             glUniform1i(glGetUniformLocation(mdl.program, "u_textured"), false);
-            model_render(mdl, cam.proj, cam.view, mdl.pivot);
+            model_render(mdl, cam.proj, cam.view, mdl.pivot, 0);
 
             // sky
             skybox_push_state(&sky, cam.proj, cam.view);

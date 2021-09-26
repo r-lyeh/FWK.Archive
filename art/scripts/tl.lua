@@ -1,5 +1,5 @@
 local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local assert = _tl_compat and _tl_compat.assert or assert; local io = _tl_compat and _tl_compat.io or io; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local load = _tl_compat and _tl_compat.load or load; local math = _tl_compat and _tl_compat.math or math; local os = _tl_compat and _tl_compat.os or os; local package = _tl_compat and _tl_compat.package or package; local pairs = _tl_compat and _tl_compat.pairs or pairs; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table; local _tl_table_unpack = unpack or table.unpack
-
+local VERSION = "0.13.2+dev"
 
 local tl = {TypeCheckOptions = {}, Env = {}, Symbol = {}, Result = {}, Error = {}, TypeInfo = {}, TypeReport = {}, TypeReportEnv = {}, }
 
@@ -127,6 +127,9 @@ local tl = {TypeCheckOptions = {}, Env = {}, Symbol = {}, Result = {}, Error = {
 
 
 
+tl.version = function()
+   return VERSION
+end
 
 tl.warning_kinds = {
    ["unused"] = true,
@@ -158,9 +161,11 @@ tl.typecodes = {
    THREAD = 0x00000080,
 
    IS_TABLE = 0x00000008,
+   IS_NUMBER = 0x00000002,
    IS_STRING = 0x00000004,
    LUA_MASK = 0x00000fff,
 
+   INTEGER = 0x00010002,
    ARRAY = 0x00010008,
    RECORD = 0x00020008,
    ARRAYRECORD = 0x00030008,
@@ -204,6 +209,7 @@ local Symbol = tl.Symbol
 
 
 local TokenKind = {}
+
 
 
 
@@ -287,9 +293,9 @@ do
 
 
 
-      ["number dec"] = "number",
+      ["number dec"] = "integer",
       ["number decfloat"] = "number",
-      ["number hex"] = "number",
+      ["number hex"] = "integer",
       ["number hexfloat"] = "number",
       ["number power"] = "number",
       ["number powersign"] = "$invalid_number$",
@@ -633,7 +639,7 @@ do
             elseif c == "e" or c == "E" then
                state = "number powersign"
             else
-               end_token_prev("number")
+               end_token_prev("integer")
                fwd = false
                state = "any"
             end
@@ -661,7 +667,7 @@ do
             elseif c == "p" or c == "P" then
                state = "number powersign"
             else
-               end_token_prev("number")
+               end_token_prev("integer")
                fwd = false
                state = "any"
             end
@@ -683,7 +689,7 @@ do
             elseif c == "." then
                state = "number decfloat"
             else
-               end_token_prev("number")
+               end_token_prev("integer")
                fwd = false
                state = "any"
             end
@@ -936,6 +942,7 @@ local TypeName = {}
 
 
 
+
 local table_types = {
    ["array"] = true,
    ["map"] = true,
@@ -1036,6 +1043,7 @@ local Operator = {}
 
 
 local NodeKind = {}
+
 
 
 
@@ -1202,6 +1210,10 @@ local function is_record_type(t)
    return t.typename == "record" or t.typename == "arrayrecord"
 end
 
+local function is_number_type(t)
+   return t.typename == "number" or t.typename == "integer"
+end
+
 local function is_typetype(t)
    return t.typename == "typetype" or t.typename == "nestedtype"
 end
@@ -1234,10 +1246,10 @@ local parse_record_body
 local function fail(ps, i, msg)
    if not ps.tokens[i] then
       local eof = ps.tokens[#ps.tokens]
-      table.insert(ps.errs, { y = eof.y, x = eof.x, msg = msg or "unexpected end of file" })
+      table.insert(ps.errs, { filename = ps.filename, y = eof.y, x = eof.x, msg = msg or "unexpected end of file" })
       return #ps.tokens
    end
-   table.insert(ps.errs, { y = ps.tokens[i].y, x = ps.tokens[i].x, msg = assert(msg, "syntax error, but no error message provided") })
+   table.insert(ps.errs, { filename = ps.filename, y = ps.tokens[i].y, x = ps.tokens[i].x, msg = assert(msg, "syntax error, but no error message provided") })
    return math.min(#ps.tokens, i + 1)
 end
 
@@ -1260,7 +1272,7 @@ local function verify_end(ps, i, istart, node)
       return i + 1
    end
    end_at(node, ps.tokens[i])
-   return fail(ps, i, "syntax error, expected 'end' to close construct started at " .. (ps.filename or "") .. ":" .. ps.tokens[istart].y .. ":" .. ps.tokens[istart].x .. ":")
+   return fail(ps, i, "syntax error, expected 'end' to close construct started at " .. ps.filename .. ":" .. ps.tokens[istart].y .. ":" .. ps.tokens[istart].x .. ":")
 end
 
 local function new_node(tokens, i, kind)
@@ -1343,44 +1355,46 @@ local function parse_table_item(ps, i, n)
       i = verify_tk(ps, i, "=")
       i, node.value = parse_table_value(ps, i)
       return i, node, n
-   elseif ps.tokens[i].kind == "identifier" and ps.tokens[i + 1].tk == "=" then
-      node.key_parsed = "short"
-      i, node.key = verify_kind(ps, i, "identifier", "string")
-      node.key.conststr = node.key.tk
-      node.key.tk = '"' .. node.key.tk .. '"'
-      i = verify_tk(ps, i, "=")
-      i, node.value = parse_table_value(ps, i)
-      return i, node, n
-   elseif ps.tokens[i].kind == "identifier" and ps.tokens[i + 1].tk == ":" then
-      node.key_parsed = "short"
-      local orig_i = i
-      local try_ps = {
-         filename = ps.filename,
-         tokens = ps.tokens,
-         errs = {},
-         required_modules = ps.required_modules,
-      }
-      i, node.key = verify_kind(try_ps, i, "identifier", "string")
-      node.key.conststr = node.key.tk
-      node.key.tk = '"' .. node.key.tk .. '"'
-      i = verify_tk(try_ps, i, ":")
-      i, node.decltype = parse_type(try_ps, i)
-      if node.decltype and ps.tokens[i].tk == "=" then
-         i = verify_tk(try_ps, i, "=")
-         i, node.value = parse_table_value(try_ps, i)
-         if node.value then
-            for _, e in ipairs(try_ps.errs) do
-               table.insert(ps.errs, e)
+   elseif ps.tokens[i].kind == "identifier" then
+      if ps.tokens[i + 1].tk == "=" then
+         node.key_parsed = "short"
+         i, node.key = verify_kind(ps, i, "identifier", "string")
+         node.key.conststr = node.key.tk
+         node.key.tk = '"' .. node.key.tk .. '"'
+         i = verify_tk(ps, i, "=")
+         i, node.value = parse_table_value(ps, i)
+         return i, node, n
+      elseif ps.tokens[i + 1].tk == ":" then
+         node.key_parsed = "short"
+         local orig_i = i
+         local try_ps = {
+            filename = ps.filename,
+            tokens = ps.tokens,
+            errs = {},
+            required_modules = ps.required_modules,
+         }
+         i, node.key = verify_kind(try_ps, i, "identifier", "string")
+         node.key.conststr = node.key.tk
+         node.key.tk = '"' .. node.key.tk .. '"'
+         i = verify_tk(try_ps, i, ":")
+         i, node.decltype = parse_type(try_ps, i)
+         if node.decltype and ps.tokens[i].tk == "=" then
+            i = verify_tk(try_ps, i, "=")
+            i, node.value = parse_table_value(try_ps, i)
+            if node.value then
+               for _, e in ipairs(try_ps.errs) do
+                  table.insert(ps.errs, e)
+               end
+               return i, node, n
             end
-            return i, node, n
          end
-      end
 
-      node.decltype = nil
-      i = orig_i
+         node.decltype = nil
+         i = orig_i
+      end
    end
 
-   node.key = new_node(ps.tokens, i, "number")
+   node.key = new_node(ps.tokens, i, "integer")
    node.key_parsed = "implicit"
    node.key.constnum = n
    node.key.tk = tostring(n)
@@ -1541,32 +1555,51 @@ local function parse_function_type(ps, i)
    return i, typ
 end
 
-local simple_type_names = {
-   "string",
-   "boolean",
-   "nil",
-   "number",
-   "any",
-   "thread",
+local NIL = a_type({ typename = "nil" })
+local ANY = a_type({ typename = "any" })
+local TABLE = a_type({ typename = "map", keys = ANY, values = ANY })
+local NUMBER = a_type({ typename = "number" })
+local STRING = a_type({ typename = "string" })
+local THREAD = a_type({ typename = "thread" })
+local BOOLEAN = a_type({ typename = "boolean" })
+local INTEGER = a_type({ typename = "integer" })
+
+local simple_types = {
+   ["nil"] = NIL,
+   ["any"] = ANY,
+   ["table"] = TABLE,
+   ["number"] = NUMBER,
+   ["string"] = STRING,
+   ["thread"] = THREAD,
+   ["boolean"] = BOOLEAN,
+   ["integer"] = INTEGER,
 }
 
-local simple_types = {}
-for _, name in ipairs(simple_type_names) do
-   simple_types[name] = a_type({ typename = name })
-end
-
 local function parse_base_type(ps, i)
-   local st = simple_types[ps.tokens[i].tk]
-   if st then
-      return i + 1, st
-   elseif ps.tokens[i].tk == "table" then
-      local typ = new_type(ps, i, "map")
-      typ.keys = a_type({ typename = "any" })
-      typ.values = a_type({ typename = "any" })
-      return i + 1, typ
-   elseif ps.tokens[i].tk == "function" then
-      return parse_function_type(ps, i)
-   elseif ps.tokens[i].tk == "{" then
+   local tk = ps.tokens[i].tk
+   if ps.tokens[i].kind == "identifier" then
+      local st = simple_types[tk]
+      if st then
+         return i + 1, st
+      end
+      local typ = new_type(ps, i, "nominal")
+      typ.names = { tk }
+      i = i + 1
+      while ps.tokens[i].tk == "." do
+         i = i + 1
+         if ps.tokens[i].kind == "identifier" then
+            table.insert(typ.names, ps.tokens[i].tk)
+            i = i + 1
+         else
+            return fail(ps, i, "syntax error, expected identifier")
+         end
+      end
+
+      if ps.tokens[i].tk == "<" then
+         i, typ.typevals = parse_typeval_list(ps, i)
+      end
+      return i, typ
+   elseif tk == "{" then
       i = i + 1
       local decl = new_type(ps, i, "array")
       local t
@@ -1606,26 +1639,17 @@ local function parse_base_type(ps, i)
          return fail(ps, i, "syntax error; did you forget a '}'?")
       end
       return i, decl
-   elseif ps.tokens[i].tk == "`" then
+   elseif tk == "function" then
+      return parse_function_type(ps, i)
+   elseif tk == "nil" then
+      return i + 1, simple_types["nil"]
+   elseif tk == "table" then
+      local typ = new_type(ps, i, "map")
+      typ.keys = a_type({ typename = "any" })
+      typ.values = a_type({ typename = "any" })
+      return i + 1, typ
+   elseif tk == "`" then
       return parse_typevar_type(ps, i)
-   elseif ps.tokens[i].kind == "identifier" then
-      local typ = new_type(ps, i, "nominal")
-      typ.names = { ps.tokens[i].tk }
-      i = i + 1
-      while ps.tokens[i].tk == "." do
-         i = i + 1
-         if ps.tokens[i].kind == "identifier" then
-            table.insert(typ.names, ps.tokens[i].tk)
-            i = i + 1
-         else
-            return fail(ps, i, "syntax error, expected identifier")
-         end
-      end
-
-      if ps.tokens[i].tk == "<" then
-         i, typ.typevals = parse_typeval_list(ps, i)
-      end
-      return i, typ
    end
    return fail(ps, i, "expected a type")
 end
@@ -1733,33 +1757,35 @@ local function unquote(str)
 end
 
 local function parse_literal(ps, i)
-   if ps.tokens[i].tk == "{" then
-      return parse_table_literal(ps, i)
-   elseif ps.tokens[i].kind == "..." then
-      return verify_kind(ps, i, "...")
-   elseif ps.tokens[i].kind == "string" then
-      local node = new_node(ps.tokens, i, "string")
-      node.conststr, node.is_longstring = unquote(ps.tokens[i].tk)
-      return i + 1, node
-   elseif ps.tokens[i].kind == "identifier" then
+   local tk = ps.tokens[i].tk
+   local kind = ps.tokens[i].kind
+   if kind == "identifier" then
       return verify_kind(ps, i, "identifier", "variable")
-   elseif ps.tokens[i].kind == "number" then
-      local n = tonumber(ps.tokens[i].tk)
+   elseif kind == "string" then
+      local node = new_node(ps.tokens, i, "string")
+      node.conststr, node.is_longstring = unquote(tk)
+      return i + 1, node
+   elseif kind == "number" or kind == "integer" then
+      local n = tonumber(tk)
       local node
-      i, node = verify_kind(ps, i, "number")
+      i, node = verify_kind(ps, i, kind)
       node.constnum = n
       return i, node
-   elseif ps.tokens[i].tk == "true" then
+   elseif tk == "true" then
       return verify_kind(ps, i, "keyword", "boolean")
-   elseif ps.tokens[i].tk == "false" then
+   elseif tk == "false" then
       return verify_kind(ps, i, "keyword", "boolean")
-   elseif ps.tokens[i].tk == "nil" then
+   elseif tk == "nil" then
       return verify_kind(ps, i, "keyword", "nil")
-   elseif ps.tokens[i].tk == "function" then
+   elseif tk == "function" then
       return parse_function_value(ps, i)
-   elseif ps.tokens[i].kind == "$invalid_string$" then
+   elseif tk == "{" then
+      return parse_table_literal(ps, i)
+   elseif kind == "..." then
+      return verify_kind(ps, i, "...")
+   elseif kind == "$invalid_string$" then
       return fail(ps, i, "malformed string")
-   elseif ps.tokens[i].kind == "$invalid_number$" then
+   elseif kind == "$invalid_number$" then
       return fail(ps, i, "malformed number")
    end
    return fail(ps, i, "syntax error")
@@ -1900,7 +1926,66 @@ do
 
       while true do
          local tkop = ps.tokens[i]
-         if tkop.kind == "string" or tkop.kind == "{" then
+         if tkop.kind == "," or tkop.kind == ")" then
+            break
+         end
+         if tkop.tk == "." or tkop.tk == ":" then
+            local op = new_operator(tkop, 2)
+
+            local prev_i = i
+
+            local key
+            i = i + 1
+            i, key = verify_kind(ps, i, "identifier")
+            if not key then
+               return i, failstore(tkop, e1)
+            end
+
+            if op.op == ":" then
+               if not args_starters[ps.tokens[i].kind] then
+                  fail(ps, i, "expected a function call for a method")
+                  return i, failstore(tkop, e1)
+               end
+
+               if not after_valid_prefixexp(ps, e1, prev_i) then
+                  fail(ps, prev_i, "cannot call a method on this expression")
+                  return i, failstore(tkop, e1)
+               end
+            end
+
+            e1 = { y = tkop.y, x = tkop.x, kind = "op", op = op, e1 = e1, e2 = key }
+         elseif tkop.tk == "(" then
+            local op = new_operator(tkop, 2, "@funcall")
+
+            local prev_i = i
+
+            local args = new_node(ps.tokens, i, "expression_list")
+            i, args = parse_bracket_list(ps, i, args, "(", ")", "sep", parse_expression)
+
+            if not after_valid_prefixexp(ps, e1, prev_i) then
+               fail(ps, prev_i, "cannot call this expression")
+               return i, failstore(tkop, e1)
+            end
+
+            e1 = { y = args.y, x = args.x, kind = "op", op = op, e1 = e1, e2 = args }
+
+            table.insert(ps.required_modules, node_is_require_call(e1))
+         elseif tkop.tk == "[" then
+            local op = new_operator(tkop, 2, "@index")
+
+            local prev_i = i
+
+            local idx
+            i = i + 1
+            i, idx = parse_expression_and_tk(ps, i, "]")
+
+            if not after_valid_prefixexp(ps, e1, prev_i) then
+               fail(ps, prev_i, "cannot index this expression")
+               return i, failstore(tkop, e1)
+            end
+
+            e1 = { y = tkop.y, x = tkop.x, kind = "op", op = op, e1 = e1, e2 = idx }
+         elseif tkop.kind == "string" or tkop.kind == "{" then
             local op = new_operator(tkop, 2, "@funcall")
 
             local prev_i = i
@@ -1928,62 +2013,6 @@ do
             e1 = { y = args.y, x = args.x, kind = "op", op = op, e1 = e1, e2 = args }
 
             table.insert(ps.required_modules, node_is_require_call(e1))
-         elseif ps.tokens[i].tk == "(" then
-            local op = new_operator(ps.tokens[i], 2, "@funcall")
-
-            local prev_i = i
-
-            local args = new_node(ps.tokens, i, "expression_list")
-            i, args = parse_bracket_list(ps, i, args, "(", ")", "sep", parse_expression)
-
-            if not after_valid_prefixexp(ps, e1, prev_i) then
-               fail(ps, prev_i, "cannot call this expression")
-               return i, failstore(tkop, e1)
-            end
-
-            e1 = { y = args.y, x = args.x, kind = "op", op = op, e1 = e1, e2 = args }
-
-            table.insert(ps.required_modules, node_is_require_call(e1))
-         elseif ps.tokens[i].tk == "[" then
-            local op = new_operator(ps.tokens[i], 2, "@index")
-
-            local prev_i = i
-
-            local idx
-            i = i + 1
-            i, idx = parse_expression_and_tk(ps, i, "]")
-
-            if not after_valid_prefixexp(ps, e1, prev_i) then
-               fail(ps, prev_i, "cannot index this expression")
-               return i, failstore(tkop, e1)
-            end
-
-            e1 = { y = tkop.y, x = tkop.x, kind = "op", op = op, e1 = e1, e2 = idx }
-         elseif tkop.tk == "." or tkop.tk == ":" then
-            local op = new_operator(tkop, 2)
-
-            local prev_i = i
-
-            local key
-            i = i + 1
-            i, key = verify_kind(ps, i, "identifier")
-            if not key then
-               return i, failstore(tkop, e1)
-            end
-
-            if op.op == ":" then
-               if not args_starters[ps.tokens[i].kind] then
-                  fail(ps, i, "expected a function call for a method")
-                  return i, failstore(tkop, e1)
-               end
-
-               if not after_valid_prefixexp(ps, e1, prev_i) then
-                  fail(ps, prev_i, "cannot call a method on this expression")
-                  return i, failstore(tkop, e1)
-               end
-            end
-
-            e1 = { y = tkop.y, x = tkop.x, kind = "op", op = op, e1 = e1, e2 = key }
          elseif tkop.tk == "as" or tkop.tk == "is" then
             local op = new_operator(tkop, 2, tkop.tk)
 
@@ -2125,8 +2154,8 @@ end
 parse_argument_list = function(ps, i)
    local node = new_node(ps.tokens, i, "argument_list")
    i, node = parse_bracket_list(ps, i, node, "(", ")", "sep", parse_argument)
-   for a, arg in ipairs(node) do
-      if arg.tk == "..." and a ~= #node then
+   for a, fnarg in ipairs(node) do
+      if fnarg.tk == "..." and a ~= #node then
          fail(ps, i, "'...' can only be last argument")
       end
    end
@@ -2479,6 +2508,9 @@ local metamethod_names = {
    ["__index"] = true,
    ["__newindex"] = true,
    ["__call"] = true,
+   ["__tostring"] = true,
+   ["__pairs"] = true,
+   ["__gc"] = true,
 }
 
 parse_record_body = function(ps, i, def, node)
@@ -2764,64 +2796,60 @@ local function skip_type_declaration(ps, i)
    return (parse_type_declaration(ps, i - 1, "local_type"))
 end
 
-local function parse_statement(ps, i)
-   if ps.tokens[i].tk == "local" then
-      if ps.tokens[i + 1].tk == "type" and ps.tokens[i + 2].kind == "identifier" then
-         return parse_type_declaration(ps, i, "local_type")
-      elseif ps.tokens[i + 1].tk == "function" then
-         return parse_local_function(ps, i)
-      elseif ps.tokens[i + 1].tk == "record" and ps.tokens[i + 2].kind == "identifier" then
-         return parse_type_constructor(ps, i, "local_type", "record", parse_record_body)
-      elseif ps.tokens[i + 1].tk == "enum" and ps.tokens[i + 2].kind == "identifier" then
-         return parse_type_constructor(ps, i, "local_type", "enum", parse_enum_body)
-      else
-         i = i + 1
-         return parse_variable_declarations(ps, i, "local_declaration")
-      end
-   elseif ps.tokens[i].tk == "global" then
-      if ps.tokens[i + 1].tk == "type" and ps.tokens[i + 2].kind == "identifier" then
-         return parse_type_declaration(ps, i, "global_type")
-      elseif ps.tokens[i + 1].tk == "record" and ps.tokens[i + 2].kind == "identifier" then
-         return parse_type_constructor(ps, i, "global_type", "record", parse_record_body)
-      elseif ps.tokens[i + 1].tk == "enum" and ps.tokens[i + 2].kind == "identifier" then
-         return parse_type_constructor(ps, i, "global_type", "enum", parse_enum_body)
-      elseif ps.tokens[i + 1].tk == "function" then
-         i = i + 1
-         return parse_global_function(ps, i)
-      elseif ps.tokens[i + 1].kind == "identifier" then
-         i = i + 1
-         return parse_variable_declarations(ps, i, "global_declaration")
-      else
-         return parse_call_or_assignment(ps, i)
-      end
-   elseif ps.tokens[i].tk == "function" then
-      return parse_global_function(ps, i)
-   elseif ps.tokens[i].tk == "if" then
-      return parse_if(ps, i)
-   elseif ps.tokens[i].tk == "while" then
-      return parse_while(ps, i)
-   elseif ps.tokens[i].tk == "repeat" then
-      return parse_repeat(ps, i)
-   elseif ps.tokens[i].tk == "for" then
-      return parse_for(ps, i)
-   elseif ps.tokens[i].tk == "do" then
-      return parse_do(ps, i)
-   elseif ps.tokens[i].tk == "break" then
-      return parse_break(ps, i)
-   elseif ps.tokens[i].tk == "return" then
-      return parse_return(ps, i)
-   elseif ps.tokens[i].tk == "goto" then
-      return parse_goto(ps, i)
-   elseif ps.tokens[i].tk == "::" then
-      return parse_label(ps, i)
-   elseif ps.tokens[i].tk == "type" and ps.tokens[i + 1].kind == "identifier" then
-      return failskip(ps, i, "types need to be declared with 'local type' or 'global type'", skip_type_declaration)
-   else
-      return parse_call_or_assignment(ps, i)
+local function parse_local(ps, i)
+   local ntk = ps.tokens[i + 1].tk
+   if ntk == "function" then
+      return parse_local_function(ps, i)
+   elseif ntk == "type" and ps.tokens[i + 2].kind == "identifier" then
+      return parse_type_declaration(ps, i, "local_type")
+   elseif ntk == "record" and ps.tokens[i + 2].kind == "identifier" then
+      return parse_type_constructor(ps, i, "local_type", "record", parse_record_body)
+   elseif ntk == "enum" and ps.tokens[i + 2].kind == "identifier" then
+      return parse_type_constructor(ps, i, "local_type", "enum", parse_enum_body)
    end
+   return parse_variable_declarations(ps, i + 1, "local_declaration")
 end
 
-parse_statements = function(ps, i, filename, toplevel)
+local function parse_global(ps, i)
+   local ntk = ps.tokens[i + 1].tk
+   if ntk == "function" then
+      return parse_global_function(ps, i + 1)
+   elseif ntk == "type" and ps.tokens[i + 2].kind == "identifier" then
+      return parse_type_declaration(ps, i, "global_type")
+   elseif ntk == "record" and ps.tokens[i + 2].kind == "identifier" then
+      return parse_type_constructor(ps, i, "global_type", "record", parse_record_body)
+   elseif ntk == "enum" and ps.tokens[i + 2].kind == "identifier" then
+      return parse_type_constructor(ps, i, "global_type", "enum", parse_enum_body)
+   elseif ps.tokens[i + 1].kind == "identifier" then
+      return parse_variable_declarations(ps, i + 1, "global_declaration")
+   end
+   return parse_call_or_assignment(ps, i)
+end
+
+local function parse_type_statement(ps, i)
+   if ps.tokens[i + 1].kind == "identifier" then
+      return failskip(ps, i, "types need to be declared with 'local type' or 'global type'", skip_type_declaration)
+   end
+   return parse_call_or_assignment(ps, i)
+end
+
+local parse_statement_fns = {
+   ["::"] = parse_label,
+   ["do"] = parse_do,
+   ["if"] = parse_if,
+   ["for"] = parse_for,
+   ["goto"] = parse_goto,
+   ["type"] = parse_type_statement,
+   ["local"] = parse_local,
+   ["while"] = parse_while,
+   ["break"] = parse_break,
+   ["global"] = parse_global,
+   ["repeat"] = parse_repeat,
+   ["return"] = parse_return,
+   ["function"] = parse_global_function,
+}
+
+parse_statements = function(ps, i, toplevel)
    local node = new_node(ps.tokens, i, "statements")
    local item
    while true do
@@ -2831,22 +2859,19 @@ parse_statements = function(ps, i, filename, toplevel)
             item.semicolon = true
          end
       end
+
       if ps.tokens[i].kind == "$EOF$" then
          break
       end
       if (not toplevel) and stop_statement_list[ps.tokens[i].tk] then
          break
       end
-      local prev_i = i
-      i, item = parse_statement(ps, i)
-      assert(i > prev_i)
-      if filename then
-         for j = 1, #ps.errs do
-            if not ps.errs[j].filename then
-               ps.errs[j].filename = filename
-            end
-         end
-      end
+
+
+      local parse_statement_fn = parse_statement_fns[ps.tokens[i].tk] or parse_call_or_assignment
+      i, item = parse_statement_fn(ps, i)
+
+
       if item then
          table.insert(node, item)
       elseif i > 1 then
@@ -2857,6 +2882,7 @@ parse_statements = function(ps, i, filename, toplevel)
          end
       end
    end
+
    end_at(node, ps.tokens[i])
    return i, node
 end
@@ -2892,10 +2918,11 @@ function tl.parse_program(tokens, errs, filename)
    local ps = {
       tokens = tokens,
       errs = errs,
-      filename = filename,
+      filename = filename or "",
       required_modules = {},
    }
-   local i, node = parse_statements(ps, 1, filename, true)
+   local i, node = parse_statements(ps, 1, true)
+
    clear_redundant_errors(errs)
    return i, node, ps.required_modules
 end
@@ -2924,30 +2951,6 @@ local Visitor = {}
 
 
 
-local function visit_before(ast, kind, visit)
-   if visit.allow_missing_cbs and not visit.cbs then
-      return
-   end
-   assert(visit.cbs[kind], "no visitor for " .. (kind))
-   if visit.cbs[kind].before then
-      visit.cbs[kind].before(ast)
-   end
-end
-
-local function visit_after(ast, kind, visit, xs)
-   if visit.after and visit.after.before then
-      visit.after.before(ast, xs)
-   end
-   local ret
-   if visit.cbs and visit.cbs[kind].after then
-      ret = visit.cbs[kind].after(ast, xs)
-   end
-   if visit.after and visit.after.after then
-      ret = visit.after.after(ast, xs, ret)
-   end
-   return ret
-end
-
 local MetaMode = {}
 
 
@@ -2967,7 +2970,22 @@ local function fields_of(t, meta)
 end
 
 local function recurse_type(ast, visit)
-   visit_before(ast, ast.typename, visit)
+   local kind = ast.typename
+   local cbs = visit.cbs
+   local cbkind = cbs and cbs[kind]
+   do
+      if cbkind then
+         local cbkind_before = cbkind.before
+         if cbkind_before then
+            cbkind_before(ast)
+         end
+      else
+         if cbs then
+            error("internal compiler error: no visitor for " .. kind)
+         end
+      end
+   end
+
    local xs = {}
 
    if ast.typeargs then
@@ -3031,7 +3049,18 @@ local function recurse_type(ast, visit)
       table.insert(xs, recurse_type(ast.vtype, visit))
    end
 
-   return visit_after(ast, ast.typename, visit, xs)
+   local ret
+   do
+      local cbkind_after = cbkind and cbkind.after
+      if cbkind_after then
+         ret = cbkind_after(ast, xs)
+      end
+      local visit_after = visit.after
+      if visit_after then
+         ret = visit_after(ast, xs, ret)
+      end
+   end
+   return ret
 end
 
 local function recurse_typeargs(ast, visit_type)
@@ -3045,162 +3074,241 @@ end
 local function extra_callback(name,
    ast,
    xs,
-   visit_node,
-   ast_kind)
+   visit_node)
    local cbs = visit_node.cbs
    if not cbs then return end
-   local nbs = cbs[ast_kind]
+   local nbs = cbs[ast.kind]
    if not nbs then return end
    local bs = nbs[name]
    if not bs then return end
    bs(ast, xs)
 end
 
-local function recurse_node(ast,
+local no_recurse_node = {
+   ["..."] = true,
+   ["nil"] = true,
+   ["cast"] = true,
+   ["goto"] = true,
+   ["break"] = true,
+   ["label"] = true,
+   ["number"] = true,
+   ["string"] = true,
+   ["boolean"] = true,
+   ["integer"] = true,
+   ["variable"] = true,
+   ["error_node"] = true,
+   ["identifier"] = true,
+   ["type_identifier"] = true,
+}
+
+local function recurse_node(root,
    visit_node,
    visit_type)
-   if not ast then
+   if not root then
 
       return
    end
 
-   visit_before(ast, ast.kind, visit_node)
+   local recurse
 
-   local xs = {}
-   local kind = ast.kind
-   if kind == "variable" then
-
-   elseif kind == "op" then
-      xs[1] = recurse_node(ast.e1, visit_node, visit_type)
-      local p1 = ast.e1.op and ast.e1.op.prec or nil
-      if ast.op.op == ":" and ast.e1.kind == "string" then
-         p1 = -999
-      end
-      xs[2] = p1
-      if ast.op.arity == 2 then
-         extra_callback("before_e2", ast, xs, visit_node, kind)
-         if ast.op.op == "is" or ast.op.op == "as" then
-            xs[3] = recurse_type(ast.e2.casttype, visit_type)
-         else
-            xs[3] = recurse_node(ast.e2, visit_node, visit_type)
-         end
-         xs[4] = (ast.e2.op and ast.e2.op.prec)
-      end
-   elseif kind == "expression_list" then
+   local function walk_children(ast, xs)
       for i, child in ipairs(ast) do
-         xs[i] = recurse_node(child, visit_node, visit_type)
+         xs[i] = recurse(child)
       end
-   elseif kind == "identifier" or
-      kind == "string" then
+   end
 
-   elseif kind == "table_item" then
-      xs[1] = recurse_node(ast.key, visit_node, visit_type)
-      xs[2] = recurse_node(ast.value, visit_node, visit_type)
-      if ast.decltype then
-         xs[3] = recurse_type(ast.decltype, visit_type)
-      end
-   elseif kind == "variable_list" or
-      kind == "statements" or
-      kind == "argument_list" or
-      kind == "table_literal" then
-      for i, child in ipairs(ast) do
-         xs[i] = recurse_node(child, visit_node, visit_type)
-      end
-   elseif kind == "number" then
-
-   elseif kind == "local_declaration" or
-      kind == "global_declaration" or
-      kind == "assignment" then
-      xs[1] = recurse_node(ast.vars, visit_node, visit_type)
+   local function walk_vars_exps(ast, xs)
+      xs[1] = recurse(ast.vars)
       if ast.decltype then
          xs[2] = recurse_type(ast.decltype, visit_type)
       end
-      extra_callback("before_expressions", ast, xs, visit_node, kind)
+      extra_callback("before_expressions", ast, xs, visit_node)
       if ast.exps then
-         xs[3] = recurse_node(ast.exps, visit_node, visit_type)
+         xs[3] = recurse(ast.exps)
       end
-   elseif kind == "local_type" or
-      kind == "global_type" then
-      xs[1] = recurse_node(ast.var, visit_node, visit_type)
-      xs[2] = recurse_node(ast.value, visit_node, visit_type)
-   elseif kind == "if" then
-      for _, e in ipairs(ast.if_blocks) do
-         table.insert(xs, recurse_node(e, visit_node, visit_type))
-      end
-   elseif kind == "if_block" then
-      if ast.exp then
-         xs[1] = recurse_node(ast.exp, visit_node, visit_type)
-      end
-      extra_callback("before_statements", ast, xs, visit_node, kind)
-      xs[2] = recurse_node(ast.body, visit_node, visit_type)
-   elseif kind == "while" then
-      xs[1] = recurse_node(ast.exp, visit_node, visit_type)
-      extra_callback("before_statements", ast, xs, visit_node, kind)
-      xs[2] = recurse_node(ast.body, visit_node, visit_type)
-   elseif kind == "repeat" then
-      xs[1] = recurse_node(ast.body, visit_node, visit_type)
-      xs[2] = recurse_node(ast.exp, visit_node, visit_type)
-   elseif kind == "function" then
-      recurse_typeargs(ast, visit_type)
-      xs[1] = recurse_node(ast.args, visit_node, visit_type)
-      xs[2] = recurse_type(ast.rets, visit_type)
-      extra_callback("before_statements", ast, xs, visit_node, kind)
-      xs[3] = recurse_node(ast.body, visit_node, visit_type)
-   elseif kind == "forin" then
-      xs[1] = recurse_node(ast.vars, visit_node, visit_type)
-      xs[2] = recurse_node(ast.exps, visit_node, visit_type)
-      extra_callback("before_statements", ast, xs, visit_node, kind)
-      xs[3] = recurse_node(ast.body, visit_node, visit_type)
-   elseif kind == "fornum" then
-      xs[1] = recurse_node(ast.var, visit_node, visit_type)
-      xs[2] = recurse_node(ast.from, visit_node, visit_type)
-      xs[3] = recurse_node(ast.to, visit_node, visit_type)
-      xs[4] = ast.step and recurse_node(ast.step, visit_node, visit_type)
-      xs[5] = recurse_node(ast.body, visit_node, visit_type)
-   elseif kind == "return" then
-      xs[1] = recurse_node(ast.exps, visit_node, visit_type)
-   elseif kind == "do" then
-      xs[1] = recurse_node(ast.body, visit_node, visit_type)
-   elseif kind == "cast" then
-   elseif kind == "local_function" or
-      kind == "global_function" then
-      recurse_typeargs(ast, visit_type)
-      xs[1] = recurse_node(ast.name, visit_node, visit_type)
-      xs[2] = recurse_node(ast.args, visit_node, visit_type)
-      xs[3] = recurse_type(ast.rets, visit_type)
-      extra_callback("before_statements", ast, xs, visit_node, kind)
-      xs[4] = recurse_node(ast.body, visit_node, visit_type)
-   elseif kind == "record_function" then
-      recurse_typeargs(ast, visit_type)
-      xs[1] = recurse_node(ast.fn_owner, visit_node, visit_type)
-      xs[2] = recurse_node(ast.name, visit_node, visit_type)
-      xs[3] = recurse_node(ast.args, visit_node, visit_type)
-      xs[4] = recurse_type(ast.rets, visit_type)
-      extra_callback("before_statements", ast, xs, visit_node, kind)
-      xs[5] = recurse_node(ast.body, visit_node, visit_type)
-   elseif kind == "paren" then
-      xs[1] = recurse_node(ast.e1, visit_node, visit_type)
-   elseif kind == "newtype" then
-      xs[1] = recurse_type(ast.newtype, visit_type)
-   elseif kind == "type_identifier" or
-      kind == "argument" or
-      kind == "break" or
-      kind == "goto" or
-      kind == "label" or
-      kind == "nil" or
-      kind == "..." or
-      kind == "error_node" or
-      kind == "boolean" then
-      if ast.decltype then
-         xs[1] = recurse_type(ast.decltype, visit_type)
-      end
-   else
-      if not kind then
-         error("wat: " .. tostring(ast))
-      end
-      error("unknown node kind " .. kind)
    end
-   return visit_after(ast, kind, visit_node, xs)
+
+   local function walk_var_value(ast, xs)
+      xs[1] = recurse(ast.var)
+      xs[2] = recurse(ast.value)
+   end
+
+   local function walk_named_function(ast, xs)
+      recurse_typeargs(ast, visit_type)
+      xs[1] = recurse(ast.name)
+      xs[2] = recurse(ast.args)
+      xs[3] = recurse_type(ast.rets, visit_type)
+      extra_callback("before_statements", ast, xs, visit_node)
+      xs[4] = recurse(ast.body)
+   end
+
+   local walkers = {
+      ["op"] = function(ast, xs)
+         xs[1] = recurse(ast.e1)
+         local p1 = ast.e1.op and ast.e1.op.prec or nil
+         if ast.op.op == ":" and ast.e1.kind == "string" then
+            p1 = -999
+         end
+         xs[2] = p1
+         if ast.op.arity == 2 then
+            extra_callback("before_e2", ast, xs, visit_node)
+            if ast.op.op == "is" or ast.op.op == "as" then
+               xs[3] = recurse_type(ast.e2.casttype, visit_type)
+            else
+               xs[3] = recurse(ast.e2)
+            end
+            xs[4] = (ast.e2.op and ast.e2.op.prec)
+         end
+      end,
+
+      ["statements"] = walk_children,
+      ["argument_list"] = walk_children,
+      ["table_literal"] = walk_children,
+      ["variable_list"] = walk_children,
+      ["expression_list"] = walk_children,
+
+      ["table_item"] = function(ast, xs)
+         xs[1] = recurse(ast.key)
+         xs[2] = recurse(ast.value)
+         if ast.decltype then
+            xs[3] = recurse_type(ast.decltype, visit_type)
+         end
+      end,
+
+      ["assignment"] = walk_vars_exps,
+      ["local_declaration"] = walk_vars_exps,
+      ["global_declaration"] = walk_vars_exps,
+
+      ["local_type"] = walk_var_value,
+      ["global_type"] = walk_var_value,
+
+      ["if"] = function(ast, xs)
+         for _, e in ipairs(ast.if_blocks) do
+            table.insert(xs, recurse(e))
+         end
+      end,
+
+      ["if_block"] = function(ast, xs)
+         if ast.exp then
+            xs[1] = recurse(ast.exp)
+         end
+         extra_callback("before_statements", ast, xs, visit_node)
+         xs[2] = recurse(ast.body)
+      end,
+
+      ["while"] = function(ast, xs)
+         xs[1] = recurse(ast.exp)
+         extra_callback("before_statements", ast, xs, visit_node)
+         xs[2] = recurse(ast.body)
+      end,
+
+      ["repeat"] = function(ast, xs)
+         xs[1] = recurse(ast.body)
+         xs[2] = recurse(ast.exp)
+      end,
+
+      ["function"] = function(ast, xs)
+         recurse_typeargs(ast, visit_type)
+         xs[1] = recurse(ast.args)
+         xs[2] = recurse_type(ast.rets, visit_type)
+         extra_callback("before_statements", ast, xs, visit_node)
+         xs[3] = recurse(ast.body)
+      end,
+      ["local_function"] = walk_named_function,
+      ["global_function"] = walk_named_function,
+      ["record_function"] = function(ast, xs)
+         recurse_typeargs(ast, visit_type)
+         xs[1] = recurse(ast.fn_owner)
+         xs[2] = recurse(ast.name)
+         xs[3] = recurse(ast.args)
+         xs[4] = recurse_type(ast.rets, visit_type)
+         extra_callback("before_statements", ast, xs, visit_node)
+         xs[5] = recurse(ast.body)
+      end,
+
+      ["forin"] = function(ast, xs)
+         xs[1] = recurse(ast.vars)
+         xs[2] = recurse(ast.exps)
+         extra_callback("before_statements", ast, xs, visit_node)
+         xs[3] = recurse(ast.body)
+      end,
+
+      ["fornum"] = function(ast, xs)
+         xs[1] = recurse(ast.var)
+         xs[2] = recurse(ast.from)
+         xs[3] = recurse(ast.to)
+         xs[4] = ast.step and recurse(ast.step)
+         extra_callback("before_statements", ast, xs, visit_node)
+         xs[5] = recurse(ast.body)
+      end,
+
+      ["return"] = function(ast, xs)
+         xs[1] = recurse(ast.exps)
+      end,
+
+      ["do"] = function(ast, xs)
+         xs[1] = recurse(ast.body)
+      end,
+
+      ["paren"] = function(ast, xs)
+         xs[1] = recurse(ast.e1)
+      end,
+
+      ["newtype"] = function(ast, xs)
+         xs[1] = recurse_type(ast.newtype, visit_type)
+      end,
+
+      ["argument"] = function(ast, xs)
+         if ast.decltype then
+            xs[1] = recurse_type(ast.decltype, visit_type)
+         end
+      end,
+   }
+
+   if not visit_node.allow_missing_cbs and not visit_node.cbs then
+      error("missing cbs in visit_node")
+   end
+   local visit_after = visit_node.after
+
+   recurse = function(ast)
+      local xs = {}
+      local kind = assert(ast.kind)
+
+      local cbs = visit_node.cbs
+      local cbkind = cbs and cbs[kind]
+      do
+         if cbkind then
+            if cbkind.before then
+               cbkind.before(ast)
+            end
+         else
+            if cbs then
+               error("internal compiler error: no visitor for " .. kind)
+            end
+         end
+      end
+
+      local fn = walkers[kind]
+      if fn then
+         fn(ast, xs)
+      else
+         assert(no_recurse_node[kind])
+      end
+
+      local ret
+      do
+         local cbkind_after = cbkind and cbkind.after
+         if cbkind_after then
+            ret = cbkind_after(ast, xs)
+         end
+         if visit_after then
+            ret = visit_after(ast, xs, ret)
+         end
+      end
+      return ret
+   end
+
+   return recurse(root)
 end
 
 
@@ -3270,6 +3378,7 @@ local primitive = {
    ["string"] = "string",
    ["nil"] = "nil",
    ["number"] = "number",
+   ["integer"] = "number",
    ["thread"] = "thread",
 }
 
@@ -3332,7 +3441,7 @@ function tl.pretty_print_ast(ast, mode)
       end
    end
 
-   local function add_child(out, child, space, indent)
+   local function add_child(out, child, space, current_indent)
       if #child == 0 then
          return
       end
@@ -3350,11 +3459,11 @@ function tl.pretty_print_ast(ast, mode)
             if space ~= "" then
                table.insert(out, space)
             end
-            indent = nil
+            current_indent = nil
          end
       end
-      if indent and opts.preserve_indent then
-         table.insert(out, ("   "):rep(indent))
+      if current_indent and opts.preserve_indent then
+         table.insert(out, ("   "):rep(current_indent))
       end
       table.insert(out, child)
       out.h = out.h + child.h
@@ -3728,11 +3837,17 @@ function tl.pretty_print_ast(ast, mode)
             elseif node.op.op == "as" then
                add_child(out, children[1], "", indent)
             elseif node.op.op == "is" then
-               table.insert(out, "type(")
-               add_child(out, children[1], "", indent)
-               table.insert(out, ") == \"")
-               add_child(out, children[3], "", indent)
-               table.insert(out, "\"")
+               if node.e2.casttype.typename == "integer" then
+                  table.insert(out, "math.type(")
+                  add_child(out, children[1], "", indent)
+                  table.insert(out, ") == \"integer\"")
+               else
+                  table.insert(out, "type(")
+                  add_child(out, children[1], "", indent)
+                  table.insert(out, ") == \"")
+                  add_child(out, children[3], "", indent)
+                  table.insert(out, "\"")
+               end
             elseif spaced_op[node.op.arity][node.op.op] or tight_op[node.op.arity][node.op.op] then
                local space = spaced_op[node.op.arity][node.op.op] and " " or ""
                if children[2] and node.op.prec > tonumber(children[2]) then
@@ -3827,6 +3942,7 @@ function tl.pretty_print_ast(ast, mode)
    visit_type.cbs["boolean"] = visit_type.cbs["string"]
    visit_type.cbs["nil"] = visit_type.cbs["string"]
    visit_type.cbs["number"] = visit_type.cbs["string"]
+   visit_type.cbs["integer"] = visit_type.cbs["string"]
    visit_type.cbs["union"] = visit_type.cbs["string"]
    visit_type.cbs["nominal"] = visit_type.cbs["string"]
    visit_type.cbs["bad_nominal"] = visit_type.cbs["string"]
@@ -3845,6 +3961,7 @@ function tl.pretty_print_ast(ast, mode)
    visit_node.cbs["argument_list"] = visit_node.cbs["variable_list"]
    visit_node.cbs["identifier"] = visit_node.cbs["variable"]
    visit_node.cbs["number"] = visit_node.cbs["variable"]
+   visit_node.cbs["integer"] = visit_node.cbs["variable"]
    visit_node.cbs["string"] = visit_node.cbs["variable"]
    visit_node.cbs["nil"] = visit_node.cbs["variable"]
    visit_node.cbs["boolean"] = visit_node.cbs["variable"]
@@ -3884,26 +4001,24 @@ local function UNION(t)
    return a_type({ typename = "union", types = t })
 end
 
-local ANY = a_type({ typename = "any" })
 local NONE = a_type({ typename = "none" })
-local NIL = a_type({ typename = "nil" })
-local NUMBER = a_type({ typename = "number" })
-local STRING = a_type({ typename = "string" })
-local BOOLEAN = a_type({ typename = "boolean" })
-local ARG_ALPHA = a_type({ typename = "typearg", typearg = "@a" })
-local ARG_BETA = a_type({ typename = "typearg", typearg = "@b" })
-local ALPHA = a_type({ typename = "typevar", typevar = "@a" })
-local BETA = a_type({ typename = "typevar", typevar = "@b" })
-local ARRAY_OF_STRING = a_type({ typename = "array", elements = STRING })
-local ARRAY_OF_ALPHA = a_type({ typename = "array", elements = ALPHA })
-local MAP_OF_ALPHA_TO_BETA = a_type({ typename = "map", keys = ALPHA, values = BETA })
-local TABLE = a_type({ typename = "map", keys = ANY, values = ANY })
-local FUNCTION = a_type({ typename = "function", args = VARARG({ ANY }), rets = VARARG({ ANY }) })
-local THREAD = a_type({ typename = "thread" })
 local INVALID = a_type({ typename = "invalid" })
 local UNKNOWN = a_type({ typename = "unknown" })
-local NOMINAL_FILE = a_type({ typename = "nominal", names = { "FILE" } })
+
+local ALPHA = a_type({ typename = "typevar", typevar = "@a" })
+local BETA = a_type({ typename = "typevar", typevar = "@b" })
+local ARG_ALPHA = a_type({ typename = "typearg", typearg = "@a" })
+local ARG_BETA = a_type({ typename = "typearg", typearg = "@b" })
+local ARRAY_OF_ALPHA = a_type({ typename = "array", elements = ALPHA })
+local MAP_OF_ALPHA_TO_BETA = a_type({ typename = "map", keys = ALPHA, values = BETA })
 local NOMINAL_METATABLE_OF_ALPHA = a_type({ typename = "nominal", names = { "metatable" }, typevals = { ALPHA } })
+
+local ARRAY_OF_STRING = a_type({ typename = "array", elements = STRING })
+local ARRAY_OF_STRING_OR_NUMBER = a_type({ typename = "array", elements = UNION({ STRING, NUMBER }) })
+
+local FUNCTION = a_type({ typename = "function", args = VARARG({ ANY }), rets = VARARG({ ANY }) })
+
+local NOMINAL_FILE = a_type({ typename = "nominal", names = { "FILE" } })
 local XPCALL_MSGH_FUNCTION = a_type({ typename = "function", args = TUPLE({ ANY }), rets = TUPLE({}) })
 
 local USERDATA = ANY
@@ -3911,12 +4026,44 @@ local USERDATA = ANY
 local numeric_binop = {
    ["number"] = {
       ["number"] = NUMBER,
+      ["integer"] = NUMBER,
+   },
+   ["integer"] = {
+      ["integer"] = INTEGER,
+      ["number"] = NUMBER,
+   },
+}
+
+local float_binop = {
+   ["number"] = {
+      ["number"] = NUMBER,
+      ["integer"] = NUMBER,
+   },
+   ["integer"] = {
+      ["integer"] = NUMBER,
+      ["number"] = NUMBER,
+   },
+}
+
+local integer_binop = {
+   ["number"] = {
+      ["number"] = INTEGER,
+      ["integer"] = INTEGER,
+   },
+   ["integer"] = {
+      ["integer"] = INTEGER,
+      ["number"] = INTEGER,
    },
 }
 
 local relational_binop = {
    ["number"] = {
+      ["integer"] = BOOLEAN,
       ["number"] = BOOLEAN,
+   },
+   ["integer"] = {
+      ["number"] = BOOLEAN,
+      ["integer"] = BOOLEAN,
    },
    ["string"] = {
       ["string"] = BOOLEAN,
@@ -3929,6 +4076,12 @@ local relational_binop = {
 local equality_binop = {
    ["number"] = {
       ["number"] = BOOLEAN,
+      ["integer"] = BOOLEAN,
+      ["nil"] = BOOLEAN,
+   },
+   ["integer"] = {
+      ["number"] = BOOLEAN,
+      ["integer"] = BOOLEAN,
       ["nil"] = BOOLEAN,
    },
    ["string"] = {
@@ -3971,25 +4124,30 @@ local equality_binop = {
 
 local unop_types = {
    ["#"] = {
-      ["arrayrecord"] = NUMBER,
-      ["string"] = NUMBER,
-      ["array"] = NUMBER,
-      ["map"] = NUMBER,
-      ["emptytable"] = NUMBER,
+      ["arrayrecord"] = INTEGER,
+      ["string"] = INTEGER,
+      ["array"] = INTEGER,
+      ["tupletable"] = INTEGER,
+      ["map"] = INTEGER,
+      ["emptytable"] = INTEGER,
    },
    ["-"] = {
       ["number"] = NUMBER,
+      ["integer"] = INTEGER,
    },
    ["~"] = {
-      ["number"] = NUMBER,
+      ["number"] = INTEGER,
+      ["integer"] = INTEGER,
    },
    ["not"] = {
       ["string"] = BOOLEAN,
       ["number"] = BOOLEAN,
+      ["integer"] = BOOLEAN,
       ["boolean"] = BOOLEAN,
       ["record"] = BOOLEAN,
       ["arrayrecord"] = BOOLEAN,
       ["array"] = BOOLEAN,
+      ["tupletable"] = BOOLEAN,
       ["map"] = BOOLEAN,
       ["emptytable"] = BOOLEAN,
       ["thread"] = BOOLEAN,
@@ -4007,14 +4165,14 @@ local binop_types = {
    ["-"] = numeric_binop,
    ["*"] = numeric_binop,
    ["%"] = numeric_binop,
-   ["/"] = numeric_binop,
+   ["/"] = float_binop,
    ["//"] = numeric_binop,
-   ["^"] = numeric_binop,
-   ["&"] = numeric_binop,
-   ["|"] = numeric_binop,
-   ["<<"] = numeric_binop,
-   [">>"] = numeric_binop,
-   ["~"] = numeric_binop,
+   ["^"] = float_binop,
+   ["&"] = integer_binop,
+   ["|"] = integer_binop,
+   ["<<"] = integer_binop,
+   [">>"] = integer_binop,
+   ["~"] = integer_binop,
    ["=="] = equality_binop,
    ["~="] = equality_binop,
    ["<="] = relational_binop,
@@ -4027,6 +4185,12 @@ local binop_types = {
          ["function"] = FUNCTION,
       },
       ["number"] = {
+         ["integer"] = NUMBER,
+         ["number"] = NUMBER,
+         ["boolean"] = BOOLEAN,
+      },
+      ["integer"] = {
+         ["integer"] = INTEGER,
          ["number"] = NUMBER,
          ["boolean"] = BOOLEAN,
       },
@@ -4062,14 +4226,23 @@ local binop_types = {
          ["string"] = STRING,
          ["enum"] = STRING,
          ["number"] = STRING,
+         ["integer"] = STRING,
       },
       ["number"] = {
+         ["integer"] = STRING,
+         ["number"] = STRING,
+         ["string"] = STRING,
+         ["enum"] = STRING,
+      },
+      ["integer"] = {
+         ["integer"] = STRING,
          ["number"] = STRING,
          ["string"] = STRING,
          ["enum"] = STRING,
       },
       ["enum"] = {
          ["number"] = STRING,
+         ["integer"] = STRING,
          ["string"] = STRING,
          ["enum"] = STRING,
       },
@@ -4109,8 +4282,8 @@ local function show_type_base(t, short, seen)
    end
    seen[t] = "..."
 
-   local function show(t)
-      return show_type(t, short, seen)
+   local function show(typ)
+      return show_type(typ, short, seen)
    end
 
    if t.typename == "nominal" then
@@ -4203,7 +4376,7 @@ local function show_type_base(t, short, seen)
       end
       for i, v in ipairs(t.args) do
          if not t.is_method or i > 1 then
-            table.insert(args, show(v))
+            table.insert(args, (i == #t.args and t.args.is_va and "...: " or "") .. show(v))
          end
       end
       table.insert(out, table.concat(args, ", "))
@@ -4211,13 +4384,14 @@ local function show_type_base(t, short, seen)
       if #t.rets > 0 then
          table.insert(out, ": ")
          local rets = {}
-         for _, v in ipairs(t.rets) do
-            table.insert(rets, show(v))
+         for i, v in ipairs(t.rets) do
+            table.insert(rets, show(v) .. (i == #t.rets and t.rets.is_va and "..." or ""))
          end
          table.insert(out, table.concat(rets, ", "))
       end
       return table.concat(out)
    elseif t.typename == "number" or
+      t.typename == "integer" or
       t.typename == "boolean" or
       t.typename == "thread" then
       return t.typename
@@ -4460,7 +4634,7 @@ local function convert_node_to_compat_mt_call(node, mt_name, which_self, e1, e2)
    node.e1 = { y = node.y, x = node.x, kind = "identifier", tk = "_tl_mt" }
    node.e2 = { y = node.y, x = node.x, kind = "expression_list" }
    node.e2[1] = { y = node.y, x = node.x, kind = "string", tk = "\"" .. mt_name .. "\"" }
-   node.e2[2] = { y = node.y, x = node.x, kind = "number", tk = tostring(which_self) }
+   node.e2[2] = { y = node.y, x = node.x, kind = "integer", tk = tostring(which_self) }
    node.e2[3] = e1
    node.e2[4] = e2
 end
@@ -4486,14 +4660,14 @@ local function init_globals(lax)
    local OS_DATE_TABLE = a_type({
       typename = "record",
       fields = {
-         ["year"] = NUMBER,
-         ["month"] = NUMBER,
-         ["day"] = NUMBER,
-         ["hour"] = NUMBER,
-         ["min"] = NUMBER,
-         ["sec"] = NUMBER,
-         ["wday"] = NUMBER,
-         ["yday"] = NUMBER,
+         ["year"] = INTEGER,
+         ["month"] = INTEGER,
+         ["day"] = INTEGER,
+         ["hour"] = INTEGER,
+         ["min"] = INTEGER,
+         ["sec"] = INTEGER,
+         ["wday"] = INTEGER,
+         ["yday"] = INTEGER,
          ["isdst"] = BOOLEAN,
       },
    })
@@ -4507,16 +4681,16 @@ local function init_globals(lax)
          ["namewhat"] = STRING,
          ["source"] = STRING,
          ["short_src"] = STRING,
-         ["linedefined"] = NUMBER,
-         ["lastlinedefined"] = NUMBER,
+         ["linedefined"] = INTEGER,
+         ["lastlinedefined"] = INTEGER,
          ["what"] = STRING,
-         ["currentline"] = NUMBER,
+         ["currentline"] = INTEGER,
          ["istailcall"] = BOOLEAN,
-         ["nups"] = NUMBER,
-         ["nparams"] = NUMBER,
+         ["nups"] = INTEGER,
+         ["nparams"] = INTEGER,
          ["isvararg"] = BOOLEAN,
          ["func"] = ANY,
-         ["activelines"] = a_type({ typename = "map", keys = NUMBER, values = BOOLEAN }),
+         ["activelines"] = a_type({ typename = "map", keys = INTEGER, values = BOOLEAN }),
       },
    })
 
@@ -4532,7 +4706,7 @@ local function init_globals(lax)
    })
    local DEBUG_HOOK_FUNCTION = a_type({
       typename = "function",
-      args = TUPLE({ DEBUG_HOOK_EVENT, NUMBER }),
+      args = TUPLE({ DEBUG_HOOK_EVENT, INTEGER }),
       rets = TUPLE({}),
    })
 
@@ -4555,12 +4729,20 @@ local function init_globals(lax)
       ["any"] = a_type({ typename = "typetype", def = ANY }),
       ["arg"] = ARRAY_OF_STRING,
       ["assert"] = a_type({ typename = "function", typeargs = TUPLE({ ARG_ALPHA, ARG_BETA }), args = TUPLE({ ALPHA, OPT_BETA }), rets = TUPLE({ ALPHA }) }),
-      ["collectgarbage"] = a_type({ typename = "function", args = TUPLE({ STRING }), rets = TUPLE({ a_type({ typename = "union", types = { BOOLEAN, NUMBER } }), NUMBER, NUMBER }) }),
+      ["collectgarbage"] = a_type({
+         typename = "poly",
+         types = {
+            a_type({ typename = "function", args = TUPLE({ a_type({ typename = "enum", enumset = { ["collect"] = true, ["count"] = true, ["stop"] = true, ["restart"] = true } }) }), rets = TUPLE({ NUMBER }) }),
+            a_type({ typename = "function", args = TUPLE({ a_type({ typename = "enum", enumset = { ["step"] = true, ["setpause"] = true, ["setstepmul"] = true } }), NUMBER }), rets = TUPLE({ NUMBER }) }),
+            a_type({ typename = "function", args = TUPLE({ a_type({ typename = "enum", enumset = { ["isrunning"] = true } }) }), rets = TUPLE({ BOOLEAN }) }),
+            a_type({ typename = "function", args = TUPLE({ STRING, OPT_NUMBER }), rets = TUPLE({ a_type({ typename = "union", types = { BOOLEAN, NUMBER } }) }) }),
+         },
+      }),
       ["dofile"] = a_type({ typename = "function", args = TUPLE({ OPT_STRING }), rets = VARARG({ ANY }) }),
-      ["error"] = a_type({ typename = "function", args = TUPLE({ STRING, NUMBER }), rets = TUPLE({}) }),
+      ["error"] = a_type({ typename = "function", args = TUPLE({ ANY, NUMBER }), rets = TUPLE({}) }),
       ["getmetatable"] = a_type({ typename = "function", typeargs = TUPLE({ ARG_ALPHA }), args = TUPLE({ ALPHA }), rets = TUPLE({ NOMINAL_METATABLE_OF_ALPHA }) }),
       ["ipairs"] = a_type({ typename = "function", typeargs = TUPLE({ ARG_ALPHA }), args = TUPLE({ ARRAY_OF_ALPHA }), rets = TUPLE({
-         a_type({ typename = "function", args = TUPLE({}), rets = TUPLE({ NUMBER, ALPHA }) }),
+         a_type({ typename = "function", args = TUPLE({}), rets = TUPLE({ INTEGER, ALPHA }) }),
       }), }),
       ["load"] = a_type({ typename = "function", args = TUPLE({ UNION({ STRING, LOAD_FUNCTION }), OPT_STRING, OPT_STRING, OPT_TABLE }), rets = TUPLE({ FUNCTION, STRING }) }),
       ["loadfile"] = a_type({ typename = "function", args = TUPLE({ OPT_STRING, OPT_STRING, OPT_TABLE }), rets = TUPLE({ FUNCTION, STRING }) }),
@@ -4568,7 +4750,7 @@ local function init_globals(lax)
          typename = "poly",
          types = {
             a_type({ typeargs = TUPLE({ ARG_ALPHA, ARG_BETA }), typename = "function", args = TUPLE({ MAP_OF_ALPHA_TO_BETA, OPT_ALPHA }), rets = TUPLE({ ALPHA, BETA }) }),
-            a_type({ typeargs = TUPLE({ ARG_ALPHA }), typename = "function", args = TUPLE({ ARRAY_OF_ALPHA, OPT_ALPHA }), rets = TUPLE({ NUMBER, ALPHA }) }),
+            a_type({ typeargs = TUPLE({ ARG_ALPHA }), typename = "function", args = TUPLE({ ARRAY_OF_ALPHA, OPT_ALPHA }), rets = TUPLE({ INTEGER, ALPHA }) }),
          },
       }),
       ["pairs"] = a_type({ typename = "function", typeargs = TUPLE({ ARG_ALPHA, ARG_BETA }), args = TUPLE({ a_type({ typename = "map", keys = ALPHA, values = BETA }) }), rets = TUPLE({
@@ -4579,7 +4761,7 @@ local function init_globals(lax)
       ["print"] = a_type({ typename = "function", args = VARARG({ ANY }), rets = TUPLE({}) }),
       ["rawequal"] = a_type({ typename = "function", args = TUPLE({ ANY, ANY }), rets = TUPLE({ BOOLEAN }) }),
       ["rawget"] = a_type({ typename = "function", args = TUPLE({ TABLE, ANY }), rets = TUPLE({ ANY }) }),
-      ["rawlen"] = a_type({ typename = "function", args = TUPLE({ UNION({ TABLE, STRING }) }), rets = TUPLE({ NUMBER }) }),
+      ["rawlen"] = a_type({ typename = "function", args = TUPLE({ UNION({ TABLE, STRING }) }), rets = TUPLE({ INTEGER }) }),
       ["rawset"] = a_type({
          typename = "poly",
          types = {
@@ -4594,11 +4776,17 @@ local function init_globals(lax)
          types = {
             a_type({ typename = "function", typeargs = TUPLE({ ARG_ALPHA }), args = VARARG({ NUMBER, ALPHA }), rets = TUPLE({ ALPHA }) }),
             a_type({ typename = "function", args = VARARG({ NUMBER, ANY }), rets = TUPLE({ ANY }) }),
-            a_type({ typename = "function", args = VARARG({ STRING, ANY }), rets = TUPLE({ NUMBER }) }),
+            a_type({ typename = "function", args = VARARG({ STRING, ANY }), rets = TUPLE({ INTEGER }) }),
          },
       }),
       ["setmetatable"] = a_type({ typeargs = TUPLE({ ARG_ALPHA }), typename = "function", args = TUPLE({ ALPHA, NOMINAL_METATABLE_OF_ALPHA }), rets = TUPLE({ ALPHA }) }),
-      ["tonumber"] = a_type({ typename = "function", args = TUPLE({ ANY, NUMBER }), rets = TUPLE({ NUMBER }) }),
+      ["tonumber"] = a_type({
+         typename = "poly",
+         types = {
+            a_type({ typename = "function", args = TUPLE({ ANY }), rets = TUPLE({ NUMBER }) }),
+            a_type({ typename = "function", args = TUPLE({ ANY, NUMBER }), rets = TUPLE({ INTEGER }) }),
+         },
+      }),
       ["tostring"] = a_type({ typename = "function", args = TUPLE({ ANY }), rets = TUPLE({ STRING }) }),
       ["type"] = a_type({ typename = "function", args = TUPLE({ ANY }), rets = TUPLE({ STRING }) }),
       ["FILE"] = a_type({
@@ -4613,7 +4801,7 @@ local function init_globals(lax)
                   a_type({ typename = "function", args = TUPLE({}), rets = VARARG({ STRING }) }),
                }), }),
                ["read"] = a_type({ typename = "function", args = TUPLE({ NOMINAL_FILE, UNION({ STRING, NUMBER }) }), rets = TUPLE({ STRING, STRING }) }),
-               ["seek"] = a_type({ typename = "function", args = TUPLE({ NOMINAL_FILE, OPT_STRING, OPT_NUMBER }), rets = TUPLE({ NUMBER, STRING }) }),
+               ["seek"] = a_type({ typename = "function", args = TUPLE({ NOMINAL_FILE, OPT_STRING, OPT_NUMBER }), rets = TUPLE({ INTEGER, STRING }) }),
                ["setvbuf"] = a_type({ typename = "function", args = TUPLE({ NOMINAL_FILE, STRING, OPT_NUMBER }), rets = TUPLE({}) }),
                ["write"] = a_type({ typename = "function", args = VARARG({ NOMINAL_FILE, STRING }), rets = TUPLE({ NOMINAL_FILE, STRING }) }),
 
@@ -4689,7 +4877,7 @@ rets = TUPLE({ a_type({ typename = "function", args = TUPLE({}), rets = TUPLE({ 
             }),
 
             ["debug"] = a_type({ typename = "function", args = TUPLE({}), rets = TUPLE({}) }),
-            ["gethook"] = a_type({ typename = "function", args = TUPLE({ OPT_THREAD }), rets = TUPLE({ DEBUG_HOOK_FUNCTION, NUMBER }) }),
+            ["gethook"] = a_type({ typename = "function", args = TUPLE({ OPT_THREAD }), rets = TUPLE({ DEBUG_HOOK_FUNCTION, INTEGER }) }),
             ["getlocal"] = a_type({
                typename = "poly",
                types = {
@@ -4761,39 +4949,73 @@ rets = TUPLE({ a_type({ typename = "function", args = TUPLE({}), rets = TUPLE({ 
       ["math"] = a_type({
          typename = "record",
          fields = {
-            ["abs"] = a_type({ typename = "function", args = TUPLE({ NUMBER }), rets = TUPLE({ NUMBER }) }),
+            ["abs"] = a_type({
+               typename = "poly",
+               types = {
+                  a_type({ typename = "function", args = TUPLE({ INTEGER }), rets = TUPLE({ INTEGER }) }),
+                  a_type({ typename = "function", args = TUPLE({ NUMBER }), rets = TUPLE({ NUMBER }) }),
+               },
+            }),
             ["acos"] = a_type({ typename = "function", args = TUPLE({ NUMBER }), rets = TUPLE({ NUMBER }) }),
             ["asin"] = a_type({ typename = "function", args = TUPLE({ NUMBER }), rets = TUPLE({ NUMBER }) }),
             ["atan"] = a_type({ typename = "function", args = TUPLE({ NUMBER, OPT_NUMBER }), rets = TUPLE({ NUMBER }) }),
             ["atan2"] = a_type({ typename = "function", args = TUPLE({ NUMBER, NUMBER }), rets = TUPLE({ NUMBER }) }),
-            ["ceil"] = a_type({ typename = "function", args = TUPLE({ NUMBER }), rets = TUPLE({ NUMBER }) }),
+            ["ceil"] = a_type({ typename = "function", args = TUPLE({ NUMBER }), rets = TUPLE({ INTEGER }) }),
             ["cos"] = a_type({ typename = "function", args = TUPLE({ NUMBER }), rets = TUPLE({ NUMBER }) }),
             ["cosh"] = a_type({ typename = "function", args = TUPLE({ NUMBER }), rets = TUPLE({ NUMBER }) }),
             ["deg"] = a_type({ typename = "function", args = TUPLE({ NUMBER }), rets = TUPLE({ NUMBER }) }),
             ["exp"] = a_type({ typename = "function", args = TUPLE({ NUMBER }), rets = TUPLE({ NUMBER }) }),
-            ["floor"] = a_type({ typename = "function", args = TUPLE({ NUMBER }), rets = TUPLE({ NUMBER }) }),
-            ["fmod"] = a_type({ typename = "function", args = TUPLE({ NUMBER, NUMBER }), rets = TUPLE({ NUMBER }) }),
+            ["floor"] = a_type({ typename = "function", args = TUPLE({ NUMBER }), rets = TUPLE({ INTEGER }) }),
+            ["fmod"] = a_type({
+               typename = "poly",
+               types = {
+                  a_type({ typename = "function", args = TUPLE({ INTEGER, INTEGER }), rets = TUPLE({ INTEGER }) }),
+                  a_type({ typename = "function", args = TUPLE({ NUMBER, NUMBER }), rets = TUPLE({ NUMBER }) }),
+               },
+            }),
             ["frexp"] = a_type({ typename = "function", args = TUPLE({ NUMBER }), rets = TUPLE({ NUMBER, NUMBER }) }),
             ["huge"] = NUMBER,
             ["ldexp"] = a_type({ typename = "function", args = TUPLE({ NUMBER, NUMBER }), rets = TUPLE({ NUMBER }) }),
             ["log"] = a_type({ typename = "function", args = TUPLE({ NUMBER, NUMBER }), rets = TUPLE({ NUMBER }) }),
             ["log10"] = a_type({ typename = "function", args = TUPLE({ NUMBER }), rets = TUPLE({ NUMBER }) }),
-            ["max"] = a_type({ typename = "function", args = VARARG({ NUMBER }), rets = TUPLE({ NUMBER }) }),
-            ["maxinteger"] = NUMBER,
-            ["min"] = a_type({ typename = "function", args = VARARG({ NUMBER }), rets = TUPLE({ NUMBER }) }),
-            ["mininteger"] = NUMBER,
-            ["modf"] = a_type({ typename = "function", args = TUPLE({ NUMBER }), rets = TUPLE({ NUMBER, NUMBER }) }),
+            ["max"] = a_type({
+               typename = "poly",
+               types = {
+                  a_type({ typename = "function", args = VARARG({ INTEGER }), rets = TUPLE({ INTEGER }) }),
+                  a_type({ typename = "function", typeargs = TUPLE({ ARG_ALPHA }), args = VARARG({ ALPHA }), rets = TUPLE({ ALPHA }) }),
+                  a_type({ typename = "function", args = VARARG({ a_type({ typename = "union", types = { NUMBER, INTEGER } }) }), rets = TUPLE({ NUMBER }) }),
+                  a_type({ typename = "function", args = VARARG({ ANY }), rets = TUPLE({ ANY }) }),
+               },
+            }),
+            ["maxinteger"] = INTEGER,
+            ["min"] = a_type({
+               typename = "poly",
+               types = {
+                  a_type({ typename = "function", args = VARARG({ INTEGER }), rets = TUPLE({ INTEGER }) }),
+                  a_type({ typename = "function", typeargs = TUPLE({ ARG_ALPHA }), args = VARARG({ ALPHA }), rets = TUPLE({ ALPHA }) }),
+                  a_type({ typename = "function", args = VARARG({ a_type({ typename = "union", types = { NUMBER, INTEGER } }) }), rets = TUPLE({ NUMBER }) }),
+                  a_type({ typename = "function", args = VARARG({ ANY }), rets = TUPLE({ ANY }) }),
+               },
+            }),
+            ["mininteger"] = INTEGER,
+            ["modf"] = a_type({ typename = "function", args = TUPLE({ NUMBER }), rets = TUPLE({ INTEGER, NUMBER }) }),
             ["pi"] = NUMBER,
             ["pow"] = a_type({ typename = "function", args = TUPLE({ NUMBER, NUMBER }), rets = TUPLE({ NUMBER }) }),
             ["rad"] = a_type({ typename = "function", args = TUPLE({ NUMBER }), rets = TUPLE({ NUMBER }) }),
-            ["random"] = a_type({ typename = "function", args = TUPLE({ NUMBER, NUMBER }), rets = TUPLE({ NUMBER }) }),
-            ["randomseed"] = a_type({ typename = "function", args = TUPLE({ NUMBER, NUMBER }), rets = TUPLE({ NUMBER, NUMBER }) }),
+            ["random"] = a_type({
+               typename = "poly",
+               types = {
+                  a_type({ typename = "function", args = TUPLE({ NUMBER, NUMBER }), rets = TUPLE({ INTEGER }) }),
+                  a_type({ typename = "function", args = TUPLE({}), rets = TUPLE({ NUMBER }) }),
+               },
+            }),
+            ["randomseed"] = a_type({ typename = "function", args = TUPLE({ NUMBER, NUMBER }), rets = TUPLE({ INTEGER, INTEGER }) }),
             ["sin"] = a_type({ typename = "function", args = TUPLE({ NUMBER }), rets = TUPLE({ NUMBER }) }),
             ["sinh"] = a_type({ typename = "function", args = TUPLE({ NUMBER }), rets = TUPLE({ NUMBER }) }),
             ["sqrt"] = a_type({ typename = "function", args = TUPLE({ NUMBER }), rets = TUPLE({ NUMBER }) }),
             ["tan"] = a_type({ typename = "function", args = TUPLE({ NUMBER }), rets = TUPLE({ NUMBER }) }),
             ["tanh"] = a_type({ typename = "function", args = TUPLE({ NUMBER }), rets = TUPLE({ NUMBER }) }),
-            ["tointeger"] = a_type({ typename = "function", args = TUPLE({ ANY }), rets = TUPLE({ NUMBER }) }),
+            ["tointeger"] = a_type({ typename = "function", args = TUPLE({ ANY }), rets = TUPLE({ INTEGER }) }),
             ["type"] = a_type({ typename = "function", args = TUPLE({ ANY }), rets = TUPLE({ STRING }) }),
             ["ult"] = a_type({ typename = "function", args = TUPLE({ NUMBER, NUMBER }), rets = TUPLE({ BOOLEAN }) }),
          },
@@ -4811,13 +5033,19 @@ rets = TUPLE({ a_type({ typename = "function", args = TUPLE({}), rets = TUPLE({ 
                },
             }),
             ["difftime"] = a_type({ typename = "function", args = TUPLE({ NUMBER, NUMBER }), rets = TUPLE({ NUMBER }) }),
-            ["execute"] = a_type({ typename = "function", args = TUPLE({ STRING }), rets = TUPLE({ BOOLEAN, STRING, NUMBER }) }),
+            ["execute"] = a_type({ typename = "function", args = TUPLE({ STRING }), rets = TUPLE({ BOOLEAN, STRING, INTEGER }) }),
             ["exit"] = a_type({ typename = "function", args = TUPLE({ UNION({ NUMBER, BOOLEAN }), BOOLEAN }), rets = TUPLE({}) }),
             ["getenv"] = a_type({ typename = "function", args = TUPLE({ STRING }), rets = TUPLE({ STRING }) }),
             ["remove"] = a_type({ typename = "function", args = TUPLE({ STRING }), rets = TUPLE({ BOOLEAN, STRING }) }),
             ["rename"] = a_type({ typename = "function", args = TUPLE({ STRING, STRING }), rets = TUPLE({ BOOLEAN, STRING }) }),
             ["setlocale"] = a_type({ typename = "function", args = TUPLE({ STRING, OPT_STRING }), rets = TUPLE({ STRING }) }),
-            ["time"] = a_type({ typename = "function", args = TUPLE({}), rets = TUPLE({ NUMBER }) }),
+            ["time"] = a_type({
+               typename = "poly",
+               types = {
+                  a_type({ typename = "function", args = TUPLE({}), rets = TUPLE({ INTEGER }) }),
+                  a_type({ typename = "function", args = TUPLE({ OS_DATE_TABLE }), rets = TUPLE({ INTEGER }) }),
+               },
+            }),
             ["tmpname"] = a_type({ typename = "function", args = TUPLE({}), rets = TUPLE({ STRING }) }),
          },
       }),
@@ -4851,13 +5079,13 @@ rets = TUPLE({ a_type({ typename = "function", args = TUPLE({}), rets = TUPLE({ 
             ["byte"] = a_type({
                typename = "poly",
                types = {
-                  a_type({ typename = "function", args = TUPLE({ STRING, OPT_NUMBER }), rets = TUPLE({ NUMBER }) }),
-                  a_type({ typename = "function", args = TUPLE({ STRING, NUMBER, NUMBER }), rets = VARARG({ NUMBER }) }),
+                  a_type({ typename = "function", args = TUPLE({ STRING, OPT_NUMBER }), rets = TUPLE({ INTEGER }) }),
+                  a_type({ typename = "function", args = TUPLE({ STRING, NUMBER, NUMBER }), rets = VARARG({ INTEGER }) }),
                },
             }),
             ["char"] = a_type({ typename = "function", args = VARARG({ NUMBER }), rets = TUPLE({ STRING }) }),
             ["dump"] = a_type({ typename = "function", args = TUPLE({ FUNCTION, OPT_BOOLEAN }), rets = TUPLE({ STRING }) }),
-            ["find"] = a_type({ typename = "function", args = TUPLE({ STRING, STRING, OPT_NUMBER, OPT_BOOLEAN }), rets = VARARG({ NUMBER, NUMBER, STRING }) }),
+            ["find"] = a_type({ typename = "function", args = TUPLE({ STRING, STRING, OPT_NUMBER, OPT_BOOLEAN }), rets = VARARG({ INTEGER, INTEGER, STRING }) }),
             ["format"] = a_type({ typename = "function", args = VARARG({ STRING, ANY }), rets = TUPLE({ STRING }) }),
             ["gmatch"] = a_type({ typename = "function", args = TUPLE({ STRING, STRING }), rets = TUPLE({
                a_type({ typename = "function", args = TUPLE({}), rets = VARARG({ STRING }) }),
@@ -4865,20 +5093,20 @@ rets = TUPLE({ a_type({ typename = "function", args = TUPLE({}), rets = TUPLE({ 
             ["gsub"] = a_type({
                typename = "poly",
                types = {
-                  a_type({ typename = "function", args = TUPLE({ STRING, STRING, STRING, NUMBER }), rets = TUPLE({ STRING, NUMBER }) }),
-                  a_type({ typename = "function", args = TUPLE({ STRING, STRING, a_type({ typename = "map", keys = STRING, values = STRING }), NUMBER }), rets = TUPLE({ STRING, NUMBER }) }),
-                  a_type({ typename = "function", args = TUPLE({ STRING, STRING, a_type({ typename = "function", args = VARARG({ STRING }), rets = TUPLE({ STRING }) }) }), rets = TUPLE({ STRING, NUMBER }) }),
-                  a_type({ typename = "function", args = TUPLE({ STRING, STRING, a_type({ typename = "function", args = VARARG({ STRING }), rets = TUPLE({ NUMBER }) }) }), rets = TUPLE({ STRING, NUMBER }) }),
-                  a_type({ typename = "function", args = TUPLE({ STRING, STRING, a_type({ typename = "function", args = VARARG({ STRING }), rets = TUPLE({ BOOLEAN }) }) }), rets = TUPLE({ STRING, NUMBER }) }),
-                  a_type({ typename = "function", args = TUPLE({ STRING, STRING, a_type({ typename = "function", args = VARARG({ STRING }), rets = TUPLE({}) }) }), rets = TUPLE({ STRING, NUMBER }) }),
+                  a_type({ typename = "function", args = TUPLE({ STRING, STRING, STRING, NUMBER }), rets = TUPLE({ STRING, INTEGER }) }),
+                  a_type({ typename = "function", args = TUPLE({ STRING, STRING, a_type({ typename = "map", keys = STRING, values = STRING }), NUMBER }), rets = TUPLE({ STRING, INTEGER }) }),
+                  a_type({ typename = "function", args = TUPLE({ STRING, STRING, a_type({ typename = "function", args = VARARG({ STRING }), rets = TUPLE({ STRING }) }) }), rets = TUPLE({ STRING, INTEGER }) }),
+                  a_type({ typename = "function", args = TUPLE({ STRING, STRING, a_type({ typename = "function", args = VARARG({ STRING }), rets = TUPLE({ NUMBER }) }) }), rets = TUPLE({ STRING, INTEGER }) }),
+                  a_type({ typename = "function", args = TUPLE({ STRING, STRING, a_type({ typename = "function", args = VARARG({ STRING }), rets = TUPLE({ BOOLEAN }) }) }), rets = TUPLE({ STRING, INTEGER }) }),
+                  a_type({ typename = "function", args = TUPLE({ STRING, STRING, a_type({ typename = "function", args = VARARG({ STRING }), rets = TUPLE({}) }) }), rets = TUPLE({ STRING, INTEGER }) }),
 
                },
             }),
-            ["len"] = a_type({ typename = "function", args = TUPLE({ STRING }), rets = TUPLE({ NUMBER }) }),
+            ["len"] = a_type({ typename = "function", args = TUPLE({ STRING }), rets = TUPLE({ INTEGER }) }),
             ["lower"] = a_type({ typename = "function", args = TUPLE({ STRING }), rets = TUPLE({ STRING }) }),
             ["match"] = a_type({ typename = "function", args = TUPLE({ STRING, STRING, NUMBER }), rets = VARARG({ STRING }) }),
             ["pack"] = a_type({ typename = "function", args = VARARG({ STRING, ANY }), rets = TUPLE({ STRING }) }),
-            ["packsize"] = a_type({ typename = "function", args = TUPLE({ STRING }), rets = TUPLE({ NUMBER }) }),
+            ["packsize"] = a_type({ typename = "function", args = TUPLE({ STRING }), rets = TUPLE({ INTEGER }) }),
             ["rep"] = a_type({ typename = "function", args = TUPLE({ STRING, NUMBER }), rets = TUPLE({ STRING }) }),
             ["reverse"] = a_type({ typename = "function", args = TUPLE({ STRING }), rets = TUPLE({ STRING }) }),
             ["sub"] = a_type({ typename = "function", args = TUPLE({ STRING, NUMBER, NUMBER }), rets = TUPLE({ STRING }) }),
@@ -4889,7 +5117,7 @@ rets = TUPLE({ a_type({ typename = "function", args = TUPLE({}), rets = TUPLE({ 
       ["table"] = a_type({
          typename = "record",
          fields = {
-            ["concat"] = a_type({ typename = "function", args = TUPLE({ ARRAY_OF_STRING, OPT_STRING, OPT_NUMBER, OPT_NUMBER }), rets = TUPLE({ STRING }) }),
+            ["concat"] = a_type({ typename = "function", args = TUPLE({ ARRAY_OF_STRING_OR_NUMBER, OPT_STRING, OPT_NUMBER, OPT_NUMBER }), rets = TUPLE({ STRING }) }),
             ["insert"] = a_type({
                typename = "poly",
                types = {
@@ -4915,14 +5143,15 @@ rets = TUPLE({ a_type({ typename = "function", args = TUPLE({}), rets = TUPLE({ 
          fields = {
             ["char"] = a_type({ typename = "function", args = VARARG({ NUMBER }), rets = TUPLE({ STRING }) }),
             ["charpattern"] = STRING,
-            ["codepoint"] = a_type({ typename = "function", args = TUPLE({ STRING, OPT_NUMBER, OPT_NUMBER }), rets = VARARG({ NUMBER }) }),
+            ["codepoint"] = a_type({ typename = "function", args = TUPLE({ STRING, OPT_NUMBER, OPT_NUMBER }), rets = VARARG({ INTEGER }) }),
             ["codes"] = a_type({ typename = "function", args = TUPLE({ STRING }), rets = TUPLE({
                a_type({ typename = "function", args = TUPLE({}), rets = TUPLE({ NUMBER, STRING }) }),
             }), }),
-            ["len"] = a_type({ typename = "function", args = TUPLE({ STRING, NUMBER, NUMBER }), rets = TUPLE({ NUMBER }) }),
-            ["offset"] = a_type({ typename = "function", args = TUPLE({ STRING, NUMBER, NUMBER }), rets = TUPLE({ NUMBER }) }),
+            ["len"] = a_type({ typename = "function", args = TUPLE({ STRING, NUMBER, NUMBER }), rets = TUPLE({ INTEGER }) }),
+            ["offset"] = a_type({ typename = "function", args = TUPLE({ STRING, NUMBER, NUMBER }), rets = TUPLE({ INTEGER }) }),
          },
       }),
+      ["_VERSION"] = STRING,
    }
 
    for _, t in pairs(standard_library) do
@@ -4953,7 +5182,7 @@ rets = TUPLE({ a_type({ typename = "function", args = TUPLE({}), rets = TUPLE({ 
    return globals, standard_library
 end
 
-tl.init_env = function(lax, gen_compat, gen_target, preload_modules)
+tl.init_env = function(lax, gen_compat, gen_target, predefined)
    if gen_compat == true or gen_compat == nil then
       gen_compat = "optional"
    elseif gen_compat == false then
@@ -4988,12 +5217,12 @@ tl.init_env = function(lax, gen_compat, gen_target, preload_modules)
       end
    end
 
-   if preload_modules then
-      for _, name in ipairs(preload_modules) do
+   if predefined then
+      for _, name in ipairs(predefined) do
          local module_type = require_module(name, lax, env)
 
          if module_type == INVALID then
-            return nil, string.format("Error: could not preload module '%s'", name)
+            return nil, string.format("Error: could not predefine module '%s'", name)
          end
       end
    end
@@ -5035,21 +5264,22 @@ tl.type_check = function(ast, opts)
       end
    end
 
-   local function find_var_type(name, raw)
-      if name == "_G" then
+   local function simulate_g()
 
-         local globals = {}
-         for k, v in pairs(st[1]) do
-            if k:sub(1, 1) ~= "@" then
-               globals[k] = v.t
-            end
+      local globals = {}
+      for k, v in pairs(st[1]) do
+         if k:sub(1, 1) ~= "@" then
+            globals[k] = v.t
          end
-         return a_type({
-            typename = "record",
-            field_order = sorted_keys(globals),
-            fields = globals,
-         }), false
       end
+      return a_type({
+         typename = "record",
+         field_order = sorted_keys(globals),
+         fields = globals,
+      }), false
+   end
+
+   local function find_var_type(name, raw)
       local var = find_var(name, raw)
       if var then
          return var.t, var.is_const
@@ -5187,6 +5417,7 @@ tl.type_check = function(ast, opts)
    local no_nested_types = {
       ["string"] = true,
       ["number"] = true,
+      ["integer"] = true,
       ["boolean"] = true,
       ["thread"] = true,
       ["any"] = true,
@@ -5216,7 +5447,7 @@ tl.type_check = function(ast, opts)
             t = find_var_type(t.typevar)
             local rt
             if not t then
-               rt = lax and UNKNOWN or INVALID
+               rt = orig_t
             elseif t.typename == "string" then
 
                rt = STRING
@@ -5282,17 +5513,19 @@ tl.type_check = function(ast, opts)
             end
 
             copy.fields = {}
-            for _, k in ipairs(t.field_order) do
+            copy.field_order = {}
+            for i, k in ipairs(t.field_order) do
+               copy.field_order[i] = k
                copy.fields[k] = resolve(t.fields[k])
             end
-            copy.field_order = t.field_order
 
             if t.meta_fields then
                copy.meta_fields = {}
-               for _, k in ipairs(t.meta_field_order) do
+               copy.meta_field_order = {}
+               for i, k in ipairs(t.meta_field_order) do
+                  copy.meta_field_order[i] = k
                   copy.meta_fields[k] = resolve(t.meta_fields[k])
                end
-               copy.meta_field_order = t.meta_field_order
             end
          elseif t.typename == "map" then
             copy.keys = resolve(t.keys)
@@ -5393,6 +5626,13 @@ tl.type_check = function(ast, opts)
       end
    end
 
+   local function check_if_redeclaration(new_name, at)
+      local old = find_var(new_name, true)
+      if old then
+         redeclaration_warning(at, old)
+      end
+   end
+
    local function unused_warning(name, var)
       local prefix = name:sub(1, 1)
       if var.declared_at and
@@ -5431,7 +5671,7 @@ tl.type_check = function(ast, opts)
       node.symbol_list_slot = symbol_list_n
    end
 
-   local function add_var(node, var, valtype, is_const, is_narrowing)
+   local function add_var(node, var, valtype, is_const, is_narrowing, dont_check_redeclaration)
       if lax and node and is_unknown(valtype) and (var ~= "self" and var ~= "...") and not is_narrowing then
          add_unknown(node, var)
       end
@@ -5448,6 +5688,15 @@ tl.type_check = function(ast, opts)
          old_var.is_narrowed = true
          old_var.t = valtype
       else
+         if not dont_check_redeclaration and
+            node and
+            not is_narrowing and
+            var ~= "self" and
+            var ~= "..." and
+            var:sub(1, 1) ~= "@" then
+
+            check_if_redeclaration(var, node)
+         end
          scope[var] = { t = valtype, is_const = is_const, is_narrowed = is_narrowing, declared_at = node }
          if old_var then
 
@@ -5459,6 +5708,7 @@ tl.type_check = function(ast, opts)
       end
 
       if node and valtype.typename ~= "unresolved" and valtype.typename ~= "none" then
+         node.type = node.type or valtype
          local slot
          if node.symbol_list_slot then
             slot = node.symbol_list_slot
@@ -5475,34 +5725,35 @@ tl.type_check = function(ast, opts)
    local CompareTypes = {}
 
    local function compare_and_infer_typevars(t1, t2, comp)
-      local tv1 = find_var_type(t1.typevar)
-      local tv2 = find_var_type(t2.typevar)
+
       if t1.typevar == t2.typevar then
-         local has_t1 = not not tv1
-         local has_t2 = not not tv2
-         if has_t1 == has_t2 then
-            return true
-         end
+         return true
       end
-      local function cmp(k, v, a, b)
-         if find_var_type(k) then
-            return comp(a, b)
+
+
+      local typevar = t2.typevar or t1.typevar
+
+
+      local vt = find_var_type(typevar)
+      if vt then
+
+         if t2.typevar then
+            return comp(t1, vt)
          else
-            local ok, resolved, errs = resolve_typevars(v)
-            if not ok then
-               return false, errs
-            end
-            if resolved.typename ~= "unknown" then
-               resolved = resolve_typetype(resolved)
-               add_var(nil, k, resolved)
-            end
-            return true
+            return comp(vt, t2)
          end
-      end
-      if t2.typename == "typevar" then
-         return cmp(t2.typevar, t1, t1, tv2)
       else
-         return cmp(t1.typevar, t2, tv1, t2)
+
+         local other = t2.typevar and t1 or t2
+         local ok, resolved, errs = resolve_typevars(other)
+         if not ok then
+            return false, errs
+         end
+         if resolved.typename ~= "unknown" then
+            resolved = resolve_typetype(resolved)
+            add_var(nil, typevar, resolved)
+         end
+         return true
       end
    end
 
@@ -5635,6 +5886,9 @@ tl.type_check = function(ast, opts)
 
 
    local function check_for_unused_vars(vars)
+      if not next(vars) then
+         return
+      end
       local list = {}
       for name, var in pairs(vars) do
          if var.declared_at and not var.used then
@@ -5666,9 +5920,9 @@ tl.type_check = function(ast, opts)
          local upper = st[#st - 1]["@unresolved"]
          if upper then
             for name, nodes in pairs(unresolved.t.labels) do
-               for _, node in ipairs(nodes) do
+               for _, n in ipairs(nodes) do
                   upper.t.labels[name] = upper.t.labels[name] or {}
-                  table.insert(upper.t.labels[name], node)
+                  table.insert(upper.t.labels[name], n)
                end
             end
             for name, types in pairs(unresolved.t.nominals) do
@@ -5694,6 +5948,12 @@ tl.type_check = function(ast, opts)
             symbol_list[symbol_list_n] = { y = assert(node.yend), x = assert(node.xend), name = "@}" }
          end
       end
+   end
+
+   local end_scope_and_none_type = function(node, _children)
+      end_scope(node)
+      node.type = NONE
+      return node.type
    end
 
    local function resolve_typevars_at(t, where)
@@ -6118,6 +6378,8 @@ tl.type_check = function(ast, opts)
          else
             return false, terr(t1, "enum is incompatible with %s", t2)
          end
+      elseif t1.typename == "integer" and t2.typename == "number" then
+         return true
       elseif t1.typename == "string" and t2.typename == "enum" then
          local ok = t1.tk and t2.enumset[unquote(t1.tk)]
          if ok then
@@ -6162,14 +6424,14 @@ tl.type_check = function(ast, opts)
             return true
          elseif t1.typename == "map" then
             local _, errs_keys, errs_values
-            _, errs_keys = is_a(t1.keys, NUMBER)
+            _, errs_keys = is_a(t1.keys, INTEGER)
             _, errs_values = is_a(t1.values, t2.elements)
             return combine_errs(errs_keys, errs_values)
          end
       elseif t2.typename == "record" then
          if is_record_type(t1) then
             return match_fields_to_record(t1, t2)
-         elseif is_typetype(t1) and t1.def.typename == "record" then
+         elseif is_typetype(t1) and is_record_type(t1.def) then
             return is_a(t1.def, t2, for_equality)
          end
       elseif t2.typename == "arrayrecord" then
@@ -6194,6 +6456,8 @@ tl.type_check = function(ast, opts)
                return false, terr(t1, "array parts have incompatible element types")
             end
             return match_fields_to_record(t1, t2)
+         elseif is_typetype(t1) and is_record_type(t1.def) then
+            return is_a(t1.def, t2, for_equality)
          end
       elseif t2.typename == "map" then
          if t1.typename == "map" then
@@ -6217,7 +6481,7 @@ tl.type_check = function(ast, opts)
                elements = t1.elements
             end
             local _, errs_keys, errs_values
-            _, errs_keys = is_a(NUMBER, t2.keys)
+            _, errs_keys = is_a(INTEGER, t2.keys)
             _, errs_values = is_a(elements, t2.values)
             return combine_errs(errs_keys, errs_values)
          elseif is_record_type(t1) then
@@ -6313,7 +6577,7 @@ tl.type_check = function(ast, opts)
       if t1.typename == "nil" then
          return true
       elseif t2.typename == "unresolved_emptytable_value" then
-         if same_type(t2.emptytable_type.keys, NUMBER) then
+         if is_number_type(t2.emptytable_type.keys) then
             infer_var(t2.emptytable_type, a_type({ typename = "array", elements = t1 }), node)
          else
             infer_var(t2.emptytable_type, a_type({ typename = "map", keys = t2.emptytable_type.keys, values = t1 }), node)
@@ -6342,31 +6606,41 @@ tl.type_check = function(ast, opts)
       end
    end
 
+   local function resolve_for_call(node, func, args, is_method)
+
+      if lax and is_unknown(func) then
+         func = a_type({ typename = "function", args = VARARG({ UNKNOWN }), rets = VARARG({ UNKNOWN }) })
+         if node.e1.op and node.e1.op.op == ":" and node.e1.e1.kind == "variable" then
+            add_unknown_dot(node, node.e1.e1.tk .. "." .. node.e1.e2.tk)
+         end
+      end
+
+      func = resolve_tuple_and_nominal(func)
+      if func.typename ~= "function" and func.typename ~= "poly" then
+
+         if is_typetype(func) and func.def.typename == "record" then
+            func = func.def
+         end
+
+         if func.meta_fields and func.meta_fields["__call"] then
+            table.insert(args, 1, func)
+            func = func.meta_fields["__call"]
+            is_method = true
+         end
+      end
+      return func, is_method
+   end
+
    local type_check_function_call
    do
-      local function resolve_for_call(node, func, args, is_method)
-
-         if lax and is_unknown(func) then
-            func = a_type({ typename = "function", args = VARARG({ UNKNOWN }), rets = VARARG({ UNKNOWN }) })
-            if node.e1.op and node.e1.op.op == ":" and node.e1.e1.kind == "variable" then
-               add_unknown_dot(node, node.e1.e1.tk .. "." .. node.e1.e2.tk)
+      local function mark_invalid_typeargs(f)
+         if f.typeargs then
+            for _, a in ipairs(f.typeargs) do
+               if not find_var(a.typearg) then
+                  add_var(nil, a.typearg, lax and UNKNOWN or INVALID)
+               end
             end
          end
-
-         func = resolve_tuple_and_nominal(func)
-         if func.typename ~= "function" and func.typename ~= "poly" then
-
-            if is_typetype(func) and func.def.typename == "record" then
-               func = func.def
-            end
-
-            if func.meta_fields and func.meta_fields["__call"] then
-               table.insert(args, 1, func)
-               func = func.meta_fields["__call"]
-               is_method = true
-            end
-         end
-         return func, is_method
       end
 
       local function try_match_func_args(node, f, args, argdelta)
@@ -6394,12 +6668,14 @@ tl.type_check = function(ast, opts)
             end
          end
 
+         mark_invalid_typeargs(f)
+
 
          for a = 1, given do
             local argument = args[a]
             if argument.typename == "emptytable" then
                local farg = f.args[a] or (va and f.args[expected])
-               local where = node.e2[a + argdelta]
+               local where = node.e2[a + argdelta] or node.e2
                infer_var(argument, resolve_typevars_at(farg, where), where)
             end
          end
@@ -6409,9 +6685,9 @@ tl.type_check = function(ast, opts)
 
       local function revert_typeargs(func)
          if func.typeargs then
-            for _, arg in ipairs(func.typeargs) do
-               if st[#st][arg.typearg] then
-                  st[#st][arg.typearg] = nil
+            for _, fnarg in ipairs(func.typeargs) do
+               if st[#st][fnarg.typearg] then
+                  st[#st][fnarg.typearg] = nil
                end
             end
          end
@@ -6442,10 +6718,9 @@ tl.type_check = function(ast, opts)
             node_error(node, "wrong number of arguments (given " .. nargs .. ", expects " .. table.concat(expects, " or ") .. ")")
          end
 
-         local rets = func.typename == "poly" and
-         func.types[1].rets or
-         func.rets
-         return resolve_typevars_at(rets, node)
+         local f = func.typename == "poly" and func.types[1] or func
+         mark_invalid_typeargs(f)
+         return resolve_typevars_at(f.rets, node)
       end
 
       local function check_call(node, func, args, is_method, argdelta)
@@ -6552,13 +6827,12 @@ tl.type_check = function(ast, opts)
          end
       else
          if is_unknown(tbl) then
-            if not lax then
-               node_error(key, "cannot index a value of unknown type")
+            if lax then
+               return INVALID
             end
-         else
-            node_error(key, "cannot index something that is not a record: %s", tbl)
+            return node_error(key, "cannot index a value of unknown type")
          end
-         return INVALID
+         return node_error(key, "cannot index something that is not a record: %s", tbl)
       end
 
       if lax then
@@ -6619,34 +6893,9 @@ tl.type_check = function(ast, opts)
          add_unknown(node, var)
       end
       st[1][var] = { t = valtype, is_const = is_const }
-   end
-
-   local check_typevars
-
-   local function check_all_typevars(node, ts)
-      if ts ~= nil then
-         for _, arg in ipairs(ts) do
-            check_typevars(node, arg)
-         end
+      if node then
+         node.type = node.type or valtype
       end
-   end
-
-   check_typevars = function(node, t)
-      if t == nil then
-         return
-      end
-      if t.typename == "typevar" then
-         if not find_var_type(t.typevar) then
-            node_error(node, "unknown type variable " .. t.typevar)
-         end
-         return
-      end
-      check_typevars(node, t.elements)
-      check_typevars(node, t.keys)
-      check_typevars(node, t.values)
-      check_all_typevars(node, t.typeargs)
-      check_all_typevars(node, t.args)
-      check_all_typevars(node, t.rets)
    end
 
    local function get_rets(rets)
@@ -6669,8 +6918,8 @@ tl.type_check = function(ast, opts)
 
    local function add_function_definition_for_recursion(node)
       local args = a_type({ typename = "tuple" })
-      for _, arg in ipairs(node.args) do
-         table.insert(args, arg.type)
+      for _, fnarg in ipairs(node.args) do
+         table.insert(args, fnarg.type)
       end
 
       add_var(nil, node.name.tk, a_type({
@@ -6790,7 +7039,7 @@ tl.type_check = function(ast, opts)
       a = resolve_tuple_and_nominal(a)
       b = resolve_tuple_and_nominal(b)
 
-      if a.typename == "tupletable" and is_a(b, NUMBER) then
+      if a.typename == "tupletable" and is_a(b, INTEGER) then
          if idxnode.constnum then
             if idxnode.constnum > #a.types or
                idxnode.constnum < 1 or
@@ -6807,17 +7056,17 @@ tl.type_check = function(ast, opts)
             end
             return array_type.elements
          end
-      elseif is_array_type(a) and is_a(b, NUMBER) then
+      elseif is_array_type(a) and is_a(b, INTEGER) then
          return a.elements
       elseif a.typename == "emptytable" then
          if a.keys == nil then
-            a.keys = b
+            a.keys = resolve_tuple(orig_b)
             a.keys_inferred_at = assert(node)
             a.keys_inferred_at_file = filename
          else
             if not is_a(b, a.keys) then
                local inferred = " (type of keys inferred at " .. a.keys_inferred_at_file .. ":" .. a.keys_inferred_at.y .. ":" .. a.keys_inferred_at.x .. ": )"
-               return node_error(idxnode, "inconsistent index type: %s, expected %s" .. inferred, b, a.keys)
+               return node_error(idxnode, "inconsistent index type: %s, expected %s" .. inferred, orig_b, a.keys)
             end
          end
          return a_type({ y = node.y, x = node.x, typename = "unresolved_emptytable_value", emptytable_type = a })
@@ -6898,6 +7147,10 @@ tl.type_check = function(ast, opts)
    local function find_record_to_extend(exp)
       if exp.kind == "type_identifier" then
          local t = find_var_type(exp.tk)
+         if not t then
+            return t
+         end
+
 
          if t.def then
             if not t.def.closed and not t.closed then
@@ -6913,13 +7166,13 @@ tl.type_check = function(ast, opts)
             return nil
          end
          while exp.e2.kind == "op" and exp.e2.op.op == "." do
-            t = t.fields[exp.e2.e1.tk]
+            t = t.fields and t.fields[exp.e2.e1.tk]
             if not t then
                return nil
             end
             exp = exp.e2
          end
-         t = t.fields[exp.e2.tk]
+         t = t.fields and t.fields[exp.e2.tk]
          return t
       end
    end
@@ -6932,8 +7185,8 @@ tl.type_check = function(ast, opts)
    local FACT_TRUTHY
    do
       setmetatable(Fact, {
-         __call = function(_, f)
-            return setmetatable(f, {
+         __call = function(_, fact)
+            return setmetatable(fact, {
                __tostring = function(f)
                   if f.fact == "is" then
                      return ("(%s is %s)"):format(f.var, show_type(f.typ))
@@ -7162,7 +7415,10 @@ tl.type_check = function(ast, opts)
             if not typ then
                return { [f.var] = invalid_from(f) }
             end
-            if typ.typename ~= "typevar" and not is_a(f.typ, typ) then
+            if typ.typename ~= "typevar" and is_a(typ, f.typ) then
+               node_warning("branch", f.where, f.var .. " (of type %s) is always a %s", show_type(typ), show_type(f.typ))
+               return { [f.var] = f }
+            elseif typ.typename ~= "typevar" and not is_a(f.typ, typ) then
                node_error(f.where, f.var .. " (of type %s) can never be a %s", typ, f.typ)
                return { [f.var] = invalid_from(f) }
             else
@@ -7264,8 +7520,7 @@ tl.type_check = function(ast, opts)
                return type_check_index(node, knode, b1, b2)
             end
          else
-            node_error(node, "rawget expects two arguments")
-            return INVALID
+            return node_error(node, "rawget expects two arguments")
          end
       end,
 
@@ -7274,8 +7529,8 @@ tl.type_check = function(ast, opts)
          if #b == 0 then
 
             print("-----------------------------------------")
-            for i, s in ipairs(st) do
-               for s, v in pairs(s) do
+            for i, scope in ipairs(st) do
+               for s, v in pairs(scope) do
                   print(("%2d %-14s %-11s %s"):format(i, s, v.t.typename, show_type(v.t):sub(1, 50)))
                end
             end
@@ -7371,11 +7626,10 @@ tl.type_check = function(ast, opts)
          return UNKNOWN
       else
          if node.exps then
-            node_error(node.vars[i], "assignment in declaration did not produce an initial value for variable '" .. name .. "'")
+            return node_error(node.vars[i], "assignment in declaration did not produce an initial value for variable '" .. name .. "'")
          else
-            node_error(node.vars[i], "variable '" .. name .. "' has no type or initial value")
+            return node_error(node.vars[i], "variable '" .. name .. "' has no type or initial value")
          end
-         return INVALID
       end
    end
 
@@ -7471,7 +7725,7 @@ tl.type_check = function(ast, opts)
             end
             typ.fields[ck] = uvtype
             table.insert(typ.field_order, ck)
-         elseif child.ktype.typename == "number" then
+         elseif is_number_type(child.ktype) then
             is_array = true
             if not is_not_tuple then
                is_tuple = true
@@ -7522,7 +7776,7 @@ tl.type_check = function(ast, opts)
 
       if is_array and is_map then
          typ.typename = "map"
-         typ.keys = expand_type(node, typ.keys, NUMBER)
+         typ.keys = expand_type(node, typ.keys, INTEGER)
          typ.values = expand_type(node, typ.values, typ.elements)
          typ.elements = nil
          node_error(node, "cannot determine type of table literal")
@@ -7607,7 +7861,6 @@ tl.type_check = function(ast, opts)
          after = function(node, _children)
             dismiss_unresolved(node.var.tk)
             node.type = NONE
-            node.var.type = node.value.type
             return node.type
          end,
       },
@@ -7632,7 +7885,6 @@ tl.type_check = function(ast, opts)
             end
             dismiss_unresolved(var.tk)
             node.type = NONE
-            node.var.type = node.value.newtype
             return node.type
          end,
       },
@@ -7663,16 +7915,8 @@ tl.type_check = function(ast, opts)
                end
                t.inferred_len = nil
 
-               do
-                  local old_var = find_var(var.tk, true)
-                  if old_var and not is_localizing_a_variable(node, i) then
-                     redeclaration_warning(var, old_var)
-                  end
-               end
-
                assert(var)
-               add_var(var, var.tk, t, var.is_const)
-               var.type = t
+               add_var(var, var.tk, t, var.is_const, is_localizing_a_variable(node, i))
 
                dismiss_unresolved(var.tk)
             end
@@ -7755,23 +7999,19 @@ tl.type_check = function(ast, opts)
                   else
                      node_error(varnode, "variable is not being assigned a value")
                      if #node.exps == 1 and node.exps[1].kind == "op" and node.exps[1].op.op == "@funcall" then
-                        local n = #node.exps[1].e2
-                        local msg = n == 1 and
-                        "only 1 value is returned by this function" or
-                        ("only " .. n .. " values are returned by this function")
-                        node_warning("hint", node.exps[1], msg)
+                        local rets = node.exps[1].type
+                        if rets.typename == "tuple" then
+                           local msg = #rets == 1 and
+                           "only 1 value is returned by the function" or
+                           ("only " .. #rets .. " values are returned by the function")
+                           node_warning("hint", varnode, msg)
+                        end
                      end
                   end
                else
                   node_error(varnode, "unknown variable")
                end
             end
-            node.type = NONE
-            return node.type
-         end,
-      },
-      ["do"] = {
-         after = function(node, _children)
             node.type = NONE
             return node.type
          end,
@@ -7799,11 +8039,7 @@ tl.type_check = function(ast, opts)
                apply_facts(node.exp, node.exp.known)
             end
          end,
-         after = function(node, _children)
-            node.type = NONE
-            end_scope(node)
-            return node.type
-         end,
+         after = end_scope_and_none_type,
       },
       ["while"] = {
          before = function()
@@ -7814,11 +8050,7 @@ tl.type_check = function(ast, opts)
             begin_scope(node)
             apply_facts(node.exp, node.exp.known)
          end,
-         after = function(node, _children)
-            end_scope(node)
-            node.type = NONE
-            return node.type
-         end,
+         after = end_scope_and_none_type,
       },
       ["label"] = {
          before = function(node)
@@ -7859,12 +8091,8 @@ tl.type_check = function(ast, opts)
 
             widen_all_unions()
          end,
-         after = function(node, _children)
 
-            end_scope(node)
-            node.type = NONE
-            return node.type
-         end,
+         after = end_scope_and_none_type,
       },
       ["forin"] = {
          before = function(node)
@@ -7872,7 +8100,10 @@ tl.type_check = function(ast, opts)
          end,
          before_statements = function(node)
             local exp1 = node.exps[1]
-            local exp1type = resolve_tuple_and_nominal(exp1.type)
+            local args = { node.exps[2] and node.exps[2].type,
+node.exps[3] and node.exps[3].type, }
+            local exp1type = resolve_for_call(exp1, exp1.type, args)
+
             if exp1type.typename == "function" then
 
                if exp1.op and exp1.op.op == "@funcall" then
@@ -7906,6 +8137,7 @@ tl.type_check = function(ast, opts)
                   end
                end
 
+
                local last
                local rets = exp1type.rets
                for i, v in ipairs(node.vars) do
@@ -7923,7 +8155,7 @@ tl.type_check = function(ast, opts)
                if (not lax) and (not rets.is_va and #node.vars > #rets) then
                   local nrets = #rets
                   local at = node.vars[nrets + 1]
-                  local n_values = nrets == 1 and "1 value" or tostring(nrets) .. " value%s"
+                  local n_values = nrets == 1 and "1 value" or tostring(nrets) .. " values"
                   node_error(at, "too many variables for this iterator; it produces " .. n_values)
                end
             else
@@ -7932,22 +8164,22 @@ tl.type_check = function(ast, opts)
                end
             end
          end,
-         after = function(node, _children)
-            end_scope(node)
-            node.type = NONE
-            return node.type
-         end,
+         after = end_scope_and_none_type,
       },
       ["fornum"] = {
-         before = function(node)
+         before_statements = function(node, children)
             begin_scope(node)
-            add_var(node.var, node.var.tk, NUMBER)
+            local from_t = resolve_tuple_and_nominal(children[2])
+            local to_t = resolve_tuple_and_nominal(children[3])
+            local step_t = children[4] and resolve_tuple_and_nominal(children[4])
+            local t = (from_t.typename == "integer" and
+            to_t.typename == "integer" and
+            (not step_t or step_t.typename == "integer")) and
+            INTEGER or
+            NUMBER
+            add_var(node.var, node.var.tk, t)
          end,
-         after = function(node, _children)
-            end_scope(node)
-            node.type = NONE
-            return node.type
-         end,
+         after = end_scope_and_none_type,
       },
       ["return"] = {
          after = function(node, children)
@@ -8016,8 +8248,9 @@ tl.type_check = function(ast, opts)
             if node.expected then
                if node.expected.typename == "tupletable" then
                   for _, child in ipairs(node) do
-                     if child.key.constnum then
-                        child.value.expected = node.expected.types[child.key.constnum]
+                     local n = child.key.constnum
+                     if n and is_positive_int(n) then
+                        child.value.expected = node.expected.types[n]
                      end
                   end
                elseif is_array_type(node.expected) then
@@ -8050,9 +8283,10 @@ tl.type_check = function(ast, opts)
 
                if decltype.typename == "union" then
                   for _, t in ipairs(decltype.types) do
-                     t = resolve_tuple_and_nominal(t)
-                     if is_known_table_type(t) then
-                        decltype = t
+                     local rt = resolve_tuple_and_nominal(t)
+                     if is_known_table_type(rt) then
+                        node.expected = t
+                        decltype = rt
                         break
                      end
                   end
@@ -8088,7 +8322,7 @@ tl.type_check = function(ast, opts)
                      else
                         assert_is_a(node[i], cvtype, df, "in record field", ck)
                      end
-                  elseif is_tupletable and child.ktype.typename == "number" then
+                  elseif is_tupletable and is_number_type(child.ktype) then
                      local dt = decltype.types[n]
                      if not n then
                         node_error(node[i], in_context(node.expected_context, "unknown index in tuple %s"), decltype)
@@ -8097,7 +8331,7 @@ tl.type_check = function(ast, opts)
                      else
                         assert_is_a(node[i], cvtype, dt, in_context(node.expected_context, "in tuple"), "at index " .. tostring(n))
                      end
-                  elseif is_array and child.ktype.typename == "number" then
+                  elseif is_array and is_number_type(child.ktype) then
                      if child.vtype.typename == "tuple" and i == #children and node[i].key_parsed == "implicit" then
 
                         for ti, tt in ipairs(child.vtype) do
@@ -8107,7 +8341,7 @@ tl.type_check = function(ast, opts)
                         assert_is_a(node[i], cvtype, decltype.elements, in_context(node.expected_context, "expected an array"), "at index " .. tostring(n))
                      end
                   elseif node[i].key_parsed == "implicit" then
-                     force_array = expand_type(node[i], force_array, child.ktype)
+                     force_array = expand_type(node[i], force_array, child.vtype)
                   elseif is_map then
                      assert_is_a(node[i], child.ktype, decltype.keys, in_context(node.expected_context, "in map key"))
                      assert_is_a(node[i], cvtype, decltype.values, in_context(node.expected_context, "in map value"))
@@ -8170,11 +8404,11 @@ tl.type_check = function(ast, opts)
                y = node.y,
                x = node.x,
                typename = "function",
+               typeargs = node.typeargs,
                args = children[2],
                rets = rets,
                filename = filename,
             }))
-            node.type = NONE
             return node.type
          end,
       },
@@ -8188,15 +8422,15 @@ tl.type_check = function(ast, opts)
          end,
          after = function(node, children)
             end_function_scope(node)
-            add_global(nil, node.name.tk, a_type({
+            add_global(node, node.name.tk, a_type({
                y = node.y,
                x = node.x,
                typename = "function",
+               typeargs = node.typeargs,
                args = children[2],
                rets = get_rets(children[3]),
                filename = filename,
             }))
-            node.type = NONE
             return node.type
          end,
       },
@@ -8206,15 +8440,19 @@ tl.type_check = function(ast, opts)
          end,
          before_statements = function(node, children)
             add_internal_function_variables(node)
+
+            local rtype = resolve_tuple_and_nominal(resolve_typetype(children[1]))
+            local owner = find_record_to_extend(node.fn_owner)
+
             if node.is_method then
-               local rtype = resolve_typetype(children[1])
                children[3][1] = rtype
                add_var(nil, "self", rtype)
             end
 
-            local rtype = resolve_tuple_and_nominal(resolve_typetype(children[1]))
             if rtype.typename == "emptytable" then
                rtype.typename = "record"
+               rtype.fields = {}
+               rtype.field_order = {}
             end
             if is_record_type(rtype) then
                local fn_type = a_type({
@@ -8222,25 +8460,25 @@ tl.type_check = function(ast, opts)
                   x = node.x,
                   typename = "function",
                   is_method = node.is_method,
+                  typeargs = node.typeargs,
                   args = children[3],
                   rets = get_rets(children[4]),
                   filename = filename,
                })
 
-               local ok = false
-               if lax then
+               local ok = true
+               if rtype.fields[node.name.tk] and is_a(fn_type, rtype.fields[node.name.tk]) then
                   ok = true
-               elseif rtype.fields and rtype.fields[node.name.tk] and is_a(fn_type, rtype.fields[node.name.tk]) then
+               elseif lax or owner == rtype then
+                  rtype.fields[node.name.tk] = fn_type
+                  table.insert(rtype.field_order, node.name.tk)
                   ok = true
-               elseif find_record_to_extend(node.fn_owner) == rtype then
-                  ok = true
+               else
+                  ok = false
                end
 
                if ok then
-                  rtype.fields = rtype.fields or {}
-                  rtype.field_order = rtype.field_order or {}
-                  rtype.fields[node.name.tk] = fn_type
-                  table.insert(rtype.field_order, node.name.tk)
+                  node.name.type = fn_type
                else
                   local name = tl.pretty_print_ast(node.fn_owner, { preserve_indent = true, preserve_newlines = false })
                   node_error(node, "cannot add undeclared function '" .. node.name.tk .. "' outside of the scope where '" .. name .. "' was originally declared")
@@ -8253,7 +8491,6 @@ tl.type_check = function(ast, opts)
          end,
          after = function(node, _children)
             end_function_scope(node)
-
             node.type = NONE
             return node.type
          end,
@@ -8273,6 +8510,7 @@ tl.type_check = function(ast, opts)
                y = node.y,
                x = node.x,
                typename = "function",
+               typeargs = node.typeargs,
                args = children[1],
                rets = children[2],
                filename = filename,
@@ -8361,6 +8599,9 @@ tl.type_check = function(ast, opts)
             elseif node.op.op == "as" then
                node.type = b
             elseif node.op.op == "is" then
+               if rb.typename == "integer" then
+                  all_needs_compat["math"] = true
+               end
                if ra.typename == "typetype" then
                   node_error(node, "can only use 'is' on variables, not types")
                elseif node.e1.kind == "variable" then
@@ -8410,7 +8651,7 @@ tl.type_check = function(ast, opts)
                elseif lax and (is_unknown(a) or is_unknown(b)) then
                   node.type = UNKNOWN
                else
-                  node_error(node, "types are not comparable for equality: %s and %s", a, b)
+                  return node_error(node, "types are not comparable for equality: %s and %s", a, b)
                end
             elseif node.op.arity == 1 and unop_types[node.op.op] then
                a = ra
@@ -8432,7 +8673,7 @@ tl.type_check = function(ast, opts)
                   elseif lax and is_unknown(a) then
                      node.type = UNKNOWN
                   else
-                     node_error(node, "cannot use operator '" .. node.op.op:gsub("%%", "%%%%") .. "' on type %s", resolve_tuple(orig_a))
+                     return node_error(node, "cannot use operator '" .. node.op.op:gsub("%%", "%%%%") .. "' on type %s", resolve_tuple(orig_a))
                   end
                end
 
@@ -8480,7 +8721,7 @@ tl.type_check = function(ast, opts)
                   elseif lax and (is_unknown(a) or is_unknown(b)) then
                      node.type = UNKNOWN
                   else
-                     node_error(node, "cannot use operator '" .. node.op.op:gsub("%%", "%%%%") .. "' for types %s and %s", resolve_tuple(orig_a), resolve_tuple(orig_b))
+                     return node_error(node, "cannot use operator '" .. node.op.op:gsub("%%", "%%%%") .. "' for types %s and %s", resolve_tuple(orig_a), resolve_tuple(orig_b))
                   end
                end
 
@@ -8512,11 +8753,15 @@ tl.type_check = function(ast, opts)
             if node.tk == "..." then
                local va_sentinel = find_var_type("@is_va")
                if not va_sentinel or va_sentinel.typename == "nil" then
-                  node_error(node, "cannot use '...' outside a vararg function")
+                  return node_error(node, "cannot use '...' outside a vararg function")
                end
             end
 
-            node.type, node.is_const = find_var_type(node.tk)
+            if node.tk == "_G" then
+               node.type, node.is_const = simulate_g()
+            else
+               node.type, node.is_const = find_var_type(node.tk)
+            end
             if node.type and is_typetype(node.type) then
                node.type = a_type({
                   y = node.y,
@@ -8532,7 +8777,7 @@ tl.type_check = function(ast, opts)
                if lax then
                   add_unknown(node, node.tk)
                else
-                  node_error(node, "unknown variable: " .. node.tk)
+                  return node_error(node, "unknown variable: " .. node.tk)
                end
             end
             return node.type
@@ -8546,7 +8791,7 @@ tl.type_check = function(ast, opts)
                   node.type = UNKNOWN
                   add_unknown(node, node.tk)
                else
-                  node_error(node, "unknown variable: " .. node.tk)
+                  return node_error(node, "unknown variable: " .. node.tk)
                end
             end
             return node.type
@@ -8561,15 +8806,13 @@ tl.type_check = function(ast, opts)
             if node.tk == "..." then
                t = a_type({ typename = "tuple", is_va = true, t })
             end
-            check_typevars(node, t)
-            node.type = t
             add_var(node, node.tk, t).is_func_arg = true
             return node.type
          end,
       },
       ["identifier"] = {
          after = function(node, _children)
-            node.type = NONE
+            node.type = node.type or NONE
             return node.type
          end,
       },
@@ -8587,11 +8830,6 @@ tl.type_check = function(ast, opts)
       },
    }
 
-   visit_node.cbs["break"] = visit_node.cbs["do"]
-
-   visit_node.cbs["expression_list"] = visit_node.cbs["variable_list"]
-   visit_node.cbs["argument_list"] = visit_node.cbs["variable_list"]
-
    visit_node.cbs["string"] = {
       after = function(node, _children)
          node.type = a_type({
@@ -8605,6 +8843,7 @@ tl.type_check = function(ast, opts)
       end,
    }
    visit_node.cbs["number"] = visit_node.cbs["string"]
+   visit_node.cbs["integer"] = visit_node.cbs["string"]
    visit_node.cbs["boolean"] = {
       after = function(node, _children)
          node.type = a_type({
@@ -8620,19 +8859,22 @@ tl.type_check = function(ast, opts)
       end,
    }
    visit_node.cbs["nil"] = visit_node.cbs["boolean"]
-   visit_node.cbs["..."] = visit_node.cbs["variable"]
 
-   visit_node.after = {
-      after = function(node, _children)
-         if type(node.type) ~= "table" then
-            error(node.kind .. " did not produce a type")
-         end
-         if type(node.type.typename) ~= "string" then
-            error(node.kind .. " type does not have a typename")
-         end
-         return node.type
-      end,
-   }
+   visit_node.cbs["do"] = visit_node.cbs["if"]
+   visit_node.cbs["..."] = visit_node.cbs["variable"]
+   visit_node.cbs["break"] = visit_node.cbs["if"]
+   visit_node.cbs["argument_list"] = visit_node.cbs["variable_list"]
+   visit_node.cbs["expression_list"] = visit_node.cbs["variable_list"]
+
+   visit_node.after = function(node, _children)
+      if type(node.type) ~= "table" then
+         error(node.kind .. " did not produce a type")
+      end
+      if type(node.type.typename) ~= "string" then
+         error(node.kind .. " type does not have a typename")
+      end
+      return node.type
+   end
 
    local visit_type = {
       cbs = {
@@ -8686,6 +8928,14 @@ tl.type_check = function(ast, opts)
                return typ
             end,
          },
+         ["typevar"] = {
+            after = function(typ, _children)
+               if not find_var_type(typ.typevar) then
+                  type_error(typ, "undefined type variable " .. typ.typevar)
+               end
+               return typ
+            end,
+         },
          ["nominal"] = {
             after = function(typ, _children)
                if typ.found then
@@ -8725,17 +8975,15 @@ tl.type_check = function(ast, opts)
             end,
          },
       },
-      after = {
-         after = function(typ, _children, ret)
-            if type(ret) ~= "table" then
-               error(typ.typename .. " did not produce a type")
-            end
-            if type(ret.typename) ~= "string" then
-               error("type node does not have a typename")
-            end
-            return ret
-         end,
-      },
+      after = function(typ, _children, ret)
+         if type(ret) ~= "table" then
+            error(typ.typename .. " did not produce a type")
+         end
+         if type(ret.typename) ~= "string" then
+            error("type node does not have a typename")
+         end
+         return ret
+      end,
    }
 
    if not opts.run_internal_compiler_checks then
@@ -8746,7 +8994,6 @@ tl.type_check = function(ast, opts)
    visit_type.cbs["tupletable"] = visit_type.cbs["string"]
    visit_type.cbs["typetype"] = visit_type.cbs["string"]
    visit_type.cbs["nestedtype"] = visit_type.cbs["string"]
-   visit_type.cbs["typevar"] = visit_type.cbs["string"]
    visit_type.cbs["array"] = visit_type.cbs["string"]
    visit_type.cbs["map"] = visit_type.cbs["string"]
    visit_type.cbs["arrayrecord"] = visit_type.cbs["record"]
@@ -8754,6 +9001,7 @@ tl.type_check = function(ast, opts)
    visit_type.cbs["boolean"] = visit_type.cbs["string"]
    visit_type.cbs["nil"] = visit_type.cbs["string"]
    visit_type.cbs["number"] = visit_type.cbs["string"]
+   visit_type.cbs["integer"] = visit_type.cbs["string"]
    visit_type.cbs["thread"] = visit_type.cbs["string"]
    visit_type.cbs["bad_nominal"] = visit_type.cbs["string"]
    visit_type.cbs["emptytable"] = visit_type.cbs["string"]
@@ -8813,6 +9061,7 @@ local typename_to_typecode = {
    ["nil"] = tl.typecodes.NIL,
    ["thread"] = tl.typecodes.THREAD,
    ["number"] = tl.typecodes.NUMBER,
+   ["integer"] = tl.typecodes.INTEGER,
    ["union"] = tl.typecodes.IS_UNION,
    ["nominal"] = tl.typecodes.NOMINAL,
    ["emptytable"] = tl.typecodes.EMPTY_TABLE,
@@ -8852,13 +9101,13 @@ function tl.get_types(result, trenv)
 
    local function store_function(ti, rt)
       local args = {}
-      for _, arg in ipairs(rt.args) do
-         table.insert(args, mark_array({ get_typenum(arg), nil }))
+      for _, fnarg in ipairs(rt.args) do
+         table.insert(args, mark_array({ get_typenum(fnarg), nil }))
       end
       ti.args = mark_array(args)
       local rets = {}
-      for _, arg in ipairs(rt.rets) do
-         table.insert(rets, mark_array({ get_typenum(arg), nil }))
+      for _, fnarg in ipairs(rt.rets) do
+         table.insert(rets, mark_array({ get_typenum(fnarg), nil }))
       end
       ti.rets = mark_array(rets)
       ti.vararg = not not rt.is_va
@@ -8948,7 +9197,7 @@ function tl.get_types(result, trenv)
    tr.by_pos[filename] = ft
 
    local function store(y, x, typ)
-      if skip[typ.typename] then
+      if not typ or skip[typ.typename] then
          return
       end
 
@@ -8961,17 +9210,13 @@ function tl.get_types(result, trenv)
       yt[x] = get_typenum(typ)
    end
 
-   visit_node.after = {
-      ["after"] = function(node)
-         store(node.y, node.x, node.type)
-      end,
-   }
+   visit_node.after = function(node)
+      store(node.y, node.x, node.type)
+   end
 
-   visit_type.after = {
-      ["after"] = function(typ)
-         store(typ.y or 0, typ.x or 0, typ)
-      end,
-   }
+   visit_type.after = function(typ)
+      store(typ.y or 0, typ.x or 0, typ)
+   end
 
    recurse_node(result.ast, visit_node, visit_type)
 
@@ -9040,12 +9285,12 @@ function tl.get_types(result, trenv)
 end
 
 function tl.symbols_in_scope(tr, y, x)
-   local function find(symbols, y, x)
+   local function find(symbols, at_y, at_x)
       local function le(a, b)
          return a[1] < b[1] or
          (a[1] == b[1] and a[2] <= b[2])
       end
-      return binary_search(symbols, { y, x }, le) or 0
+      return binary_search(symbols, { at_y, at_x }, le) or 0
    end
 
    local ret = {}
@@ -9217,7 +9462,7 @@ function tl.loader()
    end
 end
 
-tl.load = function(input, chunkname, mode, env)
+tl.load = function(input, chunkname, mode, ...)
    local tokens = tl.lex(input)
    local errs = {}
    local _, program = tl.parse_program(tokens, errs, chunkname)
@@ -9225,7 +9470,7 @@ tl.load = function(input, chunkname, mode, env)
       return nil, (chunkname or "") .. ":" .. errs[1].y .. ":" .. errs[1].x .. ": " .. errs[1].msg
    end
    local code = tl.pretty_print_ast(program, true)
-   return load(code, chunkname, mode, env)
+   return load(code, chunkname, mode, ...)
 end
 
 return tl

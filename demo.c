@@ -26,17 +26,27 @@ int main() {
     }
 
     // load skybox
-    skybox_t sky = skybox("cubemaps/stardust", 0); // NULL, 0); for rayleigh/mei scattering
+    skybox_t sky = skybox(flag("--mie") ? 0 : "cubemaps/stardust", 0); // for rayleigh/mie scattering
 
     // animated models loading
-    model_t custom = model("kgirl/kgirls01.fbx", 0);
-    model_t george = model("robots/george.fbx", 0);
-    model_t leela = model("robots/leela.fbx", 0);
-    model_t mike = model("robots/mike.fbx", 0);
-    model_t stan = model("robots/stan.fbx", 0);
+    int model_flags = flag("--matcaps") ? MODEL_MATCAPS : 0;
+    model_t girl = model("kgirl/kgirls01.fbx", model_flags);
+    model_t george = model("robots/george.fbx", model_flags);
+    model_t leela = model("robots/leela.fbx", model_flags);
+    model_t mike = model("robots/mike.fbx", model_flags);
+    model_t stan = model("robots/stan.fbx", model_flags);
     model_t robots[4] = { george, leela, mike, stan };
     for( int i = 0; i < countof(robots); ++i ) {
         rotation44(robots[i].pivot, -90,1,0,0);
+    }
+
+    if( flag("--matcaps") ) {
+        // patch model to use matcaps
+        model_set_texture(george, texture("matcaps/3B6E10_E3F2C3_88AC2E_99CE51-256px", 0)); // green
+        model_set_texture(leela,  texture("matcaps/39433A_65866E_86BF8B_BFF8D8-256px", 0));
+        model_set_texture(mike,   texture("matcaps/394641_B1A67E_75BEBE_7D7256-256px.png", 0));
+        model_set_texture(stan,   texture("matcaps/test_steel", 0));
+        model_set_texture(girl,   texture("matcaps/material3", 0)); // "matcaps/normals"
     }
 
     // camera
@@ -102,7 +112,7 @@ int main() {
             float delta = window_delta() * 30; // 30fps anim
 
             // animate girl
-            custom.curframe = model_animate(custom, custom.curframe + delta);
+            girl.curframe = model_animate(girl, girl.curframe + delta);
 
             // animate robots
             for(int i = 0; i < countof(robots); ++i) {
@@ -115,9 +125,9 @@ int main() {
             gizmo(&p, &r, &s);
             mat44 M; rotationq44(M, eulerq(r)); scale44(M, s.x,s.y,s.z); relocate44(M, p.x,p.y,p.z);
 
-            model_render(custom, cam.proj, cam.view, M); // custom.pivot);
+            model_render(girl, cam.proj, cam.view, M, 0); // girl.pivot);
 
-            aabb box = model_aabb(custom, M); // custom.pivot);
+            aabb box = model_aabb(girl, M); // girl.pivot);
             ddraw_color(YELLOW);
             ddraw_aabb(box.min, box.max);
         }
@@ -125,7 +135,7 @@ int main() {
         profile(Skeletal render) for(int i = 0; i < countof(robots); ++i) {
             float scale = 0.50; // 0.025;
             mat44 M; copy44(M, robots[i].pivot); translate44(M, i*3,0,0); scale44(M, scale,scale,scale);
-            model_render(robots[i], cam.proj, cam.view, M);
+            model_render(robots[i], cam.proj, cam.view, M, 0);
         }
 
         // post-fxs end here
@@ -198,8 +208,9 @@ int main() {
     }
 
     // data tests (xml)
-    puts( vfs_read("test1.xml") );
-    if( data_push(vfs_read("test1.xml"))) {
+    const char *xml = vfs_read("test1.xml");
+    if(xml) if(data_push(xml)) {
+        puts( xml );
         puts( data_string("/person_firstName") );
         puts( data_string("/person_lastName") );
     }

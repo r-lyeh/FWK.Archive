@@ -104,7 +104,7 @@ int main() {
                         p = add3(p, dir);
                     r.x += 90;
 
-                model_render(custom, cam.proj, cam.view, M); // custom.pivot);
+                model_render(custom, cam.proj, cam.view, M, 0); // custom.pivot);
 
                 aabb box = model_aabb(custom, M); // custom.pivot);
                 ddraw_aabb(box.min, box.max);

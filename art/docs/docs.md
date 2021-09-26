@@ -4,10 +4,10 @@
 |Branch:        | {{GIT_BRANCH}} |
 |Commit:        | {{GIT_REVISION}} |
 
-# [F·W·K 2021.9](https://github.com/r-lyeh/FWK)
+# [F·W·K {{VERSION}}](https://github.com/r-lyeh/FWK)
 ## a b o u t
 
-- https://github.com/r-lyeh/FWK is a 3D game framework in C.
+- https://github.com/r-lyeh/FWK is a 3D game framework in C, with Luajit bindings.
 - Download latest: https://github.com/r-lyeh/FWK/archive/refs/heads/master.zip
 - WIP Documentation below. Need extra support? <a href="https://discord.gg/vu6Vt9d">Join us</a>.
 

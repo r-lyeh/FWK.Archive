@@ -1859,10 +1859,15 @@ enum MODEL_FLAGS {
     MODEL_NO_ANIMATIONS = 1,
     MODEL_NO_MESHES = 2,
     MODEL_NO_TEXTURES = 4,
+    MODEL_MATCAPS = 8,
 };
 
 typedef struct model_t {
-    struct iqm_t *iqm;
+    struct iqm_t *iqm; // private
+
+    unsigned num_textures;
+    handle *textures;
+
     unsigned num_meshes;
     unsigned num_triangles;
     unsigned num_joints; // num_poses;
@@ -1871,6 +1876,8 @@ typedef struct model_t {
     handle program;
     float curframe;
     mat44 pivot;
+
+    unsigned flags;
 } model_t;
 
 API model_t  model(const char *filename, int flags);
@@ -1878,8 +1885,8 @@ API model_t  model_from_mem(const void *mem, int sz, int flags);
 API float    model_animate(model_t, float curframe);
 API float    model_animate_clip(model_t, float curframe, int minframe, int maxframe, bool loop);
 API aabb     model_aabb(model_t, mat44 transform);
-API void     model_render2(model_t, mat44 proj, mat44 view, mat44 model, int shader);
-API void     model_render(model_t, mat44 proj, mat44 view, mat44 model);
+API void     model_render(model_t, mat44 proj, mat44 view, mat44 model, int shader);
+API void     model_set_texture(model_t, texture_t t);
 API void     model_destroy(model_t);
 
 // -----------------------------------------------------------------------------
@@ -2084,6 +2091,9 @@ API char*   stringf_cat(char *x, const char *buf);
 #endif
 
 #if defined _MSC_VER || (defined __TINYC__ && defined _WIN32)
+#if!defined _MSC_VER
+char* strtok_s(char* str,const char* delimiters,char** context); // tcc misses this in <string.h>
+#endif
 #define strtok_r strtok_s
 #endif
 
