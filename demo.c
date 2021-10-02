@@ -28,6 +28,14 @@ int main() {
     // load skybox
     skybox_t sky = skybox(flag("--mie") ? 0 : "cubemaps/stardust", 0); // for rayleigh/mie scattering
 
+    // load static scene
+    int do_sponza = flag("--sponza");
+    model_t sponza;
+    if( do_sponza ) {
+        sponza = model("sponza.obj", MODEL_NO_TEXTURES);
+        rotation44(sponza.pivot, -90,1,0,0);
+    }
+
     // animated models loading
     int model_flags = flag("--matcaps") ? MODEL_MATCAPS : 0;
     model_t girl = model("kgirl/kgirls01.fbx", model_flags);
@@ -54,7 +62,7 @@ int main() {
     cam.speed = 0.2f;
 
     // audio (both clips & streams)
-    audio_t voice = audio_clip("coin.wav");
+    audio_t voice = audio_clip("coin.wav"); // "pew.sfxr"
     audio_t stream = audio_stream("wrath_of_the_djinn.xm"); // "larry.mid"
     audio_play(voice, 0);
     audio_play(stream, 0);
@@ -136,6 +144,12 @@ int main() {
             float scale = 0.50; // 0.025;
             mat44 M; copy44(M, robots[i].pivot); translate44(M, i*3,0,0); scale44(M, scale,scale,scale);
             model_render(robots[i], cam.proj, cam.view, M, 0);
+        }
+
+        if(do_sponza) profile(Sponza) {
+            float scale = 0.20;
+            mat44 M; copy44(M, sponza.pivot); translate44(M, 0,0,0); scale44(M, scale,scale,scale);
+            model_render(sponza, cam.proj, cam.view, M, 0);
         }
 
         // post-fxs end here

@@ -183,6 +183,7 @@ extern "C" {
 
 #define ASSERT(expr, ...)   do { int fool_msvc[] = {0,}; if(!(expr)) { fool_msvc[0]++; breakpoint(stringf("!Expression failed: " #expr " " FILELINE "\n" __VA_ARGS__)); } } while(0)
 #define PRINTF(...)         PRINTF(stringf(__VA_ARGS__), 1[#__VA_ARGS__] == '!' ? callstack(+48) : "", __FILE__, __LINE__, __FUNCTION__)
+#define PUTS(x)             PRINTF("%s\n", x)
 
 #define FILELINE            __FILE__ ":" STRINGIZE(__LINE__)
 #define STRINGIZE(x)        STRINGIZ3(x)
@@ -280,12 +281,10 @@ extern "C" {
 // -----------------------------------------------------------------------------
 // utils
 
-//#define STATIC_ASSERT_2(EXPR, LINE) typedef int static_assert_on_line_##LINE[ !!(EXPR) ]
-#define STATIC_ASSERT_2(EXPR, LINE) typedef struct { unsigned static_assert_on_line_##LINE : !!(EXPR); } static_assert_on_line_##LINE
-#define STATIC_ASSERT_1(EXPR, LINE) STATIC_ASSERT_2(EXPR, LINE)
-#define STATIC_ASSERT(EXPR)         STATIC_ASSERT_1(EXPR, __LINE__)
-
-//#define STATIC_ASSERT(exp) typedef char UNIQUE_NAME(_static_assert_on_line)[(exp)?1:-1]
+//#define STATIC_ASSERT(EXPR)       typedef char UNIQUE_NAME(_static_assert_on_line)[(EXPR)?1:-1]
+#define STATIC_ASSERT(EXPR)         STATIC_ASSER7(EXPR, __LINE__)
+#define STATIC_ASSER7(EXPR, LINE)   STATIC_ASS3R7(EXPR, LINE)
+#define STATIC_ASS3R7(EXPR, LINE)   typedef struct { unsigned static_assert_on_line_##LINE : !!(EXPR); } static_assert_on_line_##LINE // typedef int static_assert_on_line_##LINE[ !!(EXPR) ]
 
 // pragma libs
 
@@ -430,6 +429,7 @@ API float rad      (float degrees);
 API int   mini     (int    a, int    b);
 API int   maxi     (int    a, int    b);
 API int   absi     (int    a          );
+API int   clampi   (int v,int a,int b);
 
 API float minf     (float  a, float  b);
 API float maxf     (float  a, float  b);
@@ -891,15 +891,11 @@ enum COOKER_FLAGS {
     COOKER_ASYNC = 1,
 };
 
-// user defined callback for asset cooking:
-// must read infile, process data, and write it to outfile
-// must set errno on exit if errors are found
-// must return compression level if archive needs to be cooked, else return <0
-typedef int (*cooker_callback_t)(char *filename, const char *ext, const char header[16], FILE *in, FILE *out, const char *info, int threadid);
-
-API void cooker_config( const char *art_path, const char *tools_path ); // "art/", "art/tools/"
-API bool cooker_process( const char *masks, cooker_callback_t cb, int flags );
+API void cooker_config( const char *art_path, const char *tools_path, const char *fwk_ini ); // "art/", "art/tools/", "fwk.ini"
+API bool cooker_start( const char *masks, int flags ); // "**"
+API void cooker_stop();
 API int  cooker_progress(); // [0..100]
+API int  cooker_jobs();     // [1..N]
 #line 0
 #line 1 "fwk_data.h"
 // -----------------------------------------------------------------------------
@@ -946,9 +942,6 @@ API void* dll(const char *filename, const char *symbol);
 #line 1 "fwk_ds.h"
 // data structures and utils: array, set, map, hash, sort.
 // - rlyeh, public domain
-
-#ifndef DS_H
-#define DS_H
 
 // -----------------------------------------------------------------------------
 // less/sort
@@ -1088,9 +1081,6 @@ static __thread unsigned array_c_;
 // ideas from: http://www.idryman.org/blog/2017/05/03/writing-a-damn-fast-hash-table-with-tiny-memory-footprints/
 
 // config
-#ifndef SET_REALLOC
-#define SET_REALLOC REALLOC
-#endif
 #ifndef SET_HASHSIZE
 #define SET_HASHSIZE (4096 << 4)
 #endif
@@ -1104,7 +1094,7 @@ static __thread unsigned array_c_;
         int (*typed_cmp)(K, K); uint64_t (*typed_hash)(K); } *
 
 #define set_init(m, cmpfn, hashfn) ( \
-    (m) = set_cast(m) SET_REALLOC(0, sizeof(*m)), \
+    (m) = set_cast(m) REALLOC(0, sizeof(*m)), \
     set_init(&(m)->base), \
     (m)->base.cmp = (int(*)(void*,void*))( (m)->typed_cmp = cmpfn), \
     (m)->base.hash = (uint64_t(*)(void*))( (m)->typed_hash = hashfn ) \
@@ -1113,12 +1103,12 @@ static __thread unsigned array_c_;
 #define set_free(m) ( \
     set_clear(m), \
     set_free(&(m)->base), \
-    (m) = set_cast(m) SET_REALLOC((m), 0), \
+    (m) = set_cast(m) REALLOC((m), 0), \
     (m) = 0 \
     )
 
 #define set_insert(m, k) ( \
-    (m)->ptr = set_cast((m)->ptr) SET_REALLOC(0, sizeof((m)->tmp)), \
+    (m)->ptr = set_cast((m)->ptr) REALLOC(0, sizeof((m)->tmp)), \
     (m)->ptr->p.keyhash = (m)->typed_hash((m)->ptr->key = (k)), \
     set_insert(&(m)->base, &(m)->ptr->p, &(m)->ptr->key, (m)->ptr->p.keyhash, (m)->ptr), \
     &(m)->ptr->key \
@@ -1201,9 +1191,6 @@ API void  (set_gc)(set *m); // only if using SET_DONT_ERASE
 // ideas from: http://www.idryman.org/blog/2017/05/03/writing-a-damn-fast-hash-table-with-tiny-memory-footprints/
 
 // config
-#ifndef MAP_REALLOC
-#define MAP_REALLOC REALLOC
-#endif
 #ifndef MAP_HASHSIZE
 #define MAP_HASHSIZE (4096 << 4)
 #endif
@@ -1217,7 +1204,7 @@ API void  (set_gc)(set *m); // only if using SET_DONT_ERASE
         int (*typed_cmp)(K, K); uint64_t (*typed_hash)(K); } *
 
 #define map_init(m, cmpfn, hashfn) ( \
-    (m) = map_cast(m) MAP_REALLOC(0, sizeof(*(m))), \
+    (m) = map_cast(m) REALLOC(0, sizeof(*(m))), \
     map_init(&(m)->base), \
     (m)->base.cmp = (int(*)(void*,void*))( (m)->typed_cmp = map_cast((m)->typed_cmp) cmpfn), \
     (m)->base.hash = (uint64_t(*)(void*))( (m)->typed_hash = map_cast((m)->typed_hash) hashfn ) \
@@ -1225,11 +1212,11 @@ API void  (set_gc)(set *m); // only if using SET_DONT_ERASE
 
 #define map_free(m) ( \
     map_free(&(m)->base), \
-    map_cast(m) MAP_REALLOC((m), sizeof(*(m))), (m) = 0 \
+    map_cast(m) REALLOC((m), sizeof(*(m))), (m) = 0 \
     )
 
 #define map_insert(m, k, v) ( \
-    (m)->ptr = map_cast((m)->ptr) MAP_REALLOC(0, sizeof((m)->tmp)), \
+    (m)->ptr = map_cast((m)->ptr) REALLOC(0, sizeof((m)->tmp)), \
     (m)->ptr->val = (v), \
     (m)->ptr->p.keyhash = (m)->typed_hash((m)->ptr->key = (k)), \
     map_insert(&(m)->base, &(m)->ptr->p, &(m)->ptr->key, &(m)->ptr->val, (m)->ptr->p.keyhash, (m)->ptr), \
@@ -1309,7 +1296,6 @@ API void* (map_find)(map *m, void *key, uint64_t keyhash);
 API int   (map_count)(map *m);
 API void  (map_gc)(map *m); // only if using MAP_DONT_ERASE
 
-#endif // DS_H
 #line 0
 #line 1 "fwk_editor.h"
 // -----------------------------------------------------------------------------
@@ -1373,10 +1359,13 @@ API char *       file_id(const char *pathfile); // c:/prj/dir/file.ext -> file/d
 API char *       file_normalize(const char *pathfile); // c:/prj/dir/file.ext -> c/prj/dir/file_ext
 //API char *     file_normalize_with_folder(const char *pathfile); // c:/prj/dir/file.ext -> dir/file_ext
 
-API uint64_t     file_stamp(const char *pathfile); // 1616153596 (seconds since unix epoch)
-API uint64_t     file_stamp_human(const char *pathfile); // 20210319113316 (datetime in base10)
+API uint64_t     file_stamp(const char *pathfile); // 20210319113316 (datetime in base10)
+API uint64_t     file_stamp_epoch(const char *pathfile); // 1616153596 (seconds since unix epoch)
 
+API bool         file_exist(const char *pathfile);
+API bool         file_delete(const char *pathfile);
 API bool         file_copy(const char *src, const char *dst);
+API bool         file_move(const char *src, const char *dst);
 
 API FILE*        file_temp();
 API char*        file_tempname();
@@ -1726,10 +1715,14 @@ enum TEXTURE_FLAGS {
 typedef struct texture_t {
     union { unsigned x, w; };
     union { unsigned y, h; };
+    union { unsigned z, d; };
     union { unsigned n, bpp; };
     handle id;
     unsigned flags;
 } texture_t;
+
+API texture_t texture_compressed(const char *filename, unsigned flags);
+API texture_t texture_compressed_from_mem(const void *data, int len, unsigned flags);
 
 API texture_t texture(const char* filename, int flags);
 API texture_t texture_from_mem(const char* ptr, int len, int flags);
@@ -2076,19 +2069,14 @@ API void script_call(const char *lua_function);
 // string framework
 // - rlyeh, public domain
 
-#ifndef STRING_H
-#define STRING_H
-
 // string: temporary api (stack)
 API char*   stringf(const char *fmt, ...);
 #define     stringf(...) (printf || printf(__VA_ARGS__), stringf(__VA_ARGS__))  // vs2015 check trick
+#define     str(...)     stringf(__VA_ARGS__) //s(),str(),fmt() ?
 
-#if 1
-// string: allocated api (heap)
-API char*   stringf_cat(char *x, const char *buf);
-#define     stringf_cat(s,fmt,...)  stringf_cat((s), stringf(fmt, __VA_ARGS__)) // stringfcat ?
-#define     stringf_del(s)         ((REALLOC((s), 0)), (s)=0) // stringfdel ?
-#endif
+// string: allocated api (heap). FREE() after use
+API char*   strcatf(char **s,   const char *buf);
+#define     strcatf(s,fmt,...)  strcatf((s), stringf(fmt, __VA_ARGS__)) // stringf_cat, stringfcat ?
 
 #if defined _MSC_VER || (defined __TINYC__ && defined _WIN32)
 #if!defined _MSC_VER
@@ -2114,8 +2102,11 @@ API bool         strendi(const char *src, const char *sub);  // returns true if 
 API const char * strstri(const char *src, const char *sub);  // returns find first substring in string. case insensitive.
 #define          strcmpi  ifdef(msc, _stricmp, strcasecmp)
 
-API char *       strrepl(char **copy, const char *target, const char *replace); // replace any 'target' as 'repl' in 'copy'. returns 'copy'
-API char *       strswap(char *copy, const char *target, const char *replace);  // replaced only if repl is shorter than target. no allocations.
+API char *       strupper(const char *str);
+API char *       strlower(const char *str);
+
+API char *       strrepl(char **copy, const char *target, const char *replace); // replace any 'target' as 'repl' in 'copy'. 'copy' may change (heap). returns 'copy'
+API char *       strswap(char *copy, const char *target, const char *replace);  // replaced inline only if repl is shorter than target. no allocations.
 API char *       strcut(char *copy, const char *target);                        // remove any 'target' in 'copy'. returns 'copy'
 
 API char *       str16to8(const wchar_t *str); // convert from wchar16(win) to utf8/ascii
@@ -2138,7 +2129,6 @@ API array(char*) strsplit(const char *string, const char *delimiters);
 /// > char *joint = strjoin(tokens, "+"); // joint="hello+world"
 API char*        strjoin(array(char*) list, const char *separator);
 
-#endif // STRING_H
 #line 0
 #line 1 "fwk_system.h"
 // -----------------------------------------------------------------------------
@@ -2156,14 +2146,16 @@ API const char* option(const char *commalist, const char *defaults); // --arg=ke
 API int         optioni(const char *commalist, int defaults);
 API float       optionf(const char *commalist, float defaults);
 
-API char*       os_exec_output();
-API int         os_exec(const char *command);
-#define         os_exec(...) os_exec(file_normalize(stringf(__VA_ARGS__)))
+API char*       os_exec_output(); // legacy
+API int         os_exec(const char *command); // legacy
+#define         os_exec(...) os_exec(file_normalize(stringf(__VA_ARGS__))) // legacy
+API char*       os_exec_(int *retvalue, const char *command); // new
+#define         os_exec_(rc, ...) os_exec(rc, file_normalize(stringf(__VA_ARGS__))) // new
 
 API void        tty_color(unsigned color);
 API void        tty_reset();
 
-API int         cpu_cores(void);
+API int         cpu_cores();
 
 API const char* app_name();
 API const char* app_path();
@@ -2171,10 +2163,11 @@ API const char* app_cache();
 API const char* app_temp();
 API void        app_reload();
 
+API uint64_t    date();       // YYYYMMDDhhmmss
+API uint64_t    date_epoch(); // linux epoch
 API double      time_ss();
 API double      time_ms();
 API uint64_t    time_us();
-API uint64_t    date_human(); // YYYYMMDDhhmmss
 API double      sleep_ss(double ss);
 API double      sleep_ms(double ms);
 API uint64_t    sleep_us(uint64_t us);
@@ -13999,21 +13992,12 @@ int gladLoadGLUserPtr( GLADuserptrloadfunc load, void *userptr) {
     glad_gl_load_GL_KHR_debug(load, userptr);
     glad_gl_load_GL_KHR_parallel_shader_compile(load, userptr);
     glad_gl_load_GL_KHR_robustness(load, userptr);
-
-
-
     return version;
 }
-
 
 int gladLoadGL( GLADloadfunc load) {
     return gladLoadGLUserPtr( glad_gl_get_proc_from_userptr, GLAD_GNUC_EXTENSION (void*) load);
 }
-
-
-
-
-
 
 #endif /* GLAD_GL_IMPLEMENTATION */
 
