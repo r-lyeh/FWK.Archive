@@ -3,7 +3,8 @@
 # linux + osx -----------------------------------------------------------------
 cd `dirname $0`
 
-cp art/demos/* . -n
+# copy demos to root folder. local changes are preserved
+cp art/demos/*.c . -n
 
 if [ "$(uname)" != "Darwin" ]; then
     # setup (linux)
@@ -13,20 +14,20 @@ if [ "$(uname)" != "Darwin" ]; then
     #sudo apt-get install g++ ffmpeg xorg-dev libglfw3-dev libassimp-dev clang                          # initial revision
 
     # pipeline
-    #cc art/tools/ass2iqe.c   -o art/tools/ass2iqe  -lm -ldl -lpthread -w -g -lassimp
-    #cc art/tools/iqe2iqm.cpp -o art/tools/iqe2iqm  -lm -ldl -lpthread -w -g -lstdc++
-    #cc art/tools/mid2wav.c   -o art/tools/mid2wav  -lm -ldl -lpthread -w -g
-    #cc art/tools/xml2json.c  -o art/tools/xml2json -lm -ldl -lpthread -w -g
+    #cc art/tools/ass2iqe.c   -o art/tools/ass2iqe.linux  -lm -ldl -lpthread -w -g -lassimp
+    #cc art/tools/iqe2iqm.cpp -o art/tools/iqe2iqm.linux  -lm -ldl -lpthread -w -g -lstdc++
+    #cc art/tools/mid2wav.c   -o art/tools/mid2wav.linux  -lm -ldl -lpthread -w -g
+    #cc art/tools/xml2json.c  -o art/tools/xml2json.linux -lm -ldl -lpthread -w -g
 
     # change permissions of precompiled tools binaries because of 'Permission denied' runtime error (@procedural)
-    chmod +x art/tools/ass2iqe
-    chmod +x art/tools/iqe2iqm
-    chmod +x art/tools/mid2wav
-    chmod +x art/tools/xml2json
-    chmod +x art/tools/sfxr2wav
-    chmod +x art/tools/ffmpeg
-    chmod +x art/tools/cuttlefish
-    chmod +x art/tools/PVRTexToolCLI
+    chmod +x art/tools/ass2iqe.linux
+    chmod +x art/tools/iqe2iqm.linux
+    chmod +x art/tools/mid2wav.linux
+    chmod +x art/tools/xml2json.linux
+    chmod +x art/tools/sfxr2wav.linux
+    chmod +x art/tools/ffmpeg.linux
+    chmod +x art/tools/cuttlefish.linux
+    chmod +x art/tools/PVRTexToolCLI.linux
 
     # framework
     echo fwk            && cc -c fwk.c -w -g
@@ -147,7 +148,7 @@ if "%1"=="docs" (
 )
 
 rem copy demos to root folder. local changes are preserved
-echo n | copy /-y art\demos\* 1> nul 2> nul
+echo n | copy /-y art\demos\*.c 1> nul 2> nul
 
 rem dll publish
 if "%1"=="dll" (

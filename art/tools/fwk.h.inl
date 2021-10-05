@@ -231,6 +231,6 @@ extern "C" {
 } // extern "C"
 #endif
 
-#endif // FWK_H
+#include "fwk.3" // for glad
 
-{{FILE:3rd_glad.h}}
+#endif // FWK_H

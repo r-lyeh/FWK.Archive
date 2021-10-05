@@ -189,8 +189,9 @@ echo #endif // FWK_C >> fwk-single-header.c
 <!-- - On windows + vc, you can use `make bindings` or `make docs` to generate everything prior to a release -->
 
 ## Bindings
-- Luajit bindings are provided in the [fwk.lua](fwk.lua) auto-generated file.
-- You can test it by typing `cl fwk.c /LD /DAPI=EXPORT && art\tools\luajit art\demos\demo_luajit.lua`
+- Luajit: Luajit bindings are provided in the [fwk.lua](fwk.lua) auto-generated file.
+- Luajit: You can test it by typing `cl fwk.c /LD /DAPI=EXPORT && art\tools\luajit art\demos\demo_luajit.lua`
+- Nelua: [Nelua bindings](https://github.com/Rabios/nelua-fun/tree/main/fwk) provided by Rabia Alhaffar.
 
 ## License
 This software is released into the [public domain](https://unlicense.org/).<br/>
