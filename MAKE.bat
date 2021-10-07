@@ -131,7 +131,7 @@ rem generate documentation
 if "%1"=="docs" (
 
     rem set symbols for upcoming doc generation
-    set VERSION=2021.9
+    set VERSION=2021.10
     date /t > info.obj
     set /p LAST_MODIFIED=<info.obj
     rem set git symbols too

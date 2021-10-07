@@ -1626,7 +1626,7 @@ API uint32_t rgba( uint8_t r, uint8_t g, uint8_t b, uint8_t a );
 API uint32_t bgra( uint8_t r, uint8_t g, uint8_t b, uint8_t a );
 API float    alpha( uint32_t rgba );
 
-#define RGBX(rgb,x)   ( ((rgb)&0xFFFFFF) | ((x)<<24) )
+#define RGBX(rgb,x)   ( ((rgb)&0xFFFFFF) | (((unsigned)(x))<<24) )
 #define RGB3(r,g,b)   ( ((r)<<16) | ((g)<<8) | (b) )
 #define RGB4(r,g,b,a) RGBX(RGB3(r,g,b),a)
 

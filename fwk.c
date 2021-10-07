@@ -2213,20 +2213,20 @@ const char *ART = "art/";
 const char *TOOLS = "art/tools/";
 const char *FWK_INI = "fwk.ini";
 
-typedef struct cook_script {
+typedef struct cook_script_t {
     char *infile;     // free after use
     char *finalfile;  // free after use. can be either infile or a totally different file
     char *script;
     int compress_level;
-} cook_script;
+} cook_script_t;
 
 static
-cook_script cook_generate_script(const char *rules, const char *infile, const char *outfile) {
+cook_script_t cook_script(const char *rules, const char *infile, const char *outfile) {
     // by default, assume:
     // - no script is going to be generated (empty script)
     // - if no script is going to be generated, output is in fact input file.
     // - no compression is going to be required.
-    cook_script cs = { 0 };
+    cook_script_t cs = { 0 };
 
     // reuse script heap from last call if possible (optimization)
     static __thread char *script = 0;
@@ -2491,73 +2491,37 @@ cook_script cook_generate_script(const char *rules, const char *infile, const ch
 
 // ----------------------------------------------------------------------------
 
-typedef struct fs {
+struct fs {
     char *fname, status;
     uint64_t stamp;
     uint64_t bytes;
-} fs;
+};
 
+static array(struct fs) fs_now;
 static local array(char*) added;
 static local array(char*) changed;
 static local array(char*) deleted;
 static local array(char*) uncooked;
 
 static
-array(fs) scanner_filter(int threadid, int numthreads, const char **files) {
-    array(struct fs) fs = 0;
-
+array(struct fs) zipscan_filter(int threadid, int numthreads) {
     // iterate all previously scanned files
-    for( int i = 0; files[i]; ++i ) {
-        const char *fname = files[i];
+    array(struct fs) fs = 0;
+    for( int i = 0, end = array_count(fs_now); i < end; ++i ) {
+        const char *fname = fs_now[i].fname;
 
         // skip if list item does not belong to this thread bucket
         uint64_t hash = hash_str(fname);
         unsigned bucket = (hash % numthreads);
         if(bucket != threadid) continue;
 
-        // also, skip folders and internal files like .art.zip
-        // if( file_directory(fname) ) continue;
-        // if( fname[0] == '.' ) continue;
-        if( fname[0] == '.' ) continue; // discard system dirs and hidden files
-        if( strstri(fname, TOOLS) ) continue; // discard tools folder
-        if( !file_ext(fname)[0] ) continue; // discard extensionless entries
-        if( !file_size(fname)) continue; // skip dirs and empty files
-
-        // @todo: normalize path & rebase here (absolute to local)
-        // [...]
-        // fi.normalized = ; tolower->to_underscore([]();:+ )->remove_extra_underscores
-
-        // make buffer writable
-        char buffer[MAX_PATHFILE];
-        snprintf(buffer, MAX_PATHFILE, "%s", fname);
-
-        // get normalized current working directory (absolute)
-        char cwd[MAX_PATHFILE] = {0};
-        getcwd(cwd, sizeof(cwd));
-        for(int i = 0; cwd[i]; ++i) if(cwd[i] == '\\') cwd[i] = '/';
-
-        // normalize path
-        for(int i = 0; buffer[i]; ++i) if(buffer[i] == '\\') buffer[i] = '/';
-
-        // rebase from absolute to relative
-        char *buf = buffer; int cwdlen = strlen(cwd);
-        if( !strncmp(buf, cwd, cwdlen) ) buf += cwdlen;
-        while(buf[0] == '/') ++buf;
-
-        if( file_name(buf)[0] == '.' ) continue; // skip system files
-
-        struct fs fi = {0};
-        fi.fname = STRDUP(buf);
-        fi.bytes = file_size(buf);
-        fi.stamp = file_stamp(buf); // human-readable base10 timestamp
-
-        array_push(fs, fi);
+        array_push(fs, fs_now[i]);
     }
     return fs;
 }
 
 static
-int scanner_diff( zip* old, array(fs) now ) {
+int zipscan_diff( zip* old, array(struct fs) now ) {
     array_free(added);
     array_free(changed);
     array_free(deleted);
@@ -2594,7 +2558,7 @@ int scanner_diff( zip* old, array(fs) now ) {
         unsigned oldsize = zip_size(old, idx);
         if (!oldsize) continue;
 
-        fs *found = 0; // scanner_locate(now, oldname);
+        struct fs *found = 0; // zipscan_locate(now, oldname);
         for(int j = 0; j < array_count(now); ++j) {
             if( !strcmp(now[j].fname,oldname)) {
                 found = &now[j];
@@ -2611,29 +2575,26 @@ int scanner_diff( zip* old, array(fs) now ) {
 
 // ----------------------------------------------------------------------------
 
-typedef struct cook_job {
+typedef struct cook_worker {
     const char **files;
     const char *rules;
     int threadid, numthreads;
     thread_ptr_t self;
+    volatile int progress;
+} cook_worker;
 
-    int numfiles;
-    char zipfile[16]; // FILE *zipfile;
-} cook_job;
-
-static cook_job jobs[100] = {0};
-static volatile int cooker__progress[16] = {0};
+static cook_worker jobs[100] = {0};
 
 static
-int sync_cook(void *userdata) {
-    cook_job *job = (cook_job*)userdata;
+int cook(void *userdata) {
+    cook_worker *job = (cook_worker*)userdata;
 
     // start progress
-    volatile int *progress = &cooker__progress[job->threadid];
+    volatile int *progress = &job->progress;
     *progress = 0;
 
-    // scan disk
-    array(struct fs) now = scanner_filter(job->threadid, job->numthreads, job->files);
+    // scan disk from fs_now snapshot
+    array(struct fs) filtered = zipscan_filter(job->threadid, job->numthreads);
     //printf("Scanned: %d items found\n", array_count(now));
 
     // prepare out tempname
@@ -2647,7 +2608,7 @@ int sync_cook(void *userdata) {
     zip *z;
     {
         z = zip_open(zipfile, "r+b");
-        scanner_diff(z, now);
+        zipscan_diff(z, filtered);
         if( z ) zip_close(z);
 
         fflush(0);
@@ -2678,7 +2639,7 @@ int sync_cook(void *userdata) {
         int inlen = file_size(fname);
 
         // generate a cooking script for this asset
-        cook_script cs = cook_generate_script(job->rules, fname, COOKER_TMPFILE);
+        cook_script_t cs = cook_script(job->rules, fname, COOKER_TMPFILE);
         // puts(cs.script);
 
         // log to batch file for forensic purposes, if explicitly requested
@@ -2724,10 +2685,10 @@ int sync_cook(void *userdata) {
 }
 
 static
-int async_cook( void *userptr ) {
+int cook_async( void *userptr ) {
     while(!window_handle()) sleep_ms(100); // wait for window handle to be created
 
-    int ret = sync_cook(userptr);
+    int ret = cook(userptr);
     thread_exit( ret );
     return ret;
 }
@@ -2736,20 +2697,63 @@ bool cooker_start( const char *masks, int flags ) {
     const char *rules = file_read(FWK_INI);
     if(rules[0] == 0) return false;
 
-    for( int i = 0; i < countof(cooker__progress); ++i ) cooker__progress[i] = -1;
+    // get normalized current working directory (absolute)
+    char cwd[MAX_PATHFILE] = {0};
+    getcwd(cwd, sizeof(cwd));
+    for(int i = 0; cwd[i]; ++i) if(cwd[i] == '\\') cwd[i] = '/';
 
-    char **list = (char**)file_list(ART, "**");
+    // scan disk
+    const char **list = file_list(ART, "**");
+    // inspect disk
+    for( int i = 0; list[i]; ++i ) {
+        const char *fname = list[i];
 
+        // also, skip folders and internal files like .art.zip
+        // if( file_directory(fname) ) continue;
+        // if( fname[0] == '.' ) continue;
+        if( fname[0] == '.' ) continue; // discard system dirs and hidden files
+        if( strstri(fname, TOOLS) ) continue; // discard tools folder
+        if( !file_ext(fname)[0] ) continue; // discard extensionless entries
+        if( !file_size(fname)) continue; // skip dirs and empty files
+
+        // @todo: normalize path & rebase here (absolute to local)
+        // [...]
+        // fi.normalized = ; tolower->to_underscore([]();:+ )->remove_extra_underscores
+
+        // make buffer writable
+        char buffer[MAX_PATHFILE];
+        snprintf(buffer, MAX_PATHFILE, "%s", fname);
+
+        // normalize path
+        for(int i = 0; buffer[i]; ++i) if(buffer[i] == '\\') buffer[i] = '/';
+
+        // rebase from absolute to relative
+        char *buf = buffer; int cwdlen = strlen(cwd);
+        if( !strncmp(buf, cwd, cwdlen) ) buf += cwdlen;
+        while(buf[0] == '/') ++buf;
+
+        if( file_name(buf)[0] == '.' ) continue; // skip system files
+
+        struct fs fi = {0};
+        fi.fname = STRDUP(buf);
+        fi.bytes = file_size(buf);
+        fi.stamp = file_stamp(buf); // human-readable base10 timestamp
+
+        array_push(fs_now, fi);
+    }
+
+    // spawn all the threads
     int num_jobs = cooker_jobs();
     for( int i = 0, end = num_jobs; i < end; ++i ) {
         jobs[i].threadid = i;
         jobs[i].numthreads = end;
         jobs[i].files = list;
         jobs[i].rules = rules;
+        jobs[i].progress = -1;
         if( num_jobs > 1 && (flags & COOKER_ASYNC) ) {
-            jobs[i].self = thread_init(async_cook, &jobs[i], "async_cook()", 0/*STACK_SIZE*/);
+            jobs[i].self = thread_init(cook_async, &jobs[i], "cook_async()", 0/*STACK_SIZE*/);
         } else {
-            return !!sync_cook(&jobs[0]);
+            return !!cook(&jobs[0]);
         }
     }
     return true;
@@ -2758,8 +2762,8 @@ bool cooker_start( const char *masks, int flags ) {
 void cooker_stop() {
     // join all threads
     int num_jobs = cooker_jobs();
-    for( int i = 0; i < num_jobs; ++i ) {
-        thread_join(jobs[i].self);
+    for( int i = 1; i < num_jobs; ++i ) {
+        if(jobs[i].self) thread_join(jobs[i].self);
     }
     // remove all temporary outfiles
     const char **temps = file_list("./", "temp_*");
@@ -2768,9 +2772,9 @@ void cooker_stop() {
 
 int cooker_progress() {
     int count = 0, sum = 0;
-    for( int i = 0; i < countof(cooker__progress); ++i ) {
-        if( cooker__progress[i] >= 0 ) {
-            sum += cooker__progress[i];
+    for( int i = 0, end = cooker_jobs(); i < end; ++i ) {
+        if( jobs[i].progress >= 0 ) {
+            sum += jobs[i].progress;
             ++count;
         }
     }
@@ -2801,7 +2805,7 @@ int main(int argc, char **argv) {
    char *rules = file_read("fwk.ini");
 
     if( argc > 1 && argv[1][0] != '-' ) {
-        cook_script cs = cook_generate_script(rules, argv[1], "a.out");
+        cook_script_t cs = cook_script(rules, argv[1], "a.out");
         puts(cs.script);
         exit(1);
     }
@@ -2938,10 +2942,6 @@ char *file_load(const char *filename, int *len) { // @todo: fix leaks
 char *file_read(const char *filename) { // @todo: fix leaks
     return file_load(filename, NULL);
 }
-bool file_exist(const char *fname) {
-    struct stat st;
-    return stat(fname, &st) < 0 ? false : true;
-}
 bool file_move(const char *src, const char *dst) {
     bool ok = file_exist(src) && !file_exist(dst) && 0 == rename(src, dst);
     return ok;
@@ -2962,17 +2962,28 @@ uint64_t file_stamp(const char *fname) {
     struct tm *ti = localtime(&mtime);
     return atoi64(stringf("%04d%02d%02d%02d%02d%02d",ti->tm_year+1900,ti->tm_mon+1,ti->tm_mday,ti->tm_hour,ti->tm_min,ti->tm_sec));
 }
+static bool file_stat(const char *fname, struct stat *st) {
+    // remove ending slashes. win32+tcc does not like them.
+    int l = strlen(fname), m = l;
+    while( l && (fname[l-1] == '/' || fname[l-1] == '\\') ) --l;
+    fname = l == m ? fname : stringf("%.*s", l, fname);
+    return stat(fname, st) >= 0;
+}
 uint64_t file_stamp_epoch(const char *fname) {
     struct stat st;
-    return stat(fname, &st) < 0 ? 0ULL : st.st_mtime;
+    return !file_stat(fname, &st) ? 0ULL : st.st_mtime;
 }
 uint64_t file_size(const char *fname) {
     struct stat st;
-    return stat(fname, &st) < 0 ? 0ULL : st.st_size;
+    return !file_stat(fname, &st) ? 0ULL : st.st_size;
 }
 bool file_directory( const char *pathfile ) {
     struct stat st;
-    return stat(pathfile, &st) < 0 ? 0 : S_IFDIR == ( st.st_mode & S_IFMT );
+    return !file_stat(pathfile, &st) ? 0 : S_IFDIR == ( st.st_mode & S_IFMT );
+}
+bool file_exist(const char *fname) {
+    struct stat st;
+    return !file_stat(fname, &st) ? false : true;
 }
 char *file_normalize(const char *name) {
     char *copy = stringf("%s", name), *s = copy, c;
@@ -9771,7 +9782,7 @@ void trace_cb( int traces, int (*yield)(const char *)) {
         if( yield(buf) < 0 ) break;
     }
 
-    SYS_REALLOC( symbols, 0 );
+     symbols = SYS_REALLOC(symbols, 0);
 }
 
 static local char *trace_strbuf[128] = {0};
@@ -9792,7 +9803,7 @@ char *callstack( int traces ) {
     trace_counter = trace_len = 0;
     trace_cb( traces, trace_ );
     static local char *buf = 0; // @fixme: 1 leak per invoking thread
-    SYS_REALLOC(buf, 0);
+    buf = SYS_REALLOC(buf, 0);
     buf = (char*)SYS_REALLOC( 0, trace_len + 1 ); buf[0] = 0;
     for( int i = 0; i < trace_counter; ++i ) {
         strcat(buf, trace_strbuf[i] ); // <-- optimize
@@ -9978,7 +9989,7 @@ int flag(const char *commalist) {
             }
         }
 
-        commalist = end + 1;
+        commalist = end + !!end[0];
     }
     return 0;
 }
@@ -10006,7 +10017,7 @@ const char *option(const char *commalist, const char *defaults) {
             }
         }
 
-        commalist = end + 1;
+        commalist = end + !!end[0];
     }
     return defaults;
 }
@@ -11180,7 +11191,7 @@ glDebugEnable();
 
     // display a progress bar meanwhile cooker is working in the background
     // Sleep(500);
-    if( WITH_COOKER && file_size(stringf("%s/ass2iqe.c", TOOLS)) )
+    if( WITH_COOKER && file_directory(TOOLS) )
     while( cooker_progress() < 100 ) {
         for( int frames = 0; frames < 10 && window_swap(); frames += cooker_progress() >= 100 ) {
             window_title("Cooking assets %.2d%%", cooker_progress());
@@ -11204,7 +11215,7 @@ glDebugEnable();
                if(JOB_ID==JOB_MAX-1)ddraw_line(vec3(-1,y+pixel*2,0), vec3(1,   y+pixel*2,0)); /* full line */ \
             } while(0)
 
-            for(int i = 0; i < cooker_jobs(); ++i) draw_cooker_progress_bar(i, cooker_jobs(), cooker__progress[i]);
+            for(int i = 0; i < cooker_jobs(); ++i) draw_cooker_progress_bar(i, cooker_jobs(), jobs[i].progress);
             // draw_cooker_progress_bar(0, 1, cooker_progress());
 
             ddraw_flush();
@@ -11824,7 +11835,7 @@ void fwk_init() {
         }
 
         // create or update cook.zip file
-        if( WITH_COOKER && file_size(stringf("%s/ass2iqe.c", TOOLS)) ) {
+        if( WITH_COOKER && file_directory(TOOLS) ) {
             cooker_start( "**", 0|COOKER_ASYNC );
         }
     }
