@@ -211,6 +211,7 @@ extern "C" {
 {{FILE:fwk_ds.h}}
 {{FILE:fwk_editor.h}}
 {{FILE:fwk_file.h}}
+{{FILE:fwk_font.h}}
 {{FILE:fwk_input.h}}
 {{FILE:fwk_memory.h}}
 {{FILE:fwk_network.h}}

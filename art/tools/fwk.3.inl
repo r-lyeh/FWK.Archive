@@ -20,12 +20,11 @@
 #define LSH_GLFW_IMPLEMENTATION             // glfw
 #define GLFW_INCLUDE_NONE                   // glfw
 #define HTTPS_IMPLEMENTATION                // https
-#define JAR_MOD_IMPLEMENTATION              // jar_mod
-#define JAR_XM_IMPLEMENTATION               // jar_xm
 #define JO_MPEG_COMPONENTS 3                // jo_mpeg
 #define JSON5_C                             // json5
 #define LUA_IMPL                            // lua542
 #define MINIAUDIO_IMPLEMENTATION            // miniaudio
+#define MA_NO_FLAC                          // miniaudio
 #define NK_GLFW_GL3_IMPLEMENTATION          // nuklear
 #define NK_IMPLEMENTATION                   // nuklear
 #define NK_INCLUDE_DEFAULT_ALLOCATOR        // nuklear
@@ -112,16 +111,11 @@ int execv(const char *path, char *const argv[]);
 {{FILE:3rd_swrap.h}}
 //---
 {{FILE:3rd_jo_mp1.h}}
-{{FILE:3rd_sfxr.h}}
 #define get_bits stb_vorbis_get_bits
 #define error stb_vorbis_error
 {{FILE:3rd_stb_vorbis.h}}
 #undef error
-#define channel jar_channel
-{{FILE:3rd_jar_mod.h}}
-#undef channel
 #undef DEBUG
-{{FILE:3rd_jar_xm.h}}
 {{FILE:3rd_sts_mixer.h}}
 {{FILE:3rd_miniaudio.h}}
 //---

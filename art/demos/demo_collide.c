@@ -43,7 +43,7 @@ int main(void) {
         mat44 projview; multiply44x2(projview, cam.proj, cam.view);
 
         // rendering
-        viewport_color(vec3(0.15,0.15,0.15));
+        viewport_color3(vec3(0.15,0.15,0.15));
         viewport_clear(true, true);
         viewport_clip(vec2(0,0), vec2(window_width(), window_height()));
 

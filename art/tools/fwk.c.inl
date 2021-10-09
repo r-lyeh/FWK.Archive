@@ -103,6 +103,7 @@
 {{FILE:fwk_data.c}}
 {{FILE:fwk_dll.c}}
 {{FILE:fwk_file.c}}
+{{FILE:fwk_font.c}}
 {{FILE:fwk_input.c}}
 {{FILE:fwk_math.c}}
 {{FILE:fwk_memory.c}}

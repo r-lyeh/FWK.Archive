@@ -142,29 +142,55 @@ int main(int argc, char **argv) {
     window_create(75.f, 0);
     window_title("FWK - Sprite");
 
+    // options
+    int option_cats = 1;
+    NUMSPRITES = argc > 1 ? atoi(argv[1]) : NUMSPRITES; // argvi("--numsprites,-N", "100");
+    if(option_cats) NUMSPRITES/=2; // cat-sprite+cat-shadow == 2 sprites
+
+    // load sprites and sheets
     kids = texture( "spriteSheetExample.png", TEXTURE_NEAREST );
     catImage = texture( "cat.png", TEXTURE_NEAREST );
     shadowImage = texture( "cat-shadow.png", TEXTURE_NEAREST );
 
-    int option_cats = 1;
-    NUMSPRITES = argc > 1 ? atoi(argv[1]) : NUMSPRITES; // argvi("--numsprites,-N", "100");
-    if(option_cats) NUMSPRITES/=2; // cat-sprite+cat-shadow == 2 sprites
+    // load all post fx files
+    for(const char **list = vfs_list("fx**.fs"); *list; list++) {
+        fx_load(*list);
+    }
 
     while(window_swap()) {
         if( input(KEY_F5)) app_reload();
         if( input(KEY_F11)) window_fullscreen( window_has_fullscreen() ^ 1);
         if( input(KEY_ESC) ) break;
 
-        viewport_color(vec3(0.4,0.4,0.4));
+        viewport_color3(vec3(0.4,0.4,0.4));
 
-        profile(sprite batching) {
-            if(option_cats) demo_cats(); else demo_kids();
-        }
+        // apply post-fxs from here
+        fx_begin();
+
+            profile(sprite batching) {
+                if(option_cats) demo_cats(); else demo_kids();
+            }
+
+            // flush retained renderer, so we ensure the fbos are up to date before fx_end()
+            profile(sprite flushing) {
+                sprite_flush();
+            }
+
+        // post-fxs end here
+        fx_end();
 
         if( ui_begin("Sprite", 0) ) {
             const char *labels[] = {"Kids","Cats"};
             if( ui_list("Sprite type", labels, countof(labels), &option_cats) ) NUMSPRITES_CHANGED = 1;
             if( ui_int("Number of Sprites", &NUMSPRITES) ) NUMSPRITES_CHANGED = 1;
+            ui_end();
+        }
+        if( ui_begin("FX", 0) ) {
+            for( int i = 0; i < 64; ++i ) {
+                char *name = fx_name(i); if( !name ) break;
+                bool b = fx_enabled(i);
+                if( ui_bool(name, &b) ) fx_enable(i, fx_enabled(i) ^ 1);
+            }
             ui_end();
         }
     }

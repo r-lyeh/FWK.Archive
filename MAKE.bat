@@ -44,6 +44,8 @@ if [ "$(uname)" != "Darwin" ]; then
     echo demo_script    && cc -o demo_script    demo_script.c    fwk.o -lm -ldl -lpthread -w -g &
     echo demo_socket    && cc -o demo_socket    demo_socket.c    fwk.o -lm -ldl -lpthread -w -g &
     echo demo_easing    && cc -o demo_easing    demo_easing.c    fwk.o -lm -ldl -lpthread -w -g &
+    echo demo_font      && cc -o demo_font      demo_font.c      fwk.o -lm -ldl -lpthread -w -g &
+    echo demo_material  && cc -o demo_material  demo_material.c  fwk.o -lm -ldl -lpthread -w -g &
 fi
 
 if [ "$(uname)" = "Darwin" ]; then
@@ -81,6 +83,8 @@ if [ "$(uname)" = "Darwin" ]; then
     echo demo_script    && cc -o demo_script    demo_script.c    fwk.o -framework cocoa -framework iokit -w -g &
     echo demo_socket    && cc -o demo_socket    demo_socket.c    fwk.o -framework cocoa -framework iokit -w -g &
     echo demo_easing    && cc -o demo_easing    demo_easing.c    fwk.o -framework cocoa -framework iokit -w -g &
+    echo demo_font      && cc -o demo_font      demo_font.c      fwk.o -framework cocoa -framework iokit -w -g &
+    echo demo_material  && cc -o demo_material  demo_material.c  fwk.o -framework cocoa -framework iokit -w -g &
 fi
 
 exit
@@ -150,6 +154,16 @@ if "%1"=="docs" (
 rem copy demos to root folder. local changes are preserved
 echo n | copy /-y art\demos\*.c 1> nul 2> nul
 
+rem check memory api calls
+if "%1"=="checkmem" (
+    findstr /NC:"realloc(" fwk.c
+    findstr /NC:"malloc("  fwk.c
+    findstr /NC:"free("    fwk.c
+    findstr /NC:"calloc("  fwk.c
+    findstr /NC:"strdup("  fwk.c
+    exit /b
+)
+
 rem dll publish
 if "%1"=="dll" (
     rem cl fwk.c /LD /DAPI=EXPORT      && rem 6.6MiB
@@ -161,6 +175,8 @@ if "%1"=="dll" (
 
 rem tidy environment
 if "%1"=="tidy" (
+    move /y demo_*.png art\demos
+    move /y demo_*.c art\demos
     del .temp*.*
     del *.zip
     del *.mem
@@ -174,10 +190,16 @@ if "%1"=="tidy" (
     del *.png
     del *.def
     rem del *.dll
+    del 3rd_*.*
+    del fwk_*.*
     del demo_*.*
     rd /q /s .vs
     del tcc.bat
     exit /b
+)
+
+if exist "fwk_*" (
+    call art\tools\join
 )
 
 if "%Platform%"=="x64" (
@@ -215,6 +237,8 @@ if "%Platform%"=="x64" (
     cl demo_script.c    /nologo /openmp /Zi fwk.obj %*
     cl demo_socket.c    /nologo /openmp /Zi fwk.obj %*
     cl demo_easing.c    /nologo /openmp /Zi fwk.obj %*
+    cl demo_font.c      /nologo /openmp /Zi fwk.obj %*
+    cl demo_material.c  /nologo /openmp /Zi fwk.obj %*
 
 ) else if "%Platform%"=="mingw64" (
     rem pipeline
@@ -238,6 +262,8 @@ if "%Platform%"=="x64" (
     echo demo_script    && gcc -o demo_script    demo_script.c    fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99 -w -g
     echo demo_socket    && gcc -o demo_socket    demo_socket.c    fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99 -w -g
     echo demo_easing    && gcc -o demo_easing    demo_easing.c    fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99 -w -g
+    echo demo_font      && gcc -o demo_font      demo_font.c      fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99 -w -g
+    echo demo_material  && gcc -o demo_material  demo_material.c  fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99 -w -g
 
 ) else (
     rem pipeline
@@ -261,6 +287,8 @@ if "%Platform%"=="x64" (
     echo demo_script    && tcc demo_script.c    fwk.o %*
     echo demo_socket    && tcc demo_socket.c    fwk.o %*
     echo demo_easing    && tcc demo_easing.c    fwk.o %*
+    echo demo_font      && tcc demo_font.c      fwk.o %*
+    echo demo_material  && tcc demo_material.c  fwk.o %*
 )
 
 rem PAUSE only if double-clicked from Windows

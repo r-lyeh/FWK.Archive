@@ -6,27 +6,22 @@
 int main() {
     // 75% window, msaa x8
     window_create( 75, WINDOW_MSAA8 );
-    window_title("FWK");
 
-    // load video, no flags
-    video_t *v = video( "bjork-all-is-full-of-love.mp4", 0 );
-
-#if WITH_VIDEO_YCBCR
-    void (*fullscreen_quad)(texture_t *, float) = fullscreen_ycbcr_quad;
-#else
-    void (*fullscreen_quad)(texture_t *, float) = fullscreen_rgb_quad;
-#endif
+    // load video
+    int is_rgb = flag("--rgb") ? 1 : 0;
+    video_t *v = video( "bjork-all-is-full-of-love.mp4", is_rgb ? VIDEO_RGB : VIDEO_YCBCR );
 
     while( window_swap() ) {
         // decode video frame and get associated textures (audio is automatically sent to audiomixer)
         texture_t *textures;
-        profile( video decoder ) {
+        profile( Video decoder ) {
             textures = video_decode( v );
         }
 
-        // send decodes textures to screen as a fullscreen quad
-        profile( video quad ) {
-            fullscreen_quad( textures, 1.3f );
+        // present decoded textures as a fullscreen composed quad
+        profile( Video quad ) {
+            if(is_rgb) fullscreen_rgb_quad( textures[0], 1.3f );
+            else fullscreen_ycbcr_quad( textures, 1.3f );
         }
 
         // input controls

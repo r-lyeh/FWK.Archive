@@ -14,21 +14,25 @@
 - [x] ~~Royaltie fee~~. Free and unlicensed.
 
 ## Features ᕦ(ᐛ)ᕤ
+- [x] Pipeline: configurable and integrated [asset pipeline](fwk.ini).
 - [x] Embedded: single-file, all dependencies included.
 - [x] Compiler: MSVC, MINGW64, TCC, GCC and clang.
 - [x] Platform: Windows, Linux and OSX.
+- [x] DS: hash, sort, array/vector, map, set.
+- [x] Math: rand, noise, ease, vec2/3/4, mat33/34/44, quat.
+- [x] Geometry: ray, line, plane, aabb, sphere, capsule, triangle, poly and frustum.
 - [x] Window: windowed, soft/hard fullscreen, msaa, icon, cursor handling.
 - [x] Input: keyboard, mouse and gamepads.
 - [x] Script: Lua scripting, Luajit bindings.
 - [x] Network: downloads (HTTPS) and sockets (TCP/UDP).
 - [x] UI: color3/4, button, list, slider, toggle, checkbox, editbox, dialog, image, menus.
-- [x] Math: rand, noise, ease, vec2/3/4, mat33/34/44, quat.
-- [x] Geometry: ray, line, plane, aabb, sphere, capsule, triangle, poly and frustum.
-- [x] Image: JPG, PNG, TGA, BMP, PSD, HDR, PIC and PNM. KTX/2, PVR, DDS, ASTC.
-- [x] Texture: Depth, R, RG, RGB, RGBA, BC1/2/3/4/5/6/7, PVRI/II, ETC1/2, ASTC.
-- [x] Audio: WAV, MOD, XM, FLAC, OGG, MP1, MP3, SFXR and MID.
+- [x] Font: TTF and TTC. Basic syntax highlighter. Unicode ranges, atlasing, I18N.
+- [x] Image: JPG, PNG, TGA, BMP, PSD, PIC, PNM, ICO.
+- [x] Texture: KTX/2, PVR, DDS, ASTC, BASIS, HDR.
+- [x] Texel: Depth, R, RG, RGB, RGBA, BC1/2/3/4/5/6/7, PVRI/II, ETC1/2, ASTC.
+- [x] Audio: WAV/FLAC, OGG/MP1/MP3, MOD/XM/S3M/IT, SFXR and MID.
 - [x] Video: MP4, MPG, OGV, MKV, WMV and AVI.
-- [x] Model: IQM/E, GLTF/2, FBX, OBJ, DAE, BLEND, MD3/5, MS3D, SMD, X, 3DS, BVH, DXF, LWO.
+- [x] Model: IQM/E, GLTF/2, GLB, FBX, OBJ, DAE, BLEND, MD3/5, MS3D, SMD, X, 3DS, BVH, DXF, LWO.
 - [x] Render: 2D Sprites, spritesheets and batching.
 - [x] Render: 3D Anims, skeletal anims and hardware skinning.
 - [x] Render: 3D Debugdraw, batching and vectorial font.
@@ -36,26 +40,29 @@
 - [x] Render: Post-effects (SSAO,FXAA1/3,CRT,Contrast,Grain,Outline,Vignette...).
 - [x] Compression: DEFLATE, LZMA, LZ4, ULZ, BALZ, BCM, CRUSH, LZW3, LZSS and PPP.
 - [x] Virtual filesystem: ZIP, PAK, TAR and DIR.
+- [x] Level data: JSON, JSON5, SJSON, XML.
 - [x] Disk cache.
 - [x] Scene handling.
-- [x] [Configurable](fwk.ini) and integrated asset pipeline.
 - [x] Profiler, stats and leaks finder.
-- [x] Level data: JSON, JSON5, SJSON, XML.
 - [x] [Documentation (wip)](https://bit.ly/f-w-k).
 
 ## Roadmap ᕕ(ᐛ)ᕗ (in order of arrival; ✱: partial support)
 - [ ] Network: NAT traversal. Socketless API, message API and pub/sub wrappers (enet/websocket).
 - [ ] Render: Materials (colors✱, textures✱, matcaps✱, videos✱, shadertoys✱). Shadertoys as post-fx✱. <!--materials as postfx, as they have an update() method -->
 - [ ] Render: Hard/soft shadow mapping and baked lightmaps.
-- [ ] Render: Flags (billboards✱, un/lit, cast shadows on/off, skybox/mie).
+- [ ] Scene: toggles on/off (billboards✱, materials, un/lit, cast shadows, wireframe, skybox/mie, collide, physics).
+- [ ] Scene: node singleton display, node console, node labels, node outlines.
 - [ ] Math: quat2, bezier, catmull.
-- [ ] Level editor: gizmos✱, scene tree, property editor, load/save, undo/redo, copy/paste.
+- [ ] Editor: gizmos✱, scene tree, property editor, load/save, undo/redo, copy/paste.
+<!-- editor = tree of nodes. levels and objects are nodes, and widgets are also nodes -->
+<!-- you can perform actions on nodes, with or without descendants, top-bottom or bottom-top -->
+<!-- operations include load/save, reset, undo/redo, play/render vis on/off/alpha logic on/off/other ddraw on/off log on/off, etc -->
 - [ ] Level objects: volumes✱, triggers, platforms, streaming.
 - [ ] Script: DLL✱ (module->plugin/sys), Lua✱, Luajit✱, Teal✱ and TypeScript.
 - [ ] Script: Refl/meta binding tool (during cook stage).
-- [ ] Pipeline: Extend: shaders, bindings, textures. Per-platform✱, per-type✱, per-asset options.
-- [ ] Pipeline: GIF, PKM.
-- [ ] Pipeline: Atlassing (sprite/lightmaps). Fit packing (fonts/sprites).
+- [ ] Pipeline: Extend: shaders, bindings. Per-platform✱, per-type✱, per-asset options. GIF, PKM.
+- [ ] Pipeline: Extend atlas (sprite/lightmaps). Fit packing (sprites).
+- [ ] Font: text layout and shaping, underlining, soft/hard shadows, outlines.
 - [ ] Maybe: Tiled maps and 2D spines.
 - [ ] Maybe: Animation pass.
 - [ ] Maybe: AI/Logic pass.
@@ -78,7 +85,7 @@
 // [x] system: debugger, callstack, exec, time/date.
 // [ ] fwk_input: cursor, mouse clip, mouse wrap,
 // [ ] sprites: pixel perfect zooming (demo+wheel)
-// [ ] zip0 seek-vfs optimization. zip_append_file is suboptimal, optimize that and avoid allocs as much as possible.
+// [ ] zip0 seek-vfs optimization. zip_append_file is suboptimal, and requires tons of contiguous memory for giant files.
 // [ ] expose uniforms as ui options, also model_uniform();
 -->
 
@@ -99,12 +106,8 @@
 //[ ] Render: Materials (textures, matcaps, videos, shadertoys).
 //    material: fixed color, texture or script that returns color
 //    animated textures (shadertoys, videos)
-//[ ] Pipeline: Extend configurable asset pipeline (shaders, bindings, xml, textures). Asset options.
-//    extending asset pipeline
-//      cook: img2png (spot, stbi), tex2pvr (spot, soil2)
+//[ ] Pipeline: Extend asset pipeline (shaders, bindings, xml). Asset options.
 //      cook: hlsl2glsl (XShaderCompiler), hlsl2spirv (dxc), spirv2many (spirv-cross), glsl2many (sokol-shdc)
-//      cook: ogg2wav, mp32wav, mp22wav, flac2wav
-//      cook: xml2json, mp2json
 //      cook: tiled2json, spine2json, tlfx22json
 // 6) anims, I (playlist: forward/backwards/loop/rewind), II (blend/shapes), III (ik/bone), IV (graph/controller)
 //    blend anims, animtracks+animevents, draw skeleton, additive anims,
@@ -201,6 +204,7 @@ Any contribution to this repository is implicitly subjected to the same release 
 ## Gallery
 <p align="center">
 <img src="art/demos/demo_script.png"    width="204px" title="Script.">
+<img src="art/demos/demo_font.png"      width="204px" title="Fonts.">
 <img src="art/demos/demo_collide.png"   width="204px" title="Collision.">
 <img src="art/demos/demo_model.png"     width="204px" title="Model.">
 <img src="art/demos/demo_scene.png"     width="204px" title="Scene.">
@@ -220,15 +224,17 @@ Any contribution to this repository is implicitly subjected to the same release 
 - [wwwtyro](https://github.com/wwwtyro/glsl-atmosphere), for nicest rayleigh/mie scattering shader around (CC0).
 
 ## Credits (Tools)
-- [Aaron Barany](https://github.com/akb825/Cuttlefish), for cuttefish (APACHE2).
+- [Aaron Barany](https://github.com/akb825/Cuttlefish), for cuttlefish (APACHE2).
 - [Assimp authors](https://github.com/assimp/assimp), for assimp (BSD3).
 - [Bernhard Schelling](https://github.com/schellingb/TinySoundFont), for tml.h (Zlib) and tsf.h (MIT).
 - [ffmpeg authors](https://www.ffmpeg.org/), for ffmpeg (LGPL21).
-- [Imagination](https://developer.imaginationtech.com/pvrtextool/), for pvrtextoocli (ITL).
+- [Imagination](https://developer.imaginationtech.com/pvrtextool/), for pvrtextoolcli (ITL).
 - [Krzysztof Gabis](https://github.com/kgabis/ape), for split.py/join.py (MIT).
 - [Lee Salzman](https://github.com/lsalzman/iqm/tree/5882b8c32fa622eba3861a621bb715d693573420/demo), for iqm.cpp (PD).
 - [Mattias Gustavsson](https://github.com/mattiasgustavsson/libs), for mid.h (PD).
 - [Michael Schmoock](http://github.com/willsteel/lcpp), for lcpp (MIT).
+- [Morgan McGuire](https://casual-effects.com/markdeep/), for markdeep (BSD2).
+- [Tomas Pettersson](http://www.drpetter.se/), for sfxr (PD).
 - [Tor Andersson](https://github.com/ccxvii/asstools), for assiqe.c (BSD).
 
 ## Credits (Runtime)
@@ -245,20 +251,20 @@ Any contribution to this repository is implicitly subjected to the same release 
 - [Ilya Muravyov](https://github.com/encode84) for bcm, balz, crush, ulz, lz4x (PD).
 - [Jon Olick](https://www.jonolick.com/), for jo_mp1 and jo_mpeg (PD).
 - [Joonas Pihlajamaa](https://github.com/jokkebk/JUnzip), for JUnzip library (PD).
-- [Joshua Reisenauer](https://github.com/kd7tck), for jar_mod and jar_xm (PD).
 - [Lee Salzman](https://github.com/lsalzman/iqm/tree/5882b8c32fa622eba3861a621bb715d693573420/demo), for IQM spec & player (PD).
 - [Lee Salzman, V.Hrytsenko and D.Madarász](https://github.com/zpl-c/enet/), for enet (MIT).
 - [Libtomcrypt](https://github.com/libtom/libtomcrypt), for libtomcrypt (Unlicense).
 - [Lua authors](https://www.lua.org/), for Lua language (MIT).
 - [Mattias Gustavsson](https://github.com/mattiasgustavsson/libs), for thread.h and https.h (PD).
 - [Micha Mettke](https://github.com/vurtun/nuklear), for nuklear (PD).
+- [Omar Cornut, vaiorabbit](https://github.com/ocornut/imgui/pull/3627), for tables of unicode ranges (MIT-0).
 - [Rich Geldreich](https://github.com/richgel999/miniz), for miniz (PD).
 - [Ross Williams](http://ross.net/compression/lzrw3a.html) for lzrw3a (PD).
 - [Samuli Raivio](https://github.com/bqqbarbhg/bq_websocket), for bq_websocket (PD).
 - [Sean Barrett](https://github.com/nothings), for stb_image, stb_image_write and stb_vorbis (PD).
 - [Sebastian Steinhauer](https://github.com/kieselsteini), for sts_mixer (PD).
 - [Stefan Gustavson](https://github.com/stegu/perlin-noise), for simplex noise (PD).
-- [Tomas Pettersson](http://www.drpetter.se/), for sfxr (PD).
+- [Vassvik](https://github.com/vassvik/mv_easy_font), for mv_easy_font (Unlicense).
 - Special thanks to [@ands](https://github.com/ands) (PD), [@barerose](https://github.com/barerose) (CC0), [@datenwolf](https://github.com/datenwolf) (WTFPL2), [@evanw](https://github.com/evanw) (CC0), [@glampert](https://github.com/glampert) (PD), [@krig](https://github.com/krig) (CC0), [@sgorsten](https://github.com/sgorsten) (Unlicense) and [@vurtun](https://github.com/vurtun) (PD) for their math libraries.
 
 ## Links
@@ -276,6 +282,7 @@ Still looking for alternatives?
 [chickpea](https://github.com/ivansafrin/chickpea),
 [corange](https://github.com/orangeduck/Corange),
 [cute](https://github.com/RandyGaul/cute_framework),
+[dos-like](https://github.com/mattiasgustavsson/dos-like),
 [ejoy2d](https://github.com/ejoy/ejoy2d),
 [exengine](https://github.com/exezin/exengine),
 [gunslinger](https://github.com/MrFrenik/gunslinger),

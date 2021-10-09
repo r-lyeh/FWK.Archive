@@ -26,19 +26,31 @@ int main() {
     }
 
     // load skybox
-    skybox_t sky = skybox(flag("--mie") ? 0 : "cubemaps/stardust", 0); // for rayleigh/mie scattering
+    skybox_t sky = skybox(flag("--mie") ? 0 : "cubemaps/stardust", 0); // --mie for rayleigh/mie scattering
 
     // load static scene
-    int do_sponza = flag("--sponza");
     model_t sponza;
+    int do_sponza = flag("--sponza");
     if( do_sponza ) {
-        sponza = model("sponza.obj", MODEL_NO_TEXTURES);
-        rotation44(sponza.pivot, -90,1,0,0);
+        sponza = model("sponza.obj", 0); // MODEL_NO_TEXTURES);
+        translation44(sponza.pivot, 0,-1,0);
+        rotate44(sponza.pivot, -90,1,0,0);
+        scale44(sponza.pivot, 10,10,10);
+    }
+
+    model_t shaderball;
+    int do_shaderball = flag("--shaderball");
+    if( do_shaderball ) {
+        shaderball = model("shaderball.glb", 0);
+        translation44(shaderball.pivot, 0,0,-10);
+        rotate44(shaderball.pivot, -90,1,0,0);
+        scale44(shaderball.pivot, 0.02,0.02,0.02);
     }
 
     // animated models loading
     int model_flags = flag("--matcaps") ? MODEL_MATCAPS : 0;
     model_t girl = model("kgirl/kgirls01.fbx", model_flags);
+    model_t alien = model("alien/alien_helmet.fbx", model_flags); rotation44(alien.pivot, -90,1,0,0);
     model_t george = model("robots/george.fbx", model_flags);
     model_t leela = model("robots/leela.fbx", model_flags);
     model_t mike = model("robots/mike.fbx", model_flags);
@@ -49,12 +61,16 @@ int main() {
     }
 
     if( flag("--matcaps") ) {
-        // patch model to use matcaps
+        // patch models to use matcaps
         model_set_texture(george, texture("matcaps/3B6E10_E3F2C3_88AC2E_99CE51-256px", 0)); // green
         model_set_texture(leela,  texture("matcaps/39433A_65866E_86BF8B_BFF8D8-256px", 0));
         model_set_texture(mike,   texture("matcaps/394641_B1A67E_75BEBE_7D7256-256px.png", 0));
         model_set_texture(stan,   texture("matcaps/test_steel", 0));
-        model_set_texture(girl,   texture("matcaps/material3", 0)); // "matcaps/normals"
+        model_set_texture(girl,   texture("matcaps/material3", 0));
+        model_set_texture(alien,  texture("matcaps/material3", 0));
+
+        if( flag("--shaderball") )
+        model_set_texture(shaderball, texture("matcaps/normals", 0));
     }
 
     // camera
@@ -119,8 +135,9 @@ int main() {
         profile(Skeletal update) if(!window_has_pause()) {
             float delta = window_delta() * 30; // 30fps anim
 
-            // animate girl
+            // animate girl & alien
             girl.curframe = model_animate(girl, girl.curframe + delta);
+            alien.curframe = model_animate(alien, alien.curframe + delta);
 
             // animate robots
             for(int i = 0; i < countof(robots); ++i) {
@@ -133,27 +150,49 @@ int main() {
             gizmo(&p, &r, &s);
             mat44 M; rotationq44(M, eulerq(r)); scale44(M, s.x,s.y,s.z); relocate44(M, p.x,p.y,p.z);
 
-            model_render(girl, cam.proj, cam.view, M, 0); // girl.pivot);
+            model_render(girl, cam.proj, cam.view, M, 0);
 
-            aabb box = model_aabb(girl, M); // girl.pivot);
+            aabb box = model_aabb(girl, M);
             ddraw_color(YELLOW);
             ddraw_aabb(box.min, box.max);
         }
 
+        profile(Skeletal render) {
+            static vec3 p = {+10,0,-10}, r = {0,-90,0}, s = {1,1,1};
+            gizmo(&p, &r, &s);
+            mat44 M; rotationq44(M, eulerq(r)); scale44(M, s.x,s.y,s.z); relocate44(M, p.x,p.y,p.z);
+
+            model_render(alien, cam.proj, cam.view, M, 0);
+
+            aabb box = model_aabb(alien, M); // @fixme: neg Y
+            ddraw_color(YELLOW);
+            //ddraw_aabb(box.min, box.max);
+        }
+
         profile(Skeletal render) for(int i = 0; i < countof(robots); ++i) {
-            float scale = 0.50; // 0.025;
+            float scale = 0.50;
             mat44 M; copy44(M, robots[i].pivot); translate44(M, i*3,0,0); scale44(M, scale,scale,scale);
             model_render(robots[i], cam.proj, cam.view, M, 0);
         }
 
         if(do_sponza) profile(Sponza) {
-            float scale = 0.20;
+            float scale = 1.00;
             mat44 M; copy44(M, sponza.pivot); translate44(M, 0,0,0); scale44(M, scale,scale,scale);
             model_render(sponza, cam.proj, cam.view, M, 0);
         }
 
+        if(do_shaderball) profile(Shaderball) {
+            float scale = 1.00;
+            mat44 M; copy44(M, shaderball.pivot); translate44(M, 0,0,0); scale44(M, scale,scale,scale);
+            model_render(shaderball, cam.proj, cam.view, M, 0);
+        }
+
         // post-fxs end here
         fx_end();
+
+        // font demo
+        do_once font_scales(FONT_FACE1, 48, 24, 18, 12, 9, 6);
+        font_print(stringf(FONT_RIGHT FONT_BOTTOM FONT_H4 "%5.2f FPS", window_fps()));
 
         // queue ui
         if( ui_begin("App", 0)) {
