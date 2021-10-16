@@ -86,7 +86,7 @@
 
 #include "fwk.h"
 #define FWK_3RD
-#include "fwk.3"
+#include "fwk"
 
 //-----------------------------------------------------------------------------
 // C files
@@ -517,12 +517,12 @@ const char *strstri( const char *src, const char *sub ){
 }
 
 char *strupper(const char *str) {
-    char *s = stringf("%s", str), *bak = s;
+    char *s = va("%s", str), *bak = s;
     while(*s++) s[-1] = toupper(s[-1]);
     return bak;
 }
 char *strlower(const char *str) {
-    char *s = stringf("%s", str), *bak = s;
+    char *s = va("%s", str), *bak = s;
     while(*s++) s[-1] = tolower(s[-1]);
     return bak;
 }
@@ -550,16 +550,16 @@ char *str16to8(const wchar_t *str) { // from wchar16(win) to utf8/ascii
     static __thread char buffer[2048]; assert( n < 2048 );
     while( *str ) {
        if (*str < 0x80) {
-          if (i+1 > n) return stringf("");
+          if (i+1 > n) return va("");
           buffer[i++] = (char) *str++;
        } else if (*str < 0x800) {
-          if (i+2 > n) return stringf("");
+          if (i+2 > n) return va("");
           buffer[i++] = 0xc0 + (*str >> 6);
           buffer[i++] = 0x80 + (*str & 0x3f);
           str += 1;
        } else if (*str >= 0xd800 && *str < 0xdc00) {
           uint32_t c;
-          if (i+4 > n) return stringf("");
+          if (i+4 > n) return va("");
           c = ((str[0] - 0xd800) << 10) + ((str[1]) - 0xdc00) + 0x10000;
           buffer[i++] = 0xf0 + (c >> 18);
           buffer[i++] = 0x80 + ((c >> 12) & 0x3f);
@@ -567,9 +567,9 @@ char *str16to8(const wchar_t *str) { // from wchar16(win) to utf8/ascii
           buffer[i++] = 0x80 + ((c      ) & 0x3f);
           str += 2;
        } else if (*str >= 0xdc00 && *str < 0xe000) {
-          return stringf("");
+          return va("");
        } else {
-          if (i+3 > n) return stringf("");
+          if (i+3 > n) return va("");
           buffer[i++] = 0xe0 + (*str >> 12);
           buffer[i++] = 0x80 + ((*str >> 6) & 0x3f);
           buffer[i++] = 0x80 + ((*str     ) & 0x3f);
@@ -577,7 +577,7 @@ char *str16to8(const wchar_t *str) { // from wchar16(win) to utf8/ascii
        }
     }
     buffer[i] = 0;
-    return stringf("%s", buffer);
+    return va("%s", buffer);
 }
 
 char *strrepl(char **string, const char *target, const char *replace) { // may reallocate input string if needed
@@ -626,7 +626,7 @@ const char *strlerp(unsigned numpairs, const char **pairs, const char *str) { //
         return str;
     }
     // find & replace all tokens; @fixme: optimize me
-    char *buf = REALLOC(0, 64*1024); strcpy(buf, str);
+    char *buf = REALLOC(0, 128*1024); strcpy(buf, str);
     for( unsigned i = 0; i < numpairs; ++i ) {
         const char *token = pairs[i*2+0];
         const char *repl = pairs[i*2+1];
@@ -634,7 +634,7 @@ const char *strlerp(unsigned numpairs, const char **pairs, const char *str) { //
             strrepl(&buf, token, repl);
         }
     }
-    char *ret = stringf("%s", buf);
+    char *ret = va("%s", buf);
     FREE(buf);
     return ret;
 }
@@ -649,14 +649,14 @@ array(char*) strsplit(const char *str, const char *separators) {
     *(buf[slot] = REALLOC(buf[slot], strlen(str)+1)) = '\0';
 
     for(char *dst = buf[slot]; str && *str; ) {
-        // count literal && terminators
+        // count literal run && terminators
         int run = strcspn(str, separators);
         int end = strspn(str + run, separators);
 
         // append literal run
         if( run ) {
-            memcpy(dst, str, run); dst[run] = '\0';
             array_push(list[slot], dst);
+            memmove(dst,str,run); dst[run] = '\0'; //strncpy(dst, str, run)
             dst += run + 1;
         }
 
@@ -2214,7 +2214,7 @@ int frustum_test_aabb(frustum f, aabb a) {
 // -----------------------------------------------------------------------------
 
 const char *ART = "art/";
-const char *TOOLS = "art/tools/";
+const char *TOOLS = ifdef(win32, "art/tools/", "art//tools/");
 const char *FWK_INI = "fwk.ini";
 
 typedef struct cook_script_t {
@@ -2322,10 +2322,10 @@ cook_script_t cook_script(const char *rules, const char *infile, const char *out
                         char *list = *is_group;
                         char *INPUT_EXT = file_ext(infile); INPUT_EXT = strrchr(INPUT_EXT, '.'); // .ext1.ext -> .ext
                         char *ext = INPUT_EXT; ext += ext[0] == '.'; // dotless
-                        bool in_list = strbegi(list, ext) || strstri(list, stringf(",%s,",ext)) || strendi(list, stringf(",%s",ext));
+                        bool in_list = strbegi(list, ext) || strstri(list, va(",%s,",ext)) || strendi(list, va(",%s",ext));
                         if( !in_list ^ negate ) { found_in_set = false; break; }
                     } else {
-                        char *ext = stringf(".%s", tag);
+                        char *ext = va(".%s", tag);
                         bool found = !!strendi(*INPUT, ext);
                         if( !found ^ negate ) { found_in_set = false; break; }
                     }
@@ -2338,7 +2338,7 @@ cook_script_t cook_script(const char *rules, const char *infile, const char *out
         if( enabled && line[0] != '[' ) {
             enum { group, symbol, regular } type = regular;
             int tokenlen = strspn(line, "-+_.|0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
-            char *token = stringf("%.*s", tokenlen, line);
+            char *token = va("%.*s", tokenlen, line);
             char *equal = strchr(line, '=');
             if( equal ) {
                 if( equal == &line[tokenlen] ) { // if key=value expression found
@@ -2415,8 +2415,8 @@ cook_script_t cook_script(const char *rules, const char *infile, const char *out
     char* belongs_to = 0;
     for each_map(groups, char*, key, char*, val) {
         if( !isdigit(key[0]) ) {
-            char *comma = stringf(",%s,", ext);
-            if( strbegi(val, comma+1) || strstri(val, comma) || strendi(val, stringf(",%s", ext))) {
+            char *comma = va(",%s,", ext);
+            if( strbegi(val, comma+1) || strstri(val, comma) || strendi(val, va(",%s", ext))) {
                 belongs_to = key;
                 //goto break1; // each_map() macro is made of multiple for(;;)s. goto needed; you cant escape with single break.
             }
@@ -2426,13 +2426,13 @@ cook_script_t cook_script(const char *rules, const char *infile, const char *out
     char *compression = 0;
     for each_map(groups, char*, key, char*, val) {
         if( isdigit(key[0]) ) {
-            char *comma = stringf(",%s,", ext);
-            if( strbegi(val, comma+1) || strstri(val, comma) || strendi(val, stringf(",%s", ext))) {
+            char *comma = va(",%s,", ext);
+            if( strbegi(val, comma+1) || strstri(val, comma) || strendi(val, va(",%s", ext))) {
                 compression = key;
                 //goto break2; // each_map() macro is made of multiple for(;;)s. goto needed; you cant escape with single break.
             }
-            comma = stringf(",%s,", belongs_to);
-            if( strbegi(val, comma+1) || strstri(val, comma) || strendi(val, stringf(",%s", ext))) {
+            comma = va(",%s,", belongs_to);
+            if( strbegi(val, comma+1) || strstri(val, comma) || strendi(val, va(",%s", ext))) {
                 compression = key;
                 //goto break2; // each_map() macro is made of multiple for(;;)s. goto needed; you cant escape with single break.
             }
@@ -2478,10 +2478,10 @@ cook_script_t cook_script(const char *rules, const char *infile, const char *out
                 // tools going wrong for any reason? cant compile them maybe?
                 // small hack to use win32 pipeline tools instead
                 char *joint = strjoin(lines, " && wine " );
-                cs.script = stringf("wine %s", TOOLS, joint);
+                cs.script = va("wine %s", TOOLS, joint);
             } else {
                 char *joint = strjoin(lines, " && " );
-                cs.script = stringf("export LD_LIBRARY_PATH=%s && %s", TOOLS, joint);
+                cs.script = va("export LD_LIBRARY_PATH=%s && %s", TOOLS, joint);
             }
         #endif
     } else {
@@ -2654,7 +2654,7 @@ int cook(void *userdata) {
         // log to batch file for forensic purposes, if explicitly requested
         static __thread bool logging = 0, *init = 0; if(!init) *(init = &logging) = !!flag("--cook-debug");
         if( logging ) {
-            FILE *logfile = fopen(stringf("cook%d.cmd",job->threadid), "a+t");
+            FILE *logfile = fopen(va("cook%d.cmd",job->threadid), "a+t");
             if( logfile ) { fprintf(logfile, "@rem %s\n%s\n", fname, cs.script); fclose(logfile); }
             // maybe log fprintf(logfile, "@rem %*.s\n", 4096, os_exec_output()); ?
         }
@@ -2677,7 +2677,7 @@ int cook(void *userdata) {
                 if(strbegi(fname, cwd)) fname += strlen(cwd);
                 //puts(fname);
 
-                char *comment = stringf("%d", inlen);
+                char *comment = va("%d", inlen);
                 if( !zip_append_file(z, fname, comment, in, cs.compress_level) ) {
                     PANIC("failed to add processed file into %s: %s", zipfile, fname);
                 }
@@ -2705,6 +2705,15 @@ int cook_async( void *userptr ) {
 bool cooker_start( const char *masks, int flags ) {
     const char *rules = file_read(FWK_INI);
     if(rules[0] == 0) return false;
+
+    if( strstr(rules, "ART=") ) {
+        ART = STRDUP( strstr(rules, "ART=") + 4 ); // @leak
+        char *r = strchr( ART, '\r' ); if(r) *r = 0;
+        char *n = strchr( ART, '\n' ); if(n) *n = 0;
+        char *s = strchr( ART, ';' );  if(s) *s = 0;
+        char *w = strchr( ART, ' ' );  if(w) *w = 0;
+        strcat((char*)ART, "/");
+    }
 
     // get normalized current working directory (absolute)
     char cwd[MAX_PATHFILE] = {0};
@@ -2791,8 +2800,8 @@ int cooker_progress() {
 }
 
 int cooker_jobs() {
-    int num_jobs = ifdef(tcc, 1, optioni("--with-jobs", cpu_cores())), max_jobs = countof(jobs);
-    return clampi(num_jobs, 1, max_jobs);
+    int num_jobs = optioni("--with-jobs", ifdef(tcc, 1, cpu_cores())), max_jobs = countof(jobs);
+    return clampi(num_jobs, 0, max_jobs);
 }
 
 void cooker_config( const char *art_path, const char *tools_path, const char *fwk_ini ) { // @todo: test run-from-"bin/" case on Linux.
@@ -2878,14 +2887,33 @@ int data_count(const char *keypath) {
     return j ? j->count : 0;
 }
 
-data_t data_get(bool is_string, const char *keypath) {
-    json5 *j = data_node(keypath);
-    data_t v = {0};
-    v.i = j ? j->integer : 0; // ( j->name && !strcmp(j->name, key) ) ? j->integer : 0;
-    if(is_string && !v.p) v.s = "";
-    //if(is_string) printf("s:%s\n", v.s); else printf("f:%f\n", v.f);
+data_t *data_find(const char *type_keypath) {
+    char type = type_keypath[0];
+    const char *key = type_keypath+1;
+    json5 *j = data_node(key);
+    if( !j ) return NULL;
+
+    static __thread int slot = 0;
+    static __thread data_t buf[128] = {0};
+    slot = (slot+1) % 128;
+
+    data_t *v = &buf[slot];
+    v->i = j ? j->integer : 0;
+    if(!v->p && type == 's') v->s = ""; // if_null_string
     return v;
 }
+
+data_t data_get(const char *type_keypath) {
+    char type = type_keypath[0];
+    const char *key = type_keypath+1;
+    json5 *j = data_node(key);
+
+    data_t v = {0};
+    v.i = j ? j->integer : 0;
+    if(!v.p && type == 's') v.s = ""; // if_null_string
+    return v;
+}
+
 #line 0
 #line 1 "fwk_dll.c"
 #ifdef _WIN32
@@ -2900,11 +2928,11 @@ data_t data_get(bool is_string, const char *keypath) {
 void* dll(const char *filename, const char *symbol) {
 /*
     char *buf, *base = file_name(filename);
-    if( file_exists(buf = stringf("%s", base)) ||
-        file_exists(buf = stringf("%s.dll", base)) ||
-        file_exists(buf = stringf("%s.so", base)) ||
-        file_exists(buf = stringf("lib%s.so", base)) ||
-        file_exists(buf = stringf("%s.dylib", base)) ) {
+    if( file_exists(buf = va("%s", base)) ||
+        file_exists(buf = va("%s.dll", base)) ||
+        file_exists(buf = va("%s.so", base)) ||
+        file_exists(buf = va("lib%s.so", base)) ||
+        file_exists(buf = va("%s.dylib", base)) ) {
         filename = buf;
     }
 */
@@ -2927,10 +2955,10 @@ printf("%d\n", adder(2,3));
 
 char *file_name(const char *pathfile) {
     char *s = strrchr(pathfile, '/'), *t = strrchr(pathfile, '\\');
-    return stringf("%s", s > t ? s+1 : t ? t+1 : pathfile);
+    return va("%s", s > t ? s+1 : t ? t+1 : pathfile);
 }
 char *file_path(const char *pathfile) {
-    return stringf("%.*s", (int)(strlen(pathfile)-strlen(file_name(pathfile))), pathfile);
+    return va("%.*s", (int)(strlen(pathfile)-strlen(file_name(pathfile))), pathfile);
 }
 char *file_load(const char *filename, int *len) { // @todo: fix leaks
     FILE *fp = filename[0] ? fopen(filename, "rb") : NULL;
@@ -2969,13 +2997,13 @@ bool file_delete(const char *pathfile) {
 uint64_t file_stamp(const char *fname) {
     time_t mtime = (time_t)file_stamp_epoch(fname);
     struct tm *ti = localtime(&mtime);
-    return atoi64(stringf("%04d%02d%02d%02d%02d%02d",ti->tm_year+1900,ti->tm_mon+1,ti->tm_mday,ti->tm_hour,ti->tm_min,ti->tm_sec));
+    return atoi64(va("%04d%02d%02d%02d%02d%02d",ti->tm_year+1900,ti->tm_mon+1,ti->tm_mday,ti->tm_hour,ti->tm_min,ti->tm_sec));
 }
 static bool file_stat(const char *fname, struct stat *st) {
     // remove ending slashes. win32+tcc does not like them.
     int l = strlen(fname), m = l;
     while( l && (fname[l-1] == '/' || fname[l-1] == '\\') ) --l;
-    fname = l == m ? fname : stringf("%.*s", l, fname);
+    fname = l == m ? fname : va("%.*s", l, fname);
     return stat(fname, st) >= 0;
 }
 uint64_t file_stamp_epoch(const char *fname) {
@@ -2995,7 +3023,7 @@ bool file_exist(const char *fname) {
     return !file_stat(fname, &st) ? false : true;
 }
 char *file_normalize(const char *name) {
-    char *copy = stringf("%s", name), *s = copy, c;
+    char *copy = va("%s", name), *s = copy, c;
 #if is(win32)
     for( int i = 0; copy[i]; ++i ) { if(copy[i] == '/') copy[i] = '\\'; if(copy[i] == '\'') copy[i] = '\"'; }
 #else
@@ -3005,7 +3033,7 @@ char *file_normalize(const char *name) {
 }
 #if 0
 char *file_normalize(const char *name) {
-    char *copy = stringf("%s", name), *s = copy, c;
+    char *copy = va("%s", name), *s = copy, c;
     // lowercases+digits+underscores+slashes only. anything else is truncated.
     for( ; *name ; ++name ) {
         /**/ if( *name >= 'a' && *name <= 'z' ) *s++ = *name;
@@ -3037,7 +3065,7 @@ char *file_normalize_with_folder(const char *name) {
 #endif
 char *file_ext(const char *name) {
     char *b = file_name(name), *s = strchr(b, '.'); //strrchr(name, '.');
-    return stringf("%s", s ? s : "" ); // , name );
+    return va("%s", s ? s : "" ); // , name );
 }
 
 char *file_id(const char *pathfile) {
@@ -3054,7 +3082,7 @@ char *ext = strrchr(base, '.'); //if (ext) ext[0] = '\0'; // remove all extensio
 #endif
 
 // if (!dir[0]) return base;
-    char *stem = stringf("%s/%s", dir, base); // file_name(dir);
+    char *stem = va("%s/%s", dir, base); // file_name(dir);
 
     // /path2/path1/file2_file1 -> file1_file2/path1/path2
     int len = 0;
@@ -3066,7 +3094,7 @@ char *ext = strrchr(base, '.'); //if (ext) ext[0] = '\0'; // remove all extensio
         char* tokens[64] = { 0 };
         // split tokens
         for each_substring(key, "[]()_ ", it) {
-            tokens[tokens_count++] = stringf("%s", it);
+            tokens[tokens_count++] = va("%s", it);
         }
         // sort alphabetically
         if( tokens_count > 1 ) qsort(tokens, tokens_count, sizeof(char *), strcmp_qsort);
@@ -3085,7 +3113,7 @@ char *ext = strrchr(base, '.'); //if (ext) ext[0] = '\0'; // remove all extensio
         strcat(buffer, ids[it]);
         strcat(buffer, "/");
     }
-    return stringf("%s", buffer);
+    return va("%s", buffer);
 }
 const char** file_list(const char *cwd, const char *masks) {
     static local array(char*) list = 0;
@@ -3100,9 +3128,9 @@ const char** file_list(const char *cwd, const char *masks) {
     for each_substring(masks,";",it) {
         int recurse = !!strstr(it, "**");
         #if is(win32)
-        char *glob = stringf("dir %s/b/o:n \"%s\\%s\" 2> NUL", recurse ? "/s":"", cwd, it);
+        char *glob = va("dir %s/b/o:n \"%s\\%s\" 2> NUL", recurse ? "/s":"", cwd, it);
         #else // linux, osx
-        char *glob = stringf("find %s -type f -iname \"%s\" | sort", cwd, it); // @fixme: add non-recursive support
+        char *glob = va("find %s -type f -iname \"%s\" | sort", cwd, it); // @fixme: add non-recursive support
         #endif
         for( FILE *in = popen(glob, "r"); in; pclose(in), in = 0) {
             char buf[1024], *line = buf;
@@ -3116,7 +3144,7 @@ const char** file_list(const char *cwd, const char *masks) {
                 #if is(win32)
                 char *copy = STRDUP(line); // full path already provided
                 #else
-                char *copy = STRDUP(stringf("%s%s", cwd, line)); // need to prepend path
+                char *copy = STRDUP(va("%s%s", cwd, line)); // need to prepend path
                 #endif
                 array_push(list, copy);
             }
@@ -3142,7 +3170,7 @@ bool file_copy(const char *src, const char *dst) {
 
 char* file_tempname() {
     static __thread int id;
-    return stringf("%s/fwk-temp.%s.%p.%d", app_temp(), getenv(ifdef(win32, "username", "USER")), &id, rand());
+    return va("%s/fwk-temp.%s.%p.%d", app_temp(), getenv(ifdef(win32, "username", "USER")), &id, rand());
 }
 
 FILE *file_temp(void) {
@@ -3184,8 +3212,10 @@ struct vfs_entry {
 array(struct vfs_entry) vfs_entries;
 
 bool vfs_mount(const char *path) {
-    zip *z = NULL; tar *t = NULL; pak *p = NULL;
+    zip *z = NULL; tar *t = NULL; pak *p = NULL; dir *d = NULL;
     int is_folder = ('/' == path[strlen(path)-1]);
+    if( is_folder ) d = dir_open(path, "rb");
+    if( is_folder && !d ) return 0;
     if( !is_folder ) z = zip_open(path, "rb");
     if( !is_folder && !z ) t = tar_open(path, "rb");
     if( !is_folder && !z && !t ) p = pak_open(path, "rb");
@@ -3197,14 +3227,14 @@ bool vfs_mount(const char *path) {
     if( z || t || p ) {
     // save local path for archives, so we can subtract those from upcoming requests
     if(strrchr(path,'/')) strrchr(path,'/')[1] = '\0';
-    }
+    } else if(d) 0[(char*)path] = 0;
 
     // append to mounted archives
     archive_dir *prev = dir_mount, zero = {0};
     *(dir_mount = REALLOC(0, sizeof(archive_dir))) = zero;
     dir_mount->next = prev;
     dir_mount->path = (char*)path;
-    dir_mount->archive = z ? (void*)z : t ? (void*)t : (void*)p;
+    dir_mount->archive = z ? (void*)z : t ? (void*)t : p ? (void*)p : (void*)d;
     dir_mount->type = is_folder ? is_dir : z ? is_zip : t ? is_tar : p ? is_pak : -1;
     ASSERT(dir_mount->type >= 0 && dir_mount->type < 4);
 
@@ -3237,7 +3267,7 @@ const char** vfs_list(const char *masks) {
     array_free(list);
 
     for each_substring(masks,";",it) {
-        it = stringf("*/%s", it);
+        it = va("*/%s", it);
         // int recurse = !!strstr(it, "**"); // @fixme: support non-recursive
         for( unsigned i = 0; i < array_count(vfs_entries); ++i ) {
             const char *name = vfs_entries[i].name;
@@ -3262,7 +3292,7 @@ char *vfs_unpack(const char *pathfile, int *size) { // must free() after use
     char *data = NULL;
     for(archive_dir *dir = dir_mount; dir && !data; dir = dir->next) {
         if( dir->type == is_dir ) {
-#if 0 // sandboxed
+#if 1 // sandboxed
             char buf[512];
             snprintf(buf, sizeof(buf), "%s%s", dir->path, pathfile);
             data = file_load(buf, size);
@@ -3303,19 +3333,18 @@ char* vfs_load(const char *pathfile, int *size_out) { // @todo: fix leaks
     if (!pathfile[0]) return file_load(pathfile, size_out);
     if (pathfile[0] == '/' || pathfile[1] == ':') return file_load(pathfile, size_out);
 
-    {
+    //{
     // exclude garbage from material names
     // @todo: exclude double slashs in paths
     char *base = file_name(pathfile); if(strchr(base,'+')) base = strchr(base, '+')+1;
     char *folder = file_path(pathfile);
-    pathfile = stringf("%s%s", folder, base);
+    pathfile = va("%s%s", folder, base);
 
     // solve virtual path
-    pathfile = stringf("%s", vfs_resolve(pathfile));
+    pathfile = va("%s", vfs_resolve(pathfile));
     base = file_name(pathfile);
     folder = file_path(pathfile);
-    PRINTF("Loading VFS: (%s)%s\n", folder, base);
-    }
+    //}
 
     int size = 0;
     void *ptr = 0;
@@ -3341,7 +3370,9 @@ char* vfs_load(const char *pathfile, int *size_out) { // @todo: fix leaks
     }
 
     if( ptr ) {
-        PRINTF("Hit cache %s\n", pathfile);
+        PRINTF("Loading VFS (%s)%s (cached)\n", folder, base);
+    } else {
+        PRINTF("Loading VFS (%s)%s\n", folder, base);
     }
 
     // search (mounted disks)
@@ -5285,7 +5316,7 @@ void font_face_from_mem(const char *tag, const unsigned char *ttf_buffer, unsign
 
     // last chance to inspect the font atlases
     if( flag("--debug-font-atlas") )
-    stbi_write_png(stringf("debug_font_atlas%d.png", index), f->width, f->height, 1, bitmap, 0);
+    stbi_write_png(va("debug_font_atlas%d.png", index), f->width, f->height, 1, bitmap, 0);
 
     FREE(bitmap);
 
@@ -5973,7 +6004,7 @@ static struct controller_t *input_logger(int position, int advance) {
 
 void input_mappings() {
     unsigned char* mappings = vfs_read("gamecontrollerdb.txt");
-    if( mappings ) { glfwUpdateGamepadMappings(mappings); REALLOC(mappings, 0); }
+    if( mappings ) { glfwUpdateGamepadMappings(mappings); /*REALLOC(mappings, 0);*/ }
 }
 
 void input_init() {
@@ -6470,6 +6501,11 @@ void  ortho3   (vec3 *left, vec3 *up, vec3 v) {
     *up = cross3(*left, v);
 #endif
 }
+
+#define rotateq3(v,q) transformq(q,v)
+vec3 rotatex3(vec3 dir, float degrees) { return rotateq3(dir, rotationq(degrees,1,0,0)); }
+vec3 rotatey3(vec3 dir, float degrees) { return rotateq3(dir, rotationq(degrees,0,1,0)); }
+vec3 rotatez3(vec3 dir, float degrees) { return rotateq3(dir, rotationq(degrees,0,0,1)); }
 
 // ----------------------------------------------------------------------------
 
@@ -7393,14 +7429,14 @@ char* tcp_host(int fd) {
     struct swrap_addr sa;
     swrapAddress(fd, &sa);
     swrapAddressInfo(&sa, buf, 512, buf+512, 512);
-    return stringf("%s", buf);
+    return va("%s", buf);
 }
 char* tcp_port(int fd) {
     char buf[1024];
     struct swrap_addr sa;
     swrapAddress(fd, &sa);
     swrapAddressInfo(&sa, buf, 512, buf+512, 512);
-    return stringf("%s", buf+512);
+    return va("%s", buf+512);
 }
 int tcp_close(int fd) {
     swrapClose(fd);
@@ -7473,11 +7509,36 @@ void glDebugEnable() {
     }
 }
 
+static
+void glCopyBackbufferToTexture( texture_t *tex ) { // unused
+    glActiveTexture( GL_TEXTURE0 + tex->unit );
+    glBindTexture( GL_TEXTURE_2D, tex->id );
+    glCopyTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, 0, 0, window_width(), window_height(), 0 );
+}
+
 void glNewFrame() {
     glViewport(0, 0, window_width(), window_height());
     //glClearColor(0,0,0,1);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    //glClearColor( clearColor.r, clearColor.g, clearColor.b, clearColor.a );
+    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT );
+
+    // blending defaults
     glEnable(GL_BLEND);
+
+    // culling defaults
+//  glEnable(GL_CULL_FACE);
+//  glCullFace(GL_BACK);
+//  glFrontFace(GL_CCW);
+
+    // depth-testing defaults
+    glEnable(GL_DEPTH_TEST);
+//  glDepthFunc(GL_LESS);
+
+    // depth-writing defaults
+//  glDepthMask(GL_TRUE);
+
+    // seamless cubemaps
+//  glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 }
 
 // ----------------------------------------------------------------------------
@@ -7855,7 +7916,7 @@ static const char *const fs_2_4_texel_inv_gamma = "//" FILELINE "\n"
     "    fragcolor.rgb = pow( fragcolor.rgb, vec3( u_inv_gamma ) );\n" // defaults: 1.0/2.2 gamma
     "}\n";
 
-
+// vertex stride = 4*(3+2+3+4+4+4+4+3) = 108 bytes
 static const char *const vs_32344443_332_model = "//" FILELINE "\n"
     "#ifndef MAX_BONES\n"
     "#define MAX_BONES 110\n"
@@ -7865,14 +7926,14 @@ static const char *const vs_32344443_332_model = "//" FILELINE "\n"
     // "uniform mat4 M;\n" // RIM
     "uniform mat4 MVP;\n"
 
-    "in vec3 att_position;\n"
+    "in vec3 att_position;\n" // @todo: reorder ass2iqe to emit p3 n3 u2 t3 b3 c4B i4 w4 instead
     "in vec2 att_texcoord;\n"
     "in vec3 att_normal;\n"
-    "in vec4 att_tangent;\n"
-    "in vec4 att_indexes;\n"
-    "in vec4 att_weights;\n"
+    "in vec4 att_tangent;\n" // vec3 + bi sign
+    "in vec4 att_indexes;\n" // @fixme: ivec4 instead?
+    "in vec4 att_weights;\n" // @todo: downgrade from float to byte
     "in vec4 att_color;\n"
-    "in vec3 att_bitangent;\n"
+    "in vec3 att_bitangent;\n" // @todo: remove? also, ass2iqe might output this
     "out vec3 v_position;\n"
     "out vec3 v_normal, v_normal_ws;\n"
     "out vec2 v_texcoord;\n"
@@ -7905,6 +7966,10 @@ static const char *const vs_32344443_332_model = "//" FILELINE "\n"
     "       v_normal = vec4(att_normal, 0.0) * m;\n"
     "       //@todo: tangents\n"
     "   }\n"
+
+    //"   vec3 tangent = att_tangent.xyz;\n"
+    //"   vec3 bitangent = cross(att_normal, att_tangent.xyz) * att_tangent.w;
+
     "   v_normal_ws = normalize(vec3(model * vec4(v_normal, 0.)));\n" // normal to world/model space
     "   v_normal = normalize(v_normal);\n"
     "   v_position = att_position;\n"
@@ -8062,11 +8127,51 @@ static const char *const fs_24_4_sprite = "//" FILELINE "\n"
     "in vec4 vColor;\n"
     "out vec4 fragColor;\n"
 
+    "// [src] https://www.shadertoy.com/view/MllBWf CC1.0\n"
+    "vec4 texture_AA(sampler2D tx, vec2 uv) {\n"
+    "    vec2 res = vec2(textureSize(tx, 0));\n"
+    "    uv = uv*res + 0.5;\n"
+    "    // tweak fractionnal value of the texture coordinate\n"
+    "    vec2 fl = floor(uv);\n"
+    "    vec2 fr = fract(uv);\n"
+    "    vec2 aa = fwidth(uv)*0.75;\n"
+    "    fr = smoothstep( vec2(0.5)-aa, vec2(0.5)+aa, fr);\n"
+    "    // return value\n"
+    "    uv = (fl+fr-0.5) / res;\n"
+    "    return texture(tx, uv);\n"
+    "}\n"
+
+    "// [src] https://www.shadertoy.com/view/MllBWf CC1.0\n"
+    "vec4 texture_AA2( sampler2D tex, vec2 uv) {\n"
+    "    vec2 res = vec2(textureSize(tex,0));\n"
+    "    uv = uv*res;\n"
+    "    vec2 seam = floor(uv+0.5);\n"
+    "    uv = seam + clamp( (uv-seam)/fwidth(uv), -0.5, 0.5);\n"
+    "    return texture(tex, uv/res);\n"
+    "}\n"
+
+    "// [src] https://www.shadertoy.com/view/ltBfRD\n"
+    "vec4 texture_AA3(sampler2D tex, vec2 uv) {\n"
+    "    vec2 res = vec2(textureSize(tex,0));\n"
+    "    float width = 2.0;\n"
+    "    uv = uv * res;\n"
+    "    // ---\n"
+    "    vec2 uv_floor = floor(uv + 0.5);\n"
+    "    vec2 uv_fract = fract(uv + 0.5);\n"
+    "    vec2 uv_aa = fwidth(uv) * width * 0.5;\n"
+    "    uv_fract = smoothstep(\n"
+    "        vec2(0.5) - uv_aa,\n"
+    "        vec2(0.5) + uv_aa,\n"
+    "        uv_fract\n"
+    "        );\n"
+    "    uv = (uv_floor + uv_fract - 0.5) / res;\n"
+    "    return texture(tex, uv);\n"
+    "}\n"
+
     "void main() {\n"
-    "    vec4 texColor = texture(u_texture, vTexCoord);\n"
-    "texColor = vColor * texColor;\n"
+    "    vec4 texColor = texture_AA2(u_texture, vTexCoord);\n"
     "if(texColor.a < 0.5) discard;"
-    "    fragColor = texColor;\n"
+    "    fragColor = vColor * texColor;\n"
     "}\n";
 
 static const char *const fs_2_4_preamble = "//" FILELINE "\n"
@@ -8115,8 +8220,8 @@ GLuint shader_compile( GLenum type, const char *source ) {
     glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
     if( status == GL_FALSE ) {
         glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &length);
-        ASSERT(length < 2048);
-        char buf[2048] = { 0 };
+//      ASSERT(length < 2048); char buf[2048] = { 0 };
+        char *buf = stack(length+1);
         glGetShaderInfoLog(shader, length, NULL, buf);
 
         // dump log with line numbers
@@ -8128,11 +8233,16 @@ GLuint shader_compile( GLenum type, const char *source ) {
     return shader;
 }
 
+
+
 unsigned shader(const char *vs, const char *fs, const char *attribs, const char *fragcolor) {
     PRINTF(/*"!"*/"Compiling shader\n");
 
-    fs = fs[0] == '#' && fs[1] == 'v' ? fs : stringf("#version 150\n%s", fs);
-    vs = vs[0] == '#' && vs[1] == 'v' ? vs : stringf("#version 150\n%s", vs);
+    //char *vs = vfs_read(file_vs); if(!vs) vs = (char*)file_vs;
+    //char *fs = vfs_read(file_fs); if(!fs) fs = (char*)file_fs;
+
+    vs = vs[0] == '#' && vs[1] == 'v' ? vs : va("#version 150\n%s", vs);
+    fs = fs[0] == '#' && fs[1] == 'v' ? fs : va("#version 150\n%s", fs);
 
     GLuint vert = shader_compile(GL_VERTEX_SHADER, vs);
     GLuint frag = shader_compile(GL_FRAGMENT_SHADER, fs);
@@ -8156,7 +8266,9 @@ unsigned shader(const char *vs, const char *fs, const char *attribs, const char 
             PRINTF("Shader.attribute[%d]=%s\n", i, attrib);
         }
 
+        if(fragcolor)
         glBindFragDataLocation(program, 0, fragcolor);
+
         glLinkProgram(program);
 
         GLint status = GL_FALSE, length;
@@ -8167,8 +8279,8 @@ unsigned shader(const char *vs, const char *fs, const char *attribs, const char 
         if (status == GL_FALSE) {
 #endif
             glGetProgramiv(program, GL_INFO_LOG_LENGTH, &length);
-            ASSERT(length < 2048);
-            char buf[2048] = { 0 };
+            // ASSERT(length < 2048); char buf[2048] = { 0 };
+            char *buf = stack(length+1);
             glGetProgramInfoLog(program, length, NULL, buf);
             puts("--- vs:");
             shader_print(vs);
@@ -8195,18 +8307,27 @@ unsigned shader(const char *vs, const char *fs, const char *attribs, const char 
 //#endif
     }
 
+/*
+    if( s->program ) {
+        strcatf(&s->name, "// vs (%s)\n%s\n\n\n", file_vs, vs);
+        strcatf(&s->name, "// fs (%s)\n%s\n\n\n", file_fs, fs);
+    }
+*/
+
     return program;
 }
 
 void shader_destroy(unsigned program){
+    if( program == ~0u ) return;
     glDeleteProgram(program);
+// if(s->name) FREE(s->name), s->name = NULL;
 }
 
-unsigned last_shader = -1;
+static __thread unsigned last_shader = -1;
 static
 int shader_uniform(const char *name) {
     int ret = glGetUniformLocation(last_shader, name);
-    if( ret < 0 ) PRINTF("!cannot find uniform '%s' in shader program %d\n", name, (int)last_shader );
+    // if( ret < 0 ) PRINTF("!cannot find uniform '%s' in shader program %d\n", name, (int)last_shader );
     return ret;
 }
 unsigned shader_get_active() { return last_shader; }
@@ -8217,8 +8338,23 @@ void shader_vec2(const char *uniform, vec2 v)   { glUniform2fv(shader_uniform(un
 void shader_vec3(const char *uniform, vec3 v)   { glUniform3fv(shader_uniform(uniform), 1, &v.x); }
 void shader_vec4(const char *uniform, vec4 v)   { glUniform4fv(shader_uniform(uniform), 1, &v.x); }
 void shader_mat44(const char *uniform, mat44 m) { glUniformMatrix4fv(shader_uniform(uniform), 1, GL_FALSE/*GL_TRUE*/, m); }
-void shader_texture(const char *sampler, unsigned texture, unsigned unit) { glBindTexture(GL_TEXTURE_2D, texture); glActiveTexture(GL_TEXTURE0 + unit); glUniform1i(shader_uniform(sampler), unit); }
 void shader_cubemap(const char *sampler, unsigned texture) { glUniform1i(shader_uniform(sampler), 0); glBindTexture(GL_TEXTURE_CUBE_MAP, texture); }
+void shader_bool(const char *uniform, bool x) { glUniform1i(shader_uniform(uniform), x); }
+void shader_uint(const char *uniform, unsigned x ) { glUniform1ui(shader_uniform(uniform), x); }
+void shader_texture(const char *sampler, texture_t t) { shader_texture_unit(sampler, t.id, t.unit); }
+void shader_texture_unit(const char *sampler, unsigned id, unsigned unit) {
+    // @todo. if tex.h == 1 ? GL_TEXTURE_1D : GL_TEXTURE_2D
+    glUniform1i(shader_uniform(sampler), unit);
+    glActiveTexture(GL_TEXTURE0 + unit);
+    glBindTexture(GL_TEXTURE_2D, id);
+}
+
+void shader_colormap(const char *name, colormap_t c ) {
+    // assumes shader uses `struct { vec4 color; bool has_tex } name + sampler2D name_tex;`
+    shader_vec4( va("%s.color", name), c.color );
+    shader_bool( va("%s.has_tex", name), c.texture != NULL );
+    if( c.texture ) shader_texture( va("%s_tex", name), *c.texture );
+}
 
 // -----------------------------------------------------------------------------
 // colors
@@ -8257,6 +8393,9 @@ image_t image_from_mem(const char *data, int size, int flags) {
         if(flags & IMAGE_RG) n = 2;
         if(flags & IMAGE_RGB) n = 3;
         if(flags & IMAGE_RGBA) n = 4;
+        if(flags & IMAGE_FLOAT)
+        img.pixels = stbi_loadf_from_memory(data, size, &img.x,&img.y,&img.n, n);
+        else
         img.pixels = stbi_load_from_memory(data, size, &img.x,&img.y,&img.n, n);
         if( img.pixels ) {
             PRINTF("Loaded image (%dx%d %.*s->%.*s)\n",img.w,img.h,img.n,"RGBA",n?n:img.n,"RGBA");
@@ -8270,13 +8409,13 @@ image_t image_from_mem(const char *data, int size, int flags) {
 
 image_t image(const char *pathfile, int flags) {
     const char *fname = vfs_find(pathfile);
-    // if( !fname[0] ) fname = vfs_find(stringf("%s.png",pathfile)); // needed?
-    // if( !fname[0] ) fname = vfs_find(stringf("%s.jpg",pathfile)); // needed?
-    // if( !fname[0] ) fname = vfs_find(stringf("%s.tga",pathfile)); // needed?
-    // if( !fname[0] ) fname = vfs_find(stringf("%s.jpg.png",pathfile)); // needed?
-    // if( !fname[0] ) fname = vfs_find(stringf("%s.tga.png",pathfile)); // needed?
-    // if( !fname[0] ) fname = vfs_find(stringf("%s.png.jpg",pathfile)); // needed?
-    // if( !fname[0] ) fname = vfs_find(stringf("%s.tga.jpg",pathfile)); // needed?
+    // if( !fname[0] ) fname = vfs_find(va("%s.png",pathfile)); // needed?
+    // if( !fname[0] ) fname = vfs_find(va("%s.jpg",pathfile)); // needed?
+    // if( !fname[0] ) fname = vfs_find(va("%s.tga",pathfile)); // needed?
+    // if( !fname[0] ) fname = vfs_find(va("%s.jpg.png",pathfile)); // needed?
+    // if( !fname[0] ) fname = vfs_find(va("%s.tga.png",pathfile)); // needed?
+    // if( !fname[0] ) fname = vfs_find(va("%s.png.jpg",pathfile)); // needed?
+    // if( !fname[0] ) fname = vfs_find(va("%s.tga.jpg",pathfile)); // needed?
 
     int size = 0;
     char *data = vfs_load(fname, &size);
@@ -8308,6 +8447,15 @@ vec3 bilinear(image_t in, vec2 uv) { // image_bilinear_pixel() ?
 // -----------------------------------------------------------------------------
 // textures
 
+static
+int allocate_texture_unit() {
+    static int textureUnit = 0, totalTextureUnits = 0;
+    do_once glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &totalTextureUnits);
+
+    ASSERT(textureUnit < totalTextureUnits, "%d texture units exceeded", totalTextureUnits);
+    return textureUnit++;
+}
+
 unsigned texture_update(texture_t *t, unsigned w, unsigned h, unsigned n, void *pixels, int flags) {
     ASSERT( t && t->id );
     ASSERT( n <= 4 );
@@ -8322,7 +8470,7 @@ unsigned texture_update(texture_t *t, unsigned w, unsigned h, unsigned n, void *
     if( flags & TEXTURE_BGR )  if( pixel_type == GL_RGB )  pixel_type = GL_BGR;
     if( flags & TEXTURE_BGR )  if( pixel_type == GL_RGBA ) pixel_type = GL_BGRA;
     if( flags & TEXTURE_SRGB ) if( texel_type == GL_RGB )  texel_type = GL_SRGB;
-    if( flags & TEXTURE_SRGB ) if( texel_type == GL_RGBA ) texel_type = GL_SRGB_ALPHA;
+    if( flags & TEXTURE_SRGB ) if( texel_type == GL_RGBA ) texel_type = GL_SRGB_ALPHA; // GL_SRGB8_ALPHA8 ?
 
     if( flags & TEXTURE_BC1 ) texel_type = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
     if( flags & TEXTURE_BC2 ) texel_type = GL_COMPRESSED_RGBA_S3TC_DXT3_EXT;
@@ -8332,7 +8480,7 @@ unsigned texture_update(texture_t *t, unsigned w, unsigned h, unsigned n, void *
     if( flags & TEXTURE_REPEAT ) wrap = GL_REPEAT;
     if( flags & TEXTURE_BORDER ) wrap = GL_CLAMP_TO_BORDER;
     if( flags & TEXTURE_LINEAR ) min_filter = GL_LINEAR, mag_filter = GL_LINEAR;
-    if( flags & TEXTURE_MIPMAPS  ) min_filter = flags & TEXTURE_LINEAR ? GL_LINEAR_MIPMAP_LINEAR : GL_NEAREST_MIPMAP_LINEAR;
+    if( flags & TEXTURE_MIPMAPS  ) min_filter = flags & TEXTURE_LINEAR ? GL_LINEAR_MIPMAP_LINEAR : GL_NEAREST_MIPMAP_LINEAR; // : GL_LINEAR_MIPMAP_NEAREST; maybe?
     if( flags & TEXTURE_MIPMAPS  ) mag_filter = flags & TEXTURE_LINEAR ? GL_LINEAR : GL_NEAREST;
 
     if( 0 ) { // flags & TEXTURE_PREMULTIPLY_ALPHA )
@@ -8377,6 +8525,8 @@ max_aniso = 4;
     t->h = h;
     t->n = n;
     t->flags = flags;
+    t->filename = t->filename ? t->filename : "";
+
     return t->id;
 }
 
@@ -8384,6 +8534,8 @@ texture_t texture_create(unsigned w, unsigned h, unsigned n, void *pixels, int f
     texture_t texture = {0};
     glGenTextures( 1, &texture.id );
     texture_update( &texture, w, h, n, pixels, flags );
+    texture.unit = allocate_texture_unit();
+    texture.transparent = texture.n > 3; // @fixme: should be true only if any pixel.a == 0
     return texture;
 }
 
@@ -8441,6 +8593,7 @@ texture_t texture(const char *pathfile, int flags) {
     image_t img = image(pathfile, flags);
     if( img.pixels ) {
         texture_t t = texture_create(img.x, img.y, img.n, img.pixels, flags);
+        t.filename = STRDUP(file_name(pathfile));
         image_destroy(&img);
         return t;
     }
@@ -8448,8 +8601,9 @@ texture_t texture(const char *pathfile, int flags) {
 }
 
 void texture_destroy( texture_t *t ) {
-    if(t->id) glDeleteTextures(1, &t->id);
-    t->id = 0;
+    if(t->filename && t->filename[0]) FREE(t->filename), t->filename = 0;
+    if(t->id) glDeleteTextures(1, &t->id), t->id = 0;
+    *t = (texture_t){0};
 }
 
 // ktx texture loader
@@ -8736,6 +8890,8 @@ texture_t texture_compressed_from_mem(const void *data, int len, unsigned flags)
 
     if( target == GL_TEXTURE_CUBE_MAP ) target = GL_TEXTURE_CUBE_MAP_POSITIVE_X;
 
+    // GLenum internalFormat = flags & TEXTURE_SRGB ? GL_SRGB8_ALPHA8 : GL_RGBA8; // @fixme
+
     int bytes = 0;
     enum { border = 0 };
     for( int m = 0; m < hdr.num_mipmaps; ++m ) {
@@ -8751,6 +8907,9 @@ texture_t texture_compressed_from_mem(const void *data, int len, unsigned flags)
             }
         }
     }
+
+//    if( !hdr.num_mipmaps )
+//    if( flags & TEXTURE_MIPMAPS ) glGenerateMipmap(target);
 
     texture_t t = {0};
     t.id = id;
@@ -8948,7 +9107,7 @@ void fullscreen_ycbcr_quad( texture_t textureYCbCr[3], float gamma ) {
 // sprites
 
 typedef struct sprite_t {
-    int cellw, cellh;         // dimensions of any cell in spritesheet
+    float cellw, cellh;       // dimensions of any cell in spritesheet
     int frame, ncx, ncy;      // frame in a (num cellx, num celly) spritesheet
     float px, py, pz;         // origin x, y, depth
     float ox, oy, cos, sin;   // offset x, offset y, cos/sin of rotation degree
@@ -8975,9 +9134,9 @@ static array(sprite_vertex) sprite_vertices = 0;
 static batch_group_t sprite_additive_group = {0};
 static batch_group_t sprite_translucent_group = {0};
 
-void tile( texture_t texture, vec3 position, uint32_t color, float rotation ) {
+void tile( texture_t texture, float position[3], float rotation, uint32_t color ) {
     float offset[2] = {0,0}, scale[2] = {1,1}, spritesheet[3] = {0,0,0};
-    sprite( texture, &position.x, rotation, offset, scale, 0, color, spritesheet );
+    sprite( texture, position, rotation, offset, scale, 0, color, spritesheet );
 }
 
 void sprite( texture_t texture, float position[3], float rotation, float offset[2], float scale[2], int is_additive, uint32_t rgba, float spritesheet[3]) {
@@ -9001,8 +9160,8 @@ void sprite( texture_t texture, float position[3], float rotation, float offset[
         s.sy = sy;
         s.ox = ox * sx;
         s.oy = oy * sy;
-        s.cellw = texture.x * sx / s.ncx;
-        s.cellh = texture.y * sy / s.ncy;
+        s.cellw = (texture.x * sx / s.ncx);
+        s.cellh = (texture.y * sy / s.ncy);
         s.rgba = rgba;
         s.cos = 1;
         s.sin = 0;
@@ -9078,7 +9237,7 @@ static void sprite_rebuild_meshes() {
                 array_push( sprite_indices, sprite_index(C, A, B) ); // Triangle 2
             }
 
-            mesh_upgrade(&bt->mesh, "p3 t2 c4b", 0,array_count(sprite_vertices),sprite_vertices, 3*array_count(sprite_indices),sprite_indices, MESH_STATIC);
+            mesh_upgrade(&bt->mesh, "p3 t2 c4B", 0,array_count(sprite_vertices),sprite_vertices, 3*array_count(sprite_indices),sprite_indices, MESH_STATIC);
 
             // clear elements from queue
             sprite_count += array_count(bt->sprites);
@@ -9088,6 +9247,10 @@ static void sprite_rebuild_meshes() {
 }
 
 static void sprite_render_meshes() {
+    if( map_count(sprite_additive_group) <= 0 )
+    if( map_count(sprite_translucent_group) <= 0 )
+        return;
+
     if( sprite_program < 0 ) {
         sprite_program = shader( vs_324_24_sprite, fs_24_4_sprite,
             "att_Position,att_TexCoord,att_Color",
@@ -9104,10 +9267,22 @@ static void sprite_render_meshes() {
     glEnable(GL_BLEND);
     glDepthFunc(GL_LEQUAL); // try to help with zfighting
 
-    // update camera and set mvp in the uniform
+    // update camera
+    // camera_fps(camera_get_active(), 0,0);
+    vec3 pos = camera_get_active()->position;
+    float zoom = absf(pos.z); if(zoom < 0.1f) zoom = 0.1f; zoom = 1.f / (zoom + !zoom);
+    float width  = window_width();
+    float height = window_height();
+
+    // set mvp in the uniform. (0,0) is center of screen.
     mat44 mvp2d;
     float zdepth_max = window_height(); // 1;
-    ortho44(mvp2d, 0, window_width(), window_height(), 0, -zdepth_max, +zdepth_max);
+    float l = pos.x - width  * zoom / 2;
+    float r = pos.x + width  * zoom / 2;
+    float b = pos.y + height * zoom / 2;
+    float t = pos.y - height * zoom / 2;
+    ortho44(mvp2d, l,r,b,t, -zdepth_max, +zdepth_max);
+
     shader_mat44("u_mvp", mvp2d);
 
     // set (unit 0) in the uniform texture sampler, and render batch
@@ -9117,7 +9292,7 @@ static void sprite_render_meshes() {
         glBlendFunc( GL_SRC_ALPHA, GL_ONE );
         for each_map_ptr(sprite_additive_group, int,texture_id, batch_t,bt) {
             if( bt->dirty ) {
-                shader_texture("u_texture", *texture_id, 0);
+                shader_texture_unit("u_texture", *texture_id, 0);
                 mesh_render(&bt->mesh);
             }
         }
@@ -9128,7 +9303,7 @@ static void sprite_render_meshes() {
         glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
         for each_map_ptr(sprite_translucent_group, int,texture_id, batch_t,bt) {
             if( bt->dirty ) {
-                shader_texture("u_texture", *texture_id, 0);
+                shader_texture_unit("u_texture", *texture_id, 0);
                 mesh_render(&bt->mesh);
             }
         }
@@ -9147,10 +9322,10 @@ static void sprite_init() {
 }
 
 void sprite_flush() {
-    profile(Sprite rebuild) {
+    profile("Sprite rebuild") {
     sprite_rebuild_meshes();
     }
-    profile(Sprite render) {
+    profile("Sprite render") {
     sprite_render_meshes();
     }
 }
@@ -9336,12 +9511,12 @@ skybox_t skybox(const char *asset, int flags) {
             image_destroy(&panorama);
         } else { // is folder
             image_t images[6] = {0};
-            images[0] = image( stringf("%s/posx", asset), IMAGE_RGB ); // cubepx
-            images[1] = image( stringf("%s/negx", asset), IMAGE_RGB ); // cubenx
-            images[2] = image( stringf("%s/posy", asset), IMAGE_RGB ); // cubepy
-            images[3] = image( stringf("%s/negy", asset), IMAGE_RGB ); // cubeny
-            images[4] = image( stringf("%s/posz", asset), IMAGE_RGB ); // cubepz
-            images[5] = image( stringf("%s/negz", asset), IMAGE_RGB ); // cubenz
+            images[0] = image( va("%s/posx", asset), IMAGE_RGB ); // cubepx
+            images[1] = image( va("%s/negx", asset), IMAGE_RGB ); // cubenx
+            images[2] = image( va("%s/posy", asset), IMAGE_RGB ); // cubepy
+            images[3] = image( va("%s/negy", asset), IMAGE_RGB ); // cubeny
+            images[4] = image( va("%s/posz", asset), IMAGE_RGB ); // cubepz
+            images[5] = image( va("%s/negz", asset), IMAGE_RGB ); // cubenz
             sky.cubemap = cubemap6( images, 0 );
             for( int i = 0; i < countof(images); ++i ) image_destroy(&images[i]);
         }
@@ -9410,15 +9585,15 @@ void mesh_upgrade(mesh_t *m, const char *format, int vertex_stride,int vertex_co
         break; case '2': dc->num_components = 2;
         break; case '3': dc->num_components = 3;
         break; case '4': dc->num_components = 4;
-        break; case 'f': dc->vertex_type = GL_FLOAT;
-        break; case 'u': case 'i': dc->vertex_type = GL_UNSIGNED_INT;
-        break; case 'b': if(format[-1] >= '0' && format[-1] <= '9') dc->vertex_type = GL_UNSIGNED_BYTE; //else bitangent.
+        break; case 'F': dc->vertex_type = GL_FLOAT;
+        break; case 'U': case 'I': dc->vertex_type = GL_UNSIGNED_INT;
+        break; case 'B': if(format[-1] >= '0' && format[-1] <= '9') dc->vertex_type = GL_UNSIGNED_BYTE; //else bitangent.
         break; case ' ': while (format[1] == ' ') format++; case '\0':
             if (!dc->vertex_type) dc->vertex_type = GL_FLOAT;
             dc->offset = sizeof_vertex;
             sizeof_vertex += (dc->stride = dc->num_components * (dc->vertex_type == GL_UNSIGNED_BYTE ? 1 : 4));
             ++dc;
-        break; default: if( !strchr("pntcwai", *format) ) PANIC("unsupported vertex type '%c'", *format);
+        break; default: if( !strchr("pntbcwai", *format) ) PANIC("unsupported vertex type '%c'", *format);
     } while (*format++);
 
     if(vertex_stride > 0) sizeof_vertex = vertex_stride;
@@ -9463,36 +9638,6 @@ void mesh_upgrade(mesh_t *m, const char *format, int vertex_stride,int vertex_co
     }
 
     glBindVertexArray(0);
-}
-
-void mesh_pop_state(mesh_t *sm) {
-
-}
-
-void mesh_push_state(mesh_t *sm, unsigned program, unsigned texture_id, float model[16], float view[16], float proj[16], unsigned billboard) {
-    glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LESS);
-    glActiveTexture(GL_TEXTURE0);
-
-    shader_bind(program);
-
-    mat44 mv; multiply44x2(mv, view, model);
-    if( billboard ) {
-        float d = sqrt(mv[4*0+0] * mv[4*0+0] + mv[4*1+1] * mv[4*1+1] + mv[4*2+2] * mv[4*2+2]);
-        if(billboard & 4) mv[4*0+0] = d, mv[4*0+1] = 0, mv[4*0+2] = 0;
-        if(billboard & 2) mv[4*1+0] = 0, mv[4*1+1] = d, mv[4*1+2] = 0;
-        if(billboard & 1) mv[4*2+0] = 0, mv[4*2+1] = 0, mv[4*2+2] = d;
-    }
-
-    mat44 mvp; multiply44x2(mvp, proj, mv); // multiply44x3(mvp, proj, view, model);
-    shader_mat44("u_mvp", mvp);
-
-    if (cubemap_get_active()) {
-    GLuint uniform_loc = glGetUniformLocation(program, "u_coefficients_sh");
-    glUniform3fv(uniform_loc, 9, &cubemap_get_active()->sh[0].x);
-    }
-
-    shader_texture("u_texture2d", texture_id, 0);
 }
 
 void mesh_render(mesh_t *sm) {
@@ -9745,7 +9890,7 @@ bool postfx_load_from_mem( postfx *fx, const char *name, const char *fs ) {
     const char *vs = vs_0_2_fullscreen_quad_B;
 
     // patch fragment
-    char *fs2 = (char*)CALLOC(1, 64*1024);
+    char *fs2 = (char*)CALLOC(1, 128*1024);
     strcat(fs2, fs_2_4_preamble);
 
     if( strstr(fs, "mainImage") ) {
@@ -9890,7 +10035,7 @@ bool postfx_end(postfx *fx) {
             glUseProgram(pass->program);
 
             // bind texture to texture unit 0
-            // shader_texture(fx->diffuse[frame], 0);
+            // shader_texture_unit(fx->diffuse[frame], 0);
  glActiveTexture(GL_TEXTURE0 + 0);            glBindTexture(GL_TEXTURE_2D, fx->diffuse[frame].id);
             glUniform1i(pass->uniforms[u_color], 0);
 
@@ -9898,7 +10043,7 @@ bool postfx_end(postfx *fx) {
             glUniform1f(pass->uniforms[u_channelres0y], fx->diffuse[frame].h);
 
             // bind depth to texture unit 1
-            // shader_texture(fx->depth[frame], 1);
+            // shader_texture_unit(fx->depth[frame], 1);
  glActiveTexture(GL_TEXTURE0 + 1);            glBindTexture(GL_TEXTURE_2D, fx->depth[frame].id);
             glUniform1i(pass->uniforms[u_depth], 1);
 
@@ -9956,6 +10101,106 @@ void fx_enable_all(int enabled) {
 }
 char *fx_name(int pass) {
     return postfx_name(&fx, pass);
+}
+
+// -----------------------------------------------------------------------------
+// brdf
+
+static texture_t brdf = {0};
+
+static void brdf_load() {
+    const char *filename;
+    filename = "Skyboxes/brdf_lut1k_256x256_32F.ktx";
+    filename = "Skyboxes/brdf_lut2k_512x512_32F.ktx";
+
+    brdf = texture_compressed( filename,
+        TEXTURE_CLAMP | TEXTURE_NEAREST | TEXTURE_RG | TEXTURE_FLOAT | TEXTURE_SRGB
+    );
+    ASSERT(brdf.id != texture_checker().id, "!Couldn't load BRDF lookup table '%s'!", filename );
+}
+
+texture_t brdf_lut() {
+    do_once brdf_load();
+    return brdf;
+}
+
+// -----------------------------------------------------------------------------
+// materials
+
+bool colormap( colormap_t *cm, const char *material_file, bool load_as_srgb ) {
+    if( cm->texture ) {
+        texture_destroy(cm->texture);
+        FREE(cm->texture), cm->texture = NULL;
+    }
+
+    int srgb = load_as_srgb ? TEXTURE_SRGB : 0;
+    int hdr = strendi(material_file, ".hdr") ? TEXTURE_FLOAT | TEXTURE_RGBA : 0;
+    texture_t t = texture(material_file, TEXTURE_LINEAR | TEXTURE_MIPMAPS | TEXTURE_REPEAT | hdr | srgb);
+
+    if( t.id == texture_checker().id ) {
+        cm->texture = NULL;
+        return false;
+    }
+    cm->texture = CALLOC(1, sizeof(texture_t));
+    *cm->texture = t;
+    return true;
+}
+
+bool pbr_material(pbr_material_t *pbr, const char *material) {
+    if( !material || !pbr ) return false;
+
+    //pbr_material_destroy(pbr);
+    *pbr = (pbr_material_t){0};
+
+    pbr->name = STRDUP(material);
+
+    pbr->specular_shininess = 1.0f;
+    /*
+    if( const float *f = aiGetMaterialFloat(scn_material[i], aiMaterialTypeString(MATERIAL_SHININESS)) ) {
+        pbr->specular_shininess = *f;
+    }
+    */
+
+    pbr->diffuse.color = vec4(0.5,0.5,0.5,0.5);
+    pbr->normals.color = vec4(0,0,0,0);
+    pbr->specular.color = vec4(0,0,0,0);
+    pbr->albedo.color = vec4(0.5,0.5,0.5,1.0);
+    pbr->roughness.color = vec4(1,1,1,1);
+    pbr->metallic.color = vec4(0,0,0,0);
+    pbr->ao.color = vec4(1,1,1,1);
+    pbr->ambient.color = vec4(0,0,0,1);
+    pbr->emissive.color = vec4(0,0,0,0);
+
+    array(char*) tokens = strsplit(material, "+");
+    for( int j = 0, end = array_count(tokens); j < end; ++j ) {
+        char *t = tokens[j];
+        if( strstri(t, "_D.") || strstri(t, "Diffuse") || strstri(t, "BaseColor") )    colormap(&pbr->diffuse, t, 1);
+        if( strstri(t, "_N.") || strstri(t, "Normal") )     colormap(&pbr->normals, t, 0);
+        if( strstri(t, "_S.") || strstri(t, "Specular") )   colormap(&pbr->specular, t, 0);
+        if( strstri(t, "_A.") || strstri(t, "Albedo") )     colormap(&pbr->albedo, t, 1); // 0);
+        if( strstri(t, "_MR.")|| strstri(t, "Roughness") )  colormap(&pbr->roughness, t, 0);
+        else
+        if( strstri(t, "_M.") || strstri(t, "Metallic") )   colormap(&pbr->metallic, t, 0);
+      //if( strstri(t, "_S.") || strstri(t, "Shininess") )  colormap(&pbr->roughness, t, 0);
+      //if( strstri(t, "_A.") || strstri(t, "Ambient") )    colormap(&pbr->ambient, t, 0);
+        if( strstri(t, "_E.") || strstri(t, "Emissive") )   colormap(&pbr->emissive, t, 1);
+        if( strstri(t, "_AO.") || strstri(t, "AO") || strstri(t, "Occlusion") ) colormap(&pbr->ao, t, 0);
+    }
+
+    return true;
+}
+
+void pbr_material_destroy(pbr_material_t *m) {
+    if( m->name )              FREE(m->name), m->name = NULL;
+    if( m->diffuse.texture)    texture_destroy( m->diffuse.texture );
+    if( m->normals.texture)    texture_destroy( m->normals.texture );
+    if( m->specular.texture)   texture_destroy( m->specular.texture );
+    if( m->albedo.texture)     texture_destroy( m->albedo.texture );
+    if( m->roughness.texture)  texture_destroy( m->roughness.texture );
+    if( m->metallic.texture)   texture_destroy( m->metallic.texture );
+    if( m->ao.texture )        texture_destroy( m->ao.texture );
+    if( m->ambient.texture )   texture_destroy( m->ambient.texture );
+    *m = (pbr_material_t){0};
 }
 
 // -----------------------------------------------------------------------------
@@ -10122,24 +10367,31 @@ void model_set_texture(model_t m, texture_t t) {
 }
 
 static
-void model_set_uniforms(model_t m, int shader, mat44 proj, mat44 view, mat44 model) {
+void model_set_uniforms(model_t m, int shader, mat44 mv, mat44 proj, mat44 view, mat44 model) {  // @todo: cache uniform locs
     if(!m.iqm) return;
     iqm_t *q = m.iqm;
 
     glUseProgram(shader);
     int loc;
     //if( (loc = glGetUniformLocation(shader, "M")) >= 0 ) glUniformMatrix4fv( loc, 1, GL_FALSE/*GL_TRUE*/, m); // RIM
+    if( (loc = glGetUniformLocation(shader, "MV")) >= 0 ) {
+        glUniformMatrix4fv( loc, 1, GL_FALSE/*GL_TRUE*/, mv);
+    }
+    else
+    if( (loc = glGetUniformLocation(shader, "u_mv")) >= 0 ) {
+        glUniformMatrix4fv( loc, 1, GL_FALSE/*GL_TRUE*/, mv);
+    }
     if( (loc = glGetUniformLocation(shader, "MVP")) >= 0 ) {
-        mat44 mvp; multiply44x3(mvp, proj, view, model);
+        mat44 mvp; multiply44x2(mvp, proj, mv); // multiply44x3(mvp, proj, view, model);
         glUniformMatrix4fv( loc, 1, GL_FALSE/*GL_TRUE*/, mvp);
     }
     else
     if( (loc = glGetUniformLocation(shader, "u_mvp")) >= 0 ) {
-        mat44 mvp; multiply44x3(mvp, proj, view, model);
+        mat44 mvp; multiply44x2(mvp, proj, mv); // multiply44x3(mvp, proj, view, model);
         glUniformMatrix4fv( loc, 1, GL_FALSE/*GL_TRUE*/, mvp);
     }
 #if 0
-    // @todo: mat44 projview
+    // @todo: mat44 projview (useful?)
 #endif
     if ((loc = glGetUniformLocation(shader, "M")) >= 0) {
         glUniformMatrix4fv(loc, 1, GL_FALSE/*GL_TRUE*/, model);
@@ -10200,23 +10452,11 @@ void model_set_state(model_t m) {
     // 6 color
     // 7 bitangent? into texcoord.z?
 
-    // [draw]
-
-#if 0
-    glDisableVertexAttribArray(1);
-    if(numframes > 0) {
-        glDisableVertexAttribArray(4);
-        glDisableVertexAttribArray(5);
-    }
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-#endif
-
     glBindVertexArray( 0 );
 }
 
 static
-bool model_load_meshes(iqm_t *q, const struct iqmheader *hdr) {
+bool model_load_meshes(iqm_t *q, const struct iqmheader *hdr, model_t *m) {
     if(meshdata) return false;
 
     lil32p(&buf[hdr->ofs_vertexarrays], hdr->num_vertexarrays*sizeof(struct iqmvertexarray)/sizeof(uint32_t));
@@ -10303,9 +10543,24 @@ bool model_load_meshes(iqm_t *q, const struct iqmheader *hdr) {
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, hdr->num_vertexes*sizeof(iqm_vertex), verts, GL_STATIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
-    FREE(verts);
 
-    textures = CALLOC(hdr->num_meshes, sizeof(GLuint));
+m->stride = sizeof(iqm_vertex);
+#if 0
+m->stride = 0;
+if(inposition) m->stride += sizeof(verts[0].position);
+if(innormal) m->stride += sizeof(verts[0].normal);
+if(intangent) m->stride += sizeof(verts[0].tangent);
+if(intexcoord) m->stride += sizeof(verts[0].texcoord);
+if(inblendindex8) m->stride += sizeof(verts[0].blendindexes); // no index8? bug?
+if(inblendweight8) m->stride += sizeof(verts[0].blendweights); // no weight8? bug?
+if(inblendindexi) m->stride += sizeof(verts[0].blendindexes);
+if(inblendweightf) m->stride += sizeof(verts[0].blendweights);
+#endif
+//for( int i = 0; i < 16; ++i ) printf("%.9g%s", ((float*)verts)[i], (i % 3) == 2 ? "\n" : ",");
+//m->verts = verts; //FREE(verts);
+m->verts = 0; FREE(verts);
+
+    textures = CALLOC(hdr->num_meshes * 8, sizeof(GLuint));
     for(int i = 0; i < (int)hdr->num_meshes; i++) {
         int invalid = texture_checker().id;
         textures[i] = invalid;
@@ -10388,54 +10643,109 @@ bool model_load_anims(iqm_t *q, const struct iqmheader *hdr) {
 }
 
 static
-bool model_load_textures(iqm_t *q, const struct iqmheader *hdr) {
-    textures = textures ? textures : CALLOC(hdr->num_meshes, sizeof(GLuint));
+bool model_load_textures(iqm_t *q, const struct iqmheader *hdr, model_t *model) {
+    textures = textures ? textures : CALLOC(hdr->num_meshes * 8, sizeof(GLuint)); // up to 8 textures per mesh
+
+    GLuint *out = textures;
 
     const char *str = hdr->ofs_text ? (char *)&buf[hdr->ofs_text] : "";
     for(int i = 0; i < (int)hdr->num_meshes; i++) {
         struct iqmmesh *m = &meshes[i];
 
-        char* material_name;
         int flags = TEXTURE_MIPMAPS|TEXTURE_REPEAT; // LINEAR, NEAREST
         int invalid = texture_checker().id;
 
-        textures[i] = invalid;
-
+#if 1
+        char* material_name;
         // remove any material+name from materials (.fbx)
         // try left token first
         if( 1 ) {
-            material_name = stringf("%s", &str[m->material]);
+            material_name = va("%s", &str[m->material]);
             char* plus = strrchr(material_name, '+');
             if (plus) { strcpy(plus, file_ext(material_name)); }
-            textures[i] = texture(material_name, flags).id;
+            *out = texture(material_name, flags).id;
         }
         // else try right token
-        if (textures[i] == invalid) {
-            material_name = file_normalize( stringf("%s", &str[m->material]) );
+        if (*out == invalid) {
+            material_name = file_normalize( va("%s", &str[m->material]) );
             char* plus = strrchr(material_name, '+'), *slash = strrchr(material_name, '/');
             if (plus) {
                 strcpy(slash ? slash + 1 : material_name, plus + 1);
-                textures[i] = texture(material_name, flags).id;
+                *out = texture(material_name, flags).id;
             }
         }
         // else last resort
-        if (textures[i] == invalid) {
-            textures[i] = texture(material_name, flags).id; // needed?
+        if (*out == invalid) {
+            *out = texture(material_name, flags).id; // needed?
         }
 
-        if( textures[i] != invalid) {
+        if( *out != invalid) {
             PRINTF("loaded material[%d]: %s\n", i, &str[m->material]);
         } else {
             PRINTF("fail: material[%d] not found: %s\n", i, &str[m->material]);
             PRINTF("warn: using placeholder material[%d]=texture_checker\n", i);
-            textures[i] = texture_checker().id; // placeholder
+            *out = texture_checker().id; // placeholder
         }
+
+        {
+            model->num_textures++;
+            array_push(model->texture_names, STRDUP(&str[m->material]));
+
+            material_t mt = {0};
+            mt.name = STRDUP(&str[m->material]);
+            mt.layer[mt.count++].texture = *out++;
+            array_push(model->materials, mt);
+        }
+
+#else
+        material_t mt = {0};
+        mt.name = STRDUP(&str[m->material]);
+
+        array(char*) tokens = strsplit(&str[m->material], "+");
+        for each_array(tokens, char*, it) {
+            *out = texture(it, flags).id;
+
+            if( *out == invalid ) {
+                PRINTF("fail: material[%d] not found: %s\n", i, it);
+            } else {
+                PRINTF("loaded material[%d]: %s\n", i, it);
+
+                mt.layer[mt.count++].texture = *out;
+
+                ++out;
+            }
+        }
+
+        // if no materials were loaded, try to signal a checkered placeholder
+        if( out == textures ) {
+            PRINTF("warn: using placeholder material[%d]=texture_checker\n", i);
+            *out++ = invalid;
+        }
+
+        int count = (int)(intptr_t)(out - textures);
+        model->num_textures += count;
+        array_push(model->texture_names, STRDUP(&str[m->material]));
+
+        array_push(model->materials, mt);
+#endif
+
+    }
+
+    if( array_count(model->materials) == 0 ) {
+        material_t mt = {0};
+        mt.name = "placeholder";
+        mt.count = 1;
+        mt.layer[0].texture = texture_checker().id;
+
+        array_push(model->materials, mt);
     }
 
     return true;
 }
 
 model_t model_from_mem(const void *mem, int len, int flags) {
+    model_t m = {0};
+
     const char *ptr = (const char *)mem;
     static int shaderprog = -1;
     if( shaderprog < 0 ) {
@@ -10456,19 +10766,29 @@ model_t model_from_mem(const void *mem, int len, int flags) {
                 buf = CALLOC(hdr.filesize, sizeof(uint8_t));
                 memcpy(buf + sizeof(hdr), ptr, hdr.filesize - sizeof(hdr));
                 error = 0;
-                if( hdr.num_meshes > 0 && !(flags & MODEL_NO_MESHES) )     error |= !model_load_meshes(q, &hdr);
-                if( hdr.num_meshes > 0 && !(flags & MODEL_NO_TEXTURES) )   error |= !model_load_textures(q, &hdr);
+                if( hdr.num_meshes > 0 && !(flags & MODEL_NO_MESHES) )     error |= !model_load_meshes(q, &hdr, &m);
+                if( hdr.num_meshes > 0 && !(flags & MODEL_NO_TEXTURES) )   error |= !model_load_textures(q, &hdr, &m);
                 if( hdr.num_anims  > 0 && !(flags & MODEL_NO_ANIMATIONS) ) error |= !model_load_anims(q, &hdr);
                 if( buf != meshdata && buf != animdata ) FREE(buf);
             }
         }
     }
 
-    model_t m = {0};
     if( error ) {
         PRINTF("Error: cannot load %s", "model");
         FREE(q), q = 0;
     } else {
+        #undef vao
+        #undef ibo
+        #undef vbo
+        m.vao = q->vao;
+        m.ibo = q->ibo;
+        m.vbo = q->vbo;
+        m.num_verts = numverts;
+        #define vao (q->vao)
+        #define ibo (q->ibo)
+        #define vbo (q->vbo)
+
         // m.boxes = bounds; // <@todo
         m.num_meshes = nummeshes;
         m.num_triangles = numtris;
@@ -10482,7 +10802,7 @@ model_t model_from_mem(const void *mem, int len, int flags) {
         m.program = (q->program);
         #define program (q->program)
 
-        m.num_textures = nummeshes; // assume 1 texture only per mesh
+        //m.num_textures = nummeshes; // assume 1 texture only per mesh
         #undef textures
         m.textures = (q->textures);
         #define textures (q->textures)
@@ -10608,7 +10928,15 @@ void model_render(model_t m, mat44 proj, mat44 view, mat44 model, int shader) {
     if(!m.iqm) return;
     iqm_t *q = m.iqm;
 
-    model_set_uniforms(m, shader > 0 ? shader : program, proj, view, model);
+    mat44 mv; multiply44x2(mv, view, model);
+    if( m.billboard ) {
+        float d = sqrt(mv[4*0+0] * mv[4*0+0] + mv[4*1+1] * mv[4*1+1] + mv[4*2+2] * mv[4*2+2]);
+        if(m.billboard & 4) mv[4*0+0] = d, mv[4*0+1] =  0, mv[4*0+2] = 0;
+        if(m.billboard & 2) mv[4*1+0] = 0, mv[4*1+1] = -d, mv[4*1+2] = 0;
+        if(m.billboard & 1) mv[4*2+0] = 0, mv[4*2+1] =  0, mv[4*2+2] = d;
+    }
+
+    model_set_uniforms(m, shader > 0 ? shader : program, mv, proj, view, model);
     model_draw_call(m);
 }
 
@@ -10643,6 +10971,12 @@ aabb model_aabb(model_t m, mat44 transform) {
 }
 
 void model_destroy(model_t m) {
+    FREE(m.verts);
+    for( int i = 0, end = array_count(m.texture_names); i < end; ++i ) {
+        FREE(m.texture_names[i]);
+    }
+    array_free(m.texture_names);
+
     iqm_t *q = m.iqm;
 //    if(m.mesh) mesh_destroy(m.mesh);
     FREE(outframe);
@@ -11547,6 +11881,41 @@ void camera_fps(camera_t *cam, float yaw, float pitch) {
 #endif
 }
 
+void camera_orbit( camera_t *cam, float yaw, float pitch, float inc_distance ) {
+    vec2 inc_mouse = vec2(yaw, pitch);
+
+    // @todo: worth moving all these members into camera_t ?
+    static vec2 _mouse = {0,0};
+    static vec2 _polarity = { +1,-1 };
+    static vec2 _sensitivity = { 2,2 };
+    static float _friction = 0.75; //99;
+    static float _distance; do_once _distance = len3(cam->position);
+
+    // update dummy state
+    camera_fps(cam, 0,0);
+
+    // add smooth input
+    _mouse = mix2(_mouse, add2(_mouse, mul2(mul2(inc_mouse,_sensitivity),_polarity)), _friction);
+    _distance = mixf(_distance, _distance+inc_distance, _friction);
+
+    // look: update angles
+    vec2 offset = sub2( _mouse, ptr2(&cam->last_move.x) );
+    if( 1 ) { // if _enabled
+        cam->yaw += offset.x;
+        cam->pitch += offset.y;
+        // look: limit pitch angle [-89..89]
+        cam->pitch = cam->pitch > 89 ? 89 : cam->pitch < -89 ? -89 : cam->pitch;
+    }
+
+    // compute view matrix
+    float x = rad(cam->yaw), y = rad(cam->pitch), cx = cosf(x), cy = cosf(y), sx = sinf(x), sy = sinf(y);
+    lookat44(cam->view, vec3( cx*cy*_distance, sy*_distance, sx*cy*_distance ), vec3(0,0,0), vec3(0,1,0) );
+
+    // save for next call
+    cam->last_move.x = _mouse.x;
+    cam->last_move.y = _mouse.y;
+}
+
 // -----------------------------------------------------------------------------
 
 static
@@ -11749,18 +12118,12 @@ void scene_render(int flags) {
             object_t *obj = scene_index(j);
             model_t *model = &obj->model;
             mat44 *views = (mat44*)(&cam->view);
-#if 0
-            for( unsigned i = 0; i < model->num_meshes; ++i ) {
-                mesh_t *mesh = &model->mesh[i];
-                mesh_push_state(mesh, last_scene->program, obj->texture_id, obj->transform, cam->view, cam->proj, obj->billboard);
-                mesh_render(mesh);
-            }
-#else
+
             if(model->iqm) for(int i = 0; i < model->iqm->nummeshes; ++i)
                 model->iqm->textures[i] = obj->texture_id;
 
+            model->billboard = obj->billboard;
             model_render(*model, cam->proj, cam->view, obj->transform, 0);
-#endif
         }
         glBindVertexArray(0);
     }
@@ -12293,18 +12656,96 @@ int cpu_cores() {
 #endif
 }
 
+// -----------------------------------------------------------------------------
+// Battery API. Based on code by Rabia Alhaffar (UNLICENSE)
+// - rlyeh, public domain.
+
+#ifdef _WIN32
+#include <winsock2.h>
+
+int battery() {
+    SYSTEM_POWER_STATUS ibstatus;
+
+    if (GetSystemPowerStatus(&ibstatus) == FALSE) {
+        return 0;
+    }
+
+    int level = (ibstatus.BatteryLifePercent != 255) ? ibstatus.BatteryLifePercent : 0;
+    int charging = (ibstatus.BatteryFlag & 8 > 0);
+    return charging ? +level : -level;
+}
+
+#elif defined __linux__ // is(linux)
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+
+int battery() {
+    static int battery_status_handle;
+    static int battery_capacity_handle;
+
+    do_once {
+        battery_status_handle = open("/sys/class/power_supply/BAT0/status", O_RDONLY);
+        battery_capacity_handle = open("/sys/class/power_supply/BAT0/capacity", O_RDONLY);
+    }
+
+    if (battery_status_handle == -1 || battery_capacity_handle == -1) {
+        return 0;
+    }
+
+    char buffer[513];
+
+    // level
+    lseek(battery_capacity_handle, 0, SEEK_SET);
+    int readlen = read(battery_capacity_handle, buffer, 512); buffer[readlen < 0 ? 0 : readlen] = '\0';
+    int level = atoi(buffer);
+
+    // charging
+    lseek(battery_status_handle, 0, SEEK_SET);
+    readlen = read(battery_status_handle, buffer, 512); buffer[readlen < 0 ? 0 : readlen] = '\0';
+    int charging = strstr(buffer, "Discharging") ? 0 : 1;
+    return charging ? +level : -level;
+}
+
+#else // if is(osx)
+#import <Foundation/Foundation.h>
+#include <CoreFoundation/CoreFoundation.h>
+#import <IOKit/ps/IOPowerSources.h>
+#import <IOKit/ps/IOPSKeys.h>
+
+int battery() {
+    static CFDictionaryRef psrc;
+
+    do_once {
+        CFTypeRef blob = IOPSCopyPowerSourcesInfo();
+        CFArrayRef sources = IOPSCopyPowerSourcesList(blob);
+        int sourcesCount = CFArrayGetCount(sources);
+
+        if (sourcesCount > 0) {
+            psrc = IOPSGetPowerSourceDescription(blob, CFArrayGetValueAtIndex(sources, 0));
+        }
+    }
+
+    if(psrc == NULL) return 0;
+
+    int cur_cap = 0;
+    CFNumberGetValue((CFNumberRef)CFDictionaryGetValue(psrc, CFSTR(kIOPSCurrentCapacityKey)), kCFNumberSInt32Type, &cur_cap);
+
+    int max_cap = 0;
+    CFNumberGetValue((CFNumberRef)CFDictionaryGetValue(psrc, CFSTR(kIOPSMaxCapacityKey)), kCFNumberSInt32Type, &max_cap);
+
+    int level = (int)(cur_cap * 100.f / max_cap);
+    int charging = CFDictionaryGetValue(psrc, CFSTR(kIOPSIsChargingKey)) == kCFBooleanTrue;
+    return charging ? +level : -level;
+}
+
+#endif
+
 // ----------------------------------------------------------------------------
 // time
 
-double time_ss() {
-    return glfwGetTime();
-}
-double time_ms() {
-    return glfwGetTime() * 1000.0;
-}
-uint64_t time_us() {
-    return (uint64_t)(glfwGetTime() * 1000000.0); // @fixme: use a high resolution timer instead, or time_gpu below
-}
 #if 0
 uint64_t time_gpu() {
     GLint64 t = 123456789;
@@ -12315,11 +12756,21 @@ uint64_t time_gpu() {
 uint64_t date() {
     time_t epoch = time(0);
     struct tm *ti = localtime(&epoch);
-    return atoi64(stringf("%04d%02d%02d%02d%02d%02d",ti->tm_year+1900,ti->tm_mon+1,ti->tm_mday,ti->tm_hour,ti->tm_min,ti->tm_sec));
+    return atoi64(va("%04d%02d%02d%02d%02d%02d",ti->tm_year+1900,ti->tm_mon+1,ti->tm_mday,ti->tm_hour,ti->tm_min,ti->tm_sec));
 }
 uint64_t date_epoch() {
     time_t epoch = time(0);
     return epoch;
+}
+#if 0
+double time_ss() {
+    return glfwGetTime();
+}
+double time_ms() {
+    return glfwGetTime() * 1000.0;
+}
+uint64_t time_us() {
+    return (uint64_t)(glfwGetTime() * 1000000.0); // @fixme: use a high resolution timer instead, or time_gpu below
 }
 uint64_t sleep_us(uint64_t us) { // @fixme: use a high resolution sleeper instead
     return sleep_ms( us / 1000.0 );
@@ -12343,6 +12794,118 @@ double sleep_ms(double ms) {
 }
 double sleep_ss(double ss) {
     return sleep_ms( ss * 1000 ) / 1000.0;
+}
+#endif
+
+// high-perf functions
+
+#define TIMER_E3 1000ULL
+#define TIMER_E6 1000000ULL
+#define TIMER_E9 1000000000ULL
+
+#ifdef CLOCK_MONOTONIC_RAW
+#define TIME_MONOTONIC CLOCK_MONOTONIC_RAW
+#elif defined CLOCK_MONOTONIC
+#define TIME_MONOTONIC CLOCK_MONOTONIC
+#else
+// #define TIME_MONOTONIC CLOCK_REALTIME // untested
+#endif
+
+static uint64_t nanotimer(uint64_t *out_freq) {
+    if( out_freq ) {
+#ifdef _WIN32
+        LARGE_INTEGER li;
+        QueryPerformanceFrequency(&li);
+        *out_freq = li.QuadPart;
+//#elif is(ANDROID)
+//      *out_freq = CLOCKS_PER_SEC;
+#elif defined TIME_MONOTONIC
+        *out_freq = TIMER_E9;
+#else
+        *out_freq = TIMER_E6;
+#endif
+    }
+#ifdef _WIN32
+    LARGE_INTEGER li;
+    QueryPerformanceCounter(&li);
+    return (uint64_t)li.QuadPart;
+//#elif is(ANDROID)
+//    return (uint64_t)clock();
+#elif defined TIME_MONOTONIC
+    struct timespec ts;
+    clock_gettime(TIME_MONOTONIC, &ts);
+    return (TIMER_E9 * (uint64_t)ts.tv_sec) + ts.tv_nsec;
+#else
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (TIMER_E6 * (uint64_t)tv.tv_sec) + tv.tv_usec;
+#endif
+}
+
+uint64_t time_ns() {
+    static uint64_t epoch = 0;
+    static uint64_t freq = 0;
+    if( !freq ) {
+        epoch = nanotimer(&freq);
+    }
+
+    uint64_t a = nanotimer(NULL) - epoch;
+    uint64_t b = TIMER_E9;
+    uint64_t c = freq;
+
+    // Computes (a*b)/c without overflow, as long as both (a*b) and the overall result fit into 64-bits.
+    // [ref] https://github.com/rust-lang/rust/blob/3809bbf47c8557bd149b3e52ceb47434ca8378d5/src/libstd/sys_common/mod.rs#L124
+    uint64_t q = a / c;
+    uint64_t r = a % c;
+    return q * b + r * b / c;
+}
+uint64_t time_us() {
+    return time_ns() / TIMER_E3;
+}
+uint64_t time_ms() {
+    return time_ns() / TIMER_E6;
+}
+double time_ss() {
+    return time_ns() / 1e9; // TIMER_E9;
+}
+double time_mm() {
+    return time_ss() / 60;
+}
+double time_hh() {
+    return time_mm() / 60;
+}
+
+void sleep_ns( double ns ) {
+    if( ns > 0 ) {
+#ifdef _WIN32
+        LARGE_INTEGER li;      // Windows sleep in 100ns units
+        HANDLE timer = CreateWaitableTimer(NULL, TRUE, NULL);
+        li.QuadPart = (LONGLONG)(__int64)(-ns/100); // Negative for relative time
+        SetWaitableTimer(timer, &li, 0, NULL, NULL, FALSE);
+        WaitForSingleObject(timer, INFINITE);
+        CloseHandle(timer);
+#else
+        struct timespec wait = {0};
+        wait.tv_sec = ns / 1e9;
+        wait.tv_nsec = ns - wait.tv_sec * 1e9;
+        nanosleep(&wait, NULL);
+#endif
+    } else {
+#ifdef _WIN32
+        Sleep(0); // yield, Sleep(0), SwitchToThread
+#else
+        usleep(0);
+#endif
+    }
+}
+void sleep_us( double us ) {
+    sleep_ns(us * 1e3);
+}
+void sleep_ms( double ms ) {
+    sleep_ns(ms * 1e6);
+}
+void sleep_ss( double ss ) {
+    sleep_ns(ss * 1e9);
 }
 
 
@@ -12518,20 +13081,20 @@ static void debugbreak(void) { // break if debugger present
 }
 #endif
 
-void (alert)(const char *message) { // @todo: move to app_, besides die()
+void alert(const char *message) { // @todo: move to app_, besides die()
 #if is(win32)
     MessageBoxA(0, message, 0,0);
 #elif is(linux)
     for(FILE *fp = fopen("/tmp/fwk.warning","wb");fp;fp=0)
     fputs(message,fp), fclose(fp), system("xmessage -center -file /tmp/fwk.warning");
 #elif is(osx)
-    system(stringf("osascript -e 'display alert \"Alert\" message \"%s\"'", message));
+    system(va("osascript -e 'display alert \"Alert\" message \"%s\"'", message));
 #endif
 }
 
 void breakpoint(const char *reason) {
     window_visible(false);
-    const char *fulltext = reason[0] == '!' ? stringf("%s\n%s", reason+1, callstack(+48)) : reason;
+    const char *fulltext = reason[0] == '!' ? va("%s\n%s", reason+1, callstack(+48)) : reason;
     PRINTF("%s", fulltext);
 
     (alert)(fulltext);
@@ -12570,7 +13133,7 @@ int (PRINTF)(const char *text, const char *stack, const char *file, int line, co
     #if is(msc)
     char *slash = strrchr(file, '\\'); if(slash) file = slash + 1;
     #endif
-    char *location = stringf("|%s|%s:%d", /*errno?strerror(errno):*/function, file, line);
+    char *location = va("|%s|%s:%d", /*errno?strerror(errno):*/function, file, line);
     int cols = tty_cols() + 1 - (int)strlen(location);
 
 static thread_mutex_t lock, *init = 0; if(!init) thread_mutex_init(init = &lock);
@@ -12651,7 +13214,7 @@ cfg.spacing.x += 8.f;
         struct nk_font *last = NULL;
         nk_glfw3_font_stash_begin(&ui_glfw, &atlas); // nk_sdl_font_stash_begin(&atlas);
 #if 0 // is(win32)
-        struct nk_font *arial = nk_font_atlas_add_from_file(atlas, stringf("%s/fonts/arial.ttf",getenv("windir")), 15.f, 0); last = arial ? arial : last;
+        struct nk_font *arial = nk_font_atlas_add_from_file(atlas, va("%s/fonts/arial.ttf",getenv("windir")), 15.f, 0); last = arial ? arial : last;
 #else
         struct nk_font *roboto = nk_font_atlas_add_from_file(atlas, vfs_find("Carlito-Regular.ttf"), 14.5f, 0); last = roboto ? roboto : last;
 #endif
@@ -12820,7 +13383,7 @@ void ui_render() {
     ui_dirty = 1;
     ui_hue = 0;
 
-    ui_hovering = nk_window_is_any_hovered(ui_ctx);
+    ui_hovering = nk_window_is_any_hovered(ui_ctx) && window_has_cursor();
 
     if(input_down(MOUSE_L))
         ui_actived = (ui_hovering && nk_item_is_any_active(ui_ctx));
@@ -12984,6 +13547,13 @@ int ui_toggle(const char *label, bool *value) {
     return rc ? (*value ^= 1), rc : rc;
 }
 
+int ui_color4f(const char *label, float *color4) {
+    float c[4] = { color4[0]*255, color4[1]*255, color4[2]*255, color4[3]*255 };
+    int ret = ui_color4(label, c);
+    for( int i = 0; i < 4; ++i ) color4[i] = c[i] / 255.0f;
+    return ret;
+}
+
 int ui_color4(const char *label, float *color4) {
     nk_layout_row_dynamic(ui_ctx, 0, 2);
     ui_label_(label, NK_TEXT_LEFT);
@@ -13025,6 +13595,13 @@ int ui_color4(const char *label, float *color4) {
     return !!memcmp(&before.r, &after.r, sizeof(struct nk_colorf));
 }
 
+int ui_color3f(const char *label, float *color3) {
+    float c[3] = { color3[0]*255, color3[1]*255, color3[2]*255 };
+    int ret = ui_color3(label, c);
+    for( int i = 0; i < 3; ++i ) color3[i] = c[i] / 255.0f;
+    return ret;
+}
+
 int ui_color3(const char *label, float *color3) {
     float color4[] = { color3[0], color3[1], color3[2], 255 };
     int ret = ui_color4(label, color4);
@@ -13045,7 +13622,7 @@ int ui_list(const char *label, const char **items, int num_items, int *selector)
 }
 
 int ui_slider(const char *label, float *slider) {
-    // return ui_slider2(label, slider, stringf("%.2f ", *slider));
+    // return ui_slider2(label, slider, va("%.2f ", *slider));
     nk_layout_row_dynamic(ui_ctx, 0, 2);
     ui_label_(label, NK_TEXT_LEFT);
 
@@ -13108,11 +13685,21 @@ int ui_float(const char *label, float *v) {
     return prev != v[0];
 }
 
+int ui_clampf(const char *label, float *v, float minf, float maxf) {
+    if( minf > maxf ) return ui_clampf(label, v, maxf, minf);
+
+    nk_layout_row_dynamic(ui_ctx, 0, 2);
+    ui_label_(label, NK_TEXT_LEFT);
+
+    float prev = v[0]; v[0] = nk_propertyf(ui_ctx, "#", minf, v[0], maxf, 0.1f,0.05f);
+    return prev != v[0];
+}
+
 int ui_float2(const char *label, float *v) {
     nk_layout_row_dynamic(ui_ctx, 0, 2);
     ui_label_(label, NK_TEXT_LEFT);
 
-    char *buffer = stringf("%.2f, %.2f", v[0], v[1]);
+    char *buffer = va("%.2f, %.2f", v[0], v[1]);
     if (nk_combo_begin_label(ui_ctx, buffer, nk_vec2(200,200))) {
         nk_layout_row_dynamic(ui_ctx, 25, 1);
         float prev0 = v[0]; nk_property_float(ui_ctx, "#X:", -FLT_MAX, &v[0], FLT_MAX, 1,0.5f);
@@ -13127,7 +13714,7 @@ int ui_float3(const char *label, float *v) {
     nk_layout_row_dynamic(ui_ctx, 0, 2);
     ui_label_(label, NK_TEXT_LEFT);
 
-    char *buffer = stringf("%.2f, %.2f, %.2f", v[0], v[1], v[2]);
+    char *buffer = va("%.2f, %.2f, %.2f", v[0], v[1], v[2]);
     if (nk_combo_begin_label(ui_ctx, buffer, nk_vec2(200,200))) {
         nk_layout_row_dynamic(ui_ctx, 25, 1);
         float prev0 = v[0]; nk_property_float(ui_ctx, "#X:", -FLT_MAX, &v[0], FLT_MAX, 1,0.5f);
@@ -13143,7 +13730,7 @@ int ui_float4(const char *label, float *v) {
     nk_layout_row_dynamic(ui_ctx, 0, 2);
     ui_label_(label, NK_TEXT_LEFT);
 
-    char *buffer = stringf("%.2f, %.2f, %.2f, %.2f", v[0], v[1], v[2], v[3]);
+    char *buffer = va("%.2f, %.2f, %.2f, %.2f", v[0], v[1], v[2], v[3]);
     if (nk_combo_begin_label(ui_ctx, buffer, nk_vec2(200,200))) {
         nk_layout_row_dynamic(ui_ctx, 25, 1);
         float prev0 = v[0]; nk_property_float(ui_ctx, "#X:", -FLT_MAX, &v[0], FLT_MAX, 1,0.5f);
@@ -13182,12 +13769,52 @@ int ui_separator() {
     return 1;
 }
 
-int ui_image(const char *label, texture_t t) {
-    nk_layout_row_dynamic(ui_ctx, 0, 2);
+int ui_image(const char *label, handle id, unsigned w, unsigned h) {
+    //nk_layout_row_dynamic(ui_ctx, 1, 1);
+    //struct nk_rect bounds = nk_widget_bounds(ui_ctx);
+
+    nk_layout_row_dynamic(ui_ctx, h < 30 || id == texture_checker().id ? 0 : h, 2);
     ui_label_(label, NK_TEXT_LEFT);
 
-    int ret = nk_button_image(ui_ctx, nk_image_id((int)t.id));
+    int ret = nk_button_image(ui_ctx, nk_image_id((int)id));
     return !!ret;
+}
+
+int ui_colormap( const char *map_name, colormap_t *cm ) {
+    int ret = 0;
+    if( !cm->texture ) {
+        const char *title = va("%s (no image)", map_name);
+        if( ui_image( title, texture_checker().id, 0,0 ) ) {
+            ret = 2;
+        }
+    } else {
+        unsigned w = cm->texture->w, h = cm->texture->h;
+        ui_label(va("%s (%s)", map_name, cm->texture->filename) ); // @fixme: labelf would crash?
+
+        const char *fmt[] = { "", "R", "RG", "RGB", "RGBA" };
+        const char *title = va("%s %dx%d %s", map_name, w, h, fmt[cm->texture->n]);
+        if( ui_image( title, cm->texture->id, 0, 128 ) ) {
+            ret = 2;
+        }
+    }
+
+    if( ui_color4f( va("%s Color", map_name), (float *) &cm->color ) ) {
+        ret = 1;
+    }
+    return ret;
+}
+
+int ui_radio(const char *label, const char **items, int num_items, int *selector) {
+    int ret = 0;
+    if( label && label[0] ) ui_label(label);
+    for( int i = 0; i < num_items; i++ ) {
+        bool enabled = *selector == i;
+        if( ui_bool( va("%s%s", label && label[0] ? "  ":"", items[i]), &enabled ) ) {
+            *selector = i;
+            ret |= 1;
+        }
+    }
+    return ret;
 }
 
 int ui_dialog(const char *title, const char *text, int choices, bool *show) { // @fixme: return
@@ -13222,6 +13849,41 @@ int ui_dialog(const char *title, const char *text, int choices, bool *show) { //
     return *show;
 }
 
+#define ui_bits_template(X) \
+int ui_bits##X(const char *label, uint##X##_t *enabled) { \
+    /* @fixme: better way to retrieve widget width? nk_layout_row_dynamic() seems excessive */ \
+    nk_layout_row_dynamic(ui_ctx, 1, 1); \
+    struct nk_rect bounds = nk_widget_bounds(ui_ctx); \
+\
+    /* actual widget: label + X checkboxes */ \
+    nk_layout_row_begin(ui_ctx, NK_STATIC, 0, 1+X); \
+\
+        int offset = bounds.w > (15*X) ? bounds.w - (15*X) : 0; /* bits widget below needs at least 118px wide */ \
+        nk_layout_row_push(ui_ctx, offset); \
+        ui_label_(label, NK_TEXT_LEFT); \
+\
+        uint8_t copy = *enabled; \
+        for( int i = 0; i < X; ++i ) { \
+            nk_layout_row_push(ui_ctx, 10); \
+            /* bit */ \
+            int val = (*enabled >> i) & 1; \
+            int chg = nk_checkbox_label(ui_ctx, "", &val); \
+            *enabled = (*enabled & ~(1 << i)) | ((!!val) << i); \
+            /* tooltip */ \
+            struct nk_rect bb = { offset + 10 + i * 14, bounds.y, 14, 30 }; /* 10:padding,14:width,30:height */ \
+            if (nk_input_is_mouse_hovering_rect(&ui_ctx->input, bb) && !ui_popups_active) { \
+                nk_tooltipf(ui_ctx, "Bit %d", i); \
+            } \
+        } \
+\
+    nk_layout_row_end(ui_ctx); \
+    return copy ^ *enabled; \
+}
+
+ui_bits_template(8);
+ui_bits_template(16);
+//ui_bits_template(32);
+
 // ----------------------------------------------------------------------------
 
 void ui_demo() {
@@ -13232,13 +13894,14 @@ void ui_demo() {
     static float float2[2] = {1,2};
     static float float3[3] = {1,2,3};
     static float float4[4] = {1,2,3,4};
-    static float rgb[3] = {0.84*255,0.67*255,0.17*255};
-    static float rgba[4] = {0.70*244,0.90*255,0.12*255};
+    static float rgb[3] = {0.84,0.67,0.17};
+    static float rgba[4] = {0.67,0.90,0.12,1};
     static float slider = 0.5f;
     static float slider2 = 0.5f;
     static char string[64] = "hello world 123";
     static int item = 0; const char *list[] = {"one","two","three"};
     static bool show_dialog = false;
+    static uint8_t bitmask = 0x55;
 
     // if( ui_menu("File;Open;Save;Quit") ) printf("menu option %d\n", ui_item());
     // if( ui_menu("Edit;Cut;Copy;Paste") ) printf("menu option %d\n", ui_item());
@@ -13253,20 +13916,21 @@ void ui_demo() {
         if( ui_string("my string", string, 64) ) puts("string changed");
         if( ui_separator() ) {}
         if( ui_slider("my slider", &slider)) puts("slider changed");
-        if( ui_slider2("my slider 2", &slider2, stringf("%.2f", slider2))) puts("slider2 changed");
+        if( ui_slider2("my slider 2", &slider2, va("%.2f", slider2))) puts("slider2 changed");
         if( ui_separator() ) {}
         if( ui_list("my list", list, 3, &item ) ) puts("list changed");
         if( ui_separator() ) {}
-        if( ui_color3("my color3", rgb) ) puts("color3 changed");
-        if( ui_color4("my color4@this is a tooltip", rgba) ) puts("color4 changed");
+        if( ui_color3f("my color3", rgb) ) puts("color3 changed");
+        if( ui_color4f("my color4@this is a tooltip", rgba) ) puts("color4 changed");
         if( ui_separator() ) {}
         if( ui_float2("my float2", float2) ) puts("float2 changed");
         if( ui_float3("my float3", float3) ) puts("float3 changed");
         if( ui_float4("my float4", float4) ) puts("float4 changed");
+        if( ui_bits8("my bitmask", &bitmask) ) puts("bitmask changed");
         if( ui_separator() ) {}
         if( ui_toggle("my toggle", &toggle) ) printf("toggle %s\n", toggle ? "on":"off");
         if( ui_separator() ) {}
-        if( ui_image("my image", texture_checker()) ) { puts("image clicked"); }
+        if( ui_image("my image", texture_checker().id, 0, 0) ) { puts("image clicked"); }
         if( ui_button("my button") ) { puts("button clicked"); show_dialog = true; }
         if( ui_dialog("my dialog", __FILE__ "\n" __DATE__ "\n" "Public Domain.", 2/*two buttons*/, &show_dialog) ) {}
 
@@ -13297,7 +13961,7 @@ void ui_demo() {
                 text_len = 0;
             }
 
-            if(text_len > 0 && text[0] != '>') { snprintf(text, 64, stringf(">%s", text)); text_len++; }
+            if(text_len > 0 && text[0] != '>') { snprintf(text, 64, va(">%s", text)); text_len++; }
         }
 
         ui_end();
@@ -13453,6 +14117,78 @@ texture_t* video_textures( video_t *v ) {
 
 #line 0
 #line 1 "fwk_window.c"
+
+//-----------------------------------------------------------------------------
+// fps locking
+
+static volatile float framerate = 0;
+static volatile unsigned fps_active, timer_counter, loop_counter;
+static
+int fps__timing_thread(void *arg) {
+    int64_t ns_excess = 0;
+    while( fps_active ) {
+        if( framerate <= 0 ) {
+            loop_counter = timer_counter = 0;
+            sleep_ms(250);
+        } else {
+            timer_counter++;
+            int64_t tt = (int64_t)(1e9/(float)framerate) - ns_excess;
+            uint64_t took = -time_ns();
+            sleep_ns( (float)tt );
+            took += time_ns();
+            ns_excess = took - tt;
+            if( ns_excess < 0 ) ns_excess = 0;
+            //puts( strf("%lld", ns_excess) );
+        }
+    }
+    fps_active = 1;
+
+    return thread_exit(0), 0;
+}
+static
+void fps_locker( int on ) {
+    if( on ) {
+        // private threaded timer
+        fps_active = 1, timer_counter = loop_counter = 0;
+        thread_init( fps__timing_thread, 0, "fps__timing_thread()", 0 );
+    } else {
+        fps_active = 0;
+    }
+}
+// function that locks render to desired `framerate` framerate (in FPS).
+// - assumes fps_locker() was enabled beforehand.
+// - returns true if must render, else 0.
+static
+int fps_wait() {
+    if( framerate <= 0 ) return 1;
+    if( !fps_active ) return 1;
+
+    // if we throttled too much, cpu idle wait
+    while( fps_active && (loop_counter > timer_counter) ) {
+        //thread_yield();
+        sleep_ns(1000);
+    }
+
+    // max auto frameskip is 10: ie, even if speed is low paint at least one frame every 10
+    enum { maxframeskip = 10 };
+    if( timer_counter > loop_counter + maxframeskip ) {
+        loop_counter = timer_counter;
+    }
+    loop_counter++;
+
+    // only draw if we are fast enough, otherwise skip the frame
+    return loop_counter >= timer_counter;
+}
+static
+void vsync(float hz) {
+    if( hz <= 0 ) return;
+    do_once fps_locker(1);
+    framerate = hz;
+    fps_wait();
+}
+
+//-----------------------------------------------------------------------------
+
 static void (*hooks[64])() = {0};
 static void *userdatas[64] = {0};
 
@@ -13479,10 +14215,12 @@ void window_unhook(void (*func)()) {
 static GLFWwindow *window;
 static int w, h, xpos, ypos, paused;
 static int fullscreen, xprev, yprev, wprev, hprev;
-static double t, dt, fps;
+static uint64_t frame_count;
+static double t, dt, fps, hz = 60.00;
 static char title[128] = {0};
 static char screenshot_file[512];
 static char videorec_file[512];
+static int has_adaptive_vsync = 0;
 
 void window_drop_callback(GLFWwindow* window, int count, const char** paths) {
     // @fixme: win: convert from utf8 to window16 before processing
@@ -13495,7 +14233,7 @@ void window_drop_callback(GLFWwindow* window, int count, const char** paths) {
     int errors = 0;
     for( int i = 0; i < count; ++i ) {
         const char *src = paths[i];
-        const char *dst = stringf("%s%s", pathdir, file_name(src));
+        const char *dst = va("%s%s", pathdir, file_name(src));
         errors += file_copy(src, dst) ? 0 : 1;
     }
 
@@ -13503,69 +14241,29 @@ void window_drop_callback(GLFWwindow* window, int count, const char** paths) {
     else  app_reload();
 }
 
-void window_create(float zoom, int flags) {
+static // @todo
+void window_create_from_handle(void *handle, int flags) {
     fwk_init();
-    t = glfwGetTime();
+    if(!t) t = glfwGetTime();
 
-    GLFWmonitor *monitor = glfwGetPrimaryMonitor();
-    const GLFWvidmode *mode = glfwGetVideoMode(monitor);
-    int area_width, area_height;
-    glfwGetMonitorWorkarea(monitor, &xpos, &ypos, &area_width, &area_height);
-    float width = area_width, height = area_height, ratio = width / (height + !!height);
-
-    /* We need to explicitly ask for a 3.2 context on OS X */
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3); // osx
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2); // osx, 2:#version150,3:330
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); //osx
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); //osx
-    glfwWindowHint(GLFW_STENCIL_BITS, 8); //osx
-glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
-
-    int keep_aspect_ratio = 1;
-    glfwWindowHint(GLFW_FOCUSED, GLFW_TRUE);
-    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-    // glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-    // glfwWindowHint(GLFW_DECORATED, GLFW_FALSE); // makes it non-resizable
-    if(flags & WINDOW_MSAA2) glfwWindowHint(GLFW_SAMPLES, 2); // x2 AA
-    if(flags & WINDOW_MSAA4) glfwWindowHint(GLFW_SAMPLES, 4); // x4 AA
-    if(flags & WINDOW_MSAA8) glfwWindowHint(GLFW_SAMPLES, 8); // x8 AA
-
-    zoom = (zoom < 1 ? zoom * 100 : zoom > 100 ? 100 : zoom);
-    if( zoom >= 100 ) {
-        // full screen
-        window = glfwCreateWindow(width = mode->width, height = mode->height, "", monitor, NULL);
-    }
-    else if( zoom >= 99 ) {
-        // full screen windowed
-        glfwWindowHint(GLFW_RED_BITS, mode->redBits);
-        glfwWindowHint(GLFW_GREEN_BITS, mode->greenBits);
-        glfwWindowHint(GLFW_BLUE_BITS, mode->blueBits);
-        glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
-        window = glfwCreateWindow(width = mode->width, height = mode->height, "", monitor, NULL);
-    } else {
-        // windowed
-        if( flags & WINDOW_SQUARE )   width = height = width > height ? height : width;
-        if( flags & WINDOW_LANDSCAPE ) if( width < height ) height = width * ratio;
-        if( flags & WINDOW_PORTRAIT )  if( width > height ) width = height * (1.f / ratio);
-
-        window = glfwCreateWindow(width * zoom / 100, height * zoom / 100, "", NULL, NULL);
-        glfwSetWindowPos(window, xpos = xpos + (area_width - width * zoom / 100) / 2, ypos = ypos + (area_height - height * zoom / 100) / 2);
-    }
-    wprev = w, hprev = h;
-    xprev = xpos, yprev = ypos;
+window = handle;
+glfwGetFramebufferSize(window, &w, &h); //glfwGetWindowSize(window, &w, &h);
 
     glfwMakeContextCurrent(window);
-
     gladLoadGL(glfwGetProcAddress);
 glDebugEnable();
 
-    PRINTF("Monitor: %s\n", glfwGetMonitorName(monitor));
     PRINTF("GPU device: %s\n", glGetString(GL_RENDERER));
     PRINTF("GPU driver: %s\n", glGetString(GL_VERSION));
 
-    glfwSwapInterval(1);
+    has_adaptive_vsync = flag("--with-adaptive-vsync") || glfwExtensionSupported("WGL_EXT_swap_control_tear") || glfwExtensionSupported("GLX_EXT_swap_control_tear") || glfwExtensionSupported("EXT_swap_control_tear");
+    has_adaptive_vsync = optioni("--with-adaptive-vsync", has_adaptive_vsync);
+    PRINTF("Vsync control: %d\n", has_adaptive_vsync);
 
-    /*if(keep_aspect_ratio)*/ glfwSetWindowAspectRatio(window, /*mode->*/width, /*mode->*/height);
+    // 0:disable vsync, 1:enable vsync, <0:adaptive (allow vsync when framerate is higher than syncrate and disable vsync when framerate drops below syncrate)
+    glfwSwapInterval(has_adaptive_vsync ? -1 : 1);
+
+    /*if(keep_aspect_ratio)*/ glfwSetWindowAspectRatio(window, /*mode->*/w/*idth*/, /*mode->*/h/*eight*/);
     window_cursor(flags & WINDOW_NO_MOUSE ? false : true);
 
     glfwSetDropCallback(window, window_drop_callback);
@@ -13576,10 +14274,10 @@ glDebugEnable();
 
     // display a progress bar meanwhile cooker is working in the background
     // Sleep(500);
-    if( WITH_COOKER && file_directory(TOOLS) )
+    if( file_directory(TOOLS) && cooker_jobs() )
     while( cooker_progress() < 100 ) {
         for( int frames = 0; frames < 10 && window_swap(); frames += cooker_progress() >= 100 ) {
-            window_title("Cooking assets %.2d%%", cooker_progress());
+            window_title(va("Cooking assets %.2d%%", cooker_progress()));
 
             glfwGetFramebufferSize(window, &w, &h);
             glNewFrame();
@@ -13615,10 +14313,87 @@ glDebugEnable();
     }
 
     glfwShowWindow(window);
+    glfwGetFramebufferSize(window, &w, &h); //glfwGetWindowSize(window, &w, &h);
 
     fwk_post_init_subsystems();
 
     //    t = glfwGetTime();
+}
+
+void window_create(float zoom, int flags) {
+    fwk_init();
+    if(!t) t = glfwGetTime();
+
+    GLFWmonitor *monitor = glfwGetPrimaryMonitor();
+    PRINTF("Monitor: %s\n", glfwGetMonitorName(monitor));
+
+    const GLFWvidmode *mode = glfwGetVideoMode(monitor);
+    int area_width, area_height;
+    glfwGetMonitorWorkarea(monitor, &xpos, &ypos, &area_width, &area_height);
+    float width = area_width, height = area_height, ratio = width / (height + !!height);
+
+#ifdef __APPLE__
+//glfwInitHint( GLFW_COCOA_CHDIR_RESOURCES, GLFW_FALSE );
+//glfwWindowHint( GLFW_COCOA_RETINA_FRAMEBUFFER, GLFW_FALSE );
+//glfwWindowHint( GLFW_COCOA_GRAPHICS_SWITCHING, GLFW_FALSE );
+//glfwWindowHint( GLFW_COCOA_MENUBAR, GLFW_FALSE );
+#endif
+
+    /* We need to explicitly ask for a 3.2 context on OS X */
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3); // osx
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2); // osx, 2:#version150,3:330
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); //osx
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); //osx
+    glfwWindowHint(GLFW_STENCIL_BITS, 8); //osx
+glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
+
+//glfwWindowHint( GLFW_RED_BITS, 8 );
+//glfwWindowHint( GLFW_GREEN_BITS, 8 );
+//glfwWindowHint( GLFW_BLUE_BITS, 8 );
+//glfwWindowHint( GLFW_ALPHA_BITS, 8 );
+//glfwWindowHint( GLFW_DEPTH_BITS, 24 );
+
+//glfwWindowHint(GLFW_AUX_BUFFERS, Nth);
+//glfwWindowHint(GLFW_STEREO, GL_TRUE);
+glfwWindowHint(GLFW_DOUBLEBUFFER, GL_TRUE);
+
+// Prevent fullscreen window minimize on focus loss
+glfwWindowHint( GLFW_AUTO_ICONIFY, GL_FALSE );
+
+    int keep_aspect_ratio = 1;
+    glfwWindowHint(GLFW_FOCUSED, GLFW_TRUE);
+    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+    // glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    // glfwWindowHint(GLFW_DECORATED, GLFW_FALSE); // makes it non-resizable
+    if(flags & WINDOW_MSAA2) glfwWindowHint(GLFW_SAMPLES, 2); // x2 AA
+    if(flags & WINDOW_MSAA4) glfwWindowHint(GLFW_SAMPLES, 4); // x4 AA
+    if(flags & WINDOW_MSAA8) glfwWindowHint(GLFW_SAMPLES, 8); // x8 AA
+
+    zoom = (zoom < 1 ? zoom * 100 : zoom > 100 ? 100 : zoom);
+    if( zoom >= 100 ) {
+        // full screen
+        window = glfwCreateWindow(width = mode->width, height = mode->height, "", monitor, NULL);
+    }
+    else if( zoom >= 99 ) {
+        // full screen windowed
+        glfwWindowHint(GLFW_RED_BITS, mode->redBits);
+        glfwWindowHint(GLFW_GREEN_BITS, mode->greenBits);
+        glfwWindowHint(GLFW_BLUE_BITS, mode->blueBits);
+        glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
+        window = glfwCreateWindow(width = mode->width, height = mode->height, "", monitor, NULL);
+    } else {
+        // windowed
+        if( flags & WINDOW_SQUARE )   width = height = width > height ? height : width;
+        if( flags & WINDOW_LANDSCAPE ) if( width < height ) height = width * ratio;
+        if( flags & WINDOW_PORTRAIT )  if( width > height ) width = height * (1.f / ratio);
+
+        window = glfwCreateWindow(width * zoom / 100, height * zoom / 100, "", NULL, NULL);
+        glfwSetWindowPos(window, xpos = xpos + (area_width - width * zoom / 100) / 2, ypos = ypos + (area_height - height * zoom / 100) / 2);
+    }
+    wprev = w, hprev = h;
+    xprev = xpos, yprev = ypos;
+
+    window_create_from_handle(window, flags);
 }
 
 static double boot_time = 0;
@@ -13661,6 +14436,9 @@ void window_flush() {
         fwk_pre_swap_subsystems();
     }
 }
+void window_lock(float fps) {
+    if( has_adaptive_vsync ) hz = fps;
+}
 int window_swap() {
     int ready = !glfwWindowShouldClose(window);
     if( !ready ) {
@@ -13684,7 +14462,7 @@ int window_swap() {
         #endif
         #endif
     }
-    if( ready ) {
+    else {
         static int first = 1;
 
         window_flush();
@@ -13703,7 +14481,7 @@ int window_swap() {
         t += window_delta();
         if( t >= 1.0 ) {
             fps = frames / t;
-            glfwSetWindowTitle(window, stringf("%s | %5.2f fps (%.2fms)", title, fps, (t*1000.0) / fps));
+            glfwSetWindowTitle(window, va("%s | %5.2f fps (%.2fms)", title, fps, (t*1000.0) / fps));
             frames = 0;
             t = 0;
         }
@@ -13737,7 +14515,10 @@ int window_swap() {
         }
 
         if( !first ) {
+            // glFinish();
+            if( has_adaptive_vsync ) vsync(hz);
             glfwSwapBuffers(window);
+            ++frame_count;
         }
 
         glfwGetFramebufferSize(window, &w, &h); //glfwGetWindowSize(window, &w, &h);
@@ -13756,6 +14537,7 @@ int window_swap() {
     }
     return ready;
 }
+
 int window_width() {
     return w;
 }
@@ -13774,7 +14556,10 @@ double window_delta() {
 double window_fps() {
     return fps;
 }
-void (window_title)(const char *title_) {
+uint64_t window_frame() {
+    return frame_count;
+}
+void window_title(const char *title_) {
     snprintf(title, 128, "%s", title_);
     if( !title[0] ) glfwSetWindowTitle(window, title);
 }
@@ -13884,6 +14669,7 @@ void window_videorec(const char* filename_mpg) {
 int window_has_videorec() {
     return !!videorec_file[0];
 }
+
 #line 0
 #line 1 "fwk_editor.c"
 // editing:
@@ -13892,7 +14678,7 @@ int window_has_videorec() {
 static int editor_mode = 1;
 static int editor_selected = -1; // object in scene selected
 static vec2 editor_mouse; // 2d coord for ray/picking
-static bool editor_slow_sim = 0; // 30fps?
+static int editor_hz = 60;
 
 vec3 editor_pick(float mouse_x, float mouse_y) {
     // unproject 2d coord as 3d coord
@@ -14057,10 +14843,10 @@ void editor_update() {
         if( ui_bool("debugger", (x = has_debugger(), &x))) {}
         if( ui_bool("fullscreen", (x = window_has_fullscreen(), &x)) ) window_fullscreen( x );
         if( ui_bool("pause", (x = window_has_pause(), &x)) ) window_pause( x );
-        if( ui_bool("30 fps", (x = editor_slow_sim, &x) ) ) editor_slow_sim ^= 1;
+        if( ui_int(va("target fps (%.2f)", fps), &editor_hz) ) if(editor_hz < 0) editor_hz = 0; if(editor_hz > 0 && editor_hz < 5) editor_hz = 5;
         ui_separator();
         if( editor_selected >= 0 ) {
-            ui_label(stringf("[%p]", obj));
+            ui_label(va("[%p]", obj));
             if(ui_float3("Position", &obj->pos.x))   object_teleport(obj, obj->pos), gizmo__mode = 0;
             if(ui_float3("Rotation", &obj->euler.x)) object_rotate(obj, obj->euler), gizmo__mode = 2;
             if(ui_float3("Scale", &obj->sca.x))      object_scale(obj, obj->sca),    gizmo__mode = 1;
@@ -14068,7 +14854,7 @@ void editor_update() {
         ui_end();
     }
 
-    if( editor_slow_sim ) sleep_ms(18);
+    window_lock( editor_hz );
 }
 bool editor_active() {
     return ui_hover() || ui_active() || gizmo_active() ? 1 : 0;
@@ -14093,6 +14879,28 @@ void editor() {
 
     if( editor_mode ) editor_update();
 }
+
+char* dialog_load() {
+    const char *windowTitle = NULL; 
+    const char *defaultPathFile = NULL;
+    const char *filterHints = NULL; // "image files"
+    const char *filters[] = { "*.*" };
+    int allowMultipleSelections = 0;
+
+    tinyfd_assumeGraphicDisplay = 1;
+    return tinyfd_openFileDialog( windowTitle, defaultPathFile, countof(filters), filters, filterHints, allowMultipleSelections );
+}
+char* dialog_save() {
+    const char *windowTitle = NULL; 
+    const char *defaultPathFile = NULL;
+    const char *filterHints = NULL; // "image files"
+    const char *filters[] = { "*.*" };
+
+    tinyfd_assumeGraphicDisplay = 1;
+    return tinyfd_saveFileDialog( windowTitle, defaultPathFile, countof(filters), filters, filterHints );
+}
+
+
 #line 0
 // editor is last in place, so it can use all internals from above headers
 
@@ -14117,12 +14925,13 @@ static void fwk_post_init_subsystems() {
     // cooker cleanup
     cooker_stop();
 
-    // mount virtual filesystems
+    // mount virtual filesystems later (lower priority)
+    bool mounted = 0;
     for( int i = 0; i < 16; ++i) {
-        if(!vfs_mount(stringf(".art[%d].zip", i))) {
-            // PANIC("cannot mount fs: .art[%d].zip", i);
-        }
+        mounted |= !!vfs_mount(va(".art[%d].zip", i));
     }
+    // mount physical filesystems first (higher priority)
+    if(!mounted) vfs_mount(ART);
 
     // unlock preswap events
     fwk_unlock_pre_swap_events = 1;
@@ -14224,9 +15033,10 @@ void fwk_init() {
         }
 
         // create or update cook.zip file
-        if( WITH_COOKER && file_directory(TOOLS) ) {
+        if( file_directory(TOOLS) && cooker_jobs() ) {
             cooker_start( "**", 0|COOKER_ASYNC );
         }
     }
 }
+
 #line 0

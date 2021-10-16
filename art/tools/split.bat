@@ -2,4 +2,4 @@
 
 python art/tools/split.py --input ./fwk.h --output-path ./
 python art/tools/split.py --input ./fwk.c --output-path ./
-python art/tools/split.py --input ./fwk.3 --output-path ./
+python art/tools/split.py --input ./fwk   --output-path ./

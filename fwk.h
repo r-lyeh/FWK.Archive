@@ -197,6 +197,17 @@ extern "C" {
 #define EXPAND_ARGS(args)          EXPAND_RETURN_COUNT args
 #define EXPAND_RETURN_COUNT(_1_, _2_, _3_, _4_, _5_, _6_, _7_, _8_, _9_, count, ...) count
 
+//#define STATIC_ASSERT(EXPR)       typedef char UNIQUE_NAME(_static_assert_on_line)[(EXPR)?1:-1]
+#define STATIC_ASSERT(EXPR)         STATIC_ASSER7(EXPR, __LINE__)
+#define STATIC_ASSER7(EXPR, LINE)   STATIC_ASS3R7(EXPR, LINE)
+#define STATIC_ASS3R7(EXPR, LINE)   typedef struct { unsigned static_assert_on_line_##LINE : !!(EXPR); } static_assert_on_line_##LINE // typedef int static_assert_on_line_##LINE[ !!(EXPR) ]
+
+#if defined(_MSC_VER) && !defined(__cplusplus)
+#define m_inline __inline // m_inline -> INLINE ?
+#else
+#define m_inline inline   // m_inline -> INLINE ?
+#endif
+
 //-----------------------------------------------------------------------------
 // Headers
 
@@ -219,7 +230,7 @@ extern "C" {
 
 // -----------------------------------------------------------------------------
 // config directives
-// @todo: debug (+_debug) /O0 /D3 > debugopt (+_debug) /O1 /D2 > releasedbg (+ndebug) /O2 /D1 > release (+ndebug) /O3 /D0
+// @todo: debug (+_debug) /O0 /D3 > debugopt (+_debug) /O1 /D2 > releasedbg (+ndebug) /O2 /D1 > release (+ndebug) /O3 /D0 ... debug: /D0 -> -g0 instead?
 
 #if defined NDEBUG || (!defined _DEBUG && !defined O0)
 #define RELEASE 1
@@ -237,22 +248,25 @@ extern "C" {
 #define O_FLAG (2 * RELEASE + OPTIMIZE)
 #endif
 
-#if O_FLAG >= 3
-#define WITH_COOKER          0
-#define WITH_FASTCALL_LUA    1
-#define WITH_LEAK_DETECTOR   0
-#define WITH_PROFILE         0
-#define WITH_XREALLOC_POISON 0
-#else
-#define WITH_COOKER          1 ///+
-#define WITH_FASTCALL_LUA    0 ///+
-#define WITH_LEAK_DETECTOR   0 ///+
-#define WITH_PROFILE         1 ///+
-#define WITH_XREALLOC_POISON 1 ///+
-// WITH_SELFIES
+#ifndef WITH_FASTCALL_LUA
+#define WITH_FASTCALL_LUA    1 ///+
 #endif
 
-//#define WITH_ASSIMP        0      // Only art/tools/ass2iqe.c would define this.
+#ifndef WITH_LEAK_DETECTOR
+#define WITH_LEAK_DETECTOR   0 ///+
+#endif
+
+#ifndef WITH_PROFILE
+#define WITH_PROFILE         1 ///+
+#endif
+
+#ifndef WITH_SELFIES
+#define WITH_SELFIES         0 ///+
+#endif
+
+#ifndef WITH_XREALLOC_POISON
+#define WITH_XREALLOC_POISON 1 ///+
+#endif
 
 // -----------------------------------------------------------------------------
 // system headers
@@ -288,19 +302,14 @@ extern "C" {
 #endif
 
 // -----------------------------------------------------------------------------
-// utils
-
-//#define STATIC_ASSERT(EXPR)       typedef char UNIQUE_NAME(_static_assert_on_line)[(EXPR)?1:-1]
-#define STATIC_ASSERT(EXPR)         STATIC_ASSER7(EXPR, __LINE__)
-#define STATIC_ASSER7(EXPR, LINE)   STATIC_ASS3R7(EXPR, LINE)
-#define STATIC_ASS3R7(EXPR, LINE)   typedef struct { unsigned static_assert_on_line_##LINE : !!(EXPR); } static_assert_on_line_##LINE // typedef int static_assert_on_line_##LINE[ !!(EXPR) ]
-
 // pragma libs
 
 #if defined _WIN32 && (defined _MSC_VER || defined __TINYC__)
 #pragma comment(lib, "advapi32")
+#pragma comment(lib, "comdlg32")
 #pragma comment(lib, "dbghelp")
 #pragma comment(lib, "gdi32")
+#pragma comment(lib, "ole32")
 #pragma comment(lib, "shell32")
 #pragma comment(lib, "user32")
 #pragma comment(lib, "winmm")
@@ -329,12 +338,6 @@ extern "C" {
 #define C_PI       (3.141592654f) // (3.14159265358979323846f)
 #define TO_RAD     (C_PI/180.f)
 #define TO_DEG     (180.f/C_PI)
-
-#if defined(_MSC_VER) && !defined(__cplusplus)
-#define m_inline __inline
-#else
-#define m_inline inline
-#endif
 
 #if defined(_MSC_VER) && (_MSC_VER <= 1700)
 #define m_finite _finite
@@ -509,6 +512,10 @@ API vec3  mix3  (vec3 a,vec3 b,float t);
 API vec3  clamp3(vec3 v,float a,float b);
 //vec3 tricross3 (vec3 a, vec3 b, vec3 c);
 API void  ortho3   (vec3 *left, vec3 *up, vec3 v);
+
+API vec3  rotatex3 (vec3 dir, float degrees);
+API vec3  rotatey3 (vec3 dir, float degrees);
+API vec3  rotatez3 (vec3 dir, float degrees);
 
 // ----------------------------------------------------------------------------
 
@@ -898,6 +905,7 @@ API poly    diamond(vec3 from, vec3 to, float size); // poly_free() required
 // @todo: ... and should compress them in the original cook[N] bucket
 
 enum COOKER_FLAGS {
+    COOKER_SYNC = 0,
     COOKER_ASYNC = 1,
 };
 
@@ -914,17 +922,6 @@ API int  cooker_jobs();     // [1..N]
 //
 // @todo: vec2,vec3,vec4
 
-// data api
-
-API bool    data_push(const char *source);
-API int         data_count(const char *keypath);
-#define         data_int(...)    data_get(0,stringf(__VA_ARGS__)).i
-#define         data_float(...)  data_get(0,stringf(__VA_ARGS__)).f
-#define         data_string(...) data_get(1,stringf(__VA_ARGS__)).s
-API bool    data_pop();
-
-// internal api
-
 typedef union data_t {
     char* s;
     double f;
@@ -933,7 +930,18 @@ typedef union data_t {
     array(union data_t) arr;
 } data_t;
 
-API data_t data_get(bool is_string, const char *keypath); // @todo, array(data_t) data_array();
+// data api
+
+API bool    data_push(const char *source);
+API data_t*     data_find(const char *type_keypath); // @todo, array(data_t) data_array();
+API data_t      data_get(const char *type_keypath); // @todo, array(data_t) data_array();
+API int         data_count(const char *keypath);
+#define         data_int(...)    (data_get(stringf("i" __VA_ARGS__)).i)
+#define         data_float(...)  (data_get(stringf("f" __VA_ARGS__)).f)
+#define         data_string(...) (data_get(stringf("s" __VA_ARGS__)).s)
+API bool    data_pop();
+
+
 #line 0
 #line 1 "fwk_dll.h"
 // dll utils
@@ -1339,11 +1347,14 @@ API void  (map_gc)(map *m); // only if using MAP_DONT_ERASE
 // - [ ] cut/copy/paste (ctrl-c to serialize)
 // - [ ] menu: open, save, save as, save all, reload
 
-API void editor();
-API bool editor_active();
+API void  editor();
+API bool  editor_active();
 
-API int  gizmo(vec3 *pos, vec3 *rot, vec3 *sca);
-API bool gizmo_active();
+API char* dialog_load();
+API char* dialog_save();
+
+API int   gizmo(vec3 *pos, vec3 *rot, vec3 *sca);
+API bool  gizmo_active();
 
 #line 0
 #line 1 "fwk_file.h"
@@ -1682,9 +1693,9 @@ API int   tcp_debug(int); // toggle traffic monitoring on/off for given socket
 
 #if WITH_PROFILE
 #   define profile_init() do { map_init(profiler, less_str, hash_str); } while(0)
-#   define profile(...) for( \
-        struct profile_t *found = map_find_or_add(profiler, #__VA_ARGS__ "@" FILELINE, (struct profile_t){NAN} ), *dummy = (\
-        found->cost = -time_ms() * 1000, found); found->cost < 0; found->cost += time_ms() * 1000, found->avg = found->cost * 0.25 + found->avg * 0.75)  ///+
+#   define profile(section) for( \
+        struct profile_t *found = map_find_or_add(profiler, section "@" FILELINE, (struct profile_t){NAN} ), *dummy = (\
+        found->cost = -time_us(), found); found->cost < 0; found->cost += time_us(), found->avg = found->cost * 0.25 + found->avg * 0.75)  ///+
 #   define profile_incstat(name, accum) do { if(profiler) { \
         struct profile_t *found = map_find(profiler, name); \
         if(!found) found = map_insert(profiler, name, (struct profile_t){0}); \
@@ -1750,12 +1761,14 @@ API float    alpha( uint32_t rgba );
 /// IMAGE_RGB: 3-channel image (R,G,B)
 /// IMAGE_RGBA: 4-channel image (R,G,B,A)
 /// IMAGE_FLIP: Flip image vertically
+/// IMAGE_FLOAT: Float pixel components
 enum IMAGE_FLAGS {
-    IMAGE_R    = 0x01000,
-    IMAGE_RG   = 0x02000,
-    IMAGE_RGB  = 0x04000,
-    IMAGE_RGBA = 0x08000,
-    IMAGE_FLIP = 0x10000,
+    IMAGE_R     = 0x01000,
+    IMAGE_RG    = 0x02000,
+    IMAGE_RGB   = 0x04000,
+    IMAGE_RGBA  = 0x08000,
+    IMAGE_FLIP  = 0x10000,
+    IMAGE_FLOAT = 0x20000,
 };
 
 /// type that holds linear uncompressed bitmap of any given dimensions.
@@ -1789,12 +1802,12 @@ enum TEXTURE_FLAGS {
     TEXTURE_LINEAR = 64,
     TEXTURE_MIPMAPS = 128,
 
-    TEXTURE_EDGE = 0,
+    TEXTURE_CLAMP = 0,
     TEXTURE_BORDER = 0x100,
     TEXTURE_REPEAT = 0x200,
 
     TEXTURE_BYTE = 0,
-    TEXTURE_FLOAT = 0x400,
+    TEXTURE_FLOAT = IMAGE_FLOAT,
 
     TEXTURE_COLOR = 0,
     TEXTURE_DEPTH = 0x800,
@@ -1816,8 +1829,10 @@ typedef struct texture_t {
     union { unsigned y, h; };
     union { unsigned z, d; };
     union { unsigned n, bpp; };
-    handle id;
+    handle id, unit;
     unsigned flags;
+    char* filename;
+    bool transparent;
 } texture_t;
 
 API texture_t texture_compressed(const char *filename, unsigned flags);
@@ -1833,6 +1848,39 @@ API void      texture_destroy(texture_t *t);
 API unsigned  texture_update(texture_t *t, unsigned w, unsigned h, unsigned n, void *pixels, int flags);
 
 // -----------------------------------------------------------------------------
+// brdf
+
+API texture_t brdf_lut();
+
+// -----------------------------------------------------------------------------
+// pbr materials
+
+typedef struct colormap_t {
+    vec4 color;
+    texture_t *texture;
+} colormap_t;
+
+API bool colormap( colormap_t *cm, const char *pbr_material_type, bool load_as_srgb );
+
+typedef struct pbr_material_t {
+    char* name;
+    colormap_t diffuse;
+    colormap_t normals;
+    colormap_t specular;
+    colormap_t albedo;
+    colormap_t roughness;
+    colormap_t metallic;
+    colormap_t ao;
+    colormap_t ambient;
+    colormap_t emissive;
+
+    float specular_shininess;
+} pbr_material_t;
+
+API bool pbr_material(pbr_material_t *pbr, const char *material);
+API void pbr_material_destroy(pbr_material_t *m);
+
+// -----------------------------------------------------------------------------
 // fullscreen quads
 
 API void  fullscreen_rgb_quad( texture_t texture_rgb, float gamma );
@@ -1841,7 +1889,8 @@ API void  fullscreen_ycbcr_quad( texture_t texture_YCbCr[3], float gamma );
 // -----------------------------------------------------------------------------
 // sprites
 
-API void tile( texture_t texture, vec3 position, uint32_t color /*~0u*/, float rotation /*0*/ );
+// texture id, position(x,y,depth sort), tint color, rotation angle
+API void tile( texture_t texture, float position[3], float rotation /*0*/, uint32_t color /*~0u*/);
 
 // texture id, position(x,y,depth sort), rotation angle, offset(x,y), scale(x,y), is_additive, tint color, spritesheet(frameNumber,X,Y) (frame in a X*Y spritesheet)
 API void sprite( texture_t texture, float position[3], float rotation, float offset[2], float scale[2], int is_additive, uint32_t rgba, float spritesheet[3]);
@@ -1901,15 +1950,20 @@ API void shadowmatrix_ortho(mat44 shm_proj, float left, float right, float botto
 
 API unsigned shader(const char *vs, const char *fs, const char *attribs, const char *fragcolor);
 API unsigned shader_bind(unsigned program);
+API     void shader_bool(const char *uniform, bool i );
 API     void shader_int(const char *uniform, int i);
+API     void shader_uint(const char *uniform, unsigned i );
 API     void shader_float(const char *uniform, float f);
 API     void shader_vec2(const char *uniform, vec2 v);
 API     void shader_vec3(const char *uniform, vec3 v);
 API     void shader_vec4(const char *uniform, vec4 v);
 API     void shader_mat44(const char *uniform, mat44 m);
-API     void shader_texture(const char *sampler, unsigned texture, unsigned unit);
+API     void shader_texture(const char *sampler, texture_t texture);
+API     void shader_texture_unit(const char *sampler, unsigned texture, unsigned unit);
+API     void shader_colormap(const char *name, colormap_t cm);
 API unsigned shader_get_active();
 API void     shader_destroy(unsigned shader);
+
 
 // -----------------------------------------------------------------------------
 // meshes (@fixme: deprecate?)
@@ -1929,20 +1983,28 @@ typedef struct mesh_t {
 
 API mesh_t mesh_create(const char *format, int vertex_stride,int vertex_count,const void *interleaved_vertex_data, int index_count,const void *index_data, int flags);
 API   void mesh_upgrade(mesh_t *m, const char *format, int vertex_stride,int vertex_count,const void *interleaved_vertex_data, int index_count,const void *index_data, int flags);
-API   void mesh_push_state(mesh_t *m, unsigned program, unsigned texture_id, float model[16], float view[16], float proj[16], unsigned billboard);
-API   void mesh_pop_state(mesh_t *m);
 API   void mesh_render(mesh_t *m);
 API   void mesh_destroy(mesh_t *m);
 API   aabb mesh_bounds(mesh_t *m);
 
 // -----------------------------------------------------------------------------
-// materials (@todo)
-//
-// typedef struct material_t {
-//     const char *name;
-//     texture_t texture;
-//     uint32_t color;
-// } material_t;
+// materials
+
+enum { MAX_CHANNELS_PER_MATERIAL = 8 };
+
+typedef struct material_t {
+    char *name;
+
+    int count;
+    struct material_layer_t {
+        char   texname[32];
+        handle texture;
+        float  value;
+        vec4   color; // uint32_t
+    }
+    layer[MAX_CHANNELS_PER_MATERIAL];
+
+} material_t;
 
 // -----------------------------------------------------------------------------
 // models
@@ -1959,6 +2021,8 @@ typedef struct model_t {
 
     unsigned num_textures;
     handle *textures;
+    char **texture_names;
+    array(material_t) materials;
 
     unsigned num_meshes;
     unsigned num_triangles;
@@ -1969,7 +2033,13 @@ typedef struct model_t {
     float curframe;
     mat44 pivot;
 
+    int stride; // usually 60 bytes (12*4+4*3) for a p3 u2 n3 t4 i4B w4B c4B vertex stream
+    void *verts;
+    int num_verts;
+    handle vao, ibo, vbo;
+
     unsigned flags;
+    unsigned billboard;
 } model_t;
 
 API model_t  model(const char *filename, int flags);
@@ -2028,7 +2098,7 @@ API void*    screenshot(unsigned components); // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA
 // [x] line batching
 // [*] line width and stipple
 // [*] (proper) gizmo,
-// [ ] bone (pyramid?), ring,
+// [ ] bone (pyramid? two boids?), ring,
 // [ ] camera, light bulb, light probe,
 
 API void ddraw_color(unsigned rgb);
@@ -2090,6 +2160,7 @@ typedef struct camera_t {
 API camera_t camera();
 API void camera_move(camera_t *cam, float x, float y, float z);
 API void camera_fps(camera_t *cam, float yaw, float pitch);
+API void camera_orbit(camera_t *cam, float yaw, float pitch, float inc_distance);
 API void camera_lookat(camera_t *cam, vec3 target);
 API void camera_enable(camera_t *cam);
 API camera_t *camera_get_active();
@@ -2171,7 +2242,8 @@ API void script_call(const char *lua_function);
 // string: temporary api (stack)
 API char*   stringf(const char *fmt, ...);
 #define     stringf(...) (printf || printf(__VA_ARGS__), stringf(__VA_ARGS__))  // vs2015 check trick
-#define     str(...)     stringf(__VA_ARGS__) //s(),str(),fmt() ?
+#define     str(...)     stringf(__VA_ARGS__) //s(),str(),strf(),fmt() ?
+#define     va           str //s(),str(),strf(),fmt() ?
 
 // string: allocated api (heap). FREE() after use
 API char*   strcatf(char **s,   const char *buf);
@@ -2244,8 +2316,12 @@ API char*       argv(int);
 
 API int         flag(const char *commalist); // --arg
 API const char* option(const char *commalist, const char *defaults); // --arg=key or --arg key
-API int         optioni(const char *commalist, int defaults);
+API int         optioni(const char *commalist, int defaults); // argvi() ?
 API float       optionf(const char *commalist, float defaults);
+
+// @todo:
+// ini(file, key, default);
+// inif(file, key, default);
 
 API char*       os_exec_output(); // legacy
 API int         os_exec(const char *command); // legacy
@@ -2258,6 +2334,9 @@ API void        tty_reset();
 
 API int         cpu_cores();
 
+// return battery level [1..100]. also positive if charging (+), negative if discharging (-), and 0 if no battery is present.
+API int         battery();
+
 API const char* app_name();
 API const char* app_path();
 API const char* app_cache();
@@ -2266,12 +2345,16 @@ API void        app_reload();
 
 API uint64_t    date();       // YYYYMMDDhhmmss
 API uint64_t    date_epoch(); // linux epoch
+API double      time_hh();
+API double      time_mm();
 API double      time_ss();
-API double      time_ms();
+API uint64_t    time_ms();
 API uint64_t    time_us();
-API double      sleep_ss(double ss);
-API double      sleep_ms(double ms);
-API uint64_t    sleep_us(uint64_t us);
+API uint64_t    time_ns();
+API void        sleep_ss(double ss);
+API void        sleep_ms(double ms);
+API void        sleep_us(double us);
+API void        sleep_ns(double us);
 
 API char*       callstack( int traces ); // write callstack into a temporary string. do not delete it.
 API int         callstackf( FILE *fp, int traces ); // write callstack to file. <0 traces to invert order.
@@ -2305,7 +2388,6 @@ API float*      big32pf(void *n, int sz);
 API uint64_t*   big64p(void *n, int sz);
 API double*     big64pf(void *n, int sz);
 
-#define alert(...)   alert(stringf(__VA_ARGS__))
 #define PANIC(...)   PANIC(stringf(__VA_ARGS__), __FILE__, __LINE__) // die() ?
 API int (PRINTF)(const char *text, const char *stack, const char *file, int line, const char *function);
 API int (PANIC)(const char *error, const char *file, int line);
@@ -2325,15 +2407,23 @@ API int    ui_float(const char *label, float *value);
 API int    ui_float2(const char *label, float value[2]);
 API int    ui_float3(const char *label, float value[3]);
 API int    ui_string(const char *label, char *buffer, int buflen);
-API int    ui_color3(const char *label, float *color3);
-API int    ui_color4(const char *label, float *color4);
+API int    ui_color3(const char *label, float *color3); //[0..255]
+API int    ui_color3f(const char *label, float *color3); //[0..1]
+API int    ui_color4(const char *label, float *color4); //[0..255]
+API int    ui_color4f(const char *label, float *color4); //[0..1]
 API int    ui_button(const char *label);
 API int    ui_toggle(const char *label, bool *value);
 API int    ui_dialog(const char *title, const char *text, int choices, bool *show); // @fixme: return
 API int    ui_list(const char *label, const char **items, int num_items, int *selector);
-API int    ui_image(const char *label, texture_t img);
+API int    ui_radio(const char *label, const char **items, int num_items, int *selector);
+API int    ui_image(const char *label, handle id, unsigned w, unsigned h); //(w,h) can be 0
+API int    ui_colormap(const char *map_name, colormap_t *cm); // returns num member changed: 1 for color, 2 for texture map
 API int    ui_separator();
+API int    ui_bits8(const char *label, uint8_t *bits);
+API int    ui_bits16(const char *label, uint16_t *bits);
+API int    ui_clampf(const char *label, float *value, float minf, float maxf);
 API int    ui_label(const char *label);
+#define    ui_labelf(...) ui_label(stringf(__VA_ARGS__))
 API int    ui_label2(const char *label, const char *caption);
 API int    ui_slider(const char *label, float *value);
 API int    ui_slider2(const char *label, float *value, const char *caption);
@@ -2400,39 +2490,40 @@ enum WINDOW_FLAGS {
     WINDOW_LANDSCAPE = 0x80,
 };
 
-API void   window_create(float zoom, int flags);
-API void   window_title(const char *title);
-API void   window_icon(const char *file_icon);
-API void   window_flush();
-API int    window_swap();
-API void*  window_handle();
+API void     window_create(float zoom, int flags);
+API void     window_title(const char *title);
+API void     window_icon(const char *file_icon);
+API void     window_flush();
+API int      window_swap();
+API void*    window_handle();
 
-API int    window_width();
-API int    window_height();
-API double window_aspect();
-API double window_time();
-API double window_delta();
-API double window_fps();
+API uint64_t window_frame();
+API int      window_width();
+API int      window_height();
+API double   window_aspect();
+API double   window_time();
+API double   window_delta();
+API double   window_fps();
+API void     window_lock(float fps);
 
-API bool   window_hook(void (*func)(), void* userdata);
-API void   window_unhook(void (*func)());
+API bool     window_hook(void (*func)(), void* userdata);
+API void     window_unhook(void (*func)());
 
-API void   window_focus(); // window attribute api using haz catz language for now
-API int    window_has_focus();
-API void   window_fullscreen(int enabled);
-API int    window_has_fullscreen();
-API void   window_cursor(int visible);
-API int    window_has_cursor();
-API void   window_pause();
-API int    window_has_pause();
-API void   window_visible(int visible);
-API int    window_has_visible();
-API void   window_videorec(const char* filename_mpg);
-API int    window_has_videorec();
+API void     window_focus(); // window attribute api using haz catz language for now
+API int      window_has_focus();
+API void     window_fullscreen(int enabled);
+API int      window_has_fullscreen();
+API void     window_cursor(int visible);
+API int      window_has_cursor();
+API void     window_pause();
+API int      window_has_pause();
+API void     window_visible(int visible);
+API int      window_has_visible();
+API void     window_videorec(const char* filename_mpg);
+API int      window_has_videorec();
 
-API void   window_screenshot(const char* filename_png);
+API void     window_screenshot(const char* filename_png);
 
-#define window_title(...) window_title(stringf(__VA_ARGS__))
 #line 0
 
 // ----
@@ -2441,6 +2532,6 @@ API void   window_screenshot(const char* filename_png);
 } // extern "C"
 #endif
 
-#include "fwk.3" // for glad
+#include "fwk" // for glad
 
 #endif // FWK_H

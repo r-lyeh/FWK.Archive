@@ -197,6 +197,17 @@ extern "C" {
 #define EXPAND_ARGS(args)          EXPAND_RETURN_COUNT args
 #define EXPAND_RETURN_COUNT(_1_, _2_, _3_, _4_, _5_, _6_, _7_, _8_, _9_, count, ...) count
 
+//#define STATIC_ASSERT(EXPR)       typedef char UNIQUE_NAME(_static_assert_on_line)[(EXPR)?1:-1]
+#define STATIC_ASSERT(EXPR)         STATIC_ASSER7(EXPR, __LINE__)
+#define STATIC_ASSER7(EXPR, LINE)   STATIC_ASS3R7(EXPR, LINE)
+#define STATIC_ASS3R7(EXPR, LINE)   typedef struct { unsigned static_assert_on_line_##LINE : !!(EXPR); } static_assert_on_line_##LINE // typedef int static_assert_on_line_##LINE[ !!(EXPR) ]
+
+#if defined(_MSC_VER) && !defined(__cplusplus)
+#define m_inline __inline // m_inline -> INLINE ?
+#else
+#define m_inline inline   // m_inline -> INLINE ?
+#endif
+
 //-----------------------------------------------------------------------------
 // Headers
 
@@ -232,6 +243,6 @@ extern "C" {
 } // extern "C"
 #endif
 
-#include "fwk.3" // for glad
+#include "fwk" // for glad
 
 #endif // FWK_H

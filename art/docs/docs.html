@@ -599,13 +599,13 @@ markdeepOptions = {
 </script>
 <!-- Markdeep: --><script src="https://casual-effects.com/markdeep/latest/markdeep.min.js?" charset="utf-8"></script>
 
-| Documentation last modified | 16/10/2021        |
+| Documentation last modified | 01/11/2021        |
 |:--------------|:------------|
-|Version:       | 2021.10     |
+|Version:       | 2021.11     |
 |Branch:        | master         |
-|Commit:        | 32               |
+|Commit:        | 33               |
 
-# [F·W·K 2021.10    ](https://github.com/r-lyeh/FWK)
+# [F·W·K 2021.11    ](https://github.com/r-lyeh/FWK)
 ## a b o u t
 
 - https://github.com/r-lyeh/FWK is a 3D game framework in C, with Luajit bindings.
@@ -701,24 +701,25 @@ void assert_positive( int my_int ) { // snake_case everywhere
 - [x] Network: downloads (HTTPS) and sockets (TCP/UDP).
 - [x] UI: color3/4, button, list, slider, toggle, checkbox, editbox, dialog, image, menus.
 - [x] Font: TTF and TTC. Basic syntax highlighter. Unicode ranges, atlasing, I18N.
-- [x] Image: JPG, PNG, TGA, BMP, PSD, PIC, PNM, ICO.
-- [x] Texture: KTX/2, PVR, DDS, ASTC, BASIS, HDR.
+- [x] Image: JPG, PNG, BMP, PSD, PIC, PNM, ICO.
+- [x] Texture: KTX/2, PVR, DDS, ASTC, BASIS, HDR, TGA.
 - [x] Texel: Depth, R, RG, RGB, RGBA, BC1/2/3/4/5/6/7, PVRI/II, ETC1/2, ASTC.
 - [x] Audio: WAV/FLAC, OGG/MP1/MP3, MOD/XM/S3M/IT, SFXR and MID.
 - [x] Video: MP4, MPG, OGV, MKV, WMV and AVI.
 - [x] Model: IQM/E, GLTF/2, GLB, FBX, OBJ, DAE, BLEND, MD3/5, MS3D, SMD, X, 3DS, BVH, DXF, LWO.
-- [x] Render: 2D Sprites, spritesheets and batching.
+- [x] Render: 2D Sprites, spritesheets, AA zooming and batching.
 - [x] Render: 3D Anims, skeletal anims and hardware skinning.
 - [x] Render: 3D Debugdraw, batching and vectorial font.
 - [x] Render: Cubemaps, panoramas and spherical harmonics. Rayleigh/Mie scattering.
 - [x] Render: Post-effects (SSAO,FXAA1/3,CRT,Contrast,Grain,Outline,Vignette...).
+- [x] Render: PBR (metallic-roughness) workflow.
 - [x] Compression: DEFLATE, LZMA, LZ4, ULZ, BALZ, BCM, CRUSH, LZW3, LZSS and PPP.
 - [x] Virtual filesystem: ZIP, PAK, TAR and DIR.
 - [x] Level data: JSON, JSON5, SJSON, XML.
 - [x] Disk cache.
 - [x] Scene handling.
 - [x] Profiler, stats and leaks finder.
-- [x] [Documentation (wip)](https://bit.ly/f-w-k).
+- [x] [Documentation (wip)](https://bit.ly/-fwk-).
 
 </details>
 
@@ -731,20 +732,17 @@ void assert_positive( int my_int ) { // snake_case everywhere
 - [ ] Scene: toggles on/off (billboards✱, materials, un/lit, cast shadows, wireframe, skybox/mie, collide, physics).
 - [ ] Scene: node singleton display, node console, node labels, node outlines.
 - [ ] Math: quat2, bezier, catmull.
-- [ ] Editor: gizmos✱, scene tree, property editor, load/save, undo/redo, copy/paste.
-<!-- editor = tree of nodes. levels and objects are nodes, and widgets are also nodes -->
-<!-- you can perform actions on nodes, with or without descendants, top-bottom or bottom-top -->
-<!-- operations include load/save, reset, undo/redo, play/render vis on/off/alpha logic on/off/other ddraw on/off log on/off, etc -->
+- [ ] Editor: gizmos✱, scene tree, property editor, load/save, undo/redo, copy/paste. <!-- editor = tree of nodes. levels and objects are nodes, and widgets are also nodes --><!-- you can perform actions on nodes, with or without descendants, top-bottom or bottom-top --><!-- operations include load/save, reset, undo/redo, play/render vis on/off/alpha logic on/off/other ddraw on/off log on/off, etc -->
 - [ ] Level objects: volumes✱, triggers, platforms, streaming.
 - [ ] Script: DLL✱ (module->plugin/sys), Lua✱, Luajit✱, Teal✱ and TypeScript.
-- [ ] Script: Refl/meta binding tool (during cook stage).
+- [ ] Script: Docs/Refl/Meta binding tool (during cook stage).
 - [ ] Pipeline: Extend: shaders, bindings. Per-platform✱, per-type✱, per-asset options. GIF, PKM.
 - [ ] Pipeline: Extend atlas (sprite/lightmaps). Fit packing (sprites).
-- [ ] Font: text layout and shaping, underlining, soft/hard shadows, outlines.
-- [ ] Maybe: Tiled maps and 2D spines.
+- [ ] Maybe: Font text layout and shaping, underlining, soft/hard shadows, outlines.
+- [ ] Maybe: Tiled maps and 2D spines. Sprite parallaxs.
 - [ ] Maybe: Animation pass.
 - [ ] Maybe: AI/Logic pass.
-- [ ] Maybe: Lighting/PBR pass.
+- [ ] Maybe: Lighting pass.
 - [ ] Maybe: VM/ECS/Replication pass.
 - [ ] API: More examples. Also, less examples.
 - [ ] API: Discuss API and freeze it.
@@ -753,18 +751,21 @@ void assert_positive( int my_int ) { // snake_case everywhere
 <!--
 // almost done:
 // [x] shadertoy textures
-// [ ] billboards (follow sprite API? state instead? ie, billboard(true); before rendering?)
+// [*] billboards (follow sprite API? state instead? ie, billboard(true); before rendering?)
 // [ ] soft shadows (vsm, vsmcube)
 // nice to have: [x] means done
 // [ ] fix leaks and todos
-// [ ] fwk_app: cpu usage, battery, orientation
-// [x] app: app options, app flags, app tty, app paths
+// [ ] fwk_app: cpu usage, orientation
+// [x] app: app options, app flags, app tty, app paths, app battery,
 // [x] DS: array, map, set, string, sort, hash.
 // [x] system: debugger, callstack, exec, time/date.
 // [ ] fwk_input: cursor, mouse clip, mouse wrap,
-// [ ] sprites: pixel perfect zooming (demo+wheel)
 // [ ] zip0 seek-vfs optimization. zip_append_file is suboptimal, and requires tons of contiguous memory for giant files.
 // [ ] expose uniforms as ui options, also model_uniform();
+// [ ] font: M/SDF https://github.com/WilliamBundy/wiggle https://github.com/Chlumsky/msdf-atlas-gen
+// [ ] lod: https://github.com/songrun/SeamAwareDecimater
+// [ ] lightmaps: https://blackpawn.com/texts/lightmaps/default.html 
+// [ ] https://github.com/jpcy/xatlas
 -->
 
 <!--
@@ -844,7 +845,7 @@ Type `MAKE.bat` (Win) or `sh MAKE.bat` (Linux/OSX) to build everything. Alternat
 
 ```lua
 echo Windows (vc+tcc)      && cl  demo.c       fwk.c
-echo Windows (mingw64)     && gcc demo.c       fwk.c -o demo -w -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99
+echo Windows (mingw64)     && gcc demo.c       fwk.c -o demo -w -lws2_32 -lgdi32 -lwinmm -ldbghelp
 echo Linux (gcc+clang+tcc) && cc  demo.c       fwk.c -o demo -w -lm -ldl -lpthread
 echo OSX (gcc+clang)       && cc  demo.c -ObjC fwk.c -o demo -w -framework cocoa -framework iokit
 ```
@@ -879,15 +880,16 @@ echo #endif // FWK_C >> fwk-single-header.c
 - Dropped files into game window will be imported & saved into [`art/import`](art/import) folder.
 - Linux/OSX users can optionally install wine to use the Windows pipeline as an alternate asset pipeline (use `--with-wine` flag).
 - Depending on your IDE, you might need to [split all amalgamated](#Amalgamation) files when debugging FWK.
-<!-- - On windows + vc, you can use `make bindings` or `make docs` to generate everything prior to a release -->
+- Although not recommended, you can remove the cooking stage by invoking `--with-jobs=0` or by removing the [`art/tools`](art/tools) folder.
+<!-- - On windows + vc, you can use `make bindings` or `make docs` to generate everything prior to a release --><!-- gamecontrollerdb.txt -->
 
 </details>
 
 <details><summary>Bindings</summary>
 
 
-- Luajit: Luajit bindings are provided in the [fwk.lua](fwk.lua) auto-generated file.
-- Luajit: You can test it by typing `cl fwk.c /LD /DAPI=EXPORT && art\tools\luajit art\demos\demo_luajit.lua`
+- Luajit: Luajit bindings are provided in the [fwk.lua](demos/lua/fwk.lua) auto-generated file.
+- Luajit: You can test it by typing `cd demos\lua && luajit demo_luajit.lua`
 - Nelua: [Nelua bindings](https://github.com/Rabios/nelua-fun/tree/main/fwk) provided by Rabia Alhaffar.
 
 </details>
@@ -898,24 +900,6 @@ echo #endif // FWK_C >> fwk-single-header.c
 This software is released into the [public domain](https://unlicense.org/).<br/>
 Also dual-licensed as [0-BSD](https://opensource.org/licenses/FPL-1.0.0) or [MIT (No Attribution)](https://github.com/aws/mit-0) for those countries where public domain is a concern (sigh).<br/>
 Any contribution to this repository is implicitly subjected to the same release conditions aforementioned.
-
-</details>
-
-<details><summary>Gallery</summary>
-
-
-<p align="center">
-<img src="art/demos/demo_script.png"    width="204px" title="Script.">
-<img src="art/demos/demo_font.png"      width="204px" title="Fonts.">
-<img src="art/demos/demo_collide.png"   width="204px" title="Collision.">
-<img src="art/demos/demo_model.png"     width="204px" title="Model.">
-<img src="art/demos/demo_scene.png"     width="204px" title="Scene.">
-<img src="art/demos/demo_sprite.png"    width="204px" title="Sprite.">
-<img src="art/demos/demo_shadertoy.png" width="204px" title="Shadertoy.">
-<img src="art/demos/demo_cubemap.png"   width="204px" title="Cubemaps and SH.">
-<img src="art/demos/demo_video.png"     width="204px" title="Video.">
-<br/>
-</p>
 
 </details>
 
@@ -960,6 +944,8 @@ Any contribution to this repository is implicitly subjected to the same release 
 - [Dominic Szablewski](https://github.com/phoboslab/pl_mpeg), for pl_mpeg (MIT).
 - [Dominik Madarász](https://github.com/zaklaus), for json5 parser (PD).
 - [Eduard Suica](https://github.com/eduardsui/tlse), for tlse (PD).
+- [Gargaj+cce/Peisik](https://github.com/gargaj/foxotron), for Foxotron/PBR shaders (UNLICENSE).
+- [Guillaume Vareille](http://tinyfiledialogs.sourceforge.net), for tinyfiledialogs (ZLIB).
 - [Haruhiko Okumura](https://oku.edu.mie-u.ac.jp/~okumura/compression/) for lzss (PD).
 - [Igor Pavlov](https://www.7-zip.org/) for LZMA (PD).
 - [Ilya Muravyov](https://github.com/encode84) for bcm, balz, crush, ulz, lz4x (PD).
@@ -1016,6 +1002,7 @@ Still looking for alternatives?
 [mintaro](https://github.com/mackron/mintaro),
 [mio](https://github.com/ccxvii/mio),
 [opensource](https://github.com/w23/OpenSource),
+[ouzel](https://github.com/elnormous/ouzel/),
 [pez](https://github.com/prideout/pez),
 [pixie](https://github.com/mattiasgustavsson/pixie),
 [punity](https://github.com/martincohen/Punity),
@@ -1025,15 +1012,6 @@ Still looking for alternatives?
 </details>
 
 ## config
-
-<a name="WITH_COOKER"></a>
-<details><summary><code lang=C>🄳 macro WITH_COOKER  </code></summary>
-
-Yet to be documented. Under construction.
-
-Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
-
-</details>
 
 <a name="WITH_FASTCALL_LUA"></a>
 <details><summary><code lang=C>🄳 macro WITH_FASTCALL_LUA  </code></summary>
@@ -1055,6 +1033,15 @@ Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#str
 
 <a name="WITH_PROFILE"></a>
 <details><summary><code lang=C>🄳 macro WITH_PROFILE  </code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
+<a name="WITH_SELFIES"></a>
+<details><summary><code lang=C>🄳 macro WITH_SELFIES  </code></summary>
 
 Yet to be documented. Under construction.
 
@@ -2206,6 +2193,33 @@ Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#str
 
 <a name="ortho3"></a>
 <details><summary><code lang=C>🄵 API void ortho3(vec3* left,vec3* up,vec3 v);</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
+<a name="rotatex3"></a>
+<details><summary><code lang=C>🄵 API vec3 rotatex3(vec3 dir,float degrees);</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
+<a name="rotatey3"></a>
+<details><summary><code lang=C>🄵 API vec3 rotatey3(vec3 dir,float degrees);</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
+<a name="rotatez3"></a>
+<details><summary><code lang=C>🄵 API vec3 rotatez3(vec3 dir,float degrees);</code></summary>
 
 Yet to be documented. Under construction.
 
@@ -4161,6 +4175,7 @@ Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#str
 <details><summary><code lang=C>🄴 enum COOKER_FLAGS;</code></summary>
 ~~~~~~C
 enum COOKER_FLAGS {
+    COOKER_SYNC = 0,
     COOKER_ASYNC = 1
 };
 ~~~~~~
@@ -4218,33 +4233,6 @@ Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#str
 
 ## data
 
-<a name="data_push"></a>
-<details><summary><code lang=C>🄵 API bool data_push(const char* source);</code></summary>
-
-Yet to be documented. Under construction.
-
-Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
-
-</details>
-
-<a name="data_count"></a>
-<details><summary><code lang=C>🄵 API int data_count(const char* keypath);</code></summary>
-
-Yet to be documented. Under construction.
-
-Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
-
-</details>
-
-<a name="data_pop"></a>
-<details><summary><code lang=C>🄵 API bool data_pop();</code></summary>
-
-Yet to be documented. Under construction.
-
-Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
-
-</details>
-
 <a name="data_t"></a>
 <details><summary><code lang=C>🅂 union data_t;</code></summary>
 ~~~~~~C
@@ -4263,8 +4251,44 @@ Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#str
 
 </details>
 
+<a name="data_push"></a>
+<details><summary><code lang=C>🄵 API bool data_push(const char* source);</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
+<a name="data_find"></a>
+<details><summary><code lang=C>🄵 API data_t* data_find(const char* type_keypath);</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
 <a name="data_get"></a>
-<details><summary><code lang=C>🄵 API data_t data_get(bool is_string,const char* keypath);</code></summary>
+<details><summary><code lang=C>🄵 API data_t data_get(const char* type_keypath);</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
+<a name="data_count"></a>
+<details><summary><code lang=C>🄵 API int data_count(const char* keypath);</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
+<a name="data_pop"></a>
+<details><summary><code lang=C>🄵 API bool data_pop();</code></summary>
 
 Yet to be documented. Under construction.
 
@@ -4634,6 +4658,24 @@ Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#str
 
 <a name="editor_active"></a>
 <details><summary><code lang=C>🄵 API bool editor_active();</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
+<a name="dialog_load"></a>
+<details><summary><code lang=C>🄵 API char* dialog_load();</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
+<a name="dialog_save"></a>
+<details><summary><code lang=C>🄵 API char* dialog_save();</code></summary>
 
 Yet to be documented. Under construction.
 
@@ -5646,7 +5688,7 @@ Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#str
 ## profile
 
 <a name="profile"></a>
-<details><summary><code lang=C>🄼 macro profile(...)                                                                                                                                                                                                                                      </code></summary>
+<details><summary><code lang=C>🄼 macro profile(section)                                                                                                                                                                                                                       </code></summary>
 
 Yet to be documented. Under construction.
 
@@ -5709,7 +5751,8 @@ enum IMAGE_FLAGS {
     IMAGE_RG = 0x02000,
     IMAGE_RGB = 0x04000,
     IMAGE_RGBA = 0x08000,
-    IMAGE_FLIP = 0x10000
+    IMAGE_FLIP = 0x10000,
+    IMAGE_FLOAT = 0x20000
 };
 ~~~~~~
 
@@ -5723,6 +5766,7 @@ Flags when constructing the image_t type.
 |`IMAGE_RGB`| 3-channel image (R,G,B)|
 |`IMAGE_RGBA`| 4-channel image (R,G,B,A)|
 |`IMAGE_FLIP`| Flip image vertically|
+|`IMAGE_FLOAT`| Float pixel components|
 
 See also: [image](#image), [image_from_mem](#image_from_mem)
 
@@ -5801,11 +5845,11 @@ enum TEXTURE_FLAGS {
     TEXTURE_NEAREST = 0,
     TEXTURE_LINEAR = 64,
     TEXTURE_MIPMAPS = 128,
-    TEXTURE_EDGE = 0,
+    TEXTURE_CLAMP = 0,
     TEXTURE_BORDER = 0x100,
     TEXTURE_REPEAT = 0x200,
     TEXTURE_BYTE = 0,
-    TEXTURE_FLOAT = 0x400,
+    TEXTURE_FLOAT = IMAGE_FLOAT,
     TEXTURE_COLOR = 0,
     TEXTURE_DEPTH = 0x800,
     TEXTURE_R = IMAGE_R,
@@ -5841,8 +5885,10 @@ struct texture_t {
     union {
         unsigned n,bpp;
     };
-    handle id;
+    handle id,unit;
     unsigned flags;
+    char* filename;
+    bool transparent;
 };
 ~~~~~~
 
@@ -5924,6 +5970,81 @@ Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#str
 
 </details>
 
+<a name="brdf_lut"></a>
+<details><summary><code lang=C>🄵 API texture_t brdf_lut();</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
+<a name="colormap_t"></a>
+<details><summary><code lang=C>🅂 struct colormap_t;</code></summary>
+~~~~~~C
+struct colormap_t {
+    vec4 color;
+    texture_t* texture;
+};
+~~~~~~
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
+<a name="colormap"></a>
+<details><summary><code lang=C>🄵 API bool colormap(colormap_t* cm,const char* pbr_material_type,bool load_as_srgb);</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
+<a name="pbr_material_t"></a>
+<details><summary><code lang=C>🅂 struct pbr_material_t;</code></summary>
+~~~~~~C
+struct pbr_material_t {
+    char* name;
+    colormap_t diffuse;
+    colormap_t normals;
+    colormap_t specular;
+    colormap_t albedo;
+    colormap_t roughness;
+    colormap_t metallic;
+    colormap_t ao;
+    colormap_t ambient;
+    colormap_t emissive;
+    float specular_shininess;
+};
+~~~~~~
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
+<a name="pbr_material"></a>
+<details><summary><code lang=C>🄵 API bool pbr_material(pbr_material_t* pbr,const char* material);</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
+<a name="pbr_material_destroy"></a>
+<details><summary><code lang=C>🄵 API void pbr_material_destroy(pbr_material_t* m);</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
 <a name="fullscreen_rgb_quad"></a>
 <details><summary><code lang=C>🄵 API void fullscreen_rgb_quad(texture_t texture_rgb,float gamma);</code></summary>
 
@@ -5943,7 +6064,7 @@ Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#str
 </details>
 
 <a name="tile"></a>
-<details><summary><code lang=C>🄵 API void tile(texture_t texture,vec3 position,uint32_t color,float rotation);</code></summary>
+<details><summary><code lang=C>🄵 API void tile(texture_t texture,float position[3],float rotation,uint32_t color);</code></summary>
 
 Yet to be documented. Under construction.
 
@@ -6159,8 +6280,26 @@ Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#str
 
 </details>
 
+<a name="shader_bool"></a>
+<details><summary><code lang=C>🄵 API void shader_bool(const char* uniform,bool i);</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
 <a name="shader_int"></a>
 <details><summary><code lang=C>🄵 API void shader_int(const char* uniform,int i);</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
+<a name="shader_uint"></a>
+<details><summary><code lang=C>🄵 API void shader_uint(const char* uniform,unsigned i);</code></summary>
 
 Yet to be documented. Under construction.
 
@@ -6214,7 +6353,25 @@ Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#str
 </details>
 
 <a name="shader_texture"></a>
-<details><summary><code lang=C>🄵 API void shader_texture(const char* sampler,unsigned texture,unsigned unit);</code></summary>
+<details><summary><code lang=C>🄵 API void shader_texture(const char* sampler,texture_t texture);</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
+<a name="shader_texture_unit"></a>
+<details><summary><code lang=C>🄵 API void shader_texture_unit(const char* sampler,unsigned texture,unsigned unit);</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
+<a name="shader_colormap"></a>
+<details><summary><code lang=C>🄵 API void shader_colormap(const char* name,colormap_t cm);</code></summary>
 
 Yet to be documented. Under construction.
 
@@ -6291,24 +6448,6 @@ Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#str
 
 </details>
 
-<a name="mesh_push_state"></a>
-<details><summary><code lang=C>🄵 API void mesh_push_state(mesh_t* m,unsigned program,unsigned texture_id,float model[16],float view[16],float proj[16],unsigned billboard);</code></summary>
-
-Yet to be documented. Under construction.
-
-Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
-
-</details>
-
-<a name="mesh_pop_state"></a>
-<details><summary><code lang=C>🄵 API void mesh_pop_state(mesh_t* m);</code></summary>
-
-Yet to be documented. Under construction.
-
-Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
-
-</details>
-
 <a name="mesh_render"></a>
 <details><summary><code lang=C>🄵 API void mesh_render(mesh_t* m);</code></summary>
 
@@ -6329,6 +6468,42 @@ Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#str
 
 <a name="mesh_bounds"></a>
 <details><summary><code lang=C>🄵 API aabb mesh_bounds(mesh_t* m);</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
+<a name="{"></a>
+<details><summary><code lang=C>🄴 enum {;</code></summary>
+~~~~~~C
+enum {
+    MAX_CHANNELS_PER_MATERIAL = 8
+};
+~~~~~~
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
+<a name="material_t"></a>
+<details><summary><code lang=C>🅂 struct material_t;</code></summary>
+~~~~~~C
+struct material_t {
+    char* name;
+    int count;
+    struct material_layer_t {
+        char texname[32];
+        handle texture;
+        float value;
+        vec4 color;
+    }
+    layer[MAX_CHANNELS_PER_MATERIAL];
+};
+~~~~~~
 
 Yet to be documented. Under construction.
 
@@ -6360,6 +6535,8 @@ struct model_t {
     struct iqm_t* iqm;
     unsigned num_textures;
     handle* textures;
+    char** texture_names;
+    array(material_t) materials;
     unsigned num_meshes;
     unsigned num_triangles;
     unsigned num_joints;
@@ -6368,7 +6545,12 @@ struct model_t {
     handle program;
     float curframe;
     mat44 pivot;
+    int stride;
+    void* verts;
+    int num_verts;
+    handle vao,ibo,vbo;
     unsigned flags;
+    unsigned billboard;
 };
 ~~~~~~
 
@@ -6976,6 +7158,15 @@ Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#str
 
 <a name="camera_fps"></a>
 <details><summary><code lang=C>🄵 API void camera_fps(camera_t* cam,float yaw,float pitch);</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
+<a name="camera_orbit"></a>
+<details><summary><code lang=C>🄵 API void camera_orbit(camera_t* cam,float yaw,float pitch,float inc_distance);</code></summary>
 
 Yet to be documented. Under construction.
 
@@ -7601,6 +7792,15 @@ Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#str
 
 </details>
 
+<a name="battery"></a>
+<details><summary><code lang=C>🄵 API int battery();</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
 <a name="app_name"></a>
 <details><summary><code lang=C>🄵 API const char* app_name();</code></summary>
 
@@ -7664,6 +7864,24 @@ Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#str
 
 </details>
 
+<a name="time_hh"></a>
+<details><summary><code lang=C>🄵 API double time_hh();</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
+<a name="time_mm"></a>
+<details><summary><code lang=C>🄵 API double time_mm();</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
 <a name="time_ss"></a>
 <details><summary><code lang=C>🄵 API double time_ss();</code></summary>
 
@@ -7674,7 +7892,7 @@ Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#str
 </details>
 
 <a name="time_ms"></a>
-<details><summary><code lang=C>🄵 API double time_ms();</code></summary>
+<details><summary><code lang=C>🄵 API uint64_t time_ms();</code></summary>
 
 Yet to be documented. Under construction.
 
@@ -7691,8 +7909,17 @@ Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#str
 
 </details>
 
+<a name="time_ns"></a>
+<details><summary><code lang=C>🄵 API uint64_t time_ns();</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
 <a name="sleep_ss"></a>
-<details><summary><code lang=C>🄵 API double sleep_ss(double ss);</code></summary>
+<details><summary><code lang=C>🄵 API void sleep_ss(double ss);</code></summary>
 
 Yet to be documented. Under construction.
 
@@ -7701,7 +7928,7 @@ Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#str
 </details>
 
 <a name="sleep_ms"></a>
-<details><summary><code lang=C>🄵 API double sleep_ms(double ms);</code></summary>
+<details><summary><code lang=C>🄵 API void sleep_ms(double ms);</code></summary>
 
 Yet to be documented. Under construction.
 
@@ -7710,7 +7937,16 @@ Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#str
 </details>
 
 <a name="sleep_us"></a>
-<details><summary><code lang=C>🄵 API uint64_t sleep_us(uint64_t us);</code></summary>
+<details><summary><code lang=C>🄵 API void sleep_us(double us);</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
+<a name="sleep_ns"></a>
+<details><summary><code lang=C>🄵 API void sleep_ns(double us);</code></summary>
 
 Yet to be documented. Under construction.
 
@@ -8071,8 +8307,26 @@ Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#str
 
 </details>
 
+<a name="ui_color3f"></a>
+<details><summary><code lang=C>🄵 API int ui_color3f(const char* label,float* color3);</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
 <a name="ui_color4"></a>
 <details><summary><code lang=C>🄵 API int ui_color4(const char* label,float* color4);</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
+<a name="ui_color4f"></a>
+<details><summary><code lang=C>🄵 API int ui_color4f(const char* label,float* color4);</code></summary>
 
 Yet to be documented. Under construction.
 
@@ -8116,8 +8370,26 @@ Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#str
 
 </details>
 
+<a name="ui_radio"></a>
+<details><summary><code lang=C>🄵 API int ui_radio(const char* label,const char** items,int num_items,int* selector);</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
 <a name="ui_image"></a>
-<details><summary><code lang=C>🄵 API int ui_image(const char* label,texture_t img);</code></summary>
+<details><summary><code lang=C>🄵 API int ui_image(const char* label,handle id,unsigned w,unsigned h);</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
+<a name="ui_colormap"></a>
+<details><summary><code lang=C>🄵 API int ui_colormap(const char* map_name,colormap_t* cm);</code></summary>
 
 Yet to be documented. Under construction.
 
@@ -8127,6 +8399,33 @@ Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#str
 
 <a name="ui_separator"></a>
 <details><summary><code lang=C>🄵 API int ui_separator();</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
+<a name="ui_bits8"></a>
+<details><summary><code lang=C>🄵 API int ui_bits8(const char* label,uint8_t* bits);</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
+<a name="ui_bits16"></a>
+<details><summary><code lang=C>🄵 API int ui_bits16(const char* label,uint16_t* bits);</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
+<a name="ui_clampf"></a>
+<details><summary><code lang=C>🄵 API int ui_clampf(const char* label,float* value,float minf,float maxf);</code></summary>
 
 Yet to be documented. Under construction.
 
@@ -8445,6 +8744,15 @@ Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#str
 
 </details>
 
+<a name="window_frame"></a>
+<details><summary><code lang=C>🄵 API uint64_t window_frame();</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
 <a name="window_width"></a>
 <details><summary><code lang=C>🄵 API int window_width();</code></summary>
 
@@ -8492,6 +8800,15 @@ Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#str
 
 <a name="window_fps"></a>
 <details><summary><code lang=C>🄵 API double window_fps();</code></summary>
+
+Yet to be documented. Under construction.
+
+Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#strjoin), [IMAGE_FLAGS](#IMAGE_FLAGS) or [image_t](#image_t).
+
+</details>
+
+<a name="window_lock"></a>
+<details><summary><code lang=C>🄵 API void window_lock(float fps);</code></summary>
 
 Yet to be documented. Under construction.
 
@@ -8636,12 +8953,12 @@ Other documentation examples: [dll](#dll), [strsplit](#strsplit), [strjoin](#str
 
 
 ## 🄳 defines
-[_GNU_SOURCE](#_GNU_SOURCE), [API](#API), [BLACK](#BLACK), [BLUE](#BLUE), [C_EPSILON](#C_EPSILON), [C_PI](#C_PI), [CALLOC](#CALLOC), [CYAN](#CYAN), [EXPORT](#EXPORT), [FONT_BASELINE](#FONT_BASELINE), [FONT_BOTTOM](#FONT_BOTTOM), [FONT_CENTER](#FONT_CENTER), [FONT_COLOR1](#FONT_COLOR1), [FONT_COLOR10](#FONT_COLOR10), [FONT_COLOR2](#FONT_COLOR2), [FONT_COLOR3](#FONT_COLOR3), [FONT_COLOR4](#FONT_COLOR4), [FONT_COLOR5](#FONT_COLOR5), [FONT_COLOR6](#FONT_COLOR6), [FONT_COLOR7](#FONT_COLOR7), [FONT_COLOR8](#FONT_COLOR8), [FONT_COLOR9](#FONT_COLOR9), [FONT_FACE1](#FONT_FACE1), [FONT_FACE2](#FONT_FACE2), [FONT_FACE3](#FONT_FACE3), [FONT_FACE4](#FONT_FACE4), [FONT_FACE5](#FONT_FACE5), [FONT_FACE6](#FONT_FACE6), [FONT_H1](#FONT_H1), [FONT_H2](#FONT_H2), [FONT_H3](#FONT_H3), [FONT_H4](#FONT_H4), [FONT_H5](#FONT_H5), [FONT_H6](#FONT_H6), [FONT_LEFT](#FONT_LEFT), [FONT_MIDDLE](#FONT_MIDDLE), [FONT_RIGHT](#FONT_RIGHT), [FONT_TOP](#FONT_TOP), [FORGET](#FORGET), [FREE](#FREE), [GJK_H](#GJK_H), [GJK_MAX_ITERATIONS](#GJK_MAX_ITERATIONS), [GRAY](#GRAY), [GREEN](#GREEN), [IMPORT](#IMPORT), [M_CAST](#M_CAST), [MALLOC](#MALLOC), [MAP_DONT_ERASE](#MAP_DONT_ERASE), [MAP_HASHSIZE](#MAP_HASHSIZE), [MSIZE](#MSIZE), [O_FLAG](#O_FLAG), [OPTIMIZE](#OPTIMIZE), [ORANGE](#ORANGE), [PANIC](#PANIC), [PURPLE](#PURPLE), [REALLOC](#REALLOC), [RED](#RED), [RELEASE](#RELEASE), [RGB3](#RGB3), [RGB4](#RGB4), [RGBX](#RGBX), [SET_DONT_ERASE](#SET_DONT_ERASE), [SET_HASHSIZE](#SET_HASHSIZE), [STATIC](#STATIC), [STATIC_ASS3R7](#STATIC_ASS3R7), [STATIC_ASSER7](#STATIC_ASSER7), [STATIC_ASSERT](#STATIC_ASSERT), [STRDUP](#STRDUP), [TO_DEG](#TO_DEG), [TO_RAD](#TO_RAD), [WATCH](#WATCH), [WHITE](#WHITE), [WITH_COOKER](#WITH_COOKER), [WITH_FASTCALL_LUA](#WITH_FASTCALL_LUA), [WITH_LEAK_DETECTOR](#WITH_LEAK_DETECTOR), [WITH_PROFILE](#WITH_PROFILE), [WITH_XREALLOC_POISON](#WITH_XREALLOC_POISON)
+[_GNU_SOURCE](#_GNU_SOURCE), [API](#API), [BLACK](#BLACK), [BLUE](#BLUE), [C_EPSILON](#C_EPSILON), [C_PI](#C_PI), [CALLOC](#CALLOC), [CYAN](#CYAN), [EXPORT](#EXPORT), [FONT_BASELINE](#FONT_BASELINE), [FONT_BOTTOM](#FONT_BOTTOM), [FONT_CENTER](#FONT_CENTER), [FONT_COLOR1](#FONT_COLOR1), [FONT_COLOR10](#FONT_COLOR10), [FONT_COLOR2](#FONT_COLOR2), [FONT_COLOR3](#FONT_COLOR3), [FONT_COLOR4](#FONT_COLOR4), [FONT_COLOR5](#FONT_COLOR5), [FONT_COLOR6](#FONT_COLOR6), [FONT_COLOR7](#FONT_COLOR7), [FONT_COLOR8](#FONT_COLOR8), [FONT_COLOR9](#FONT_COLOR9), [FONT_FACE1](#FONT_FACE1), [FONT_FACE2](#FONT_FACE2), [FONT_FACE3](#FONT_FACE3), [FONT_FACE4](#FONT_FACE4), [FONT_FACE5](#FONT_FACE5), [FONT_FACE6](#FONT_FACE6), [FONT_H1](#FONT_H1), [FONT_H2](#FONT_H2), [FONT_H3](#FONT_H3), [FONT_H4](#FONT_H4), [FONT_H5](#FONT_H5), [FONT_H6](#FONT_H6), [FONT_LEFT](#FONT_LEFT), [FONT_MIDDLE](#FONT_MIDDLE), [FONT_RIGHT](#FONT_RIGHT), [FONT_TOP](#FONT_TOP), [FORGET](#FORGET), [FREE](#FREE), [GJK_H](#GJK_H), [GJK_MAX_ITERATIONS](#GJK_MAX_ITERATIONS), [GRAY](#GRAY), [GREEN](#GREEN), [IMPORT](#IMPORT), [M_CAST](#M_CAST), [MALLOC](#MALLOC), [MAP_DONT_ERASE](#MAP_DONT_ERASE), [MAP_HASHSIZE](#MAP_HASHSIZE), [MSIZE](#MSIZE), [O_FLAG](#O_FLAG), [OPTIMIZE](#OPTIMIZE), [ORANGE](#ORANGE), [PANIC](#PANIC), [PURPLE](#PURPLE), [REALLOC](#REALLOC), [RED](#RED), [RELEASE](#RELEASE), [RGB3](#RGB3), [RGB4](#RGB4), [RGBX](#RGBX), [SET_DONT_ERASE](#SET_DONT_ERASE), [SET_HASHSIZE](#SET_HASHSIZE), [STATIC](#STATIC), [STRDUP](#STRDUP), [TO_DEG](#TO_DEG), [TO_RAD](#TO_RAD), [WATCH](#WATCH), [WHITE](#WHITE), [WITH_FASTCALL_LUA](#WITH_FASTCALL_LUA), [WITH_LEAK_DETECTOR](#WITH_LEAK_DETECTOR), [WITH_PROFILE](#WITH_PROFILE), [WITH_SELFIES](#WITH_SELFIES), [WITH_XREALLOC_POISON](#WITH_XREALLOC_POISON)
 ## 🄴 enums
-[AUDIO_FLAGS](#AUDIO_FLAGS), [AXIS_ENUMS](#AXIS_ENUMS), [COOKER_FLAGS](#COOKER_FLAGS), [FONT_FLAGS](#FONT_FLAGS), [IMAGE_FLAGS](#IMAGE_FLAGS), [INPUT_ENUMS](#INPUT_ENUMS), [MESH_FLAGS](#MESH_FLAGS), [MODEL_FLAGS](#MODEL_FLAGS), [SCENE_FLAGS](#SCENE_FLAGS), [TEXTURE_FLAGS](#TEXTURE_FLAGS), [VIDEO_FLAGS](#VIDEO_FLAGS), [WINDOW_FLAGS](#WINDOW_FLAGS)
+[AUDIO_FLAGS](#AUDIO_FLAGS), [AXIS_ENUMS](#AXIS_ENUMS), [COOKER_FLAGS](#COOKER_FLAGS), [FONT_FLAGS](#FONT_FLAGS), [IMAGE_FLAGS](#IMAGE_FLAGS), [INPUT_ENUMS](#INPUT_ENUMS), [MESH_FLAGS](#MESH_FLAGS), [MODEL_FLAGS](#MODEL_FLAGS), [SCENE_FLAGS](#SCENE_FLAGS), [TEXTURE_FLAGS](#TEXTURE_FLAGS), [VIDEO_FLAGS](#VIDEO_FLAGS), [WINDOW_FLAGS](#WINDOW_FLAGS), [{](#{)
 ## 🅃 types
-[aabb](#aabb), [audio_handle*](#audio_handle*), [camera_t](#camera_t), [capsule](#capsule), [coord_system](#coord_system), [cubemap_t](#cubemap_t), [data_t](#data_t), [frustum](#frustum), [gjk_result](#gjk_result), [gjk_simplex](#gjk_simplex), [gjk_support](#gjk_support), [gjk_vertex](#gjk_vertex), [handle](#handle), [hit](#hit), [image_t](#image_t), [line](#line), [map](#map), [mat33](#mat33), [mat34](#mat34), [mat44](#mat44), [mesh_t](#mesh_t), [model_t](#model_t), [object_t](#object_t), [pair](#pair), [plane](#plane), [poly](#poly), [quat](#quat), [ray](#ray), [scene_t](#scene_t), [set](#set), [set_item](#set_item), [shadowmap_t](#shadowmap_t), [skybox_t](#skybox_t), [sphere](#sphere), [texture_t](#texture_t), [triangle](#triangle), [vec2](#vec2), [vec3](#vec3), [vec4](#vec4), [video_t](#video_t)
+[aabb](#aabb), [audio_handle*](#audio_handle*), [camera_t](#camera_t), [capsule](#capsule), [colormap_t](#colormap_t), [coord_system](#coord_system), [cubemap_t](#cubemap_t), [data_t](#data_t), [frustum](#frustum), [gjk_result](#gjk_result), [gjk_simplex](#gjk_simplex), [gjk_support](#gjk_support), [gjk_vertex](#gjk_vertex), [handle](#handle), [hit](#hit), [image_t](#image_t), [line](#line), [map](#map), [mat33](#mat33), [mat34](#mat34), [mat44](#mat44), [material_t](#material_t), [mesh_t](#mesh_t), [model_t](#model_t), [object_t](#object_t), [pair](#pair), [pbr_material_t](#pbr_material_t), [plane](#plane), [poly](#poly), [quat](#quat), [ray](#ray), [scene_t](#scene_t), [set](#set), [set_item](#set_item), [shadowmap_t](#shadowmap_t), [skybox_t](#skybox_t), [sphere](#sphere), [texture_t](#texture_t), [triangle](#triangle), [vec2](#vec2), [vec3](#vec3), [vec4](#vec4), [video_t](#video_t)
 ## 🄵 functions
-[aabb_closest_point](#aabb_closest_point), [aabb_contains_point](#aabb_contains_point), [aabb_distance2_point](#aabb_distance2_point), [aabb_hit_aabb](#aabb_hit_aabb), [aabb_hit_capsule](#aabb_hit_capsule), [aabb_hit_sphere](#aabb_hit_sphere), [aabb_test_aabb](#aabb_test_aabb), [aabb_test_capsule](#aabb_test_capsule), [aabb_test_poly](#aabb_test_poly), [aabb_test_sphere](#aabb_test_sphere), [abs2](#abs2), [abs3](#abs3), [abs4](#abs4), [absf](#absf), [absi](#absi), [add2](#add2), [add3](#add3), [add34](#add34), [add34x2](#add34x2), [add4](#add4), [addq](#addq), [alert](#alert), [alpha](#alpha), [app_cache](#app_cache), [app_name](#app_name), [app_path](#app_path), [app_reload](#app_reload), [app_temp](#app_temp), [argc](#argc), [argv](#argv), [audio_clip](#audio_clip), [audio_play](#audio_play), [audio_queue](#audio_queue), [audio_stream](#audio_stream), [audio_volume_clip](#audio_volume_clip), [audio_volume_master](#audio_volume_master), [audio_volume_stream](#audio_volume_stream), [bgra](#bgra), [big16](#big16), [big16p](#big16p), [big32](#big32), [big32f](#big32f), [big32p](#big32p), [big32pf](#big32pf), [big64](#big64), [big64f](#big64f), [big64p](#big64p), [big64pf](#big64pf), [breakpoint](#breakpoint), [cache_insert](#cache_insert), [cache_lookup](#cache_lookup), [callstack](#callstack), [callstackf](#callstackf), [camera](#camera), [camera_enable](#camera_enable), [camera_fps](#camera_fps), [camera_get_active](#camera_get_active), [camera_lookat](#camera_lookat), [camera_move](#camera_move), [capsule_closest_point](#capsule_closest_point), [capsule_distance2_point](#capsule_distance2_point), [capsule_hit_aabb](#capsule_hit_aabb), [capsule_hit_capsule](#capsule_hit_capsule), [capsule_hit_sphere](#capsule_hit_sphere), [capsule_test_aabb](#capsule_test_aabb), [capsule_test_capsule](#capsule_test_capsule), [capsule_test_poly](#capsule_test_poly), [capsule_test_sphere](#capsule_test_sphere), [ceil2](#ceil2), [ceil3](#ceil3), [ceil4](#ceil4), [clamp2](#clamp2), [clamp3](#clamp3), [clamp4](#clamp4), [clampf](#clampf), [clampi](#clampi), [compose33](#compose33), [compose34](#compose34), [compose44](#compose44), [conjq](#conjq), [cooker_config](#cooker_config), [cooker_jobs](#cooker_jobs), [cooker_progress](#cooker_progress), [cooker_start](#cooker_start), [cooker_stop](#cooker_stop), [copy33](#copy33), [copy34](#copy34), [copy44](#copy44), [cpu_cores](#cpu_cores), [cross2](#cross2), [cross3](#cross3), [cubemap](#cubemap), [cubemap6](#cubemap6), [cubemap_destroy](#cubemap_destroy), [cubemap_get_active](#cubemap_get_active), [data_count](#data_count), [data_get](#data_get), [data_pop](#data_pop), [data_push](#data_push), [date](#date), [date_epoch](#date_epoch), [ddraw_aabb](#ddraw_aabb), [ddraw_aabb_corners](#ddraw_aabb_corners), [ddraw_arrow](#ddraw_arrow), [ddraw_axis](#ddraw_axis), [ddraw_boid](#ddraw_boid), [ddraw_bone](#ddraw_bone), [ddraw_bounds](#ddraw_bounds), [ddraw_box](#ddraw_box), [ddraw_capsule](#ddraw_capsule), [ddraw_circle](#ddraw_circle), [ddraw_color](#ddraw_color), [ddraw_cone](#ddraw_cone), [ddraw_cube](#ddraw_cube), [ddraw_demo](#ddraw_demo), [ddraw_diamond](#ddraw_diamond), [ddraw_flush](#ddraw_flush), [ddraw_frustum](#ddraw_frustum), [ddraw_grid](#ddraw_grid), [ddraw_ground](#ddraw_ground), [ddraw_hexagon](#ddraw_hexagon), [ddraw_line](#ddraw_line), [ddraw_line_dashed](#ddraw_line_dashed), [ddraw_line_thin](#ddraw_line_thin), [ddraw_normal](#ddraw_normal), [ddraw_ontop](#ddraw_ontop), [ddraw_pentagon](#ddraw_pentagon), [ddraw_plane](#ddraw_plane), [ddraw_point](#ddraw_point), [ddraw_position](#ddraw_position), [ddraw_position_dir](#ddraw_position_dir), [ddraw_pyramid](#ddraw_pyramid), [ddraw_sphere](#ddraw_sphere), [ddraw_square](#ddraw_square), [ddraw_text](#ddraw_text), [ddraw_text2d](#ddraw_text2d), [ddraw_triangle](#ddraw_triangle), [dec2](#dec2), [dec3](#dec3), [dec4](#dec4), [deg](#deg), [det44](#det44), [diamond](#diamond), [die](#die), [div2](#div2), [div3](#div3), [div4](#div4), [dll](#dll), [dot2](#dot2), [dot3](#dot3), [dot4](#dot4), [dotq](#dotq), [download](#download), [ease_in_back](#ease_in_back), [ease_in_bounce](#ease_in_bounce), [ease_in_circ](#ease_in_circ), [ease_in_cubic](#ease_in_cubic), [ease_in_elastic](#ease_in_elastic), [ease_in_expo](#ease_in_expo), [ease_in_quad](#ease_in_quad), [ease_in_quart](#ease_in_quart), [ease_in_quint](#ease_in_quint), [ease_in_sine](#ease_in_sine), [ease_inout_back](#ease_inout_back), [ease_inout_bounce](#ease_inout_bounce), [ease_inout_circ](#ease_inout_circ), [ease_inout_cubic](#ease_inout_cubic), [ease_inout_elastic](#ease_inout_elastic), [ease_inout_expo](#ease_inout_expo), [ease_inout_perlin](#ease_inout_perlin), [ease_inout_quad](#ease_inout_quad), [ease_inout_quart](#ease_inout_quart), [ease_inout_quint](#ease_inout_quint), [ease_inout_sine](#ease_inout_sine), [ease_linear](#ease_linear), [ease_out_back](#ease_out_back), [ease_out_bounce](#ease_out_bounce), [ease_out_circ](#ease_out_circ), [ease_out_cubic](#ease_out_cubic), [ease_out_elastic](#ease_out_elastic), [ease_out_expo](#ease_out_expo), [ease_out_quad](#ease_out_quad), [ease_out_quart](#ease_out_quart), [ease_out_quint](#ease_out_quint), [ease_out_sine](#ease_out_sine), [ease_ping_pong](#ease_ping_pong), [ease_pong_ping](#ease_pong_ping), [editor](#editor), [editor_active](#editor_active), [euler](#euler), [eulerq](#eulerq), [extract33](#extract33), [fbo](#fbo), [fbo_bind](#fbo_bind), [fbo_destroy](#fbo_destroy), [fbo_unbind](#fbo_unbind), [file_copy](#file_copy), [file_delete](#file_delete), [file_directory](#file_directory), [file_exist](#file_exist), [file_ext](#file_ext), [file_id](#file_id), [file_list](#file_list), [file_load](#file_load), [file_move](#file_move), [file_name](#file_name), [file_normalize](#file_normalize), [file_path](#file_path), [file_read](#file_read), [file_size](#file_size), [file_stamp](#file_stamp), [file_stamp_epoch](#file_stamp_epoch), [file_temp](#file_temp), [file_tempname](#file_tempname), [finite2](#finite2), [finite3](#finite3), [finite4](#finite4), [flag](#flag), [floor2](#floor2), [floor3](#floor3), [floor4](#floor4), [font_color](#font_color), [font_colorize](#font_colorize), [font_face](#font_face), [font_face_from_mem](#font_face_from_mem), [font_goto](#font_goto), [font_highlight](#font_highlight), [font_print](#font_print), [font_rect](#font_rect), [font_scales](#font_scales), [font_xy](#font_xy), [forget](#forget), [fract2](#fract2), [fract3](#fract3), [fract4](#fract4), [frustum44](#frustum44), [frustum_build](#frustum_build), [frustum_test_aabb](#frustum_test_aabb), [frustum_test_sphere](#frustum_test_sphere), [fullscreen_rgb_quad](#fullscreen_rgb_quad), [fullscreen_ycbcr_quad](#fullscreen_ycbcr_quad), [fx_begin](#fx_begin), [fx_enable](#fx_enable), [fx_enable_all](#fx_enable_all), [fx_enabled](#fx_enabled), [fx_end](#fx_end), [fx_load](#fx_load), [fx_name](#fx_name), [gizmo](#gizmo), [gizmo_active](#gizmo_active), [gjk](#gjk), [gjk_analyze](#gjk_analyze), [gjk_quad](#gjk_quad), [has_debugger](#has_debugger), [hash_32](#hash_32), [hash_64](#hash_64), [hash_flt](#hash_flt), [hash_int](#hash_int), [hash_ptr](#hash_ptr), [hash_str](#hash_str), [hexdump](#hexdump), [hexdumpf](#hexdumpf), [id33](#id33), [id34](#id34), [id44](#id44), [identity44](#identity44), [idq](#idq), [image](#image), [image_destroy](#image_destroy), [image_from_mem](#image_from_mem), [inc2](#inc2), [inc3](#inc3), [inc4](#inc4), [input](#input), [input2](#input2), [input_chord2](#input_chord2), [input_chord3](#input_chord3), [input_chord4](#input_chord4), [input_click](#input_click), [input_click2](#input_click2), [input_demo](#input_demo), [input_diff](#input_diff), [input_diff2](#input_diff2), [input_down](#input_down), [input_filter_deadzone](#input_filter_deadzone), [input_filter_deadzone_4way](#input_filter_deadzone_4way), [input_filter_positive](#input_filter_positive), [input_filter_positive2](#input_filter_positive2), [input_frame](#input_frame), [input_frame2](#input_frame2), [input_frames](#input_frames), [input_held](#input_held), [input_idle](#input_idle), [input_load_state](#input_load_state), [input_repeat](#input_repeat), [input_save_state](#input_save_state), [input_send](#input_send), [input_up](#input_up), [input_use](#input_use), [invert34](#invert34), [invert44](#invert44), [len2](#len2), [len2sq](#len2sq), [len3](#len3), [len3sq](#len3sq), [len4](#len4), [len4sq](#len4sq), [lerp34](#lerp34), [less_int](#less_int), [less_ptr](#less_ptr), [less_str](#less_str), [less_u64](#less_u64), [lil16](#lil16), [lil16p](#lil16p), [lil32](#lil32), [lil32f](#lil32f), [lil32p](#lil32p), [lil32pf](#lil32pf), [lil64](#lil64), [lil64f](#lil64f), [lil64p](#lil64p), [lil64pf](#lil64pf), [line_closest_point](#line_closest_point), [line_distance2_point](#line_distance2_point), [lookat44](#lookat44), [map_count](#map_count), [map_erase](#map_erase), [map_find](#map_find), [map_free](#map_free), [map_gc](#map_gc), [map_init](#map_init), [map_insert](#map_insert), [mat44q](#mat44q), [max2](#max2), [max3](#max3), [max4](#max4), [maxf](#maxf), [maxi](#maxi), [mesh_bounds](#mesh_bounds), [mesh_create](#mesh_create), [mesh_destroy](#mesh_destroy), [mesh_pop_state](#mesh_pop_state), [mesh_push_state](#mesh_push_state), [mesh_render](#mesh_render), [mesh_upgrade](#mesh_upgrade), [min2](#min2), [min3](#min3), [min4](#min4), [minf](#minf), [mini](#mini), [mix2](#mix2), [mix3](#mix3), [mix4](#mix4), [mixf](#mixf), [mixq](#mixq), [model](#model), [model_aabb](#model_aabb), [model_animate](#model_animate), [model_animate_clip](#model_animate_clip), [model_destroy](#model_destroy), [model_from_mem](#model_from_mem), [model_render](#model_render), [model_set_texture](#model_set_texture), [mul2](#mul2), [mul3](#mul3), [mul4](#mul4), [muladd34](#muladd34), [mulq](#mulq), [multiply33x2](#multiply33x2), [multiply34](#multiply34), [multiply34x2](#multiply34x2), [multiply34x3](#multiply34x3), [multiply44](#multiply44), [multiply44x2](#multiply44x2), [multiply44x3](#multiply44x3), [mulv33](#mulv33), [neg2](#neg2), [neg3](#neg3), [neg4](#neg4), [negq](#negq), [norm2](#norm2), [norm3](#norm3), [norm3sq](#norm3sq), [norm4](#norm4), [norm4sq](#norm4sq), [normq](#normq), [object](#object), [object_billboard](#object_billboard), [object_diffuse](#object_diffuse), [object_model](#object_model), [object_move](#object_move), [object_pivot](#object_pivot), [object_position](#object_position), [object_rotate](#object_rotate), [object_scale](#object_scale), [object_teleport](#object_teleport), [option](#option), [optionf](#optionf), [optioni](#optioni), [ortho3](#ortho3), [ortho44](#ortho44), [os_exec](#os_exec), [os_exec_](#os_exec_), [os_exec_output](#os_exec_output), [PANIC](#PANIC), [perspective44](#perspective44), [plane4](#plane4), [pmod2](#pmod2), [pmod3](#pmod3), [pmod4](#pmod4), [pmodf](#pmodf), [poly_alloc](#poly_alloc), [poly_free](#poly_free), [poly_hit_aabb](#poly_hit_aabb), [poly_hit_aabb_transform](#poly_hit_aabb_transform), [poly_hit_capsule](#poly_hit_capsule), [poly_hit_capsule_transform](#poly_hit_capsule_transform), [poly_hit_poly](#poly_hit_poly), [poly_hit_poly_transform](#poly_hit_poly_transform), [poly_hit_sphere](#poly_hit_sphere), [poly_hit_sphere_transform](#poly_hit_sphere_transform), [poly_test_aabb](#poly_test_aabb), [poly_test_aabb_transform](#poly_test_aabb_transform), [poly_test_capsule](#poly_test_capsule), [poly_test_capsule_transform](#poly_test_capsule_transform), [poly_test_poly](#poly_test_poly), [poly_test_poly_transform](#poly_test_poly_transform), [poly_test_sphere](#poly_test_sphere), [poly_test_sphere_transform](#poly_test_sphere_transform), [portname](#portname), [print2](#print2), [print3](#print3), [print33](#print33), [print34](#print34), [print4](#print4), [print44](#print44), [PRINTF](#PRINTF), [printq](#printq), [ptr2](#ptr2), [ptr3](#ptr3), [ptr4](#ptr4), [ptrq](#ptrq), [pyramid](#pyramid), [rad](#rad), [rand64](#rand64), [randf](#randf), [randi](#randi), [randset](#randset), [ray_hit_aabb](#ray_hit_aabb), [ray_hit_plane](#ray_hit_plane), [ray_hit_sphere](#ray_hit_sphere), [ray_hit_triangle](#ray_hit_triangle), [ray_test_aabb](#ray_test_aabb), [ray_test_plane](#ray_test_plane), [ray_test_sphere](#ray_test_sphere), [ray_test_triangle](#ray_test_triangle), [rebase44](#rebase44), [refl2](#refl2), [refl3](#refl3), [refl4](#refl4), [relocate44](#relocate44), [rgba](#rgba), [rng](#rng), [rotate33](#rotate33), [rotate3q](#rotate3q), [rotate3q_2](#rotate3q_2), [rotate44](#rotate44), [rotation33](#rotation33), [rotation44](#rotation44), [rotationq](#rotationq), [rotationq33](#rotationq33), [rotationq44](#rotationq44), [scale2](#scale2), [scale3](#scale3), [scale33](#scale33), [scale34](#scale34), [scale4](#scale4), [scale44](#scale44), [scaleq](#scaleq), [scaling33](#scaling33), [scaling44](#scaling44), [scene_count](#scene_count), [scene_get_active](#scene_get_active), [scene_index](#scene_index), [scene_merge](#scene_merge), [scene_pop](#scene_pop), [scene_push](#scene_push), [scene_render](#scene_render), [scene_spawn](#scene_spawn), [screenshot](#screenshot), [script_bind_class](#script_bind_class), [script_bind_function](#script_bind_function), [script_call](#script_call), [script_init](#script_init), [script_run](#script_run), [script_runfile](#script_runfile), [set_count](#set_count), [set_erase](#set_erase), [set_find](#set_find), [set_free](#set_free), [set_gc](#set_gc), [set_init](#set_init), [set_insert](#set_insert), [shader](#shader), [shader_bind](#shader_bind), [shader_destroy](#shader_destroy), [shader_float](#shader_float), [shader_get_active](#shader_get_active), [shader_int](#shader_int), [shader_mat44](#shader_mat44), [shader_texture](#shader_texture), [shader_vec2](#shader_vec2), [shader_vec3](#shader_vec3), [shader_vec4](#shader_vec4), [shadowmap](#shadowmap), [shadowmap_begin](#shadowmap_begin), [shadowmap_destroy](#shadowmap_destroy), [shadowmap_end](#shadowmap_end), [shadowmap_set_shadowmatrix](#shadowmap_set_shadowmatrix), [shadowmatrix_ortho](#shadowmatrix_ortho), [shadowmatrix_proj](#shadowmatrix_proj), [signf](#signf), [simplex1](#simplex1), [simplex2](#simplex2), [simplex3](#simplex3), [simplex4](#simplex4), [skybox](#skybox), [skybox_destroy](#skybox_destroy), [skybox_pop_state](#skybox_pop_state), [skybox_push_state](#skybox_push_state), [sleep_ms](#sleep_ms), [sleep_ss](#sleep_ss), [sleep_us](#sleep_us), [slerpq](#slerpq), [sort_u64](#sort_u64), [sphere_closest_point](#sphere_closest_point), [sphere_hit_aabb](#sphere_hit_aabb), [sphere_hit_capsule](#sphere_hit_capsule), [sphere_hit_sphere](#sphere_hit_sphere), [sphere_test_aabb](#sphere_test_aabb), [sphere_test_capsule](#sphere_test_capsule), [sphere_test_poly](#sphere_test_poly), [sphere_test_sphere](#sphere_test_sphere), [sprite](#sprite), [sprite_flush](#sprite_flush), [stack](#stack), [str16to8](#str16to8), [strbegi](#strbegi), [strcatf](#strcatf), [strcmp_qsort](#strcmp_qsort), [strcmpi_qsort](#strcmpi_qsort), [strcut](#strcut), [strendi](#strendi), [stringf](#stringf), [strjoin](#strjoin), [strlcat](#strlcat), [strlcpy](#strlcpy), [strlerp](#strlerp), [strlower](#strlower), [strmatch](#strmatch), [strrepl](#strrepl), [strsplit](#strsplit), [strstri](#strstri), [strswap](#strswap), [strtok_s](#strtok_s), [strupper](#strupper), [strutf32](#strutf32), [sub2](#sub2), [sub3](#sub3), [sub4](#sub4), [subq](#subq), [tcp_bind](#tcp_bind), [tcp_close](#tcp_close), [tcp_debug](#tcp_debug), [tcp_host](#tcp_host), [tcp_open](#tcp_open), [tcp_peek](#tcp_peek), [tcp_port](#tcp_port), [tcp_recv](#tcp_recv), [tcp_send](#tcp_send), [texture](#texture), [texture_checker](#texture_checker), [texture_compressed](#texture_compressed), [texture_compressed_from_mem](#texture_compressed_from_mem), [texture_create](#texture_create), [texture_destroy](#texture_destroy), [texture_from_mem](#texture_from_mem), [texture_update](#texture_update), [tile](#tile), [time_ms](#time_ms), [time_ss](#time_ss), [time_us](#time_us), [transform33](#transform33), [transform344](#transform344), [transform444](#transform444), [transform_axis](#transform_axis), [transform_matrix](#transform_matrix), [transform_normal](#transform_normal), [transform_point](#transform_point), [transform_quat](#transform_quat), [transform_scaling](#transform_scaling), [transform_tangent](#transform_tangent), [transform_vector](#transform_vector), [transformq](#transformq), [translate44](#translate44), [translation44](#translation44), [transpose44](#transpose44), [tty_color](#tty_color), [tty_reset](#tty_reset), [udp_bind](#udp_bind), [udp_open](#udp_open), [udp_peek](#udp_peek), [udp_recv](#udp_recv), [udp_send](#udp_send), [udp_sendto](#udp_sendto), [ui_active](#ui_active), [ui_begin](#ui_begin), [ui_bool](#ui_bool), [ui_button](#ui_button), [ui_color3](#ui_color3), [ui_color4](#ui_color4), [ui_const_bool](#ui_const_bool), [ui_const_float](#ui_const_float), [ui_const_string](#ui_const_string), [ui_demo](#ui_demo), [ui_dialog](#ui_dialog), [ui_end](#ui_end), [ui_float](#ui_float), [ui_float2](#ui_float2), [ui_float3](#ui_float3), [ui_hover](#ui_hover), [ui_image](#ui_image), [ui_int](#ui_int), [ui_item](#ui_item), [ui_label](#ui_label), [ui_label2](#ui_label2), [ui_list](#ui_list), [ui_menu](#ui_menu), [ui_separator](#ui_separator), [ui_short](#ui_short), [ui_slider](#ui_slider), [ui_slider2](#ui_slider2), [ui_string](#ui_string), [ui_toggle](#ui_toggle), [unhash_32](#unhash_32), [unproject44](#unproject44), [vec23](#vec23), [vec34](#vec34), [vec3q](#vec3q), [vec4q](#vec4q), [vfs_find](#vfs_find), [vfs_handle](#vfs_handle), [vfs_list](#vfs_list), [vfs_load](#vfs_load), [vfs_mount](#vfs_mount), [vfs_read](#vfs_read), [vfs_resolve](#vfs_resolve), [vfs_size](#vfs_size), [video](#video), [video_decode](#video_decode), [video_destroy](#video_destroy), [video_duration](#video_duration), [video_has_finished](#video_has_finished), [video_is_paused](#video_is_paused), [video_pause](#video_pause), [video_position](#video_position), [video_seek](#video_seek), [video_textures](#video_textures), [viewport_clear](#viewport_clear), [viewport_clip](#viewport_clip), [viewport_color](#viewport_color), [viewport_color3](#viewport_color3), [vlen](#vlen), [vrealloc](#vrealloc), [watch](#watch), [window_aspect](#window_aspect), [window_create](#window_create), [window_cursor](#window_cursor), [window_delta](#window_delta), [window_flush](#window_flush), [window_focus](#window_focus), [window_fps](#window_fps), [window_fullscreen](#window_fullscreen), [window_handle](#window_handle), [window_has_cursor](#window_has_cursor), [window_has_focus](#window_has_focus), [window_has_fullscreen](#window_has_fullscreen), [window_has_pause](#window_has_pause), [window_has_videorec](#window_has_videorec), [window_has_visible](#window_has_visible), [window_height](#window_height), [window_hook](#window_hook), [window_icon](#window_icon), [window_pause](#window_pause), [window_screenshot](#window_screenshot), [window_swap](#window_swap), [window_time](#window_time), [window_title](#window_title), [window_unhook](#window_unhook), [window_videorec](#window_videorec), [window_visible](#window_visible), [window_width](#window_width), [xrealloc](#xrealloc)
+[aabb_closest_point](#aabb_closest_point), [aabb_contains_point](#aabb_contains_point), [aabb_distance2_point](#aabb_distance2_point), [aabb_hit_aabb](#aabb_hit_aabb), [aabb_hit_capsule](#aabb_hit_capsule), [aabb_hit_sphere](#aabb_hit_sphere), [aabb_test_aabb](#aabb_test_aabb), [aabb_test_capsule](#aabb_test_capsule), [aabb_test_poly](#aabb_test_poly), [aabb_test_sphere](#aabb_test_sphere), [abs2](#abs2), [abs3](#abs3), [abs4](#abs4), [absf](#absf), [absi](#absi), [add2](#add2), [add3](#add3), [add34](#add34), [add34x2](#add34x2), [add4](#add4), [addq](#addq), [alert](#alert), [alpha](#alpha), [app_cache](#app_cache), [app_name](#app_name), [app_path](#app_path), [app_reload](#app_reload), [app_temp](#app_temp), [argc](#argc), [argv](#argv), [audio_clip](#audio_clip), [audio_play](#audio_play), [audio_queue](#audio_queue), [audio_stream](#audio_stream), [audio_volume_clip](#audio_volume_clip), [audio_volume_master](#audio_volume_master), [audio_volume_stream](#audio_volume_stream), [battery](#battery), [bgra](#bgra), [big16](#big16), [big16p](#big16p), [big32](#big32), [big32f](#big32f), [big32p](#big32p), [big32pf](#big32pf), [big64](#big64), [big64f](#big64f), [big64p](#big64p), [big64pf](#big64pf), [brdf_lut](#brdf_lut), [breakpoint](#breakpoint), [cache_insert](#cache_insert), [cache_lookup](#cache_lookup), [callstack](#callstack), [callstackf](#callstackf), [camera](#camera), [camera_enable](#camera_enable), [camera_fps](#camera_fps), [camera_get_active](#camera_get_active), [camera_lookat](#camera_lookat), [camera_move](#camera_move), [camera_orbit](#camera_orbit), [capsule_closest_point](#capsule_closest_point), [capsule_distance2_point](#capsule_distance2_point), [capsule_hit_aabb](#capsule_hit_aabb), [capsule_hit_capsule](#capsule_hit_capsule), [capsule_hit_sphere](#capsule_hit_sphere), [capsule_test_aabb](#capsule_test_aabb), [capsule_test_capsule](#capsule_test_capsule), [capsule_test_poly](#capsule_test_poly), [capsule_test_sphere](#capsule_test_sphere), [ceil2](#ceil2), [ceil3](#ceil3), [ceil4](#ceil4), [clamp2](#clamp2), [clamp3](#clamp3), [clamp4](#clamp4), [clampf](#clampf), [clampi](#clampi), [colormap](#colormap), [compose33](#compose33), [compose34](#compose34), [compose44](#compose44), [conjq](#conjq), [cooker_config](#cooker_config), [cooker_jobs](#cooker_jobs), [cooker_progress](#cooker_progress), [cooker_start](#cooker_start), [cooker_stop](#cooker_stop), [copy33](#copy33), [copy34](#copy34), [copy44](#copy44), [cpu_cores](#cpu_cores), [cross2](#cross2), [cross3](#cross3), [cubemap](#cubemap), [cubemap6](#cubemap6), [cubemap_destroy](#cubemap_destroy), [cubemap_get_active](#cubemap_get_active), [data_count](#data_count), [data_find](#data_find), [data_get](#data_get), [data_pop](#data_pop), [data_push](#data_push), [date](#date), [date_epoch](#date_epoch), [ddraw_aabb](#ddraw_aabb), [ddraw_aabb_corners](#ddraw_aabb_corners), [ddraw_arrow](#ddraw_arrow), [ddraw_axis](#ddraw_axis), [ddraw_boid](#ddraw_boid), [ddraw_bone](#ddraw_bone), [ddraw_bounds](#ddraw_bounds), [ddraw_box](#ddraw_box), [ddraw_capsule](#ddraw_capsule), [ddraw_circle](#ddraw_circle), [ddraw_color](#ddraw_color), [ddraw_cone](#ddraw_cone), [ddraw_cube](#ddraw_cube), [ddraw_demo](#ddraw_demo), [ddraw_diamond](#ddraw_diamond), [ddraw_flush](#ddraw_flush), [ddraw_frustum](#ddraw_frustum), [ddraw_grid](#ddraw_grid), [ddraw_ground](#ddraw_ground), [ddraw_hexagon](#ddraw_hexagon), [ddraw_line](#ddraw_line), [ddraw_line_dashed](#ddraw_line_dashed), [ddraw_line_thin](#ddraw_line_thin), [ddraw_normal](#ddraw_normal), [ddraw_ontop](#ddraw_ontop), [ddraw_pentagon](#ddraw_pentagon), [ddraw_plane](#ddraw_plane), [ddraw_point](#ddraw_point), [ddraw_position](#ddraw_position), [ddraw_position_dir](#ddraw_position_dir), [ddraw_pyramid](#ddraw_pyramid), [ddraw_sphere](#ddraw_sphere), [ddraw_square](#ddraw_square), [ddraw_text](#ddraw_text), [ddraw_text2d](#ddraw_text2d), [ddraw_triangle](#ddraw_triangle), [dec2](#dec2), [dec3](#dec3), [dec4](#dec4), [deg](#deg), [det44](#det44), [dialog_load](#dialog_load), [dialog_save](#dialog_save), [diamond](#diamond), [die](#die), [div2](#div2), [div3](#div3), [div4](#div4), [dll](#dll), [dot2](#dot2), [dot3](#dot3), [dot4](#dot4), [dotq](#dotq), [download](#download), [ease_in_back](#ease_in_back), [ease_in_bounce](#ease_in_bounce), [ease_in_circ](#ease_in_circ), [ease_in_cubic](#ease_in_cubic), [ease_in_elastic](#ease_in_elastic), [ease_in_expo](#ease_in_expo), [ease_in_quad](#ease_in_quad), [ease_in_quart](#ease_in_quart), [ease_in_quint](#ease_in_quint), [ease_in_sine](#ease_in_sine), [ease_inout_back](#ease_inout_back), [ease_inout_bounce](#ease_inout_bounce), [ease_inout_circ](#ease_inout_circ), [ease_inout_cubic](#ease_inout_cubic), [ease_inout_elastic](#ease_inout_elastic), [ease_inout_expo](#ease_inout_expo), [ease_inout_perlin](#ease_inout_perlin), [ease_inout_quad](#ease_inout_quad), [ease_inout_quart](#ease_inout_quart), [ease_inout_quint](#ease_inout_quint), [ease_inout_sine](#ease_inout_sine), [ease_linear](#ease_linear), [ease_out_back](#ease_out_back), [ease_out_bounce](#ease_out_bounce), [ease_out_circ](#ease_out_circ), [ease_out_cubic](#ease_out_cubic), [ease_out_elastic](#ease_out_elastic), [ease_out_expo](#ease_out_expo), [ease_out_quad](#ease_out_quad), [ease_out_quart](#ease_out_quart), [ease_out_quint](#ease_out_quint), [ease_out_sine](#ease_out_sine), [ease_ping_pong](#ease_ping_pong), [ease_pong_ping](#ease_pong_ping), [editor](#editor), [editor_active](#editor_active), [euler](#euler), [eulerq](#eulerq), [extract33](#extract33), [fbo](#fbo), [fbo_bind](#fbo_bind), [fbo_destroy](#fbo_destroy), [fbo_unbind](#fbo_unbind), [file_copy](#file_copy), [file_delete](#file_delete), [file_directory](#file_directory), [file_exist](#file_exist), [file_ext](#file_ext), [file_id](#file_id), [file_list](#file_list), [file_load](#file_load), [file_move](#file_move), [file_name](#file_name), [file_normalize](#file_normalize), [file_path](#file_path), [file_read](#file_read), [file_size](#file_size), [file_stamp](#file_stamp), [file_stamp_epoch](#file_stamp_epoch), [file_temp](#file_temp), [file_tempname](#file_tempname), [finite2](#finite2), [finite3](#finite3), [finite4](#finite4), [flag](#flag), [floor2](#floor2), [floor3](#floor3), [floor4](#floor4), [font_color](#font_color), [font_colorize](#font_colorize), [font_face](#font_face), [font_face_from_mem](#font_face_from_mem), [font_goto](#font_goto), [font_highlight](#font_highlight), [font_print](#font_print), [font_rect](#font_rect), [font_scales](#font_scales), [font_xy](#font_xy), [forget](#forget), [fract2](#fract2), [fract3](#fract3), [fract4](#fract4), [frustum44](#frustum44), [frustum_build](#frustum_build), [frustum_test_aabb](#frustum_test_aabb), [frustum_test_sphere](#frustum_test_sphere), [fullscreen_rgb_quad](#fullscreen_rgb_quad), [fullscreen_ycbcr_quad](#fullscreen_ycbcr_quad), [fx_begin](#fx_begin), [fx_enable](#fx_enable), [fx_enable_all](#fx_enable_all), [fx_enabled](#fx_enabled), [fx_end](#fx_end), [fx_load](#fx_load), [fx_name](#fx_name), [gizmo](#gizmo), [gizmo_active](#gizmo_active), [gjk](#gjk), [gjk_analyze](#gjk_analyze), [gjk_quad](#gjk_quad), [has_debugger](#has_debugger), [hash_32](#hash_32), [hash_64](#hash_64), [hash_flt](#hash_flt), [hash_int](#hash_int), [hash_ptr](#hash_ptr), [hash_str](#hash_str), [hexdump](#hexdump), [hexdumpf](#hexdumpf), [id33](#id33), [id34](#id34), [id44](#id44), [identity44](#identity44), [idq](#idq), [image](#image), [image_destroy](#image_destroy), [image_from_mem](#image_from_mem), [inc2](#inc2), [inc3](#inc3), [inc4](#inc4), [input](#input), [input2](#input2), [input_chord2](#input_chord2), [input_chord3](#input_chord3), [input_chord4](#input_chord4), [input_click](#input_click), [input_click2](#input_click2), [input_demo](#input_demo), [input_diff](#input_diff), [input_diff2](#input_diff2), [input_down](#input_down), [input_filter_deadzone](#input_filter_deadzone), [input_filter_deadzone_4way](#input_filter_deadzone_4way), [input_filter_positive](#input_filter_positive), [input_filter_positive2](#input_filter_positive2), [input_frame](#input_frame), [input_frame2](#input_frame2), [input_frames](#input_frames), [input_held](#input_held), [input_idle](#input_idle), [input_load_state](#input_load_state), [input_repeat](#input_repeat), [input_save_state](#input_save_state), [input_send](#input_send), [input_up](#input_up), [input_use](#input_use), [invert34](#invert34), [invert44](#invert44), [len2](#len2), [len2sq](#len2sq), [len3](#len3), [len3sq](#len3sq), [len4](#len4), [len4sq](#len4sq), [lerp34](#lerp34), [less_int](#less_int), [less_ptr](#less_ptr), [less_str](#less_str), [less_u64](#less_u64), [lil16](#lil16), [lil16p](#lil16p), [lil32](#lil32), [lil32f](#lil32f), [lil32p](#lil32p), [lil32pf](#lil32pf), [lil64](#lil64), [lil64f](#lil64f), [lil64p](#lil64p), [lil64pf](#lil64pf), [line_closest_point](#line_closest_point), [line_distance2_point](#line_distance2_point), [lookat44](#lookat44), [map_count](#map_count), [map_erase](#map_erase), [map_find](#map_find), [map_free](#map_free), [map_gc](#map_gc), [map_init](#map_init), [map_insert](#map_insert), [mat44q](#mat44q), [max2](#max2), [max3](#max3), [max4](#max4), [maxf](#maxf), [maxi](#maxi), [mesh_bounds](#mesh_bounds), [mesh_create](#mesh_create), [mesh_destroy](#mesh_destroy), [mesh_render](#mesh_render), [mesh_upgrade](#mesh_upgrade), [min2](#min2), [min3](#min3), [min4](#min4), [minf](#minf), [mini](#mini), [mix2](#mix2), [mix3](#mix3), [mix4](#mix4), [mixf](#mixf), [mixq](#mixq), [model](#model), [model_aabb](#model_aabb), [model_animate](#model_animate), [model_animate_clip](#model_animate_clip), [model_destroy](#model_destroy), [model_from_mem](#model_from_mem), [model_render](#model_render), [model_set_texture](#model_set_texture), [mul2](#mul2), [mul3](#mul3), [mul4](#mul4), [muladd34](#muladd34), [mulq](#mulq), [multiply33x2](#multiply33x2), [multiply34](#multiply34), [multiply34x2](#multiply34x2), [multiply34x3](#multiply34x3), [multiply44](#multiply44), [multiply44x2](#multiply44x2), [multiply44x3](#multiply44x3), [mulv33](#mulv33), [neg2](#neg2), [neg3](#neg3), [neg4](#neg4), [negq](#negq), [norm2](#norm2), [norm3](#norm3), [norm3sq](#norm3sq), [norm4](#norm4), [norm4sq](#norm4sq), [normq](#normq), [object](#object), [object_billboard](#object_billboard), [object_diffuse](#object_diffuse), [object_model](#object_model), [object_move](#object_move), [object_pivot](#object_pivot), [object_position](#object_position), [object_rotate](#object_rotate), [object_scale](#object_scale), [object_teleport](#object_teleport), [option](#option), [optionf](#optionf), [optioni](#optioni), [ortho3](#ortho3), [ortho44](#ortho44), [os_exec](#os_exec), [os_exec_](#os_exec_), [os_exec_output](#os_exec_output), [PANIC](#PANIC), [pbr_material](#pbr_material), [pbr_material_destroy](#pbr_material_destroy), [perspective44](#perspective44), [plane4](#plane4), [pmod2](#pmod2), [pmod3](#pmod3), [pmod4](#pmod4), [pmodf](#pmodf), [poly_alloc](#poly_alloc), [poly_free](#poly_free), [poly_hit_aabb](#poly_hit_aabb), [poly_hit_aabb_transform](#poly_hit_aabb_transform), [poly_hit_capsule](#poly_hit_capsule), [poly_hit_capsule_transform](#poly_hit_capsule_transform), [poly_hit_poly](#poly_hit_poly), [poly_hit_poly_transform](#poly_hit_poly_transform), [poly_hit_sphere](#poly_hit_sphere), [poly_hit_sphere_transform](#poly_hit_sphere_transform), [poly_test_aabb](#poly_test_aabb), [poly_test_aabb_transform](#poly_test_aabb_transform), [poly_test_capsule](#poly_test_capsule), [poly_test_capsule_transform](#poly_test_capsule_transform), [poly_test_poly](#poly_test_poly), [poly_test_poly_transform](#poly_test_poly_transform), [poly_test_sphere](#poly_test_sphere), [poly_test_sphere_transform](#poly_test_sphere_transform), [portname](#portname), [print2](#print2), [print3](#print3), [print33](#print33), [print34](#print34), [print4](#print4), [print44](#print44), [PRINTF](#PRINTF), [printq](#printq), [ptr2](#ptr2), [ptr3](#ptr3), [ptr4](#ptr4), [ptrq](#ptrq), [pyramid](#pyramid), [rad](#rad), [rand64](#rand64), [randf](#randf), [randi](#randi), [randset](#randset), [ray_hit_aabb](#ray_hit_aabb), [ray_hit_plane](#ray_hit_plane), [ray_hit_sphere](#ray_hit_sphere), [ray_hit_triangle](#ray_hit_triangle), [ray_test_aabb](#ray_test_aabb), [ray_test_plane](#ray_test_plane), [ray_test_sphere](#ray_test_sphere), [ray_test_triangle](#ray_test_triangle), [rebase44](#rebase44), [refl2](#refl2), [refl3](#refl3), [refl4](#refl4), [relocate44](#relocate44), [rgba](#rgba), [rng](#rng), [rotate33](#rotate33), [rotate3q](#rotate3q), [rotate3q_2](#rotate3q_2), [rotate44](#rotate44), [rotatex3](#rotatex3), [rotatey3](#rotatey3), [rotatez3](#rotatez3), [rotation33](#rotation33), [rotation44](#rotation44), [rotationq](#rotationq), [rotationq33](#rotationq33), [rotationq44](#rotationq44), [scale2](#scale2), [scale3](#scale3), [scale33](#scale33), [scale34](#scale34), [scale4](#scale4), [scale44](#scale44), [scaleq](#scaleq), [scaling33](#scaling33), [scaling44](#scaling44), [scene_count](#scene_count), [scene_get_active](#scene_get_active), [scene_index](#scene_index), [scene_merge](#scene_merge), [scene_pop](#scene_pop), [scene_push](#scene_push), [scene_render](#scene_render), [scene_spawn](#scene_spawn), [screenshot](#screenshot), [script_bind_class](#script_bind_class), [script_bind_function](#script_bind_function), [script_call](#script_call), [script_init](#script_init), [script_run](#script_run), [script_runfile](#script_runfile), [set_count](#set_count), [set_erase](#set_erase), [set_find](#set_find), [set_free](#set_free), [set_gc](#set_gc), [set_init](#set_init), [set_insert](#set_insert), [shader](#shader), [shader_bind](#shader_bind), [shader_bool](#shader_bool), [shader_colormap](#shader_colormap), [shader_destroy](#shader_destroy), [shader_float](#shader_float), [shader_get_active](#shader_get_active), [shader_int](#shader_int), [shader_mat44](#shader_mat44), [shader_texture](#shader_texture), [shader_texture_unit](#shader_texture_unit), [shader_uint](#shader_uint), [shader_vec2](#shader_vec2), [shader_vec3](#shader_vec3), [shader_vec4](#shader_vec4), [shadowmap](#shadowmap), [shadowmap_begin](#shadowmap_begin), [shadowmap_destroy](#shadowmap_destroy), [shadowmap_end](#shadowmap_end), [shadowmap_set_shadowmatrix](#shadowmap_set_shadowmatrix), [shadowmatrix_ortho](#shadowmatrix_ortho), [shadowmatrix_proj](#shadowmatrix_proj), [signf](#signf), [simplex1](#simplex1), [simplex2](#simplex2), [simplex3](#simplex3), [simplex4](#simplex4), [skybox](#skybox), [skybox_destroy](#skybox_destroy), [skybox_pop_state](#skybox_pop_state), [skybox_push_state](#skybox_push_state), [sleep_ms](#sleep_ms), [sleep_ns](#sleep_ns), [sleep_ss](#sleep_ss), [sleep_us](#sleep_us), [slerpq](#slerpq), [sort_u64](#sort_u64), [sphere_closest_point](#sphere_closest_point), [sphere_hit_aabb](#sphere_hit_aabb), [sphere_hit_capsule](#sphere_hit_capsule), [sphere_hit_sphere](#sphere_hit_sphere), [sphere_test_aabb](#sphere_test_aabb), [sphere_test_capsule](#sphere_test_capsule), [sphere_test_poly](#sphere_test_poly), [sphere_test_sphere](#sphere_test_sphere), [sprite](#sprite), [sprite_flush](#sprite_flush), [stack](#stack), [str16to8](#str16to8), [strbegi](#strbegi), [strcatf](#strcatf), [strcmp_qsort](#strcmp_qsort), [strcmpi_qsort](#strcmpi_qsort), [strcut](#strcut), [strendi](#strendi), [stringf](#stringf), [strjoin](#strjoin), [strlcat](#strlcat), [strlcpy](#strlcpy), [strlerp](#strlerp), [strlower](#strlower), [strmatch](#strmatch), [strrepl](#strrepl), [strsplit](#strsplit), [strstri](#strstri), [strswap](#strswap), [strtok_s](#strtok_s), [strupper](#strupper), [strutf32](#strutf32), [sub2](#sub2), [sub3](#sub3), [sub4](#sub4), [subq](#subq), [tcp_bind](#tcp_bind), [tcp_close](#tcp_close), [tcp_debug](#tcp_debug), [tcp_host](#tcp_host), [tcp_open](#tcp_open), [tcp_peek](#tcp_peek), [tcp_port](#tcp_port), [tcp_recv](#tcp_recv), [tcp_send](#tcp_send), [texture](#texture), [texture_checker](#texture_checker), [texture_compressed](#texture_compressed), [texture_compressed_from_mem](#texture_compressed_from_mem), [texture_create](#texture_create), [texture_destroy](#texture_destroy), [texture_from_mem](#texture_from_mem), [texture_update](#texture_update), [tile](#tile), [time_hh](#time_hh), [time_mm](#time_mm), [time_ms](#time_ms), [time_ns](#time_ns), [time_ss](#time_ss), [time_us](#time_us), [transform33](#transform33), [transform344](#transform344), [transform444](#transform444), [transform_axis](#transform_axis), [transform_matrix](#transform_matrix), [transform_normal](#transform_normal), [transform_point](#transform_point), [transform_quat](#transform_quat), [transform_scaling](#transform_scaling), [transform_tangent](#transform_tangent), [transform_vector](#transform_vector), [transformq](#transformq), [translate44](#translate44), [translation44](#translation44), [transpose44](#transpose44), [tty_color](#tty_color), [tty_reset](#tty_reset), [udp_bind](#udp_bind), [udp_open](#udp_open), [udp_peek](#udp_peek), [udp_recv](#udp_recv), [udp_send](#udp_send), [udp_sendto](#udp_sendto), [ui_active](#ui_active), [ui_begin](#ui_begin), [ui_bits16](#ui_bits16), [ui_bits8](#ui_bits8), [ui_bool](#ui_bool), [ui_button](#ui_button), [ui_clampf](#ui_clampf), [ui_color3](#ui_color3), [ui_color3f](#ui_color3f), [ui_color4](#ui_color4), [ui_color4f](#ui_color4f), [ui_colormap](#ui_colormap), [ui_const_bool](#ui_const_bool), [ui_const_float](#ui_const_float), [ui_const_string](#ui_const_string), [ui_demo](#ui_demo), [ui_dialog](#ui_dialog), [ui_end](#ui_end), [ui_float](#ui_float), [ui_float2](#ui_float2), [ui_float3](#ui_float3), [ui_hover](#ui_hover), [ui_image](#ui_image), [ui_int](#ui_int), [ui_item](#ui_item), [ui_label](#ui_label), [ui_label2](#ui_label2), [ui_list](#ui_list), [ui_menu](#ui_menu), [ui_radio](#ui_radio), [ui_separator](#ui_separator), [ui_short](#ui_short), [ui_slider](#ui_slider), [ui_slider2](#ui_slider2), [ui_string](#ui_string), [ui_toggle](#ui_toggle), [unhash_32](#unhash_32), [unproject44](#unproject44), [vec23](#vec23), [vec34](#vec34), [vec3q](#vec3q), [vec4q](#vec4q), [vfs_find](#vfs_find), [vfs_handle](#vfs_handle), [vfs_list](#vfs_list), [vfs_load](#vfs_load), [vfs_mount](#vfs_mount), [vfs_read](#vfs_read), [vfs_resolve](#vfs_resolve), [vfs_size](#vfs_size), [video](#video), [video_decode](#video_decode), [video_destroy](#video_destroy), [video_duration](#video_duration), [video_has_finished](#video_has_finished), [video_is_paused](#video_is_paused), [video_pause](#video_pause), [video_position](#video_position), [video_seek](#video_seek), [video_textures](#video_textures), [viewport_clear](#viewport_clear), [viewport_clip](#viewport_clip), [viewport_color](#viewport_color), [viewport_color3](#viewport_color3), [vlen](#vlen), [vrealloc](#vrealloc), [watch](#watch), [window_aspect](#window_aspect), [window_create](#window_create), [window_cursor](#window_cursor), [window_delta](#window_delta), [window_flush](#window_flush), [window_focus](#window_focus), [window_fps](#window_fps), [window_frame](#window_frame), [window_fullscreen](#window_fullscreen), [window_handle](#window_handle), [window_has_cursor](#window_has_cursor), [window_has_focus](#window_has_focus), [window_has_fullscreen](#window_has_fullscreen), [window_has_pause](#window_has_pause), [window_has_videorec](#window_has_videorec), [window_has_visible](#window_has_visible), [window_height](#window_height), [window_hook](#window_hook), [window_icon](#window_icon), [window_lock](#window_lock), [window_pause](#window_pause), [window_screenshot](#window_screenshot), [window_swap](#window_swap), [window_time](#window_time), [window_title](#window_title), [window_unhook](#window_unhook), [window_videorec](#window_videorec), [window_visible](#window_visible), [window_width](#window_width), [xrealloc](#xrealloc)
 ## 🄼 macros
-[aabb](#aabb), [alert](#alert), [array](#array), [array_at](#array_at), [array_back](#array_back), [array_bytes](#array_bytes), [array_cast](#array_cast), [array_clear](#array_clear), [array_copy](#array_copy), [array_count](#array_count), [array_data](#array_data), [array_empty](#array_empty), [array_erase](#array_erase), [array_foreach](#array_foreach), [array_foreach_ptr](#array_foreach_ptr), [array_free](#array_free), [array_init](#array_init), [array_insert](#array_insert), [array_pop](#array_pop), [array_push](#array_push), [array_realloc_](#array_realloc_), [array_reserve](#array_reserve), [array_resize](#array_resize), [array_reverse](#array_reverse), [array_search](#array_search), [array_sort](#array_sort), [array_unique](#array_unique), [array_vlen_](#array_vlen_), [axis](#axis), [capsule](#capsule), [coord_system](#coord_system), [data_float](#data_float), [data_int](#data_int), [data_string](#data_string), [ddraw_text](#ddraw_text), [ddraw_text2d](#ddraw_text2d), [each_array](#each_array), [each_array_ptr](#each_array_ptr), [each_map](#each_map), [each_map_ptr](#each_map_ptr), [each_set](#each_set), [each_set_ptr](#each_set_ptr), [each_substring](#each_substring), [frustum](#frustum), [hit](#hit), [line](#line), [m_finite](#m_finite), [m_inline](#m_inline), [map](#map), [map_cast](#map_cast), [map_clear](#map_clear), [map_count](#map_count), [map_erase](#map_erase), [map_find](#map_find), [map_find_or_add](#map_find_or_add), [map_foreach](#map_foreach), [map_foreach_ptr](#map_foreach_ptr), [map_free](#map_free), [map_gc](#map_gc), [map_init](#map_init), [map_insert](#map_insert), [mat33](#mat33), [mat34](#mat34), [mat44](#mat44), [os_exec](#os_exec), [os_exec_](#os_exec_), [plane](#plane), [poly](#poly), [profile](#profile), [profile_incstat](#profile_incstat), [profile_init](#profile_init), [profile_render](#profile_render), [ptr](#ptr), [quat](#quat), [ray](#ray), [set](#set), [set_cast](#set_cast), [set_clear](#set_clear), [set_count](#set_count), [set_erase](#set_erase), [set_find](#set_find), [set_find_or_add](#set_find_or_add), [set_foreach](#set_foreach), [set_foreach_ptr](#set_foreach_ptr), [set_free](#set_free), [set_gc](#set_gc), [set_init](#set_init), [set_insert](#set_insert), [sphere](#sphere), [str](#str), [strcatf](#strcatf), [strcmpi](#strcmpi), [stringf](#stringf), [strtok_r](#strtok_r), [triangle](#triangle), [ui_const_stringf](#ui_const_stringf), [vec2](#vec2), [vec3](#vec3), [vec4](#vec4)
+[aabb](#aabb), [array](#array), [array_at](#array_at), [array_back](#array_back), [array_bytes](#array_bytes), [array_cast](#array_cast), [array_clear](#array_clear), [array_copy](#array_copy), [array_count](#array_count), [array_data](#array_data), [array_empty](#array_empty), [array_erase](#array_erase), [array_foreach](#array_foreach), [array_foreach_ptr](#array_foreach_ptr), [array_free](#array_free), [array_init](#array_init), [array_insert](#array_insert), [array_pop](#array_pop), [array_push](#array_push), [array_realloc_](#array_realloc_), [array_reserve](#array_reserve), [array_resize](#array_resize), [array_reverse](#array_reverse), [array_search](#array_search), [array_sort](#array_sort), [array_unique](#array_unique), [array_vlen_](#array_vlen_), [axis](#axis), [capsule](#capsule), [coord_system](#coord_system), [data_float](#data_float), [data_int](#data_int), [data_string](#data_string), [ddraw_text](#ddraw_text), [ddraw_text2d](#ddraw_text2d), [each_array](#each_array), [each_array_ptr](#each_array_ptr), [each_map](#each_map), [each_map_ptr](#each_map_ptr), [each_set](#each_set), [each_set_ptr](#each_set_ptr), [each_substring](#each_substring), [frustum](#frustum), [hit](#hit), [line](#line), [m_finite](#m_finite), [map](#map), [map_cast](#map_cast), [map_clear](#map_clear), [map_count](#map_count), [map_erase](#map_erase), [map_find](#map_find), [map_find_or_add](#map_find_or_add), [map_foreach](#map_foreach), [map_foreach_ptr](#map_foreach_ptr), [map_free](#map_free), [map_gc](#map_gc), [map_init](#map_init), [map_insert](#map_insert), [mat33](#mat33), [mat34](#mat34), [mat44](#mat44), [os_exec](#os_exec), [os_exec_](#os_exec_), [plane](#plane), [poly](#poly), [profile](#profile), [profile_incstat](#profile_incstat), [profile_init](#profile_init), [profile_render](#profile_render), [ptr](#ptr), [quat](#quat), [ray](#ray), [set](#set), [set_cast](#set_cast), [set_clear](#set_clear), [set_count](#set_count), [set_erase](#set_erase), [set_find](#set_find), [set_find_or_add](#set_find_or_add), [set_foreach](#set_foreach), [set_foreach_ptr](#set_foreach_ptr), [set_free](#set_free), [set_gc](#set_gc), [set_init](#set_init), [set_insert](#set_insert), [sphere](#sphere), [str](#str), [strcatf](#strcatf), [strcmpi](#strcmpi), [stringf](#stringf), [strtok_r](#strtok_r), [triangle](#triangle), [ui_const_stringf](#ui_const_stringf), [ui_labelf](#ui_labelf), [va](#va), [vec2](#vec2), [vec3](#vec3)

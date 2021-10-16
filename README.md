@@ -1,8 +1,19 @@
-<h1 align="center"><a href="https://bit.ly/f-w-k">F·W·K</a></h1>
+<h1 align="center"><a href="https://bit.ly/-fwk-">F·W·K</a></h1>
 <p align="center">3D game framework in C, with Luajit bindings now.</p>
 
 <p align="center">
 <img src="https://i.imgur.com/sInbRoA.gif"/><br/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_script.png"    width="204px" title="Script."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_font.png"      width="204px" title="Fonts."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_collide.png"   width="204px" title="Collision."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_model.png"     width="204px" title="Model."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_scene.png"     width="204px" title="Scene."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_sprite.png"    width="204px" title="Sprite."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_shadertoy.png" width="204px" title="Shadertoy."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_cubemap.png"   width="204px" title="Cubemaps and SH."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_video.png"     width="204px" title="Video."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_pbr.png"       width="204px" title="PBR."/>
+<br/>
 </p>
 
 ## Goals
@@ -27,24 +38,25 @@
 - [x] Network: downloads (HTTPS) and sockets (TCP/UDP).
 - [x] UI: color3/4, button, list, slider, toggle, checkbox, editbox, dialog, image, menus.
 - [x] Font: TTF and TTC. Basic syntax highlighter. Unicode ranges, atlasing, I18N.
-- [x] Image: JPG, PNG, TGA, BMP, PSD, PIC, PNM, ICO.
-- [x] Texture: KTX/2, PVR, DDS, ASTC, BASIS, HDR.
+- [x] Image: JPG, PNG, BMP, PSD, PIC, PNM, ICO.
+- [x] Texture: KTX/2, PVR, DDS, ASTC, BASIS, HDR, TGA.
 - [x] Texel: Depth, R, RG, RGB, RGBA, BC1/2/3/4/5/6/7, PVRI/II, ETC1/2, ASTC.
 - [x] Audio: WAV/FLAC, OGG/MP1/MP3, MOD/XM/S3M/IT, SFXR and MID.
 - [x] Video: MP4, MPG, OGV, MKV, WMV and AVI.
 - [x] Model: IQM/E, GLTF/2, GLB, FBX, OBJ, DAE, BLEND, MD3/5, MS3D, SMD, X, 3DS, BVH, DXF, LWO.
-- [x] Render: 2D Sprites, spritesheets and batching.
-- [x] Render: 3D Anims, skeletal anims and hardware skinning.
-- [x] Render: 3D Debugdraw, batching and vectorial font.
+- [x] Render: PBR (metallic-roughness) workflow.
 - [x] Render: Cubemaps, panoramas and spherical harmonics. Rayleigh/Mie scattering.
 - [x] Render: Post-effects (SSAO,FXAA1/3,CRT,Contrast,Grain,Outline,Vignette...).
+- [x] Render: 3D Anims, skeletal anims and hardware skinning.
+- [x] Render: 3D Debugdraw, batching and vectorial font.
+- [x] Render: 2D Sprites, spritesheets, AA zooming and batching.
 - [x] Compression: DEFLATE, LZMA, LZ4, ULZ, BALZ, BCM, CRUSH, LZW3, LZSS and PPP.
 - [x] Virtual filesystem: ZIP, PAK, TAR and DIR.
 - [x] Level data: JSON, JSON5, SJSON, XML.
 - [x] Disk cache.
 - [x] Scene handling.
 - [x] Profiler, stats and leaks finder.
-- [x] [Documentation (wip)](https://bit.ly/f-w-k).
+- [x] [Documentation (wip)](https://bit.ly/-fwk-).
 
 ## Roadmap ᕕ(ᐛ)ᕗ (in order of arrival; ✱: partial support)
 - [ ] Network: NAT traversal. Socketless API, message API and pub/sub wrappers (enet/websocket).
@@ -53,20 +65,17 @@
 - [ ] Scene: toggles on/off (billboards✱, materials, un/lit, cast shadows, wireframe, skybox/mie, collide, physics).
 - [ ] Scene: node singleton display, node console, node labels, node outlines.
 - [ ] Math: quat2, bezier, catmull.
-- [ ] Editor: gizmos✱, scene tree, property editor, load/save, undo/redo, copy/paste.
-<!-- editor = tree of nodes. levels and objects are nodes, and widgets are also nodes -->
-<!-- you can perform actions on nodes, with or without descendants, top-bottom or bottom-top -->
-<!-- operations include load/save, reset, undo/redo, play/render vis on/off/alpha logic on/off/other ddraw on/off log on/off, etc -->
+- [ ] Editor: gizmos✱, scene tree, property editor, load/save, undo/redo, copy/paste. <!-- editor = tree of nodes. levels and objects are nodes, and widgets are also nodes --><!-- you can perform actions on nodes, with or without descendants, top-bottom or bottom-top --><!-- operations include load/save, reset, undo/redo, play/render vis on/off/alpha logic on/off/other ddraw on/off log on/off, etc -->
 - [ ] Level objects: volumes✱, triggers, platforms, streaming.
 - [ ] Script: DLL✱ (module->plugin/sys), Lua✱, Luajit✱, Teal✱ and TypeScript.
-- [ ] Script: Refl/meta binding tool (during cook stage).
+- [ ] Script: Docs/Refl/Meta binding tool (during cook stage).
 - [ ] Pipeline: Extend: shaders, bindings. Per-platform✱, per-type✱, per-asset options. GIF, PKM.
 - [ ] Pipeline: Extend atlas (sprite/lightmaps). Fit packing (sprites).
-- [ ] Font: text layout and shaping, underlining, soft/hard shadows, outlines.
-- [ ] Maybe: Tiled maps and 2D spines.
+- [ ] Maybe: Font text layout and shaping, underlining, soft/hard shadows, outlines.
+- [ ] Maybe: Tiled maps and 2D spines. Sprite parallaxs.
 - [ ] Maybe: Animation pass.
 - [ ] Maybe: AI/Logic pass.
-- [ ] Maybe: Lighting/PBR pass.
+- [ ] Maybe: Lighting pass.
 - [ ] Maybe: VM/ECS/Replication pass.
 - [ ] API: More examples. Also, less examples.
 - [ ] API: Discuss API and freeze it.
@@ -75,18 +84,21 @@
 <!--
 // almost done:
 // [x] shadertoy textures
-// [ ] billboards (follow sprite API? state instead? ie, billboard(true); before rendering?)
+// [*] billboards (follow sprite API? state instead? ie, billboard(true); before rendering?)
 // [ ] soft shadows (vsm, vsmcube)
 // nice to have: [x] means done
 // [ ] fix leaks and todos
-// [ ] fwk_app: cpu usage, battery, orientation
-// [x] app: app options, app flags, app tty, app paths
+// [ ] fwk_app: cpu usage, orientation
+// [x] app: app options, app flags, app tty, app paths, app battery,
 // [x] DS: array, map, set, string, sort, hash.
 // [x] system: debugger, callstack, exec, time/date.
 // [ ] fwk_input: cursor, mouse clip, mouse wrap,
-// [ ] sprites: pixel perfect zooming (demo+wheel)
 // [ ] zip0 seek-vfs optimization. zip_append_file is suboptimal, and requires tons of contiguous memory for giant files.
 // [ ] expose uniforms as ui options, also model_uniform();
+// [ ] font: M/SDF https://github.com/WilliamBundy/wiggle https://github.com/Chlumsky/msdf-atlas-gen
+// [ ] lod: https://github.com/songrun/SeamAwareDecimater
+// [ ] lightmaps: https://blackpawn.com/texts/lightmaps/default.html 
+// [ ] https://github.com/jpcy/xatlas
 -->
 
 <!--
@@ -162,7 +174,7 @@ Type `MAKE.bat` (Win) or `sh MAKE.bat` (Linux/OSX) to build everything. Alternat
 
 ```lua
 echo Windows (vc+tcc)      && cl  demo.c       fwk.c
-echo Windows (mingw64)     && gcc demo.c       fwk.c -o demo -w -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99
+echo Windows (mingw64)     && gcc demo.c       fwk.c -o demo -w -lws2_32 -lgdi32 -lwinmm -ldbghelp
 echo Linux (gcc+clang+tcc) && cc  demo.c       fwk.c -o demo -w -lm -ldl -lpthread
 echo OSX (gcc+clang)       && cc  demo.c -ObjC fwk.c -o demo -w -framework cocoa -framework iokit
 ```
@@ -189,31 +201,18 @@ echo #endif // FWK_C >> fwk-single-header.c
 - Dropped files into game window will be imported & saved into [`art/import`](art/import) folder.
 - Linux/OSX users can optionally install wine to use the Windows pipeline as an alternate asset pipeline (use `--with-wine` flag).
 - Depending on your IDE, you might need to [split all amalgamated](#Amalgamation) files when debugging FWK.
-<!-- - On windows + vc, you can use `make bindings` or `make docs` to generate everything prior to a release -->
+- Although not recommended, you can remove the cooking stage by invoking `--with-jobs=0` or by removing the [`art/tools`](art/tools) folder.
+<!-- - On windows + vc, you can use `make bindings` or `make docs` to generate everything prior to a release --><!-- gamecontrollerdb.txt -->
 
 ## Bindings
-- Luajit: Luajit bindings are provided in the [fwk.lua](fwk.lua) auto-generated file.
-- Luajit: You can test it by typing `cl fwk.c /LD /DAPI=EXPORT && art\tools\luajit art\demos\demo_luajit.lua`
+- Luajit: Luajit bindings are provided in the [fwk.lua](demos/lua/fwk.lua) auto-generated file.
+- Luajit: You can test it by typing `cd demos\lua && luajit demo_luajit.lua`
 - Nelua: [Nelua bindings](https://github.com/Rabios/nelua-fun/tree/main/fwk) provided by Rabia Alhaffar.
 
 ## License
 This software is released into the [public domain](https://unlicense.org/).<br/>
 Also dual-licensed as [0-BSD](https://opensource.org/licenses/FPL-1.0.0) or [MIT (No Attribution)](https://github.com/aws/mit-0) for those countries where public domain is a concern (sigh).<br/>
 Any contribution to this repository is implicitly subjected to the same release conditions aforementioned.
-
-## Gallery
-<p align="center">
-<img src="art/demos/demo_script.png"    width="204px" title="Script.">
-<img src="art/demos/demo_font.png"      width="204px" title="Fonts.">
-<img src="art/demos/demo_collide.png"   width="204px" title="Collision.">
-<img src="art/demos/demo_model.png"     width="204px" title="Model.">
-<img src="art/demos/demo_scene.png"     width="204px" title="Scene.">
-<img src="art/demos/demo_sprite.png"    width="204px" title="Sprite.">
-<img src="art/demos/demo_shadertoy.png" width="204px" title="Shadertoy.">
-<img src="art/demos/demo_cubemap.png"   width="204px" title="Cubemaps and SH.">
-<img src="art/demos/demo_video.png"     width="204px" title="Video.">
-<br/>
-</p>
 
 ## Credits (Artwork + demos)
 - [FMS_Cat](https://gist.github.com/FMS-Cat/a1ccea3ce866c34706084e3526204f4f), for nicest VHS/VCR shader around (MIT).
@@ -246,6 +245,8 @@ Any contribution to this repository is implicitly subjected to the same release 
 - [Dominic Szablewski](https://github.com/phoboslab/pl_mpeg), for pl_mpeg (MIT).
 - [Dominik Madarász](https://github.com/zaklaus), for json5 parser (PD).
 - [Eduard Suica](https://github.com/eduardsui/tlse), for tlse (PD).
+- [Gargaj+cce/Peisik](https://github.com/gargaj/foxotron), for Foxotron/PBR shaders (UNLICENSE).
+- [Guillaume Vareille](http://tinyfiledialogs.sourceforge.net), for tinyfiledialogs (ZLIB).
 - [Haruhiko Okumura](https://oku.edu.mie-u.ac.jp/~okumura/compression/) for lzss (PD).
 - [Igor Pavlov](https://www.7-zip.org/) for LZMA (PD).
 - [Ilya Muravyov](https://github.com/encode84) for bcm, balz, crush, ulz, lz4x (PD).
@@ -298,6 +299,7 @@ Still looking for alternatives?
 [mintaro](https://github.com/mackron/mintaro),
 [mio](https://github.com/ccxvii/mio),
 [opensource](https://github.com/w23/OpenSource),
+[ouzel](https://github.com/elnormous/ouzel/),
 [pez](https://github.com/prideout/pez),
 [pixie](https://github.com/mattiasgustavsson/pixie),
 [punity](https://github.com/martincohen/Punity),

@@ -98,17 +98,16 @@ int main() {
         // vec2 filtered_rpad = input_filter_deadzone(input2(GAMEPAD_RPAD), do_gamepad_deadzone + 1e-3);
 
         // fps camera
-        bool active = ui_active() || gizmo_active() ? false : input(MOUSE_L) || input(MOUSE_M) || input(MOUSE_R);
-        window_cursor( !active );
-
+        bool active = ui_active() || ui_hover() || gizmo_active() ? false : input(MOUSE_L) || input(MOUSE_M) || input(MOUSE_R);
         if( active ) cam.speed = clampf(cam.speed + input_diff(MOUSE_W) / 10, 0.05f, 5.0f);
         vec2 mouse = scale2(vec2(input_diff(MOUSE_X), -input_diff(MOUSE_Y)), 0.2f * active);
         vec3 wasdecq = scale3(vec3(input(KEY_D)-input(KEY_A),input(KEY_E)-(input(KEY_C)||input(KEY_Q)),input(KEY_W)-input(KEY_S)), cam.speed);
         camera_move(&cam, wasdecq.x,wasdecq.y,wasdecq.z);
         camera_fps(&cam, mouse.x,mouse.y);
+        window_cursor( !active );
 
         // queue debug drawcalls
-        profile(Debugdraw) {
+        profile("Debugdraw") {
             ddraw_grid(0);
             ddraw_color(YELLOW);
             ddraw_text(vec3(+1,+1,-1), 0.04f, "(%f,%f,%f)", cam.position.x,cam.position.y,cam.position.z);
@@ -118,21 +117,21 @@ int main() {
         }
 
         // draw skybox
-        profile(Skybox) {
+        profile("Skybox") {
             skybox_push_state(&sky, cam.proj, cam.view);
             glEnable(GL_DEPTH_TEST);
             mesh_render(&sky.geometry);
             skybox_pop_state(&sky);
         }
 
-        profile(Editor) {
+        profile("Editor") {
             editor();
         }
 
         // apply post-fxs from here
         fx_begin();
 
-        profile(Skeletal update) if(!window_has_pause()) {
+        profile("Skeletal update") if(!window_has_pause()) {
             float delta = window_delta() * 30; // 30fps anim
 
             // animate girl & alien
@@ -145,7 +144,7 @@ int main() {
             }
         }
 
-        profile(Skeletal render) {
+        profile("Skeletal render") {
             static vec3 p = {-10,0,-10}, r = {0,0,0}, s = {2,2,2};
             gizmo(&p, &r, &s);
             mat44 M; rotationq44(M, eulerq(r)); scale44(M, s.x,s.y,s.z); relocate44(M, p.x,p.y,p.z);
@@ -157,9 +156,9 @@ int main() {
             ddraw_aabb(box.min, box.max);
         }
 
-        profile(Skeletal render) {
+        profile("Skeletal render") {
             static vec3 p = {+10,0,-10}, r = {0,-90,0}, s = {1,1,1};
-            gizmo(&p, &r, &s);
+            //gizmo(&p, &r, &s);
             mat44 M; rotationq44(M, eulerq(r)); scale44(M, s.x,s.y,s.z); relocate44(M, p.x,p.y,p.z);
 
             model_render(alien, cam.proj, cam.view, M, 0);
@@ -169,19 +168,19 @@ int main() {
             //ddraw_aabb(box.min, box.max);
         }
 
-        profile(Skeletal render) for(int i = 0; i < countof(robots); ++i) {
+        profile("Skeletal render") for(int i = 0; i < countof(robots); ++i) {
             float scale = 0.50;
             mat44 M; copy44(M, robots[i].pivot); translate44(M, i*3,0,0); scale44(M, scale,scale,scale);
             model_render(robots[i], cam.proj, cam.view, M, 0);
         }
 
-        if(do_sponza) profile(Sponza) {
+        if(do_sponza) profile("Sponza") {
             float scale = 1.00;
             mat44 M; copy44(M, sponza.pivot); translate44(M, 0,0,0); scale44(M, scale,scale,scale);
             model_render(sponza, cam.proj, cam.view, M, 0);
         }
 
-        if(do_shaderball) profile(Shaderball) {
+        if(do_shaderball) profile("Shaderball") {
             float scale = 1.00;
             mat44 M; copy44(M, shaderball.pivot); translate44(M, 0,0,0); scale44(M, scale,scale,scale);
             model_render(shaderball, cam.proj, cam.view, M, 0);
@@ -256,7 +255,8 @@ int main() {
         assert( data_int("/array[%d]", 2) == -3 );
         assert( data_count("/invalids") == 8 );
         assert( isnan(data_float("/invalids[0]")) );
-        assert( ~puts("json5 tests: ok") );
+        assert( !data_find("/non_existing") );
+        assert( PRINTF("json5 tests OK\n") );
         data_pop();
     }
 

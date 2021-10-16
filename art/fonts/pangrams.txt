@@ -40,8 +40,8 @@ Portuguese: Luís argüia à Júlia que «brações, fé, chá, óxido, pôr, z�
 Quotes: ‘single’ “double” “curly” ‚deutsche‘ „Anführ“ \"'´`
 Romanian: Înjurând pițigăiat, zoofobul comandă vexat whisky și tequila.
 Russian: Эх, чужак! Общий съём цен шляп (юфть)—вдрызг!.
-Sanskrit: खगौघाङचिच्छौजा झाञ्ज्ञोऽटौठीडडण्ढणः। तथोदधीन् पफर्बाभीर्मयोऽरिल्वाशिषां
-Serbian: Ајшо, лепото и чежњо, за љубав срца мога дођи у Хаџиће на кафу / Ajšo, lepoto i čežnjo, za ljubav srca moga dođi u Hadžiće na kafu.
+Serbian: Ајшо, лепото и чежњо, за љубав срца мога дођи у Хаџиће на кафу.
+Serbian(2): Ajšo, lepoto i čežnjo, za ljubav srca moga dođi u Hadžiće na kafu.
 Slovak: Kŕdeľ ďatľov učí koňa žrať kôru + š
 Spanish: Benjamín pidió una bebida de kiwi y fresa; Noé, sin vergüenza, la más exquisita champaña del menú. + ḷḷ ḥ
 Swedish: Yxskaftbud, ge vår wczonmö iqhjälp.

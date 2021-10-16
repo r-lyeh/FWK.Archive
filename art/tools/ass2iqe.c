@@ -276,7 +276,28 @@ char *find_material(struct aiMaterial *material)
 
     strcpy(shader, clean_material_name(name));
     strcat(shader, "+");
+
     if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE_DIFFUSE(0), &str))
+        strcat(shader, get_base_name(str.data));
+    else if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE_SPECULAR(0), &str))
+        strcat(shader, get_base_name(str.data));
+    else if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE_AMBIENT(0), &str))
+        strcat(shader, get_base_name(str.data));
+    else if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE_EMISSIVE(0), &str))
+        strcat(shader, get_base_name(str.data));
+    else if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE_NORMALS(0), &str))
+        strcat(shader, get_base_name(str.data));
+    else if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE_HEIGHT(0), &str))
+        strcat(shader, get_base_name(str.data));
+    else if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE_SHININESS(0), &str))
+        strcat(shader, get_base_name(str.data));
+    else if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE_OPACITY(0), &str))
+        strcat(shader, get_base_name(str.data));
+    else if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE_DISPLACEMENT(0), &str))
+        strcat(shader, get_base_name(str.data));
+    else if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE_LIGHTMAP(0), &str))
+        strcat(shader, get_base_name(str.data));
+    else if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE_REFLECTION(0), &str))
         strcat(shader, get_base_name(str.data));
     else
         strcat(shader, "unknown");
@@ -974,7 +995,41 @@ void export_node(FILE *out, const struct aiScene *scene, const struct aiNode *no
 
         fprintf(out, "\n");
         fprintf(out, "mesh \"%s\"\n", clean_name);
-        fprintf(out, "material \"%s\"\n", find_material(material));
+
+        // @r-lyeh
+        if(0) fprintf(out, "material \"%s\"\n", find_material(material)); // original
+        else {
+            char buffer[4096] = {0};
+
+            struct aiString str;
+            if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE_DIFFUSE(0), &str))
+                { strcat(buffer, "+"); strcat(buffer, get_base_name(str.data)); }
+            if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE_SPECULAR(0), &str))
+                { strcat(buffer, "+"); strcat(buffer, get_base_name(str.data)); }
+            if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE_AMBIENT(0), &str))
+                { strcat(buffer, "+"); strcat(buffer, get_base_name(str.data)); }
+            if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE_EMISSIVE(0), &str))
+                { strcat(buffer, "+"); strcat(buffer, get_base_name(str.data)); }
+            if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE_NORMALS(0), &str))
+                { strcat(buffer, "+"); strcat(buffer, get_base_name(str.data)); }
+            if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE_HEIGHT(0), &str))
+                { strcat(buffer, "+"); strcat(buffer, get_base_name(str.data)); }
+            if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE_SHININESS(0), &str))
+                { strcat(buffer, "+"); strcat(buffer, get_base_name(str.data)); }
+            if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE_OPACITY(0), &str))
+                { strcat(buffer, "+"); strcat(buffer, get_base_name(str.data)); }
+            if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE_DISPLACEMENT(0), &str))
+                { strcat(buffer, "+"); strcat(buffer, get_base_name(str.data)); }
+            if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE_LIGHTMAP(0), &str))
+                { strcat(buffer, "+"); strcat(buffer, get_base_name(str.data)); }
+            if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE_REFLECTION(0), &str))
+                { strcat(buffer, "+"); strcat(buffer, get_base_name(str.data)); }
+            if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE(aiTextureType_UNKNOWN, 0), &str)) // AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE
+                { strcat(buffer, "+"); strcat(buffer, get_base_name(str.data)); }
+
+            aiGetMaterialString(material, AI_MATKEY_NAME, &str);
+            fprintf(out, "material \"%s%s\"\n", str.data, buffer);
+        }
 
         struct vb *vb = (struct vb*) malloc(mesh->mNumVertices * sizeof(*vb));
         memset(vb, 0, mesh->mNumVertices * sizeof(*vb));
@@ -1152,8 +1207,8 @@ void usage()
 #ifndef _MSC_VER
 #include <getopt.h>
 #else
-static __thread char* optarg = NULL;
-static __thread int optind = 1;
+static __declspec(thread) char* optarg = NULL;
+static __declspec(thread) int optind = 1;
 int getopt(int argc, char *const argv[], const char *optstring) {
     if ((optind >= argc) || (argv[optind][0] != '-') || (argv[optind][0] == 0)) {
         return -1;
@@ -1251,7 +1306,7 @@ flags |= (doflipUV ? aiProcess_FlipUVs : 0);
         | aiProcess_TransformUVCoords
         | aiProcess_LimitBoneWeights // #defined as AI_LMW_MAX_WEIGHTS 4
         | aiProcess_ImproveCacheLocality
-        | aiProcess_RemoveRedundantMaterials
+        //| aiProcess_RemoveRedundantMaterials
         | aiProcess_OptimizeMeshes // aiProcess_SplitLargeMeshes
         | (doflipUV ? aiProcess_FlipUVs : 0)
         | aiProcess_OptimizeGraph
@@ -1260,6 +1315,11 @@ flags |= (doflipUV ? aiProcess_FlipUVs : 0);
         //| aiProcess_GenBoundingBoxes
         | aiProcess_GlobalScale // AI_CONFIG_GLOBAL_SCALE_FACTOR_KEY
         ;
+
+        // | aiProcess_CalcTangentSpace
+        // | aiProcess_Triangulate
+        // | aiProcess_SortByPType
+        // | aiProcess_SplitByBoneCount // see AI_CONFIG_PP_SBBC_MAX_BONES below
 #endif
 
     fprintf(stderr, "loading %s\n", input);
@@ -1302,6 +1362,8 @@ flags |= (doflipUV ? aiProcess_FlipUVs : 0);
     aiSetImportPropertyInteger(aiprops, AI_CONFIG_IMPORT_FBX_PRESERVE_PIVOTS, 0);
     // tweak: do not remove dummies
     aiSetImportPropertyInteger(aiprops, AI_CONFIG_IMPORT_REMOVE_EMPTY_BONES, 0);
+// tweak: split meshes by bone count
+// aiSetImportPropertyInteger(aiprops, AI_CONFIG_PP_SBBC_MAX_BONES, 24 ); // see aiProcess_SplitByBoneCount above
 
     // material_chdir(input);
     scene = aiImportFileExWithProperties(input, flags, NULL, aiprops);
