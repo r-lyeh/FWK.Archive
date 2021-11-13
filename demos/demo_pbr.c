@@ -458,7 +458,7 @@ int main( int argc, const char *argv[] ) {
             window_cursor( true );
             bool active = !ui_active() && !ui_hover() && !gizmo_active();
             vec2 inc_mouse = scale2(vec2(input_diff(MOUSE_X), -input_diff(MOUSE_Y)), 0.2f * active * input(MOUSE_L));
-            float inc_distance = -0.2f * input_diff(MOUSE_W);
+            float inc_distance = -0.2f * active * input_diff(MOUSE_W);
             camera_orbit(&cam, inc_mouse.x, inc_mouse.y, inc_distance);
             // rotate model
             model_yaw -= input_diff(MOUSE_X) * 0.2f * active * input(MOUSE_R);

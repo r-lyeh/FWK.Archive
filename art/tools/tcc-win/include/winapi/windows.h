@@ -6,10 +6,6 @@
 #ifndef _WINDOWS_
 #define _WINDOWS_
 
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN 1
-#endif
-
 #ifndef WINVER
 #define WINVER 0x0502
 #endif
@@ -67,11 +63,11 @@
 #include <winbase.h>
 #include <wingdi.h>
 #include <winuser.h>
-//gr #include <winnls.h>
+#include <winnls.h>
 #include <wincon.h>
 #include <winver.h>
 #include <winreg.h>
-//gr #include <winnetwk.h>
+#include <winnetwk.h>
 
 #ifndef WIN32_LEAN_AND_MEAN
 #include <cderr.h>
@@ -104,7 +100,7 @@
 #endif
 #endif
 
-//gr #include <stralign.h>
+#include <stralign.h>
 
 #ifdef INC_OLE2
 #include <ole2.h>

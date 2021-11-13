@@ -6,12 +6,22 @@ cd `dirname $0`
 # copy demos to root folder. local changes are preserved
 cp demos/*.c . -n
 
+if [ "$1" = "tidy" ]; then
+    rm demo_* 2> /dev/null
+    rm demo 2> /dev/null
+    rm fwk.o 2> /dev/null
+    rm .art*.zip 2> /dev/null
+    exit
+fi
+
 if [ "$(uname)" != "Darwin" ]; then
-    # setup (linux)
-     sudo apt-get update
-     sudo apt-get install g++ ffmpeg libx11-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev  # absolute minimum
-    #sudo apt-get install g++ ffmpeg xorg-dev                                                           # memorable, around 100 mib
-    #sudo apt-get install g++ ffmpeg xorg-dev libglfw3-dev libassimp-dev clang                          # initial revision
+    # setup (ArchLinux)
+     sudo pacman -Syu gcc ffmpeg
+    # setup (Debian, Ubuntu, etc)
+     sudo apt-get -y update
+     sudo apt-get -y install gcc ffmpeg libx11-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev  # absolute minimum
+    #sudo apt-get -y install gcc ffmpeg xorg-dev                                                           # memorable, around 100 mib
+    #sudo apt-get -y install gcc ffmpeg xorg-dev libglfw3-dev libassimp-dev clang                          # initial revision
 
     # pipeline
     #cc art/tools/ass2iqe.c   -o art/tools/ass2iqe.linux  -lm -ldl -lpthread -w -g -lassimp
@@ -52,6 +62,7 @@ fi
 if [ "$(uname)" = "Darwin" ]; then
     # setup (osx)
     export SDKROOT=$(xcrun --show-sdk-path)
+    # brew install glfw
 
     # pipeline
     #cc art/tools/ass2iqe.c   -o art/tools/ass2iqe.osx  -w -g -lassimp

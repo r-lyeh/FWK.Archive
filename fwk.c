@@ -10135,7 +10135,7 @@ bool colormap( colormap_t *cm, const char *material_file, bool load_as_srgb ) {
 
     int srgb = load_as_srgb ? TEXTURE_SRGB : 0;
     int hdr = strendi(material_file, ".hdr") ? TEXTURE_FLOAT | TEXTURE_RGBA : 0;
-    texture_t t = texture(material_file, TEXTURE_LINEAR | TEXTURE_MIPMAPS | TEXTURE_REPEAT | hdr | srgb);
+    texture_t t = texture_compressed(material_file, TEXTURE_LINEAR | TEXTURE_MIPMAPS | TEXTURE_REPEAT | hdr | srgb);
 
     if( t.id == texture_checker().id ) {
         cm->texture = NULL;
@@ -10177,7 +10177,7 @@ bool pbr_material(pbr_material_t *pbr, const char *material) {
         if( strstri(t, "_D.") || strstri(t, "Diffuse") || strstri(t, "BaseColor") )    colormap(&pbr->diffuse, t, 1);
         if( strstri(t, "_N.") || strstri(t, "Normal") )     colormap(&pbr->normals, t, 0);
         if( strstri(t, "_S.") || strstri(t, "Specular") )   colormap(&pbr->specular, t, 0);
-        if( strstri(t, "_A.") || strstri(t, "Albedo") )     colormap(&pbr->albedo, t, 1); // 0);
+        if( strstri(t, "_A.") || strstri(t, "Albedo") )     colormap(&pbr->albedo, t, 1); // 0?
         if( strstri(t, "_MR.")|| strstri(t, "Roughness") )  colormap(&pbr->roughness, t, 0);
         else
         if( strstri(t, "_M.") || strstri(t, "Metallic") )   colormap(&pbr->metallic, t, 0);
@@ -10663,7 +10663,7 @@ bool model_load_textures(iqm_t *q, const struct iqmheader *hdr, model_t *model) 
             material_name = va("%s", &str[m->material]);
             char* plus = strrchr(material_name, '+');
             if (plus) { strcpy(plus, file_ext(material_name)); }
-            *out = texture(material_name, flags).id;
+            *out = texture_compressed(material_name, flags).id;
         }
         // else try right token
         if (*out == invalid) {
@@ -10671,12 +10671,12 @@ bool model_load_textures(iqm_t *q, const struct iqmheader *hdr, model_t *model) 
             char* plus = strrchr(material_name, '+'), *slash = strrchr(material_name, '/');
             if (plus) {
                 strcpy(slash ? slash + 1 : material_name, plus + 1);
-                *out = texture(material_name, flags).id;
+                *out = texture_compressed(material_name, flags).id;
             }
         }
         // else last resort
         if (*out == invalid) {
-            *out = texture(material_name, flags).id; // needed?
+            *out = texture_compressed(material_name, flags).id; // needed?
         }
 
         if( *out != invalid) {
@@ -15038,5 +15038,9 @@ void fwk_init() {
         }
     }
 }
+
+// Enable more performant GPUs on laptops. Does this work into a dll?
+// int NvOptimusEnablement = 1;
+// int AmdPowerXpressRequestHighPerformance = 1;
 
 #line 0

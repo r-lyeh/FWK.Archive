@@ -26,9 +26,9 @@ REM LINUX
 git clone https://github.com/assimp/assimp && cd assimp
 cmake -DCMAKE_BUILD_TYPE=Release .
 make -j 8
+cp bin/libassimp.so ../libassimp.so
+cp bin/libassimp.so ../libassimp.so.5
+cp bin/libassimp.so ../libassimp.so.5.0.1
 cd ..
-cp assimp/bin/libassimp.so ./libassimp.so
-cp assimp/bin/libassimp.so ./libassimp.so.5
-cp assimp/bin/libassimp.so ./libassimp.so.5.0.1
 gcc ass2iqe.c -o ass2iqe.linux -O2 -I assimp/include/ libassimp.so -lm
 

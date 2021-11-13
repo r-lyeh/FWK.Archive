@@ -200,8 +200,8 @@ echo #endif // FWK_C >> fwk-single-header.c
 ## Extra tips
 - Dropped files into game window will be imported & saved into [`art/import`](art/import) folder.
 - Linux/OSX users can optionally install wine to use the Windows pipeline as an alternate asset pipeline (use `--with-wine` flag).
-- Depending on your IDE, you might need to [split all amalgamated](#Amalgamation) files when debugging FWK.
 - Although not recommended, you can remove the cooking stage by invoking `--with-jobs=0` or by removing the [`art/tools`](art/tools) folder.
+- Depending on your IDE, you might need to [split all amalgamated](#Amalgamation) files when debugging FWK.
 <!-- - On windows + vc, you can use `make bindings` or `make docs` to generate everything prior to a release --><!-- gamecontrollerdb.txt -->
 
 ## Bindings
@@ -270,7 +270,7 @@ Any contribution to this repository is implicitly subjected to the same release 
 
 ## Links
 <a href="https://github.com/r-lyeh/FWK/issues"><img alt="Issues" src="https://img.shields.io/github/issues-raw/r-lyeh/FWK.svg"/></a>
-<a href="https://discord.gg/vu6Vt9d"><img alt="Discord" src="https://img.shields.io/badge/chat-FWK%20lounge-738bd7.svg?logo=discord"/></a>
+<a href="https://discord.gg/vu6Vt9d"><img alt="Discord" src="https://img.shields.io/discord/270565488365535232?color=5865F2&label=chat&logo=discord&logoColor=white"/></a><br/>
 
 Still looking for alternatives?
 [amulet](https://github.com/ianmaclarty/amulet),
