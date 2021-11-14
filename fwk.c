@@ -2734,6 +2734,15 @@ bool cooker_start( const char *masks, int flags ) {
         if( !file_ext(fname)[0] ) continue; // discard extensionless entries
         if( !file_size(fname)) continue; // skip dirs and empty files
 
+        // exclude vc c/c++ .obj files. they're not 3d wavefront .obj files
+        if( strstr(fname, ".obj") || strstr(fname, ".OBJ") ) {
+            char header[4] = {0};
+            for( FILE *in = fopen(fname, "rb"); in; fclose(in), in = NULL) {
+                fread(header, 1, 2, in);
+            }
+            if( !memcmp(header, "\x64\x86", 2) ) continue;
+        }
+
         // @todo: normalize path & rebase here (absolute to local)
         // [...]
         // fi.normalized = ; tolower->to_underscore([]();:+ )->remove_extra_underscores
@@ -3116,6 +3125,8 @@ char *ext = strrchr(base, '.'); //if (ext) ext[0] = '\0'; // remove all extensio
     return va("%s", buffer);
 }
 const char** file_list(const char *cwd, const char *masks) {
+    ASSERT(strendi(cwd, "/"), "Error: dirs like '%s' must end with slash", cwd);
+
     static local array(char*) list = 0;
     const char *arg0 = cwd; // app_path();
     int larg0 = strlen(arg0);
@@ -3140,6 +3151,8 @@ const char** file_list(const char *cwd, const char *masks) {
                 if( !memcmp(line, "./", 2) ) line += 2;
                 int len = strlen(line); while( len > 0 && line[len-1] < 32 ) line[--len] = 0;
                 for(int i = 0; i < len; ++i ) if(line[i] == '\\') line[i] = '/';
+                // do not insert system folders/files
+                if( strstr(line, "/.") ) continue;
                 // insert copy
                 #if is(win32)
                 char *copy = STRDUP(line); // full path already provided
