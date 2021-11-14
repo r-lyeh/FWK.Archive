@@ -2734,6 +2734,15 @@ bool cooker_start( const char *masks, int flags ) {
         if( !file_ext(fname)[0] ) continue; // discard extensionless entries
         if( !file_size(fname)) continue; // skip dirs and empty files
 
+        // exclude vc c/c++ .obj files. they're not 3d wavefront .obj files
+        if( strstr(fname, ".obj") || strstr(fname, ".OBJ") ) {
+            char header[4] = {0};
+            for( FILE *in = fopen(fname, "rb"); in; fclose(in), in = NULL) {
+                fread(header, 1, 2, in);
+            }
+            if( !memcmp(header, "\x64\x86", 2) ) continue;
+        }
+
         // @todo: normalize path & rebase here (absolute to local)
         // [...]
         // fi.normalized = ; tolower->to_underscore([]();:+ )->remove_extra_underscores
@@ -2805,13 +2814,33 @@ int cooker_jobs() {
 }
 
 void cooker_config( const char *art_path, const char *tools_path, const char *fwk_ini ) { // @todo: test run-from-"bin/" case on Linux.
-   ART = STRDUP( art_path ? art_path : ART );
-   TOOLS = STRDUP( tools_path ? tools_path : TOOLS );
-   FWK_INI = STRDUP( fwk_ini ? fwk_ini : FWK_INI );
+    const char *rules = file_read(fwk_ini ? fwk_ini : FWK_INI);
+    if( rules[0] != 0 ) {
+        if( strstr(rules, "ART=") ) {
+            ART = STRDUP( strstr(rules, "ART=") + 4 ); // @leak
+            char *r = strchr( ART, '\r' ); if(r) *r = 0;
+            char *n = strchr( ART, '\n' ); if(n) *n = 0;
+            char *s = strchr( ART, ';' );  if(s) *s = 0;
+            char *w = strchr( ART, ' ' );  if(w) *w = 0;
+            if( ART[strlen(ART) - 1] != '/' ) strcat((char*)ART, "/");
+        }
+        if( strstr(rules, "TOOLS=") ) {
+            TOOLS = STRDUP( strstr(rules, "TOOLS=") + 6 ); // @leak
+            char *r = strchr( TOOLS, '\r' ); if(r) *r = 0;
+            char *n = strchr( TOOLS, '\n' ); if(n) *n = 0;
+            char *s = strchr( TOOLS, ';' );  if(s) *s = 0;
+            char *w = strchr( TOOLS, ' ' );  if(w) *w = 0;
+            if( TOOLS[strlen(TOOLS) - 1] != '/' ) strcat((char*)TOOLS, "/");
+        }
+    }
 
-   assert( ART[strlen(ART) - 1] == '/' );
-   assert( TOOLS[strlen(TOOLS) - 1] == '/' );
-   assert( FWK_INI[strlen(FWK_INI) - 1] != '/' );
+    ART = STRDUP( art_path ? art_path : ART );
+    TOOLS = STRDUP( tools_path ? tools_path : TOOLS );
+    FWK_INI = STRDUP( fwk_ini ? fwk_ini : FWK_INI );
+
+    assert( ART[strlen(ART) - 1] == '/' );
+    assert( TOOLS[strlen(TOOLS) - 1] == '/' );
+    assert( FWK_INI[strlen(FWK_INI) - 1] != '/' );
 }
 
 // ----------------------------------------------------------------------------
@@ -3116,6 +3145,8 @@ char *ext = strrchr(base, '.'); //if (ext) ext[0] = '\0'; // remove all extensio
     return va("%s", buffer);
 }
 const char** file_list(const char *cwd, const char *masks) {
+    ASSERT(strendi(cwd, "/"), "Error: dirs like '%s' must end with slash", cwd);
+
     static local array(char*) list = 0;
     const char *arg0 = cwd; // app_path();
     int larg0 = strlen(arg0);
@@ -3140,6 +3171,8 @@ const char** file_list(const char *cwd, const char *masks) {
                 if( !memcmp(line, "./", 2) ) line += 2;
                 int len = strlen(line); while( len > 0 && line[len-1] < 32 ) line[--len] = 0;
                 for(int i = 0; i < len; ++i ) if(line[i] == '\\') line[i] = '/';
+                // do not insert system folders/files
+                if( strstr(line, "/.") ) continue;
                 // insert copy
                 #if is(win32)
                 char *copy = STRDUP(line); // full path already provided
@@ -15033,6 +15066,7 @@ void fwk_init() {
         }
 
         // create or update cook.zip file
+        cooker_config(NULL, NULL, NULL);
         if( file_directory(TOOLS) && cooker_jobs() ) {
             cooker_start( "**", 0|COOKER_ASYNC );
         }

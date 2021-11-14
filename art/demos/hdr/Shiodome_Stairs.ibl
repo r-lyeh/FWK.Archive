@@ -1,0 +1,45 @@
+[Header]
+ICOfile = "10-Shiodome_Stairs_thumb.jpg"
+PREVIEWfile = "10-Shiodome_Stairs_preview.jpg"
+Name = "Shiodome Stairs"
+Author = "Blochi"
+Location = "Tokyo"
+Comment = "Multi-level urban landscape in bright daylight, surrounded by skyscrapers."
+GEOlat = 35.6645317077777760
+GEOlong = 139.7611999511111100
+Link = "http://www.hdrlabs.com/sibl/archive.html"
+Date = "2009:12:17"
+Time = "09:00:00"
+Height = 1.700000
+
+[Background]
+BGfile = "10-Shiodome_Stairs_8k.jpg"
+BGmap = 1
+BGu = 0.000000
+BGv = 0.000000
+BGheight = 4096
+
+[Enviroment]
+EVfile = "10-Shiodome_Stairs_Env.hdr"
+EVmap = 1
+EVu = 0.000000
+EVv = 0.000000
+EVheight = 180
+EVmulti = 1.000000
+EVgamma = 1.700000
+
+[Reflection]
+REFfile = "10-Shiodome_Stairs_3k.hdr"
+REFmap = 1
+REFu = 0.000000
+REFv = 0.000000
+REFheight = 1600
+REFmulti = 1.000000
+REFgamma = 1.700000
+
+[Sun]
+SUNcolor = 255,251,238
+SUNmulti = 1.000000
+SUNu = 0.298000
+SUNv = 0.472000
+

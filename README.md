@@ -262,7 +262,7 @@ Any contribution to this repository is implicitly subjected to the same release 
 - [Rich Geldreich](https://github.com/richgel999/miniz), for miniz (PD).
 - [Ross Williams](http://ross.net/compression/lzrw3a.html) for lzrw3a (PD).
 - [Samuli Raivio](https://github.com/bqqbarbhg/bq_websocket), for bq_websocket (PD).
-- [Sean Barrett](https://github.com/nothings), for stb_image, stb_image_write and stb_vorbis (PD).
+- [Sean Barrett](https://github.com/nothings), for stb_image, stb_image_write, stb_truetype and stb_vorbis (PD).
 - [Sebastian Steinhauer](https://github.com/kieselsteini), for sts_mixer (PD).
 - [Stefan Gustavson](https://github.com/stegu/perlin-noise), for simplex noise (PD).
 - [Vassvik](https://github.com/vassvik/mv_easy_font), for mv_easy_font (Unlicense).

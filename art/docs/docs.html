@@ -599,11 +599,11 @@ markdeepOptions = {
 </script>
 <!-- Markdeep: --><script src="https://casual-effects.com/markdeep/latest/markdeep.min.js?" charset="utf-8"></script>
 
-| Documentation last modified | 01/11/2021        |
+| Documentation last modified | 14/11/2021        |
 |:--------------|:------------|
 |Version:       | 2021.11     |
 |Branch:        | master         |
-|Commit:        | 33               |
+|Commit:        | 130              |
 
 # [F·W·K 2021.11    ](https://github.com/r-lyeh/FWK)
 ## a b o u t
@@ -707,12 +707,12 @@ void assert_positive( int my_int ) { // snake_case everywhere
 - [x] Audio: WAV/FLAC, OGG/MP1/MP3, MOD/XM/S3M/IT, SFXR and MID.
 - [x] Video: MP4, MPG, OGV, MKV, WMV and AVI.
 - [x] Model: IQM/E, GLTF/2, GLB, FBX, OBJ, DAE, BLEND, MD3/5, MS3D, SMD, X, 3DS, BVH, DXF, LWO.
-- [x] Render: 2D Sprites, spritesheets, AA zooming and batching.
-- [x] Render: 3D Anims, skeletal anims and hardware skinning.
-- [x] Render: 3D Debugdraw, batching and vectorial font.
+- [x] Render: PBR (metallic-roughness) workflow.
 - [x] Render: Cubemaps, panoramas and spherical harmonics. Rayleigh/Mie scattering.
 - [x] Render: Post-effects (SSAO,FXAA1/3,CRT,Contrast,Grain,Outline,Vignette...).
-- [x] Render: PBR (metallic-roughness) workflow.
+- [x] Render: 3D Anims, skeletal anims and hardware skinning.
+- [x] Render: 3D Debugdraw, batching and vectorial font.
+- [x] Render: 2D Sprites, spritesheets, AA zooming and batching.
 - [x] Compression: DEFLATE, LZMA, LZ4, ULZ, BALZ, BCM, CRUSH, LZW3, LZSS and PPP.
 - [x] Virtual filesystem: ZIP, PAK, TAR and DIR.
 - [x] Level data: JSON, JSON5, SJSON, XML.
@@ -879,8 +879,8 @@ echo #endif // FWK_C >> fwk-single-header.c
 
 - Dropped files into game window will be imported & saved into [`art/import`](art/import) folder.
 - Linux/OSX users can optionally install wine to use the Windows pipeline as an alternate asset pipeline (use `--with-wine` flag).
-- Depending on your IDE, you might need to [split all amalgamated](#Amalgamation) files when debugging FWK.
 - Although not recommended, you can remove the cooking stage by invoking `--with-jobs=0` or by removing the [`art/tools`](art/tools) folder.
+- Depending on your IDE, you might need to [split all amalgamated](#Amalgamation) files when debugging FWK.
 <!-- - On windows + vc, you can use `make bindings` or `make docs` to generate everything prior to a release --><!-- gamecontrollerdb.txt -->
 
 </details>
@@ -973,7 +973,7 @@ Any contribution to this repository is implicitly subjected to the same release 
 
 
 <a href="https://github.com/r-lyeh/FWK/issues"><img alt="Issues" src="https://img.shields.io/github/issues-raw/r-lyeh/FWK.svg"/></a>
-<a href="https://discord.gg/vu6Vt9d"><img alt="Discord" src="https://img.shields.io/badge/chat-FWK%20lounge-738bd7.svg?logo=discord"/></a>
+<a href="https://discord.gg/vu6Vt9d"><img alt="Discord" src="https://img.shields.io/discord/270565488365535232.svg?logo=discord&labelColor=5865F2&color=5865F2&logoColor=white"/></a>
 
 Still looking for alternatives?
 [amulet](https://github.com/ianmaclarty/amulet),
