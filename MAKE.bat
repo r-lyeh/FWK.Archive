@@ -4,7 +4,7 @@
 cd `dirname $0`
 
 # copy demos to root folder. local changes are preserved
-cp demos/*.c . -n
+cp -n demos/*.c .
 
 if [ "$1" = "tidy" ]; then
     rm demo_* 2> /dev/null
@@ -79,6 +79,12 @@ if [ "$(uname)" = "Darwin" ]; then
     chmod +x art/tools/ffmpeg.osx
     chmod +x art/tools/cuttlefish.osx
     chmod +x art/tools/PVRTexToolCLI.osx
+
+    # framework (as dynamic library)
+    if [ "$1" = "dll" ]; then
+        cc -ObjC -dynamiclib -o libfwk.dylib fwk.c -framework cocoa -framework iokit
+        cp libfwk.dylib demos/lua
+    fi
 
     # framework
     echo fwk            && cc -c -ObjC fwk.c -w -g $*

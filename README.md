@@ -169,7 +169,7 @@
 //    }
 -->
 
-## Build
+## Build (as static library)
 Type `MAKE.bat` (Win) or `sh MAKE.bat` (Linux/OSX) to build everything. Alternatively,
 
 ```lua
@@ -180,7 +180,11 @@ echo OSX (gcc+clang)       && cc  demo.c -ObjC fwk.c -o demo -w -framework cocoa
 ```
 <!-- - Note: Windows: Assimp.dll may need [this package installed](https://www.microsoft.com/en-us/download/confirmation.aspx?id=30679).-->
 - Note: TCC is partially supported on Windows+Linux. Beware, no threading.
-- Note: FWK as DLL: `cl fwk.c /LD /DAPI=EXPORT && cl demo.c fwk.lib /DAPI=IMPORT`.
+
+## Build (as dynamic library)
+- Windows: `cl fwk.c /LD /DAPI=EXPORT && cl demo.c fwk.lib /DAPI=IMPORT`
+- OSX: `cc -ObjC -dynamiclib -o libfwk.dylib fwk.c -framework cocoa -framework iokit`
+- Test it by typing `cd demos/lua && luajit demo_luajit.lua`
 
 ## Amalgamation
 - Split FWK into separate files by running `art/tools/split.bat` (or `sh art/tools/split.bat` in Linux/OSX).
@@ -206,7 +210,6 @@ echo #endif // FWK_C >> fwk-single-header.c
 
 ## Bindings
 - Luajit: Luajit bindings are provided in the [fwk.lua](demos/lua/fwk.lua) auto-generated file.
-- Luajit: You can test it by typing `cd demos\lua && luajit demo_luajit.lua`
 - Nelua: [Nelua bindings](https://github.com/Rabios/nelua-fun/tree/main/fwk) provided by Rabia Alhaffar.
 
 ## License
@@ -262,7 +265,7 @@ Any contribution to this repository is implicitly subjected to the same release 
 - [Rich Geldreich](https://github.com/richgel999/miniz), for miniz (PD).
 - [Ross Williams](http://ross.net/compression/lzrw3a.html) for lzrw3a (PD).
 - [Samuli Raivio](https://github.com/bqqbarbhg/bq_websocket), for bq_websocket (PD).
-- [Sean Barrett](https://github.com/nothings), for stb_image, stb_image_write and stb_vorbis (PD).
+- [Sean Barrett](https://github.com/nothings), for stb_image, stb_image_write, stb_truetype and stb_vorbis (PD).
 - [Sebastian Steinhauer](https://github.com/kieselsteini), for sts_mixer (PD).
 - [Stefan Gustavson](https://github.com/stegu/perlin-noise), for simplex noise (PD).
 - [Vassvik](https://github.com/vassvik/mv_easy_font), for mv_easy_font (Unlicense).

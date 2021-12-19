@@ -939,7 +939,10 @@ API int         data_count(const char *keypath);
 #define         data_int(...)    (data_get(stringf("i" __VA_ARGS__)).i)
 #define         data_float(...)  (data_get(stringf("f" __VA_ARGS__)).f)
 #define         data_string(...) (data_get(stringf("s" __VA_ARGS__)).s)
+#define         data_count(...)   data_count(stringf(__VA_ARGS__))
 API bool    data_pop();
+
+// syntax sugars
 
 
 #line 0

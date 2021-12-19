@@ -4,13 +4,13 @@
 cd `dirname $0`
 
 git clone https://github.com/assimp/assimp && cd assimp
-cmake -DCMAKE_BUILD_TYPE=Release .
+cmake -DCMAKE_BUILD_TYPE=Release -DASSIMP_BUILD_TESTS=OFF .
 make -j 8
 cp bin/libassimp.so ../libassimp.so
 cp bin/libassimp.so ../libassimp.so.5
-cp bin/libassimp.so ../libassimp.so.5.0.1
+cp bin/libassimp.so ../libassimp.so.5.1.4
 cd ..
-gcc ass2iqe.c -o ass2iqe.linux -O2 -I assimp/include/ libassimp.so -lm
+cc ass2iqe.c -o ass2iqe.linux -O2 -I assimp/include/ libassimp.so -lm
 
 exit
 
