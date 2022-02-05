@@ -590,11 +590,3 @@ details > summary::-webkit-details-marker {
 .md code { color: rgb(255,255,235); } /* default unclassified #text and punctuation */
 
 </style>
-<script>
-markdeepOptions = {
-    tocStyle:'medium', /* auto,none,short,medium,long */
-    definitionStyle:'auto',  /* auto,short,long */
-    linkAPIDefinitions: true, /* true */
-};
-</script>
-<!-- Markdeep: --><script src="https://casual-effects.com/markdeep/latest/markdeep.min.js?" charset="utf-8"></script>

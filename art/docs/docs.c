@@ -878,6 +878,15 @@ int main(int argc, char **argv) {
     array_unique(macros, sort_strcmp);
     { char *sep = ""; for(int i = 0, end = array_count(macros); i < end; ++i)     printf("%s[%s](#%s)", sep, macros[i], macros[i]), sep = ", "; }
 
+    puts("\n<script>");
+    puts("\nmarkdeepOptions = {");
+    puts("\n    tocStyle:'medium', /* auto,none,short,medium,long */");
+    puts("\n    definitionStyle:'auto',  /* auto,short,long */");
+    puts("\n    linkAPIDefinitions: true, /* true */");
+    puts("\n};");
+    puts("\n</script>");
+    puts("\n<!-- Markdeep: --><script src=\"https://casual-effects.com/markdeep/latest/markdeep.min.js?\" charset=\"utf-8\"></script>");
+
     fprintf(stderr, "%s\n", "Ok");
 }
 
