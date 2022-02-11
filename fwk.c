@@ -14314,7 +14314,9 @@ glDebugEnable();
     // 0:disable vsync, 1:enable vsync, <0:adaptive (allow vsync when framerate is higher than syncrate and disable vsync when framerate drops below syncrate)
     glfwSwapInterval(has_adaptive_vsync ? -1 : 1);
 
-    /*if(keep_aspect_ratio)*/ glfwSetWindowAspectRatio(window, /*mode->*/w/*idth*/, /*mode->*/h/*eight*/);
+    keep_aspect_ratio = flag("--with-aspect-ratio");
+
+    if (keep_aspect_ratio) glfwSetWindowAspectRatio(window, /*mode->*/w/*idth*/, /*mode->*/h/*eight*/);
     window_cursor(flags & WINDOW_NO_MOUSE ? false : true);
 
     glfwSetDropCallback(window, window_drop_callback);
@@ -14721,6 +14723,19 @@ int window_has_videorec() {
     return !!videorec_file[0];
 }
 
+void window_keep_aspect(int numer, int denom) {
+    if(!window) return;
+
+    keep_aspect_ratio = 1;
+    glfwSetWindowAspectRatio(window, numer, denom);
+}
+
+void window_unlock_aspect() {
+    if(!window) return;
+
+    keep_aspect_ratio = 0;
+    glfwSetWindowAspectRatio(window, GLFW_DONT_CARE, GLFW_DONT_CARE);
+}
 #line 0
 #line 1 "fwk_editor.c"
 // editing:

@@ -2529,6 +2529,8 @@ API void     window_visible(int visible);
 API int      window_has_visible();
 API void     window_videorec(const char* filename_mpg);
 API int      window_has_videorec();
+API void     window_keep_aspect(int numer, int denom);
+API void     window_unlock_aspect();
 
 API void     window_screenshot(const char* filename_png);
 
