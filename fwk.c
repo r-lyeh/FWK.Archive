@@ -1170,21 +1170,39 @@ float audio_volume_master(float gain) {
     return sqrt( volume_master );
 }
 
+int audio_play_gain_pitch_pan( audio_t a, int flags, float gain, float pitch, float pan ) {
+    // gain: 0..+1
+    // pitch: 0..N
+    // pan: -1..+1
 
-int audio_play( audio_t a, int flags ) {
+    if (!(flags & AUDIO_OVERRIDE_GAIN)) {
+        gain = a->is_clip ? volume_clip : volume_stream + gain;
+    }
+
     if( a->is_clip ) {
-        float gain = volume_clip; // randf(); // [0..1]
-        float pitch = 1.f; // (0..N]
-        float pan =  0; // -1.0f + randf() * 2.0f; // [-1..+1]
         int voice = sts_mixer_play_sample(&mixer, &a->clip, gain, pitch, pan);
         if( voice == -1 ) return 0; // all voices busy
     }
     else if( a->is_stream ) {
-        float gain = volume_stream;
+        (void)pitch;
+        (void)pan;
         int voice = sts_mixer_play_stream(&mixer, &a->stream.stream, gain);
         if( voice == -1 ) return 0; // all voices busy
     }
     return 1;
+}
+
+int audio_play_gain_pitch( audio_t a, int flags, float gain, float pitch ) {
+    return audio_play_gain_pitch_pan(a, flags, gain, pitch, 0);
+}
+
+int audio_play_gain( audio_t a, int flags, float gain ) {
+    return audio_play_gain_pitch(a, flags, gain, 1.f);
+}
+
+int audio_play( audio_t a, int flags ) {
+    flags &= ~AUDIO_OVERRIDE_GAIN; // we always use mixer volume in this call
+    return audio_play_gain(a, flags, 0.f);
 }
 
 // -----------------------------------------------------------------------------

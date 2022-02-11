@@ -706,6 +706,9 @@ typedef struct audio_handle* audio_t;
 
 API audio_t audio_clip( const char *pathfile );
 API audio_t audio_stream( const char *pathfile );
+API     int audio_play_gain_pitch_pan( audio_t a, int flags, float gain, float pitch, float pan ); // default pan=0.0f
+API     int audio_play_gain_pitch( audio_t a, int flags, float gain, float pitch ); // default pitch=1.0f
+API     int audio_play_gain( audio_t a, int flags, float gain ); // default gain=0.f when AUDIO_OVERRIDE_GAIN is not set
 API     int audio_play( audio_t s, int flags );
 
 API float   audio_volume_clip(float gain);   // set     fx volume if gain is in [0..1] range. return current     fx volume in any case
@@ -723,6 +726,8 @@ enum AUDIO_FLAGS {
 
     AUDIO_22KHZ = 0, // default
     AUDIO_44KHZ = 16,
+
+    AUDIO_OVERRIDE_GAIN = 32, // ignores mixer volume levels
 };
 
 API int audio_queue( const void *samples, int num_samples, int flags );
