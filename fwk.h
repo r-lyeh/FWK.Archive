@@ -706,10 +706,10 @@ typedef struct audio_handle* audio_t;
 
 API audio_t audio_clip( const char *pathfile );
 API audio_t audio_stream( const char *pathfile );
-API     int audio_play_gain_pitch_pan( audio_t a, int flags, float gain, float pitch, float pan ); // default pan=0.0f
-API     int audio_play_gain_pitch( audio_t a, int flags, float gain, float pitch ); // default pitch=1.0f
-API     int audio_play_gain( audio_t a, int flags, float gain ); // default gain=0.f when AUDIO_OVERRIDE_GAIN is not set
-API     int audio_play( audio_t s, int flags );
+API int     audio_play( audio_t s, int flags );
+API int     audio_play_gain( audio_t a, int flags, float gain/*0*/ );
+API int     audio_play_gain_pitch( audio_t a, int flags, float gain, float pitch/*1*/ );
+API int     audio_play_gain_pitch_pan( audio_t a, int flags, float gain, float pitch, float pan/*0*/ );
 
 API float   audio_volume_clip(float gain);   // set     fx volume if gain is in [0..1] range. return current     fx volume in any case
 API float   audio_volume_stream(float gain); // set    bgm volume if gain is in [0..1] range. return current    bgm volume in any case
@@ -727,7 +727,8 @@ enum AUDIO_FLAGS {
     AUDIO_22KHZ = 0, // default
     AUDIO_44KHZ = 16,
 
-    AUDIO_OVERRIDE_GAIN = 32, // ignores mixer volume levels
+    AUDIO_MIXER_GAIN = 0, // default
+    AUDIO_IGNORE_MIXER_GAIN = 32,
 };
 
 API int audio_queue( const void *samples, int num_samples, int flags );
@@ -2487,8 +2488,6 @@ API void       video_destroy( video_t *v );
 // @todo: WINDOW_TRAY
 
 enum WINDOW_FLAGS {
-    WINDOW_NO_MOUSE = 0x01,
-
     WINDOW_MSAA2 = 0x02,
     WINDOW_MSAA4 = 0x04,
     WINDOW_MSAA8 = 0x08,
@@ -2496,10 +2495,11 @@ enum WINDOW_FLAGS {
     WINDOW_SQUARE = 0x20,
     WINDOW_PORTRAIT = 0x40,
     WINDOW_LANDSCAPE = 0x80,
+    WINDOW_FIXED = 0x100,
 
-    WINDOW_VSYNC_FORCE = 0x200,
-    WINDOW_VSYNC_ADAPTIVE = 0x400,
-    WINDOW_VSYNC_NONE = 0x800,
+    WINDOW_VSYNC = 0,
+    WINDOW_VSYNC_ADAPTIVE = 0x1000,
+    WINDOW_VSYNC_DISABLED = 0x2000,
 };
 
 API void     window_create(float zoom, int flags);
@@ -2516,7 +2516,6 @@ API double   window_aspect();
 API double   window_time();
 API double   window_delta();
 API double   window_fps();
-API void     window_lock(float fps);
 
 API bool     window_hook(void (*func)(), void* userdata);
 API void     window_unhook(void (*func)());
@@ -2533,8 +2532,11 @@ API void     window_visible(int visible);
 API int      window_has_visible();
 API void     window_videorec(const char* filename_mpg);
 API int      window_has_videorec();
-API void     window_keep_aspect(int numer, int denom);
+
+API void     window_lock_aspect(unsigned numer, unsigned denom);
 API void     window_unlock_aspect();
+API void     window_lock_fps(float fps);
+API void     window_unlock_fps();
 
 API void     window_screenshot(const char* filename_png);
 

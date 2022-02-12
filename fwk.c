@@ -1171,21 +1171,20 @@ float audio_volume_master(float gain) {
 }
 
 int audio_play_gain_pitch_pan( audio_t a, int flags, float gain, float pitch, float pan ) {
-    // gain: 0..+1
-    // pitch: 0..N
-    // pan: -1..+1
-
-    if (!(flags & AUDIO_OVERRIDE_GAIN)) {
-        gain = a->is_clip ? volume_clip : volume_stream + gain;
+    if( flags & AUDIO_IGNORE_MIXER_GAIN ) {
+        // do nothing, gain used as-is
+    } else {
+        // apply mixer gains on top
+        gain += a->is_clip ? volume_clip : volume_stream;
     }
+
+    // gain: [0..+1], pitch: (0..N], pan: [-1..+1]
 
     if( a->is_clip ) {
         int voice = sts_mixer_play_sample(&mixer, &a->clip, gain, pitch, pan);
         if( voice == -1 ) return 0; // all voices busy
     }
-    else if( a->is_stream ) {
-        (void)pitch;
-        (void)pan;
+    if( a->is_stream ) {
         int voice = sts_mixer_play_stream(&mixer, &a->stream.stream, gain);
         if( voice == -1 ) return 0; // all voices busy
     }
@@ -1201,8 +1200,7 @@ int audio_play_gain( audio_t a, int flags, float gain ) {
 }
 
 int audio_play( audio_t a, int flags ) {
-    flags &= ~AUDIO_OVERRIDE_GAIN; // we always use mixer volume in this call
-    return audio_play_gain(a, flags, 0.f);
+    return audio_play_gain(a, flags & ~AUDIO_IGNORE_MIXER_GAIN, 0.f);
 }
 
 // -----------------------------------------------------------------------------
@@ -12927,8 +12925,8 @@ double time_hh() {
 }
 
 void sleep_ns( double ns ) {
-    if( ns > 0 ) {
 #ifdef _WIN32
+    if( ns >= 100 ) {
         LARGE_INTEGER li;      // Windows sleep in 100ns units
         HANDLE timer = CreateWaitableTimer(NULL, TRUE, NULL);
         li.QuadPart = (LONGLONG)(__int64)(-ns/100); // Negative for relative time
@@ -12936,6 +12934,7 @@ void sleep_ns( double ns ) {
         WaitForSingleObject(timer, INFINITE);
         CloseHandle(timer);
 #else
+    if( ns > 0 ) {
         struct timespec wait = {0};
         wait.tv_sec = ns / 1e9;
         wait.tv_nsec = ns - wait.tv_sec * 1e9;
@@ -14186,7 +14185,7 @@ int fps__timing_thread(void *arg) {
             int64_t tt = (int64_t)(1e9/(float)framerate) - ns_excess;
             uint64_t took = -time_ns();
         #ifdef _WIN32
-            timeBeginPeriod(1); Sleep( tt/1e6 );
+            timeBeginPeriod(1); Sleep( tt > 0 ? tt/1e6 : 0 );
         #else
             sleep_ns( (float)tt );
         #endif
@@ -14221,7 +14220,7 @@ int fps_wait() {
     // if we throttled too much, cpu idle wait
     while( fps_active && (loop_counter > timer_counter) ) {
         //thread_yield();
-        sleep_ns(10);
+        sleep_ns(100);
     }
 
     // max auto frameskip is 10: ie, even if speed is low paint at least one frame every 10
@@ -14235,7 +14234,7 @@ int fps_wait() {
     return loop_counter >= timer_counter;
 }
 static
-void vsync(float hz) {
+void window_vsync(float hz) {
     if( hz <= 0 ) return;
     do_once fps_locker(1);
     framerate = hz;
@@ -14275,7 +14274,7 @@ static double t, dt, fps, hz = 0.00;
 static char title[128] = {0};
 static char screenshot_file[512];
 static char videorec_file[512];
-static int keep_aspect_ratio = 0;
+static int locked_aspect_ratio = 0;
 
 void window_drop_callback(GLFWwindow* window, int count, const char** paths) {
     // @fixme: win: convert from utf8 to window16 before processing
@@ -14308,34 +14307,24 @@ glfwGetFramebufferSize(window, &w, &h); //glfwGetWindowSize(window, &w, &h);
     gladLoadGL(glfwGetProcAddress);
 glDebugEnable();
 
+    // 0:disable vsync, 1:enable vsync, <0:adaptive (allow vsync when framerate is higher than syncrate and disable vsync when framerate drops below syncrate)
+    flags |= optioni("--with-vsync", 1) || flag("--with-vsync") ? WINDOW_VSYNC : WINDOW_VSYNC_DISABLED;
+    flags |= optioni("--with-vsync-adaptive", 0) || flag("--with-vsync-adaptive") ? WINDOW_VSYNC_ADAPTIVE : 0;
+    int has_adaptive_vsync = glfwExtensionSupported("WGL_EXT_swap_control_tear") || glfwExtensionSupported("GLX_EXT_swap_control_tear") || glfwExtensionSupported("EXT_swap_control_tear");
+    int wants_adaptive_vsync = (flags & WINDOW_VSYNC_ADAPTIVE);
+    int interval = has_adaptive_vsync && wants_adaptive_vsync ? -1 : (flags & WINDOW_VSYNC_DISABLED ? 0 : 1);
+    glfwSwapInterval(interval);
+
+    GLFWmonitor* monitor = glfwGetWindowMonitor(window); if(!monitor) monitor = glfwGetPrimaryMonitor();
+    const GLFWvidmode *mode = glfwGetVideoMode(monitor);
+    PRINTF("Monitor: %s (%dHz, vsync=%d)\n", glfwGetMonitorName(monitor), mode->refreshRate, interval);
     PRINTF("GPU device: %s\n", glGetString(GL_RENDERER));
     PRINTF("GPU driver: %s\n", glGetString(GL_VERSION));
 
-    int has_adaptive_vsync = flag("--with-adaptive-vsync") || glfwExtensionSupported("WGL_EXT_swap_control_tear") || glfwExtensionSupported("GLX_EXT_swap_control_tear") || glfwExtensionSupported("EXT_swap_control_tear");
-    has_adaptive_vsync = optioni("--with-adaptive-vsync", has_adaptive_vsync);
-    has_adaptive_vsync = has_adaptive_vsync && (flags & WINDOW_VSYNC_ADAPTIVE);
+    int lock_aspect_ratio = !!( flags & (WINDOW_SQUARE | WINDOW_PORTRAIT | WINDOW_LANDSCAPE | WINDOW_FIXED));
+    if (lock_aspect_ratio) window_lock_aspect(w, h);
 
-    if (optioni("--with-vsync", 0) == 1) {
-        flags |= WINDOW_VSYNC_FORCE;
-    }
-
-    // 0:disable vsync, 1:enable vsync, <0:adaptive (allow vsync when framerate is higher than syncrate and disable vsync when framerate drops below syncrate)
-    if (flags & (WINDOW_VSYNC_FORCE|WINDOW_VSYNC_ADAPTIVE|WINDOW_VSYNC_NONE)) {
-        int state = (flags & WINDOW_VSYNC_NONE) ? 0 : has_adaptive_vsync ? -1 : 1;
-        PRINTF("Vsync control: %d\n", state);
-        glfwSwapInterval(state);
-
-        if (state == 1) {
-            hz = 0.0;
-        }
-    }
-
-    // @todo: auto-detect refresh rate and set hz accordingly
-
-    keep_aspect_ratio = flag("--with-aspect-ratio");
-
-    if (keep_aspect_ratio) glfwSetWindowAspectRatio(window, /*mode->*/w/*idth*/, /*mode->*/h/*eight*/);
-    window_cursor(flags & WINDOW_NO_MOUSE ? false : true);
+    // window_cursor(flags & WINDOW_NO_MOUSE ? false : true);
 
     glfwSetDropCallback(window, window_drop_callback);
 
@@ -14388,6 +14377,8 @@ glDebugEnable();
 
     fwk_post_init_subsystems();
 
+    hz = mode->refreshRate;
+
     //    t = glfwGetTime();
 }
 
@@ -14396,9 +14387,8 @@ void window_create(float zoom, int flags) {
     if(!t) t = glfwGetTime();
 
     GLFWmonitor *monitor = glfwGetPrimaryMonitor();
-    PRINTF("Monitor: %s\n", glfwGetMonitorName(monitor));
-
     const GLFWvidmode *mode = glfwGetVideoMode(monitor);
+
     int area_width, area_height;
     glfwGetMonitorWorkarea(monitor, &xpos, &ypos, &area_width, &area_height);
     float width = area_width, height = area_height, ratio = width / (height + !!height);
@@ -14431,7 +14421,6 @@ glfwWindowHint(GLFW_DOUBLEBUFFER, GL_TRUE);
 // Prevent fullscreen window minimize on focus loss
 glfwWindowHint( GLFW_AUTO_ICONIFY, GL_FALSE );
 
-    int keep_aspect_ratio = 1;
     glfwWindowHint(GLFW_FOCUSED, GLFW_TRUE);
     glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
     // glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
@@ -14507,8 +14496,11 @@ void window_flush() {
         fwk_pre_swap_subsystems();
     }
 }
-void window_lock(float fps) {
+void window_lock_fps(float fps) {
     hz = fps;
+}
+void window_unlock_fps() {
+    hz = 0;
 }
 int window_swap() {
     int ready = !glfwWindowShouldClose(window);
@@ -14587,7 +14579,7 @@ int window_swap() {
 
         if( !first ) {
             // glFinish();
-            vsync(hz);
+            window_vsync(hz);
             glfwSwapBuffers(window);
             ++frame_count;
         }
@@ -14741,18 +14733,17 @@ int window_has_videorec() {
     return !!videorec_file[0];
 }
 
-void window_keep_aspect(int numer, int denom) {
+void window_lock_aspect(unsigned numer, unsigned denom) {
     if(!window) return;
-
-    keep_aspect_ratio = 1;
-    glfwSetWindowAspectRatio(window, numer, denom);
+    if( numer * denom ) {
+        glfwSetWindowAspectRatio(window, numer, denom);
+    } else {
+        glfwSetWindowAspectRatio(window, GLFW_DONT_CARE, GLFW_DONT_CARE);
+    }
 }
-
 void window_unlock_aspect() {
     if(!window) return;
-
-    keep_aspect_ratio = 0;
-    glfwSetWindowAspectRatio(window, GLFW_DONT_CARE, GLFW_DONT_CARE);
+    window_lock_aspect(0, 0);
 }
 #line 0
 #line 1 "fwk_editor.c"
@@ -14938,7 +14929,7 @@ void editor_update() {
         ui_end();
     }
 
-    window_lock( editor_hz );
+    window_lock_fps( editor_hz );
 }
 bool editor_active() {
     return ui_hover() || ui_active() || gizmo_active() ? 1 : 0;
