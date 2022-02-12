@@ -2496,6 +2496,10 @@ enum WINDOW_FLAGS {
     WINDOW_SQUARE = 0x20,
     WINDOW_PORTRAIT = 0x40,
     WINDOW_LANDSCAPE = 0x80,
+
+    WINDOW_VSYNC_FORCE = 0x200,
+    WINDOW_VSYNC_ADAPTIVE = 0x400,
+    WINDOW_VSYNC_NONE = 0x800,
 };
 
 API void     window_create(float zoom, int flags);

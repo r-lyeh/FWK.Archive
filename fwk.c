@@ -14185,7 +14185,11 @@ int fps__timing_thread(void *arg) {
             timer_counter++;
             int64_t tt = (int64_t)(1e9/(float)framerate) - ns_excess;
             uint64_t took = -time_ns();
+        #ifdef _WIN32
+            timeBeginPeriod(1); Sleep( tt/1e6 );
+        #else
             sleep_ns( (float)tt );
+        #endif
             took += time_ns();
             ns_excess = took - tt;
             if( ns_excess < 0 ) ns_excess = 0;
@@ -14217,7 +14221,7 @@ int fps_wait() {
     // if we throttled too much, cpu idle wait
     while( fps_active && (loop_counter > timer_counter) ) {
         //thread_yield();
-        sleep_ns(1000);
+        sleep_ns(10);
     }
 
     // max auto frameskip is 10: ie, even if speed is low paint at least one frame every 10
@@ -14267,11 +14271,11 @@ static GLFWwindow *window;
 static int w, h, xpos, ypos, paused;
 static int fullscreen, xprev, yprev, wprev, hprev;
 static uint64_t frame_count;
-static double t, dt, fps, hz = 60.00;
+static double t, dt, fps, hz = 0.00;
 static char title[128] = {0};
 static char screenshot_file[512];
 static char videorec_file[512];
-static int has_adaptive_vsync = 0;
+static int keep_aspect_ratio = 0;
 
 void window_drop_callback(GLFWwindow* window, int count, const char** paths) {
     // @fixme: win: convert from utf8 to window16 before processing
@@ -14307,12 +14311,26 @@ glDebugEnable();
     PRINTF("GPU device: %s\n", glGetString(GL_RENDERER));
     PRINTF("GPU driver: %s\n", glGetString(GL_VERSION));
 
-    has_adaptive_vsync = flag("--with-adaptive-vsync") || glfwExtensionSupported("WGL_EXT_swap_control_tear") || glfwExtensionSupported("GLX_EXT_swap_control_tear") || glfwExtensionSupported("EXT_swap_control_tear");
+    int has_adaptive_vsync = flag("--with-adaptive-vsync") || glfwExtensionSupported("WGL_EXT_swap_control_tear") || glfwExtensionSupported("GLX_EXT_swap_control_tear") || glfwExtensionSupported("EXT_swap_control_tear");
     has_adaptive_vsync = optioni("--with-adaptive-vsync", has_adaptive_vsync);
-    PRINTF("Vsync control: %d\n", has_adaptive_vsync);
+    has_adaptive_vsync = has_adaptive_vsync && (flags & WINDOW_VSYNC_ADAPTIVE);
+
+    if (optioni("--with-vsync", 0) == 1) {
+        flags |= WINDOW_VSYNC_FORCE;
+    }
 
     // 0:disable vsync, 1:enable vsync, <0:adaptive (allow vsync when framerate is higher than syncrate and disable vsync when framerate drops below syncrate)
-    glfwSwapInterval(has_adaptive_vsync ? -1 : 1);
+    if (flags & (WINDOW_VSYNC_FORCE|WINDOW_VSYNC_ADAPTIVE|WINDOW_VSYNC_NONE)) {
+        int state = (flags & WINDOW_VSYNC_NONE) ? 0 : has_adaptive_vsync ? -1 : 1;
+        PRINTF("Vsync control: %d\n", state);
+        glfwSwapInterval(state);
+
+        if (state == 1) {
+            hz = 0.0;
+        }
+    }
+
+    // @todo: auto-detect refresh rate and set hz accordingly
 
     keep_aspect_ratio = flag("--with-aspect-ratio");
 
@@ -14490,7 +14508,7 @@ void window_flush() {
     }
 }
 void window_lock(float fps) {
-    if( has_adaptive_vsync ) hz = fps;
+    hz = fps;
 }
 int window_swap() {
     int ready = !glfwWindowShouldClose(window);
@@ -14569,7 +14587,7 @@ int window_swap() {
 
         if( !first ) {
             // glFinish();
-            if( has_adaptive_vsync ) vsync(hz);
+            vsync(hz);
             glfwSwapBuffers(window);
             ++frame_count;
         }
