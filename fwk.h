@@ -2181,7 +2181,7 @@ typedef struct object_t {
     mat44 transform;
     quat rot;
     vec3 sca, pos, euler, pivot;
-    handle texture_id;
+    array(handle) textures;
     model_t model;
     aabb bounds;
     unsigned billboard; // [0..7] x(4),y(2),z(1) masks
@@ -2197,6 +2197,8 @@ API void object_scale(object_t *obj, vec3 sca);
 //
 API void object_model(object_t *obj, model_t model);
 API void object_diffuse(object_t *obj, texture_t tex);
+API void object_diffuse_push(object_t *obj, texture_t tex);
+API void object_diffuse_pop(object_t *obj);
 API void object_billboard(object_t *obj, unsigned mode);
 
 // object_pose(transform); // @todo

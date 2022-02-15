@@ -2263,6 +2263,7 @@ cook_script_t cook_script(const char *rules, const char *infile, const char *out
     map_find_or_add(symbols, "INPUT", STRDUP(infile));
     map_find_or_add(symbols, "OUTPUT", STRDUP(outfile));
     map_find_or_add(symbols, "TOOLS", STRDUP(TOOLS));
+    map_find_or_add(symbols, "PROGRESS", STRDUP(va("%03d", cooker_progress())));
 
     // start parsing. parsing is enabled by default
     int enabled = 1;
@@ -11981,6 +11982,7 @@ object_t object() {
     obj.sca = vec3(1,1,1);
     //obj.bounds = aabb(vec3(0,0,0),vec3(1,1,1)); // defaults to small 1-unit cube
 object_rotate(&obj, vec3(0,0,0));
+    //array_init(obj.textures);
     return obj;
 }
 
@@ -12020,8 +12022,17 @@ void object_model(object_t *obj, model_t model) {
     obj->model = model;
 }
 
+void object_push_diffuse(object_t *obj, texture_t tex) {
+    array_push(obj->textures, tex.id);
+}
+
+void object_pop_diffuse(object_t *obj) {
+    array_pop(obj->textures);
+}
+
 void object_diffuse(object_t *obj, texture_t tex) {
-    obj->texture_id = tex.id;
+    array_clear(obj->textures);
+    object_push_diffuse(obj, tex);
 }
 
 void object_billboard(object_t *obj, unsigned mode) {
@@ -12168,11 +12179,26 @@ void scene_render(int flags) {
             model_t *model = &obj->model;
             mat44 *views = (mat44*)(&cam->view);
 
-            if(model->iqm) for(int i = 0; i < model->iqm->nummeshes; ++i)
-                model->iqm->textures[i] = obj->texture_id;
+            // @todo: avoid heap allocs here?
+            static array(handle) old_textures = 0;
+
+            int do_retexturing = model->iqm && array_count(obj->textures) > 0;
+            if( do_retexturing ) {
+                for(int i = 0; i < model->iqm->nummeshes; ++i) {
+                    array_push(old_textures, model->iqm->textures[i]);
+                    model->iqm->textures[i] = *array_back(obj->textures);
+                }
+            }
 
             model->billboard = obj->billboard;
             model_render(*model, cam->proj, cam->view, obj->transform, 0);
+
+            if( do_retexturing ) {
+                for(int i = 0; i < model->iqm->nummeshes; ++i) {
+                    model->iqm->textures[i] = old_textures[i];
+                }
+                array_resize(old_textures, 0);
+            }
         }
         glBindVertexArray(0);
     }

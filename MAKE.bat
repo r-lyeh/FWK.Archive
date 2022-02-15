@@ -115,7 +115,7 @@ exit
 
 rem setup
 if "%Platform%"=="" (
-    echo Warning: Trying VS 2013/2015/2017/2019 x64 ...
+    echo Warning: Trying VS 2022/2019/2017/2015/2013 x64 ...
     set Platform=x64
            if exist "%VS190COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat" (
               @call "%VS190COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat"
@@ -143,6 +143,15 @@ if "%Platform%"=="" (
 cd "%~dp0"
 echo @%~dp0\art\tools\tcc-win\tcc -I %~dp0\art\tools\tcc-win\include_mingw\winapi -I %~dp0\art\tools\tcc-win\include_mingw\ %%* > tcc.bat
 
+rem generate dll
+if "%1"=="dll" (
+    rem cl fwk.c /LD /DAPI=EXPORT                         && rem 6.6MiB
+    rem cl fwk.c /LD /DAPI=EXPORT /O2                     && rem 5.3MiB
+    cl fwk.c /LD /DAPI=EXPORT /Os /Ox /O2 /Oy /GL /GF /MT && rem 4.7MiB
+    move /y fwk.dll demos\lua
+
+    exit /b
+)
 rem generate bindings
 if "%1"=="bindings" (
     rem luajit
@@ -171,14 +180,27 @@ if "%1"=="docs" (
     exit /b
 )
 
+rem build & execute single demo. usage: make demo name "compiler args" "program args"
+if "%1"=="demo" (
+    setlocal enableDelayedExpansion
+    set "FILENAME=demo"
+    if exist "demo_%2.c" (
+        set "FILENAME=demo_%2"
+    )
+    copy /y !FILENAME!.c demos\!FILENAME!.c
+    cl !FILENAME!.c /nologo /openmp /Zi fwk.c %~3%
+    if %ERRORLEVEL%==0 (call !FILENAME!.exe %~4%) else (echo Compilation error: !FILENAME!)
+    exit /b
+)
+
 rem copy demos to root folder. local changes are preserved
 echo n | copy /-y demos\*.c 1> nul 2> nul
 
+rem shortcuts for split & join amalgamation scripts
 if "%1"=="split" (
     call art\tools\split
     exit /b
 )
-
 if "%1"=="join" (
     call art\tools\join
     exit /b
@@ -186,21 +208,11 @@ if "%1"=="join" (
 
 rem check memory api calls
 if "%1"=="checkmem" (
-    findstr /NC:"realloc(" fwk.c
-    findstr /NC:"malloc("  fwk.c
-    findstr /NC:"free("    fwk.c
-    findstr /NC:"calloc("  fwk.c
-    findstr /NC:"strdup("  fwk.c
-    exit /b
-)
-
-rem dll publish
-if "%1"=="dll" (
-    rem cl fwk.c /LD /DAPI=EXPORT      && rem 6.6MiB
-    rem cl fwk.c /LD /DAPI=EXPORT /O2  && rem 5.3MiB
-    cl fwk.c /LD /DAPI=EXPORT /Os /Ox /O2 /Oy /GL /GF && rem 4.7MiB
-    move /y fwk.dll demos\lua
-
+    findstr /RNC:"[^_xv]realloc[(]" fwk.c
+    findstr /RNC:"[^_xv]malloc[(]"  fwk.c
+    findstr /RNC:"[^_xv]free[(]"    fwk.c
+    findstr /RNC:"[^_xv]calloc[(]"  fwk.c
+    findstr /RNC:"[^_xv]strdup[(]"  fwk.c
     exit /b
 )
 
@@ -220,7 +232,7 @@ if "%1"=="tidy" (
     del *.ilk
     del *.png
     del *.def
-    rem del *.dll
+    del *.dll
     del 3rd_*.*
     del fwk_*.*
     del demo_*.*
