@@ -167,7 +167,7 @@ extern "C" {
 // new C keywords
 // @todo: autorun (needed?)
 
-#define countof(x)       (sizeof (x) / sizeof 0[x])
+#define countof(x)       (int)(sizeof (x) / sizeof 0[x])
 
 #define macro(name)      concat(name, __LINE__)
 #define concat(a,b)      conc4t(a,b)
@@ -181,12 +181,12 @@ extern "C" {
 //-----------------------------------------------------------------------------
 // new C macros
 
-#define ASSERT(expr, ...)   do { int fool_msvc[] = {0,}; if(!(expr)) { fool_msvc[0]++; breakpoint(stringf("!Expression failed: " #expr " " FILELINE "\n" __VA_ARGS__)); } } while(0)
-#define PRINTF(...)         PRINTF(stringf(__VA_ARGS__), 1[#__VA_ARGS__] == '!' ? callstack(+48) : "", __FILE__, __LINE__, __FUNCTION__)
+#define ASSERT(expr, ...)   do { int fool_msvc[] = {0,}; if(!(expr)) { fool_msvc[0]++; breakpoint(va("!Expression failed: " #expr " " FILELINE "\n" __VA_ARGS__)); } } while(0)
+#define PRINTF(...)         PRINTF(va(__VA_ARGS__), 1[#__VA_ARGS__] == '!' ? callstack(+48) : "", __FILE__, __LINE__, __FUNCTION__)
 
-#define FILELINE            __FILE__ ":" STRINGIZE(__LINE__)
-#define STRINGIZE(x)        STRINGIZ3(x)
-#define STRINGIZ3(x)        #x
+#define FILELINE                   __FILE__ ":" STRINGIZE(__LINE__)
+#define STRINGIZE(x)               STRINGIZ3(x)
+#define STRINGIZ3(x)               #x
 
 #define EXPAND(name, ...)          EXPAND_QUOTE(EXPAND_JOIN(name, EXPAND_COUNT_ARGS(__VA_ARGS__)), (__VA_ARGS__))
 #define EXPAND_QUOTE(x, y)         x y
@@ -197,15 +197,15 @@ extern "C" {
 #define EXPAND_ARGS(args)          EXPAND_RETURN_COUNT args
 #define EXPAND_RETURN_COUNT(_1_, _2_, _3_, _4_, _5_, _6_, _7_, _8_, _9_, count, ...) count
 
-//#define STATIC_ASSERT(EXPR)       typedef char UNIQUE_NAME(_static_assert_on_line)[(EXPR)?1:-1]
-#define STATIC_ASSERT(EXPR)         STATIC_ASSER7(EXPR, __LINE__)
-#define STATIC_ASSER7(EXPR, LINE)   STATIC_ASS3R7(EXPR, LINE)
-#define STATIC_ASS3R7(EXPR, LINE)   typedef struct { unsigned static_assert_on_line_##LINE : !!(EXPR); } static_assert_on_line_##LINE // typedef int static_assert_on_line_##LINE[ !!(EXPR) ]
+//#define STATIC_ASSERT(EXPR)      typedef char UNIQUE_NAME(_static_assert_on_line)[(EXPR)?1:-1]
+#define STATIC_ASSERT(EXPR)        STATIC_ASSER7(EXPR, __LINE__)
+#define STATIC_ASSER7(EXPR, LINE)  STATIC_ASS3R7(EXPR, LINE)
+#define STATIC_ASS3R7(EXPR, LINE)  typedef struct { unsigned static_assert_on_line_##LINE : !!(EXPR); } static_assert_on_line_##LINE // typedef int static_assert_on_line_##LINE[ !!(EXPR) ]
 
 #if defined(_MSC_VER) && !defined(__cplusplus)
-#define m_inline __inline // m_inline -> INLINE ?
+#define INLINE __inline
 #else
-#define m_inline inline   // m_inline -> INLINE ?
+#define INLINE inline
 #endif
 
 //-----------------------------------------------------------------------------
@@ -292,6 +292,7 @@ extern "C" {
 // stl, forward includes
 
 #define array(t) t*
+#define threadlocal __thread
 
 #ifdef _MSC_VER
 #define __thread         __declspec(thread)
@@ -322,6 +323,7 @@ extern "C" {
 #pragma comment(lib, "pthread")
 #endif
 #line 0
+
 #line 1 "fwk_math.h"
 // -----------------------------------------------------------------------------
 // math framework: rand, ease, vec2, vec3, vec4, quat, mat2, mat33, mat34, mat4
@@ -690,6 +692,8 @@ API void print34( float *m );
 API void print44( float *m );
 #line 0
 
+
+
 #line 1 "fwk_audio.h"
 // -----------------------------------------------------------------------------
 // audio framework
@@ -733,6 +737,7 @@ enum AUDIO_FLAGS {
 
 API int audio_queue( const void *samples, int num_samples, int flags );
 #line 0
+
 #line 1 "fwk_collide.h"
 // -----------------------------------------------------------------------------
 // original code by @vurtun (PD) and @barerose (CC0).
@@ -891,6 +896,7 @@ API void    poly_free(poly *p);
 API poly    pyramid(vec3 from, vec3 to, float size); // poly_free() required
 API poly    diamond(vec3 from, vec3 to, float size); // poly_free() required
 #line 0
+
 #line 1 "fwk_cooker.h"
 // -----------------------------------------------------------------------------
 // asset pipeline framework
@@ -921,6 +927,7 @@ API void cooker_stop();
 API int  cooker_progress(); // [0..100]
 API int  cooker_jobs();     // [1..N]
 #line 0
+
 #line 1 "fwk_data.h"
 // -----------------------------------------------------------------------------
 // data framework (json5) @todo:xml,kvdb
@@ -942,16 +949,13 @@ API bool    data_push(const char *source);
 API data_t*     data_find(const char *type_keypath); // @todo, array(data_t) data_array();
 API data_t      data_get(const char *type_keypath); // @todo, array(data_t) data_array();
 API int         data_count(const char *keypath);
-#define         data_int(...)    (data_get(stringf("i" __VA_ARGS__)).i)
-#define         data_float(...)  (data_get(stringf("f" __VA_ARGS__)).f)
-#define         data_string(...) (data_get(stringf("s" __VA_ARGS__)).s)
-#define         data_count(...)   data_count(stringf(__VA_ARGS__))
+#define         data_int(...)    (data_get(va("i" __VA_ARGS__)).i)
+#define         data_float(...)  (data_get(va("f" __VA_ARGS__)).f)
+#define         data_string(...) (data_get(va("s" __VA_ARGS__)).s)
+#define         data_count(...)   data_count(va(__VA_ARGS__))
 API bool    data_pop();
-
-// syntax sugars
-
-
 #line 0
+
 #line 1 "fwk_dll.h"
 // dll utils
 // - rlyeh, public domain
@@ -966,19 +970,23 @@ API bool    data_pop();
 /// > assert(plugin_init());
 API void* dll(const char *filename, const char *symbol);
 #line 0
+
 #line 1 "fwk_ds.h"
 // data structures and utils: array, set, map, hash, sort.
 // - rlyeh, public domain
 
 // -----------------------------------------------------------------------------
-// less/sort
+// sort
 
+API int sort_64(const void *a, const void *b);
+
+// -----------------------------------------------------------------------------
+// less
+
+API int less_64(uint64_t a, uint64_t b);
 API int less_int(int a, int b);
-API int less_u64(uint64_t a, uint64_t b);
 API int less_ptr(void *a, void *b);
 API int less_str(char *a, char *b);
-
-API int sort_u64(const void *a, const void *b);
 
 // -----------------------------------------------------------------------------
 // un/hash
@@ -989,7 +997,7 @@ API uint64_t hash_64(uint64_t x);
 API uint64_t hash_flt(double x);
 API uint64_t hash_str(const char* str);
 API uint64_t hash_int(int key);
-API uint64_t hash_ptr(const void *ptr);
+API uint64_t hash_ptr(const void* ptr);
 
 // -----------------------------------------------------------------------------
 // vector based allocator (x1.75 enlarge factor)
@@ -1016,7 +1024,7 @@ API size_t vlen( void* p );
 #define array_at(t,i) (t[i])
 #define array_count(t) (int)( (t) ? array_vlen_(t) / sizeof(0[t]) : 0u )
 #define array_bytes(t) (int)( (t) ? array_vlen_(t) : 0u )
-#define array_sort(t, cmpfunc) qsort( t, array_count(t), sizeof(0[t]), cmpfunc )
+#define array_sort(t, cmpfunc) qsort( t, array_count(t), sizeof(0[t]), cmpfunc == strcmp ? strcmp_qsort : cmpfunc )
 #define array_empty(t) ( !array_count(t) )
 static __thread unsigned array_c_;
 
@@ -1095,6 +1103,21 @@ static __thread unsigned array_c_;
         if( cnt_bak != cnt ) array_resize((t), cnt); \
      } \
  } while(0)
+
+#if 0 // snippet below does work
+#define array_unique(t, cmpfunc)
+    array_sort(t, cmpfunc);
+    for( int i = 0, end = array_count(t) - 1; i < end; ) {
+        if( !strcmp(t[i], t[i+1]) ) {
+            //array_erase(t, i+1);
+            memmove(&(t)[i+1], &(t)[i+2], (end - 1 - i) * sizeof((t)[0]) );
+            array_pop(t);
+            --end;
+        } else {
+            ++i;
+        }
+    }
+#endif
 
 // -----------------------------------------------------------------------------
 // set<K>
@@ -1278,6 +1301,13 @@ API void  (set_gc)(set *m); // only if using SET_DONT_ERASE
             for( key_t *k = (key_t *)cur_->key; on_; ) \
                 for( val_t *v = (val_t *)cur_->value; on_; on_ = 0 )
 
+#define map_foreach_sorted_ptr(m,key_t,k,val_t,v) for each_map_sorted_ptr(m,key_t,k,val_t,v)
+#define each_map_sorted_ptr(m,key_t,k,val_t,v) \
+    ( int i_ = (map_sort(&(m)->base), 0); i_ < array_count((m)->base.sorted); ++i_) \
+        for( pair *cur_ = (m)->base.sorted[i_]; cur_; ) \
+            for( key_t *k = (key_t *)cur_->key; cur_; ) \
+                for( val_t *v = (val_t *)cur_->value; cur_; cur_ = 0 )
+
 #define map_clear(m) ( \
     map_clear(&(m)->base) \
     )
@@ -1306,7 +1336,10 @@ typedef struct map {
     array(pair*) array;
     int (*cmp)(void *, void *);
     uint64_t (*hash)(void *);
-    int count;
+    int count:31;
+
+    int is_sorted:1;
+    array(pair*) sorted;
 } map;
 
 API void  (map_init)(map *m);
@@ -1317,8 +1350,9 @@ API void  (map_erase)(map *m, void *key, uint64_t keyhash);
 API void* (map_find)(map *m, void *key, uint64_t keyhash);
 API int   (map_count)(map *m);
 API void  (map_gc)(map *m); // only if using MAP_DONT_ERASE
-
+API bool  (map_sort)(map* m);
 #line 0
+
 #line 1 "fwk_editor.h"
 // -----------------------------------------------------------------------------
 // in-game editor
@@ -1364,8 +1398,8 @@ API char* dialog_save();
 
 API int   gizmo(vec3 *pos, vec3 *rot, vec3 *sca);
 API bool  gizmo_active();
-
 #line 0
+
 #line 1 "fwk_file.h"
 // -----------------------------------------------------------------------------
 // files, cache and virtual filesystem (registered directories and/or compressed zip archives).
@@ -1423,7 +1457,12 @@ API FILE*        vfs_handle(const char *pathfile); // same as above, but returns
 API void *       cache_insert(const char *key, void *value, int size);
 API void *       cache_lookup(const char *key, int *size);
 #line 0
+
 #line 1 "fwk_font.h"
+// -----------------------------------------------------------------------------
+// font framework
+// - rlyeh, public domain
+
 // font size tags
 #define FONT_H1 "\1" // largest
 #define FONT_H2 "\2"
@@ -1510,6 +1549,7 @@ API vec2  font_rect(const char *text);
 API void* font_colorize(const char *text, const char *comma_types, const char *comma_keywords); // comma separated tokens. expensive, please cache result.
 API vec2  font_highlight(const char *text, const void *colors);
 #line 0
+
 #line 1 "fwk_input.h"
 // -----------------------------------------------------------------------------
 // input framework
@@ -1606,6 +1646,7 @@ enum INPUT_ENUMS {
     GAMEPAD_GUID, GAMEPAD_NAME,
 };
 #line 0
+
 #line 1 "fwk_memory.h"
 // -----------------------------------------------------------------------------
 // memory framework
@@ -1632,13 +1673,13 @@ API void*  watch( void *ptr, int sz );
 API void*  forget( void *ptr );
 
 // memory api
-#define MSIZE(p)       xsize(p)
+#define ALLOCSIZE(p)   xsize(p)
 #define REALLOC(p,n)   (len1_ = (n), (len1_ ? WATCH(xrealloc((p),len1_),len1_) : xrealloc(FORGET(p),0)))
 #define MALLOC(n)      REALLOC(0,(n))
 #define FREE(p)        REALLOC(FORGET(p), 0)
 #define CALLOC(m,n)    (len2_ = (m)*(n), memset(REALLOC(0,len2_),0,len2_))
-#define STRDUP(s)      (len2_ = strlen(s)+1, ((char*)memcpy(REALLOC(0,len2_), (s), len2_)))
-static __thread size_t len1_, len2_;
+#define STRDUP(s)      (len3_ = strlen(s)+1, ((char*)memcpy(REALLOC(0,len3_), (s), len3_)))
+static __thread size_t len1_, len2_, len3_;
 
 #if 0 // ifndef REALLOC
 #define REALLOC            realloc
@@ -1648,6 +1689,7 @@ static __thread size_t len1_, len2_;
 #define STRDUP(s)          strcpy(MALLOC(strlen(s)+1), (s))
 #endif
 #line 0
+
 #line 1 "fwk_network.h"
 // -----------------------------------------------------------------------------
 // network framework
@@ -1696,6 +1738,142 @@ API int   tcp_debug(int); // toggle traffic monitoring on/off for given socket
 //API int   tcp_printf(int, const char *fmt, ...); // printf message in remote end
 //API int   tcp_crypt(int,uint64_t);               // set shared secret
 #line 0
+
+#line 1 "fwk_obj.h"
+// -----------------------------------------------------------------------------
+// C object framework (constructors/destructors, methods, rtti, refcounting)
+// - rlyeh, public domain.
+//
+// ## object api (low level)
+//
+// - [ ] make object from reflected type (factory)
+// - [x] make object (if debug, include callstack as well)
+// - [x] ctor method (optional, ref to constructor)
+// - [x] dtor method (optional, ref to deleter)
+// - [x] zero mem object
+// - [x] object logger
+// - [ ] iterate members in a struct
+//
+// - [x] clone/copy/mutate classes
+// - [x] load/save objects from/to memory/disk
+// - [ ] diff/patch objects
+// - [ ] experimental: support for AoSoA layout (using objcnt, 3bits)
+//
+// ## object decomposition
+//
+//                             <---------|--------->
+//            OBJ-SHADOW (64-bits)       |   OBJ CONTENT (N bytes)
+// +-----+-----+-------------+-----------+-----+-----+-----+-----+--
+// |TYPE |REFS.|   OBJ NAME  |  obj cnt  | ... | ... | ... | ... | .
+// +-----+-----+-------------+-----------+-----+-----+-----+-----+--
+// \-16-bits--/\---45-bits--/\--3-bits--/\-------N-bytes-----------
+//
+// OBJ TYPE+NAME format:
+// - [type] custom tags at 0x0
+// - [1..N] name
+// - [\n]   blank separator
+// - [comments, logger, infos, etc] << obj_printf();
+//
+// ## object limitations
+// - 256 classes max
+// - 256 references max
+// - 8-byte overhead per object
+// - 2 total allocs per object (could be flattened into 1 with some more work)
+//
+// @todo: obj_extend( "class_src", "class_dst" ); call[super(obj)]()
+// @todo: preferred load/save format: [ver:1,user:2,type:1] ([eof|size:7/15/23/31][blob:N])+ [crc:1/2/3/4]
+// @todo: more serious loading/saving spec
+
+// object api (heap+rtti)
+
+API void*       obj_malloc( int sz, ... );
+API void*       obj_calloc( int sz, ... );
+API void        obj_free( void *obj );
+
+API bool        obj_typeeq( const void *obj1, const void *obj2 );
+API const char* obj_typeof( const void *obj );
+API unsigned    obj_typeid( const void *obj );
+API unsigned    obj_typeid_from_name( const char *name );
+
+// object api (ctor/dtor, refcounting, oop)
+
+API void        obj_new( const char *type, ... );
+API void        obj_del( void *obj );
+
+API void*       obj_ref( void *obj );
+API void*       obj_unref( void *obj );
+
+API void        obj_extend( const char *dstclass, const char *srcclass );
+API void        obj_override( const char *objclass, void (**vtable)(), void(*fn)() );
+
+// object: serialize
+
+API unsigned    obj_load(void *obj, const array(char) buffer);
+API unsigned    obj_load_file(void *obj, FILE *fp);
+API unsigned    obj_load_inplace(void *obj, const void *src, unsigned srclen);
+
+API array(char) obj_save(const void *obj); // empty if error. must array_free() after use
+API unsigned    obj_save_file(FILE *fp, const void *obj);
+API unsigned    obj_save_inplace(void *dst, unsigned cap, const void *obj);
+
+// object: utils
+
+API unsigned    obj_instances( const void *obj );
+
+API void        obj_zero( void *obj );
+API unsigned    obj_sizeof( const void *obj );
+
+API void        obj_hexdump( const void *obj );
+API void        obj_hexdumpf( FILE *out, const void *obj );
+
+API void        obj_printf( void *obj, const char *text );
+API const char* obj_output( const void *obj );
+
+API void *      obj_clone(const void *obj);
+API void *      obj_copy(void **dst, const void *src);
+API void *      obj_mutate(void **dst, const void *src);
+
+// object: method dispatch tables
+
+#define ctor(obj) obj_method0(obj, ctor) // ctor[obj_typeid(obj)](obj)
+#define dtor(obj) obj_method0(obj, dtor) // dtor[obj_typeid(obj)](obj)
+
+API extern void (*ctor[256])();
+API extern void (*dtor[256])();
+
+// object: syntax sugars
+
+#define     obj_malloc(sz, ...) obj_initialize((void**)MALLOC(  sizeof(void*)+sz), stringf("\1untyped\n%s\n", "" #__VA_ARGS__))
+#define     obj_calloc(sz, ...) obj_initialize((void**)CALLOC(1,sizeof(void*)+sz), stringf("\1untyped\n%s\n", "" #__VA_ARGS__))
+
+#define     obj_new0(type) obj_new(type, 0)
+#define     obj_new(type, ...) ( \
+                obj_tmpalloc = obj_initialize((void**)CALLOC(1, sizeof(void*)+sizeof(type)), stringf("%c" #type "\n", (char)obj_typeid_from_name(#type))), \
+                (*(type*)obj_tmpalloc = (type){ __VA_ARGS__ }), \
+                ctor(obj_tmpalloc), \
+                (type*)obj_tmpalloc )
+
+#define     obj_override(class, method)    obj_override(#class, method, class##_##method)
+#define     obj_method0(obj, method)       method[obj_typeid(obj)]((obj))
+#define     obj_method(obj, method, ...)   method[obj_typeid(obj)]((obj), __VA_ARGS__)
+
+#define     obj_printf(obj, ...)           obj_printf(obj, va(__VA_ARGS__))
+
+#define     obj_extend(dstclass, srcclass) obj_extend(#dstclass, #srcclass)
+
+// object: implementation details
+
+// https://stackoverflow.com/questions/16198700/using-the-extra-16-bits-in-64-bit-pointers (note: using 19-bits here)
+#define OBJBOX(ptr, payload16) (void*)(((long long unsigned)(payload16) << 48) | (long long unsigned)(ptr))
+#define OBJUNBOX(ptr)          (void*)((long long unsigned)(ptr) & 0x0000FFFFFFFFFFFFull)
+#define OBJPAYLOAD16(ptr)      (((long long unsigned)(ptr)) >> 48)
+#define OBJPAYLOAD3(ptr)       (((long long unsigned)(ptr)) & 7)
+
+API void* obj_initialize( void **ptr, char *type_and_info );
+static threadlocal void *obj_tmpalloc;
+
+#line 0
+
 #line 1 "fwk_profile.h"
 // -----------------------------------------------------------------------------
 // profiler & stats (@fixme: threadsafe)
@@ -1713,10 +1891,10 @@ API int   tcp_debug(int); // toggle traffic monitoring on/off for given socket
 #   define profile_render() if(profiler) do { \
         for(float _i = ui_begin("Profiler",0), _r; _i ; ui_end(), _i = 0) { \
             for each_map_ptr(profiler, const char *, key, struct profile_t, val ) \
-                if( !isnan(val->stat) ) ui_slider2(stringf("Stat: %s", *key), (_r = val->stat, &_r), stringf("%.2f", val->stat)), val->stat = 0; \
+                if( !isnan(val->stat) ) ui_slider2(va("Stat: %s", *key), (_r = val->stat, &_r), va("%.2f", val->stat)), val->stat = 0; \
             ui_separator(); \
             for each_map_ptr(profiler, const char *, key, struct profile_t, val ) \
-                if( isnan(val->stat) ) ui_slider2(*key, (_r = val->avg/1000.0, &_r), stringf("%.2f ms", val->avg/1000.0)); \
+                if( isnan(val->stat) ) ui_slider2(*key, (_r = val->avg/1000.0, &_r), va("%.2f ms", val->avg/1000.0)); \
         } } while(0)
 struct profile_t { double stat; int32_t cost, avg; }; ///-
 typedef map(char *, struct profile_t) profiler_t; ///-
@@ -1728,6 +1906,7 @@ extern API profiler_t profiler; ///-
 #   define profile_render()
 #endif
 #line 0
+
 #line 1 "fwk_render.h"
 // -----------------------------------------------------------------------------
 // naive rendering framework
@@ -1999,7 +2178,9 @@ API   aabb mesh_bounds(mesh_t *m);
 // -----------------------------------------------------------------------------
 // materials
 
-enum { MAX_CHANNELS_PER_MATERIAL = 8 };
+enum MATERIAL_ENUMS {
+    MAX_CHANNELS_PER_MATERIAL = 8
+};
 
 typedef struct material_t {
     char *name;
@@ -2010,8 +2191,8 @@ typedef struct material_t {
         handle texture;
         float  value;
         vec4   color; // uint32_t
-    }
-    layer[MAX_CHANNELS_PER_MATERIAL];
+    };
+    struct material_layer_t layer[MAX_CHANNELS_PER_MATERIAL];
 
 } material_t;
 
@@ -2045,10 +2226,13 @@ typedef struct model_t {
     int stride; // usually 60 bytes (12*4+4*3) for a p3 u2 n3 t4 i4B w4B c4B vertex stream
     void *verts;
     int num_verts;
-    handle vao, ibo, vbo;
+    handle vao, ibo, vbo, vao_instanced;
 
     unsigned flags;
     unsigned billboard;
+
+    float *instanced_matrices;
+    unsigned num_instances;
 } model_t;
 
 API model_t  model(const char *filename, int flags);
@@ -2057,7 +2241,10 @@ API float    model_animate(model_t, float curframe);
 API float    model_animate_clip(model_t, float curframe, int minframe, int maxframe, bool loop);
 API aabb     model_aabb(model_t, mat44 transform);
 API void     model_render(model_t, mat44 proj, mat44 view, mat44 model, int shader);
+API void     model_render_skeleton(model_t, mat44 model);
+API void     model_render_instanced(model_t, mat44 proj, mat44 view, mat44 *models, int shader, unsigned count);
 API void     model_set_texture(model_t, texture_t t);
+API bool     model_get_bone_pose(model_t m, unsigned joint, mat34 *out);
 API void     model_destroy(model_t);
 
 // -----------------------------------------------------------------------------
@@ -2072,7 +2259,7 @@ typedef struct skybox_t {
 
 API skybox_t skybox(const char *panorama_or_cubemap_folder, int flags);
 API int      skybox_push_state(skybox_t *sky, mat44 proj, mat44 view);
-API int      skybox_pop_state(skybox_t *sky);
+API int      skybox_pop_state();
 API void     skybox_destroy(skybox_t *sky);
 
 // -----------------------------------------------------------------------------
@@ -2096,6 +2283,7 @@ API char *   fx_name(int pass);
 
 API void*    screenshot(unsigned components); // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA
 #line 0
+
 #line 1 "fwk_renderdd.h"
 // -----------------------------------------------------------------------------
 // debugdraw framework
@@ -2111,7 +2299,12 @@ API void*    screenshot(unsigned components); // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA
 // [ ] camera, light bulb, light probe,
 
 API void ddraw_color(unsigned rgb);
+API void ddraw_color_push(unsigned rgb);
+API void ddraw_color_pop();
+//
+API void ddraw_ontop_push(int enabled);
 API void ddraw_ontop(int enabled);
+API void ddraw_ontop_pop();
 //
 API void ddraw_aabb(vec3 minbb, vec3 maxbb);
 API void ddraw_aabb_corners(vec3 minbb, vec3 maxbb);
@@ -2149,9 +2342,10 @@ API void ddraw_triangle(vec3 p1, vec3 p2, vec3 p3);
 API void ddraw_demo();
 API void ddraw_flush();
 
-#define ddraw_text(pos, scale, ...) ddraw_text(pos, scale, stringf(__VA_ARGS__))
-#define ddraw_text2d(pos, scale, ...) ddraw_text2d(pos, scale, stringf(__VA_ARGS__))
+#define ddraw_text(pos, scale, ...) ddraw_text(pos, scale, va(__VA_ARGS__))
+#define ddraw_text2d(pos, scale, ...) ddraw_text2d(pos, scale, va(__VA_ARGS__))
 #line 0
+
 #line 1 "fwk_scene.h"
 // -----------------------------------------------------------------------------
 // scene framework
@@ -2233,6 +2427,7 @@ API object_t* scene_spawn();
 API unsigned  scene_count();
 API object_t* scene_index(unsigned index);
 #line 0
+
 #line 1 "fwk_script.h"
 // -----------------------------------------------------------------------------
 // script framework
@@ -2246,19 +2441,21 @@ API void script_bind_class(const char *objname, int num_methods, const char **c_
 API void script_bind_function(const char *c_name, void *c_function);
 API void script_call(const char *lua_function);
 #line 0
+
 #line 1 "fwk_string.h"
 // string framework
 // - rlyeh, public domain
 
 // string: temporary api (stack)
-API char*   stringf(const char *fmt, ...);
-#define     stringf(...) (printf || printf(__VA_ARGS__), stringf(__VA_ARGS__))  // vs2015 check trick
-#define     str(...)     stringf(__VA_ARGS__) //s(),str(),strf(),fmt() ?
-#define     va           str //s(),str(),strf(),fmt() ?
+API char*   tempvl(const char *fmt, va_list);
+API char*   tempva(const char *fmt, ...);
+#define     va(...) ((printf || printf(__VA_ARGS__), tempva(__VA_ARGS__)))  // vs2015 check trick
 
 // string: allocated api (heap). FREE() after use
-API char*   strcatf(char **s,   const char *buf);
-#define     strcatf(s,fmt,...)  strcatf((s), stringf(fmt, __VA_ARGS__)) // stringf_cat, stringfcat ?
+API char*   strcatf(char **s, const char *buf);
+#define     strcatf(s,fmt,...)  strcatf((s), va(fmt, __VA_ARGS__))
+#define     stringf(fmt,...)    STRDUP(va(fmt, __VA_ARGS__)) // (strcatf)(0, va(fmt, __VA_ARGS__))
+
 
 #if defined _MSC_VER || (defined __TINYC__ && defined _WIN32)
 #if!defined _MSC_VER
@@ -2314,6 +2511,7 @@ API char*        strjoin(array(char*) list, const char *separator);
 
 API array(uint32_t) strutf32( const char *utf8 );
 #line 0
+
 #line 1 "fwk_system.h"
 // -----------------------------------------------------------------------------
 // system framework utils
@@ -2336,9 +2534,9 @@ API float       optionf(const char *commalist, float defaults);
 
 API char*       os_exec_output(); // legacy
 API int         os_exec(const char *command); // legacy
-#define         os_exec(...) os_exec(file_normalize(stringf(__VA_ARGS__))) // legacy
+#define         os_exec(...) os_exec(file_normalize(va(__VA_ARGS__))) // legacy
 API char*       os_exec_(int *retvalue, const char *command); // new
-#define         os_exec_(rc, ...) os_exec(rc, file_normalize(stringf(__VA_ARGS__))) // new
+#define         os_exec_(rc, ...) os_exec(rc, file_normalize(va(__VA_ARGS__))) // new
 
 API void        tty_color(unsigned color);
 API void        tty_reset();
@@ -2399,10 +2597,11 @@ API float*      big32pf(void *n, int sz);
 API uint64_t*   big64p(void *n, int sz);
 API double*     big64pf(void *n, int sz);
 
-#define PANIC(...)   PANIC(stringf(__VA_ARGS__), __FILE__, __LINE__) // die() ?
+#define PANIC(...)   PANIC(va(__VA_ARGS__), __FILE__, __LINE__) // die() ?
 API int (PRINTF)(const char *text, const char *stack, const char *file, int line, const char *function);
 API int (PANIC)(const char *error, const char *file, int line);
 #line 0
+
 #line 1 "fwk_ui.h"
 // -----------------------------------------------------------------------------
 // immediate ui framework
@@ -2434,14 +2633,14 @@ API int    ui_bits8(const char *label, uint8_t *bits);
 API int    ui_bits16(const char *label, uint16_t *bits);
 API int    ui_clampf(const char *label, float *value, float minf, float maxf);
 API int    ui_label(const char *label);
-#define    ui_labelf(...) ui_label(stringf(__VA_ARGS__))
+#define    ui_labelf(...) ui_label(va(__VA_ARGS__))
 API int    ui_label2(const char *label, const char *caption);
 API int    ui_slider(const char *label, float *value);
 API int    ui_slider2(const char *label, float *value, const char *caption);
 API int    ui_const_bool(const char *label, const double value);
 API int    ui_const_float(const char *label, const double value);
 API int    ui_const_string(const char *label, const char *value);
-#define    ui_const_stringf(label, ...) ui_const_string(label, stringf(__VA_ARGS__))
+#define    ui_const_stringf(label, ...) ui_const_string(label, va(__VA_ARGS__))
 API void ui_end();
 
 API int  ui_menu(const char *items); // semicolon- or comma-separated items
@@ -2451,6 +2650,7 @@ API int  ui_hover(); // ui_is_hover()?
 API int  ui_active(); // ui_is_active()?
 API void ui_demo();
 #line 0
+
 #line 1 "fwk_video.h"
 // -----------------------------------------------------------------------------
 // video decoder (mpeg)
@@ -2480,6 +2680,7 @@ API void        video_pause(video_t *v, bool paused);
 API bool        video_is_paused(video_t *v);
 API void       video_destroy( video_t *v );
 #line 0
+
 #line 1 "fwk_window.h"
 // -----------------------------------------------------------------------------
 // window framework
@@ -2541,7 +2742,6 @@ API void     window_lock_fps(float fps);
 API void     window_unlock_fps();
 
 API void     window_screenshot(const char* filename_png);
-
 #line 0
 
 // ----

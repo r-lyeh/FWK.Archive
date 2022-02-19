@@ -21,7 +21,7 @@ int main() {
         while window_swap() do
             ddraw_grid(10);
             ddraw_flush();
-            if ui_begin("Hello Lua", 0) then
+            if ui_begin("Hello from Lua!", 0) then
                 ui_end();
             end;
         end;

@@ -91,14 +91,20 @@
 //-----------------------------------------------------------------------------
 // C files
 
+#define  atexit(...) // hack to boost exit time. there are no critical systems that need to shutdown properly
+
 #line 1 "fwk_ds.c"
 // -----------------------------------------------------------------------------
-// less/sort
+// sort/less
+
+int sort_64(const void *a, const void *b) {
+    return 0[(uint64_t*)a] - 0[(uint64_t*)b];
+}
 
 int less_int(int a, int b) {
     return a - b;
 }
-int less_u64(uint64_t a, uint64_t b) {
+int less_64(uint64_t a, uint64_t b) {
     return a > b ? +1 : -!!(a - b);
 }
 int less_ptr(void *a, void *b) {
@@ -106,10 +112,6 @@ int less_ptr(void *a, void *b) {
 }
 int less_str(char *a, char *b) {
     return strcmp((const char *)a, (const char *)b);
-}
-
-int sort_u64(const void *a, const void *b) {
-    return 0[(uint64_t*)a] - 0[(uint64_t*)b];
 }
 
 // -----------------------------------------------------------------------------
@@ -227,6 +229,7 @@ void (map_insert)(map* m, pair *p, void *key, void *value, uint64_t keyhash, voi
     int index = map_get_index(p->keyhash);
     p->next = m->array[index];
     m->array[index] = p;
+    m->is_sorted = 0;
 
     ++m->count;
 }
@@ -261,6 +264,7 @@ void (map_erase)(map* m, void *key, uint64_t keyhash) {
                 REALLOC(cur,0);
 #endif
                 --m->count;
+                m->is_sorted = 0;
                 return;
             }
         }
@@ -297,6 +301,40 @@ void (map_clear)(map* m) {
         m->array[i] = 0;
     }
     m->count = 0;
+    m->is_sorted = 0;
+}
+
+bool (map_sort)(map* m) {
+    if( m->is_sorted ) return false;
+
+    array_clear(m->sorted);
+//    array_reserve(m->sorted, m->count);
+
+    for( int i = 0; i < array_count(m->array); ++i) {
+        for( pair *cur = m->array[i]; cur; cur = cur->next ) {
+            array_push(m->sorted, cur);
+        }
+    }
+
+#if 0
+    array_sort(m->sorted, m->cmp);
+#else
+    // @fixme: do better than bubble sort below
+    for( int i = 0; i < array_count(m->sorted) - 1; ++i)
+    for( int j = i+1; j < array_count(m->sorted); ++j) {
+        pair *curi = m->sorted[i];
+        pair *curj = m->sorted[j];
+        char **c = (char **)curi->key;
+        char **k = (char **)curj->key;
+        if( m->cmp(c[0], k[0]) > 0 ) {
+            pair *swap = m->sorted[i];
+            m->sorted[i] = m->sorted[j];
+            m->sorted[j] = swap;
+        }
+    }
+#endif
+
+    return m->is_sorted = true;
 }
 
 void (map_free)(map* m) {
@@ -417,10 +455,11 @@ void (set_free)(set* m) {
     *m = zero;
 }
 #line 0
+
 #line 1 "fwk_string.c"
 #include <stdarg.h>
 
-char* stringfv(const char *fmt, va_list vl) {
+char* tempvl(const char *fmt, va_list vl) {
     va_list copy;
     va_copy(copy, vl);
     int sz = vsnprintf( 0, 0, fmt, copy ) + 1;
@@ -442,24 +481,24 @@ char* stringfv(const char *fmt, va_list vl) {
     vsnprintf( ptr, sz, fmt, vl );
     return (char *)ptr;
 }
-char* (stringf)(const char *fmt, ...) {
-    va_list va;
-    va_start(va, fmt);
-    char *s = stringfv(fmt, va);
-    va_end(va);
+char* tempva(const char *fmt, ...) {
+    va_list vl;
+    va_start(vl, fmt);
+    char *s = tempvl(fmt, vl);
+    va_end(vl);
     return s;
 }
 
-#if 1
 char* (strcatf)(char **src_, const char *buf) {
     char *src = *src_;
+        if(!buf) return src;
+        if(!buf[0]) return src;
         int srclen = (src ? strlen(src) : 0), buflen = strlen(buf);
         src = (char*)REALLOC(src, srclen + buflen + 1 );
         memcpy(src + srclen, buf, buflen + 1 );
     *src_ = src;
     return src;
 }
-#endif
 
 // -----------------------------------------------------------------------------
 // string utils
@@ -733,6 +772,7 @@ array(uint32_t) strutf32( const char *utf8 ) {
 }
 
 #line 0
+
 #line 1 "fwk_compat.c"
 //-----------------------------------------------------------------------------
 // compat (unix & stdio.h)
@@ -838,8 +878,6 @@ const char *pathfile_from_handle(FILE *fp) {
 // -----------------------------------------------------------------------------
 // new C macros
 
-#define local            __thread // ifdef(msc, __declspec(thread), __thread) // __STDC_VERSION_ >= 201112L: _Thread_local
-
 #define cast(T)          ifdef(c, void *, decltype(T))
 #define literal(T)       ifdef(c, T, (T))
 
@@ -850,13 +888,13 @@ static void fwk_pre_init_subsystems();
 static void fwk_post_init_subsystems();
 static void fwk_pre_swap_subsystems();
 #line 0
+
 #line 1 "fwk_profile.c"
 #if WITH_PROFILE
 profiler_t profiler;
 #endif
 #line 0
 
-#define  atexit(...) // hack to boost exit time. there are no critical systems that need to shutdown properly
 #line 1 "fwk_audio.c"
 // @fixme: really shutdown audio & related threads before quitting. drwav crashes.
 
@@ -1060,6 +1098,7 @@ static sts_mixer_t mixer;
 static ma_uint32 audio_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount) {
     int len = frameCount;
     sts_mixer_mix_audio(&mixer, pOutput, len / (sizeof(int32_t) / 4));
+    (void)pDevice; (void)pInput;
     return len / (sizeof(int32_t) / 4);
 }
 
@@ -1111,6 +1150,7 @@ int audio_init( int flags ) {
         return false;
     }
 
+    (void)flags;
     ma_device_start(&device);
     return true;
 }
@@ -1255,6 +1295,7 @@ if(front->data)
 
         thread_mutex_unlock(&queue_mutex);
     }
+    (void)userdata;
 }
 void audio_queue_clear() {
     thread_mutex_lock(&queue_mutex);
@@ -1303,6 +1344,7 @@ int audio_queue( const void *samples, int num_samples, int flags ) {
     return audio_queue_voice;
 }
 #line 0
+
 #line 1 "fwk_collide.c"
 /* poly */
 poly poly_alloc(int cnt) {
@@ -1387,8 +1429,8 @@ static void transformST(vec3 *v, const float *r33, vec3 t3) {
  *
  * =========================================================================== */
 
-static local hit hits[16] = {0};
-static local int hit_index = -1;
+static threadlocal hit hits[16] = {0};
+static threadlocal int hit_index = -1;
 #define hit_next() &hits[ (++hit_index) & 15 ]
 
 static float line_closest_line_(float *t1, float *t2, vec3 *c1, vec3 *c2, line l, line m) {
@@ -2217,6 +2259,7 @@ int frustum_test_aabb(frustum f, aabb a) {
     return 1;
 }
 #line 0
+
 #line 1 "fwk_cooker.c"
 // data pipeline
 // - rlyeh, public domain.
@@ -2283,9 +2326,9 @@ cook_script_t cook_script(const char *rules, const char *infile, const char *out
         if( line[0] == '@' ) {
             int with_wine = flag("--with-wine") && !!strstr(line, "@win");
             int parse = 0
-                | ifdef(win32, !!strstr(line, "@win"), 0)
-                | ifdef(linux, !!strstr(line, "@lin") ? 1 : with_wine, 0)
-                | ifdef(osx,   !!strstr(line, "@osx") ? 1 : with_wine, 0);
+                | ifdef(win32, (!!strstr(line, "@win")), 0)
+                | ifdef(linux, (!!strstr(line, "@lin") ? 1 : with_wine), 0)
+                | ifdef(osx,   (!!strstr(line, "@osx") ? 1 : with_wine), 0);
 
             if( !parse ) continue;
 
@@ -2524,10 +2567,10 @@ struct fs {
 };
 
 static array(struct fs) fs_now;
-static local array(char*) added;
-static local array(char*) changed;
-static local array(char*) deleted;
-static local array(char*) uncooked;
+static threadlocal array(char*) added;
+static threadlocal array(char*) changed;
+static threadlocal array(char*) deleted;
+static threadlocal array(char*) uncooked;
 
 static
 array(struct fs) zipscan_filter(int threadid, int numthreads) {
@@ -2712,7 +2755,9 @@ int cook(void *userdata) {
 
 static
 int cook_async( void *userptr ) {
+#ifndef FWK_COOKER_STANDALONE
     while(!window_handle()) sleep_ms(100); // wait for window handle to be created
+#endif
 
     int ret = cook(userptr);
     thread_exit( ret );
@@ -2729,7 +2774,7 @@ bool cooker_start( const char *masks, int flags ) {
         char *n = strchr( ART, '\n' ); if(n) *n = 0;
         char *s = strchr( ART, ';' );  if(s) *s = 0;
         char *w = strchr( ART, ' ' );  if(w) *w = 0;
-        strcat((char*)ART, "/");
+        if( !strendi(ART, "/") ) strcat((char*)ART, "/");
     }
 
     // get normalized current working directory (absolute)
@@ -2788,25 +2833,30 @@ bool cooker_start( const char *masks, int flags ) {
 
     // spawn all the threads
     int num_jobs = cooker_jobs();
-    for( int i = 0, end = num_jobs; i < end; ++i ) {
+    for( int i = 0; i < num_jobs; ++i ) {
+        jobs[i].self = 0;
         jobs[i].threadid = i;
-        jobs[i].numthreads = end;
+        jobs[i].numthreads = flags & COOKER_ASYNC ? num_jobs : 1;
         jobs[i].files = list;
         jobs[i].rules = rules;
         jobs[i].progress = -1;
-        if( num_jobs > 1 && (flags & COOKER_ASYNC) ) {
+    }
+    for( int i = 0; i < num_jobs; ++i ) {
+        if( jobs[i].numthreads > 1 ) {
             jobs[i].self = thread_init(cook_async, &jobs[i], "cook_async()", 0/*STACK_SIZE*/);
         } else {
             return !!cook(&jobs[0]);
         }
     }
+
+    (void) flags;
     return true;
 }
 
 void cooker_stop() {
     // join all threads
     int num_jobs = cooker_jobs();
-    for( int i = 1; i < num_jobs; ++i ) {
+    for( int i = 0; i < num_jobs; ++i ) {
         if(jobs[i].self) thread_join(jobs[i].self);
     }
     // remove all temporary outfiles
@@ -2866,21 +2916,25 @@ void cooker_config( const char *art_path, const char *tools_path, const char *fw
 int main(int argc, char **argv) {
     double timer = -clock() / CLOCKS_PER_SEC;
 
-   char *rules = file_read("fwk.ini");
+    cooker_config(NULL, NULL, NULL);
 
     if( argc > 1 && argv[1][0] != '-' ) {
+        char *rules = file_read("fwk.ini");
         cook_script_t cs = cook_script(rules, argv[1], "a.out");
         puts(cs.script);
         exit(1);
     }
 
-    cooker_start("**", 0);
-    cooker_stop();
+    if( file_directory(TOOLS) && cooker_jobs() ) {
+        cooker_start( "**", 0|COOKER_ASYNC );
+        cooker_stop();
+    }
 
     printf("Ok, %5.2fs.", timer += clock() / CLOCKS_PER_SEC);
 }
 #endif
 #line 0
+
 #line 1 "fwk_data.c"
 static array(json5) roots;
 static array(char*) sources;
@@ -2961,6 +3015,7 @@ data_t data_get(const char *type_keypath) {
 }
 
 #line 0
+
 #line 1 "fwk_dll.c"
 #ifdef _WIN32
 #   include <winsock2.h>
@@ -2995,6 +3050,7 @@ int (*adder)() = dll("demo.dll", "add2");
 printf("%d\n", adder(2,3));
 #endif
 #line 0
+
 #line 1 "fwk_file.c"
 // -----------------------------------------------------------------------------
 // file
@@ -3164,7 +3220,7 @@ char *ext = strrchr(base, '.'); //if (ext) ext[0] = '\0'; // remove all extensio
 const char** file_list(const char *cwd, const char *masks) {
     ASSERT(strendi(cwd, "/"), "Error: dirs like '%s' must end with slash", cwd);
 
-    static local array(char*) list = 0;
+    static threadlocal array(char*) list = 0;
     const char *arg0 = cwd; // app_path();
     int larg0 = strlen(arg0);
 
@@ -3206,7 +3262,7 @@ const char** file_list(const char *cwd, const char *masks) {
 
 bool file_copy(const char *src, const char *dst) {
     int ok = 0, BUFSIZE = 1 << 20; // 1 MiB
-    static local char *buffer = 0; do_once buffer = REALLOC(0, BUFSIZE);
+    static threadlocal char *buffer = 0; do_once buffer = REALLOC(0, BUFSIZE);
     for( FILE *in = fopen(src, "rb"); in; fclose(in), in = 0) {
         for( FILE *out = fopen(dst, "wb"); out; fclose(out), out = 0, ok = 1) {
             for( int n; !!(n = fread( buffer, 1, BUFSIZE, in )); ){
@@ -3309,7 +3365,7 @@ bool vfs_mount(const char *path) {
     return 1;
 }
 const char** vfs_list(const char *masks) {
-    static local array(char*) list = 0;
+    static threadlocal array(char*) list = 0;
 
     for( int i = 0; i < array_count(list); ++i ) {
         FREE(list[i]);
@@ -3474,8 +3530,8 @@ const char *vfs_find(const char *pathfile) {
 
     // pool of temp files. recycles after every loop
     enum { MAX_TEMP_FILES = 16 };
-    static local char temps[MAX_TEMP_FILES][MAX_PATHFILE] = {0};
-    static local int i = 0;
+    static threadlocal char temps[MAX_TEMP_FILES][MAX_PATHFILE] = {0};
+    static threadlocal int i = 0;
     if( temps[i]) unlink(temps[i]);
     i = (i + 1) % MAX_TEMP_FILES;
     if(!temps[i][0]) snprintf(temps[i], MAX_PATHFILE, "%s", tmpnam(0));
@@ -3537,6 +3593,7 @@ void* cache_insert(const char *pathfile, void *ptr, int size) { // append key/va
     return 0;
 }
 #line 0
+
 #line 1 "fwk_font.c"
 // font framework. original code by Vassvik (UNLICENSED)
 // - rlyeh, public domain.
@@ -5233,9 +5290,9 @@ void font_face_from_mem(const char *tag, const unsigned char *ttf_buffer, unsign
 
     // figure out what ranges we're about to bake
     #define MERGE_TABLE(table) do { \
-    for( int i = 0 ; table[i]; i += 2 ) { \
+    for( unsigned i = 0 ; table[i]; i += 2 ) { \
         uint64_t begin = table[i+0], end = table[i+1]; \
-        for( int j = begin; j <= end; ++j ) { \
+        for( unsigned j = begin; j <= end; ++j ) { \
             array_push(sorted, j); \
         } \
     } } while(0)
@@ -5259,7 +5316,7 @@ void font_face_from_mem(const char *tag, const unsigned char *ttf_buffer, unsign
     if(flags & FONT_ZH)    { MERGE_TABLE(table_chinese_japanese_common); MERGE_PACKED_TABLE(0x4E00, packed_table_chinese); } // zh-simplified
     if(flags & FONT_ZH)    { MERGE_TABLE(table_chinese_punctuation); } // both zh-simplified and zh-full
 //  if(flags & FONT_ZH)    { MERGE_TABLE(table_chinese_full); } // zh-full
-    array_unique(sorted, sort_u64); // sort + unique pass
+    array_unique(sorted, sort_64); // sort + unique pass
 
     // pack and create bitmap
     unsigned char *bitmap = (unsigned char*)MALLOC(f->height*f->width);
@@ -5428,6 +5485,8 @@ void font_face_from_mem(const char *tag, const unsigned char *ttf_buffer, unsign
     glUniform2f(glGetUniformLocation(f->program, "res_meta"), f->num_glyphs, 2);
     glUniform1f(glGetUniformLocation(f->program, "num_colors"), FONT_MAX_COLORS);
     glUniform1f(glGetUniformLocation(f->program, "offset_firstline"), f->linedist-f->linegap);
+
+    (void)flags;
 }
 
 void font_face(const char *tag, const char *filename_ttf, float font_size, unsigned flags) {
@@ -5877,6 +5936,7 @@ vec2 font_rect(const char *str) {
     return font_draw_ex(str, gotoxy, NULL, NULL);
 }
 #line 0
+
 #line 1 "fwk_input.c"
 // gotta love linux
 #ifdef __linux
@@ -6340,6 +6400,7 @@ void input_demo() {
     }
 }
 #line 0
+
 #line 1 "fwk_math.c"
 // -----------------------------------------------------------------------------
 // math framework: rand, ease, vec2, vec3, vec4, quat, mat2, mat33, mat34, mat4
@@ -6367,7 +6428,7 @@ static uint64_t rand_xoro256(uint64_t x256_s[4]) { // xoshiro256+ 1.0 by David B
 
     return result;
 }
-static local uint64_t rand_state[4] = {// = splitmix64(0),splitmix64(splitmix64(0)),... x4 times
+static threadlocal uint64_t rand_state[4] = {// = splitmix64(0),splitmix64(splitmix64(0)),... x4 times
     UINT64_C(0x9e3779b8bb0b2c64),UINT64_C(0x3c6ef372178960e7),
     UINT64_C(0xdaa66d2b71a12917),UINT64_C(0x78dde6e4d584aef9)
 };
@@ -7210,7 +7271,7 @@ vec3 transform_scaling (const mat44 m, const vec3 scaling) {
 void print_( float *m, int ii, int jj ) {
     for( int j = 0; j < jj; ++j ) {
         for( int i = 0; i < ii; ++i ) printf("%8.3f", *m++);
-//        puts("");
+        puts("");
     }
 //    puts("---");
 }
@@ -7222,6 +7283,7 @@ void print33( float *m ) { print_(m,3,3); }
 void print34( float *m ) { print_(m,3,4); }
 void print44( float *m ) { print_(m,4,4); }
 #line 0
+
 #line 1 "fwk_memory.c"
 size_t dlmalloc_usable_size(void*); // __ANDROID_API__
 
@@ -7261,9 +7323,9 @@ size_t xsize(void* p) {
 // stack -----------------------------------------------------------------------
 
 void* stack(int bytes) { // use negative bytes to rewind stack
-    static local uint8_t *stack_mem = 0;
-    static local uint64_t stack_ptr = 0;
-    static local uint64_t stack_max = 0; // watch this var, in case you want to fine tune 4 MiB value below
+    static threadlocal uint8_t *stack_mem = 0;
+    static threadlocal uint64_t stack_ptr = 0;
+    static threadlocal uint64_t stack_max = 0; // watch this var, in case you want to fine tune 4 MiB value below
     if( bytes < 0 ) {
         if( stack_ptr > stack_max ) stack_max = stack_ptr;
         return (stack_ptr = 0), NULL;
@@ -7297,6 +7359,7 @@ void* forget( void *ptr ) {
     return ptr;
 }
 #line 0
+
 #line 1 "fwk_network.c"
 int download( FILE *out, const char *url ) {
     bool ok = false;
@@ -7513,6 +7576,7 @@ void network_init() {
     tcp_init();
 }
 #line 0
+
 #line 1 "fwk_render.c"
 // -----------------------------------------------------------------------------
 // opengl
@@ -7891,6 +7955,8 @@ static const char *const vs_332_32 = "//" FILELINE "\n"
     "in vec3 att_position;\n"
     "in vec3 att_normal;\n"
     "in vec2 att_texcoord;\n"
+    "in vec4 att_color;\n"
+    "out vec4 v_color;\n"
     "out vec3 v_normal;\n"
     "out vec3 v_normal_ws;\n"
     "out vec2 v_texcoord;\n"
@@ -7913,6 +7979,7 @@ static const char *const vs_332_32 = "//" FILELINE "\n"
     "    v_normal = normalize(att_normal);\n"
     "    v_normal_ws = normalize(vec3(model * vec4(att_normal, 0.)));\n" // normal world/model space
     "    v_texcoord = att_texcoord;\n"
+    "    v_color = att_color;\n"
     "    do_shadow();\n"
     "}";
 
@@ -7966,24 +8033,62 @@ static const char *const fs_2_4_texel_inv_gamma = "//" FILELINE "\n"
     "    fragcolor.rgb = pow( fragcolor.rgb, vec3( u_inv_gamma ) );\n" // defaults: 1.0/2.2 gamma
     "}\n";
 
-// vertex stride = 4*(3+2+3+4+4+4+4+3) = 108 bytes
-static const char *const vs_32344443_332_model = "//" FILELINE "\n"
+// vertex stride = 4*(3+2+3+4+4+4+1+4+3) = 112 bytes + 16 bytes/instance
+static const char *const vs_323444143_16_332_model = "//" FILELINE "\n"
     "#ifndef MAX_BONES\n"
     "#define MAX_BONES 110\n"
     "#endif\n"
     "uniform mat3x4 vsBoneMatrix[MAX_BONES];\n"
     "uniform bool SKINNED = false;\n"
     // "uniform mat4 M;\n" // RIM
-    "uniform mat4 MVP;\n"
+    "uniform mat4 VP;\n"
+
+#if 0
+    // Fetch blend channels from all attached blend deformers.
+    for (size_t di = 0; di < mesh->blend_deformers.count; di++) {
+        ufbx_blend_deformer *deformer = mesh->blend_deformers.data[di];
+        for (size_t ci = 0; ci < deformer->channels.count; ci++) {
+            ufbx_blend_channel *chan = deformer->channels.data[ci];
+            if (chan->keyframes.count == 0) continue;
+            if (num_blend_shapes < MAX_BLEND_SHAPES) {
+                blend_channels[num_blend_shapes] = chan;
+                vmesh->blend_channel_indices[num_blend_shapes] = (int32_t)chan->typed_id;
+                num_blend_shapes++;
+            }
+        }
+    }
+    if (num_blend_shapes > 0) {
+        vmesh->blend_shape_image = pack_blend_channels_to_image(mesh, blend_channels, num_blend_shapes);
+        vmesh->num_blend_shapes = num_blend_shapes;
+    }
+
+    ubo.f_num_blend_shapes = (float)mesh->num_blend_shapes;
+    for (size_t i = 0; i < mesh->num_blend_shapes; i++) {
+        ubo.blend_weights[i] = view->scene.blend_channels[mesh->blend_channel_indices[i]].weight;
+    }
+
+    sg_image blend_shapes = mesh->num_blend_shapes > 0 ? mesh->blend_shape_image : view->empty_blend_shape_image;
+#endif
+
+    // for blendshapes
+    "#ifndef MAX_BLENDSHAPES\n"
+    "#define MAX_BLENDSHAPES 16\n"
+    "#endif\n"
+    "uniform vec4 blend_weights[MAX_BLENDSHAPES];\n" // @todo: implement me
+    "uniform float f_num_blend_shapes;\n" // @todo: implement me
+    "uniform sampler2DArray blend_shapes;\n" // @todo: implement me
 
     "in vec3 att_position;\n" // @todo: reorder ass2iqe to emit p3 n3 u2 t3 b3 c4B i4 w4 instead
     "in vec2 att_texcoord;\n"
     "in vec3 att_normal;\n"
     "in vec4 att_tangent;\n" // vec3 + bi sign
-    "in vec4 att_indexes;\n" // @fixme: ivec4 instead?
+    "in mat4 att_instanced_matrix;\n" // for instanced rendering
+    "in vec4 att_indexes;\n" // @fixme: gles might use ivec4 instead?
     "in vec4 att_weights;\n" // @todo: downgrade from float to byte
+    "in float att_vertexindex;\n" // for blendshapes
     "in vec4 att_color;\n"
     "in vec3 att_bitangent;\n" // @todo: remove? also, ass2iqe might output this
+    "out vec4 v_color;\n"
     "out vec3 v_position;\n"
     "out vec3 v_normal, v_normal_ws;\n"
     "out vec2 v_texcoord;\n"
@@ -8001,6 +8106,18 @@ static const char *const vs_32344443_332_model = "//" FILELINE "\n"
         "    sc = cameraToShadowProjector * model * vec4(att_position, 1.0f);\n"
         "}\n"
 
+// blendshapes
+"vec3 evaluate_blend_shape(int vertex_index) {\n"
+"    ivec2 coord = ivec2(vertex_index & (2048 - 1), vertex_index >> 11);\n"
+"    int num_blend_shapes = int(f_num_blend_shapes);\n"
+"    vec3 offset = vec3(0.0);\n"
+"    for (int i = 0; i < num_blend_shapes; i++) {\n"
+"        vec4 packedw = blend_weights[i >> 2];\n"
+"        float weight = packedw[i & 3];\n"
+"        offset += weight * texelFetch(blend_shapes, ivec3(coord, i), 0).xyz;\n"
+"    }\n"
+"    return offset;\n"
+"}\n"
 
     "void main() {\n"
     "   vec3 objPos;\n"
@@ -8013,6 +8130,10 @@ static const char *const vs_32344443_332_model = "//" FILELINE "\n"
     "       m += vsBoneMatrix[int(att_indexes.z)] * att_weights.z;\n"
     "       m += vsBoneMatrix[int(att_indexes.w)] * att_weights.w;\n"
     "       objPos = vec4(att_position, 1.0) * m;\n"
+
+// blendshapes
+// "objPos += evaluate_blend_shape(int(att_vertexindex));\n"
+
     "       v_normal = vec4(att_normal, 0.0) * m;\n"
     "       //@todo: tangents\n"
     "   }\n"
@@ -8024,7 +8145,8 @@ static const char *const vs_32344443_332_model = "//" FILELINE "\n"
     "   v_normal = normalize(v_normal);\n"
     "   v_position = att_position;\n"
     "   v_texcoord = att_texcoord;\n"
-    "   gl_Position = MVP * vec4( objPos, 1.0 );\n"
+    "   v_color = att_color;\n"
+    "   gl_Position = VP * att_instanced_matrix * vec4( objPos, 1.0 );\n"
     "   do_shadow();\n"
     "}\n";
 
@@ -8053,12 +8175,14 @@ static const char *const fs_32_4_model = "//" FILELINE "\n"
     "uniform bool u_textured = true;\n"
     "uniform bool u_lit = false;\n"
     "uniform bool u_matcaps = false;\n"
+    "uniform vec4 u_diffuse = vec4(1.0,1.0,1.0,1.0);\n"
 
     "#ifdef RIM\n"
     "in vec3 v_position;\n"
     "#endif\n"
     "in vec3 v_normal, v_normal_ws;\n"
     "in vec2 v_texcoord;\n"
+    "in vec4 v_color;\n"
     "out vec4 fragcolor;\n"
 
         "{{include-shadowmap}}\n"
@@ -8098,7 +8222,7 @@ static const char *const fs_32_4_model = "//" FILELINE "\n"
     "    } else if(u_textured) {\n"
     "        diffuse = texture(u_texture2d, v_texcoord);\n"
     "    } else {\n"
-    "        diffuse = vec4(1.0, 1.0, 1.0, 1.0);\n"
+    "        diffuse = u_diffuse; // * v_color;\n"
     "    }\n"
 
     // lighting mix
@@ -9593,7 +9717,7 @@ glDisable(GL_DEPTH_TEST);
     }
     return 0; // @fixme: return sortable hash here?
 }
-int skybox_pop_state(skybox_t *sky) {
+int skybox_pop_state() {
     //glDepthMask(GL_TRUE);
     //glClear(GL_DEPTH_BUFFER_BIT);
     return 0;
@@ -9706,6 +9830,7 @@ void mesh_render(mesh_t *sm) {
 
 void mesh_destroy(mesh_t *m) {
     // @todo
+    (void)m;
 }
 
 // -----------------------------------------------------------------------------
@@ -9714,7 +9839,7 @@ void mesh_destroy(mesh_t *m) {
 void* screenshot( unsigned n ) { // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA
     int w = window_width(), h = window_height();
     int mode = n == 3 ? GL_RGB : n == -3 ? GL_BGR : n == 4 ? GL_RGBA : GL_BGRA;
-    static local uint8_t *pixels = 0;
+    static threadlocal uint8_t *pixels = 0;
     pixels = (uint8_t*)REALLOC(pixels, w * h * 4 );
 #if 1
     // sync, 10 ms
@@ -9727,8 +9852,8 @@ void* screenshot( unsigned n ) { // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA
 #else
     // async
     enum { NUM_PBOS = 16 };
-    static local GLuint pbo[NUM_PBOS] = {0}, lastw, lasth;
-    static local int frame = 0, bound = 0;
+    static threadlocal GLuint pbo[NUM_PBOS] = {0}, lastw, lasth;
+    static threadlocal int frame = 0, bound = 0;
 
     if( lastw != w || lasth != h ) {
         lastw = w, lasth = h;
@@ -9908,6 +10033,7 @@ void postfx_create(postfx *fx, int flags) {
     postfx z = {0};
     *fx = z;
     fx->enabled = 1;
+    (void)flags;
 }
 
 void postfx_destroy( postfx *fx ) {
@@ -10178,6 +10304,8 @@ texture_t brdf_lut() {
 // materials
 
 bool colormap( colormap_t *cm, const char *material_file, bool load_as_srgb ) {
+    if( !material_file ) return false;
+
     if( cm->texture ) {
         texture_destroy(cm->texture);
         FREE(cm->texture), cm->texture = NULL;
@@ -10364,6 +10492,7 @@ typedef struct iqm_vertex {
     GLfloat tangent[4];
     GLubyte blendindexes[4];
     GLubyte blendweights[4];
+    GLfloat blendvertexindex;
     GLubyte color[4];
 } iqm_vertex;
 
@@ -10380,6 +10509,7 @@ typedef struct iqm_t {
     struct iqmbounds *bounds;
     mat34 *baseframe, *inversebaseframe, *outframe, *frames;
     GLint bonematsoffset;
+    vec4 *colormaps;
 } iqm_t;
 
 #define program (q->program)
@@ -10406,6 +10536,7 @@ typedef struct iqm_t {
 #define bonematsoffset (q->bonematsoffset)
 #define buf (q->buf)
 #define bounds (q->bounds)
+#define colormaps (q->colormaps)
 
 void model_set_texture(model_t m, texture_t t) {
     if(!m.iqm) return;
@@ -10425,44 +10556,53 @@ void model_set_uniforms(model_t m, int shader, mat44 mv, mat44 proj, mat44 view,
     int loc;
     //if( (loc = glGetUniformLocation(shader, "M")) >= 0 ) glUniformMatrix4fv( loc, 1, GL_FALSE/*GL_TRUE*/, m); // RIM
     if( (loc = glGetUniformLocation(shader, "MV")) >= 0 ) {
-        glUniformMatrix4fv( loc, 1, GL_FALSE/*GL_TRUE*/, mv);
+        glUniformMatrix4fv( loc, 1, GL_FALSE, mv);
     }
     else
     if( (loc = glGetUniformLocation(shader, "u_mv")) >= 0 ) {
-        glUniformMatrix4fv( loc, 1, GL_FALSE/*GL_TRUE*/, mv);
+        glUniformMatrix4fv( loc, 1, GL_FALSE, mv);
     }
     if( (loc = glGetUniformLocation(shader, "MVP")) >= 0 ) {
         mat44 mvp; multiply44x2(mvp, proj, mv); // multiply44x3(mvp, proj, view, model);
-        glUniformMatrix4fv( loc, 1, GL_FALSE/*GL_TRUE*/, mvp);
+        glUniformMatrix4fv( loc, 1, GL_FALSE, mvp);
     }
     else
     if( (loc = glGetUniformLocation(shader, "u_mvp")) >= 0 ) {
         mat44 mvp; multiply44x2(mvp, proj, mv); // multiply44x3(mvp, proj, view, model);
-        glUniformMatrix4fv( loc, 1, GL_FALSE/*GL_TRUE*/, mvp);
+        glUniformMatrix4fv( loc, 1, GL_FALSE, mvp);
+    }
+    if( (loc = glGetUniformLocation(shader, "VP")) >= 0 ) {
+        mat44 vp; multiply44x2(vp, proj, view);
+        glUniformMatrix4fv( loc, 1, GL_FALSE, vp);
+    }
+    else
+    if( (loc = glGetUniformLocation(shader, "u_vp")) >= 0 ) {
+        mat44 vp; multiply44x2(vp, proj, view);
+        glUniformMatrix4fv( loc, 1, GL_FALSE, vp);
     }
 #if 0
     // @todo: mat44 projview (useful?)
 #endif
     if ((loc = glGetUniformLocation(shader, "M")) >= 0) {
-        glUniformMatrix4fv(loc, 1, GL_FALSE/*GL_TRUE*/, model);
+        glUniformMatrix4fv(loc, 1, GL_FALSE, model);
     }
     else
     if ((loc = glGetUniformLocation(shader, "model")) >= 0) {
-        glUniformMatrix4fv(loc, 1, GL_FALSE/*GL_TRUE*/, model);
+        glUniformMatrix4fv(loc, 1, GL_FALSE, model);
     }
     if ((loc = glGetUniformLocation(shader, "V")) >= 0) {
-        glUniformMatrix4fv(loc, 1, GL_FALSE/*GL_TRUE*/, view);
+        glUniformMatrix4fv(loc, 1, GL_FALSE, view);
     }
     else
     if ((loc = glGetUniformLocation(shader, "view")) >= 0) {
-        glUniformMatrix4fv(loc, 1, GL_FALSE/*GL_TRUE*/, view);
+        glUniformMatrix4fv(loc, 1, GL_FALSE, view);
     }
     if ((loc = glGetUniformLocation(shader, "P")) >= 0) {
-        glUniformMatrix4fv(loc, 1, GL_FALSE/*GL_TRUE*/, proj);
+        glUniformMatrix4fv(loc, 1, GL_FALSE, proj);
     }
     else
     if ((loc = glGetUniformLocation(shader, "proj")) >= 0) {
-        glUniformMatrix4fv(loc, 1, GL_FALSE/*GL_TRUE*/, proj);
+        glUniformMatrix4fv(loc, 1, GL_FALSE, proj);
     }
     if( (loc = glGetUniformLocation(shader, "SKINNED")) >= 0 ) glUniform1i( loc, numanims ? GL_TRUE : GL_FALSE);
     if( numanims )
@@ -10492,14 +10632,46 @@ void model_set_state(model_t m) {
     glEnableVertexAttribArray(2);
     glEnableVertexAttribArray(3);
 
+    // vertex color
+    glVertexAttribPointer(11, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(iqm_vertex), (GLvoid*)offsetof(iqm_vertex,color) );
+    glEnableVertexAttribArray(11);
+
+    // animation
     if(numframes > 0) {
-        glVertexAttribPointer(4, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(iqm_vertex), (GLvoid*)offsetof(iqm_vertex,blendindexes) );
-        glVertexAttribPointer(5, 4, GL_UNSIGNED_BYTE, GL_TRUE,  sizeof(iqm_vertex), (GLvoid*)offsetof(iqm_vertex,blendweights) );
-        glEnableVertexAttribArray(4);
-        glEnableVertexAttribArray(5);
+        glVertexAttribPointer( 8, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(iqm_vertex), (GLvoid*)offsetof(iqm_vertex,blendindexes) );
+        glVertexAttribPointer( 9, 4, GL_UNSIGNED_BYTE, GL_TRUE,  sizeof(iqm_vertex), (GLvoid*)offsetof(iqm_vertex,blendweights) );
+        glVertexAttribPointer(10, 1, GL_FLOAT, GL_FALSE, sizeof(iqm_vertex), (GLvoid*)offsetof(iqm_vertex, blendvertexindex) );
+        glEnableVertexAttribArray(8);
+        glEnableVertexAttribArray(9);
+        glEnableVertexAttribArray(10);
     }
 
-    // 6 color
+    // mat4 attribute; for instanced rendering
+    if( 1 ) {
+        unsigned vec4_size = sizeof(vec4);
+        unsigned mat4_size = sizeof(vec4) * 4;
+
+        // vertex buffer object
+        if(!m.vao_instanced) glGenBuffers(1, &m.vao_instanced);
+        glBindBuffer(GL_ARRAY_BUFFER, m.vao_instanced);
+        glBufferData(GL_ARRAY_BUFFER, m.num_instances * mat4_size, m.instanced_matrices, GL_STATIC_DRAW);
+
+        glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 4 * vec4_size, (GLvoid*)(((char*)NULL)+(0 * vec4_size)));
+        glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 4 * vec4_size, (GLvoid*)(((char*)NULL)+(1 * vec4_size)));
+        glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, 4 * vec4_size, (GLvoid*)(((char*)NULL)+(2 * vec4_size)));
+        glVertexAttribPointer(7, 4, GL_FLOAT, GL_FALSE, 4 * vec4_size, (GLvoid*)(((char*)NULL)+(3 * vec4_size)));
+
+        glEnableVertexAttribArray(4);
+        glEnableVertexAttribArray(5);
+        glEnableVertexAttribArray(6);
+        glEnableVertexAttribArray(7);
+
+        glVertexAttribDivisor(4, 1);
+        glVertexAttribDivisor(5, 1);
+        glVertexAttribDivisor(6, 1);
+        glVertexAttribDivisor(7, 1);
+    }
+
     // 7 bitangent? into texcoord.z?
 
     glBindVertexArray( 0 );
@@ -10521,24 +10693,27 @@ bool model_load_meshes(iqm_t *q, const struct iqmheader *hdr, model_t *m) {
     numjoints = hdr->num_joints;
     outframe = CALLOC(hdr->num_joints, sizeof(mat34));
 
-    float *inposition = NULL, *innormal = NULL, *intangent = NULL, *intexcoord = NULL;
+    float *inposition = NULL, *innormal = NULL, *intangent = NULL, *intexcoord = NULL, *invertexindex = NULL;
     uint8_t *inblendindex8 = NULL, *inblendweight8 = NULL;
     int *inblendindexi = NULL; float *inblendweightf = NULL;
+    uint8_t *invertexcolor8 = NULL;
     struct iqmvertexarray *vas = (struct iqmvertexarray *)&buf[hdr->ofs_vertexarrays];
     for(int i = 0; i < (int)hdr->num_vertexarrays; i++) {
         struct iqmvertexarray *va = &vas[i];
         switch(va->type) {
         default: continue; // return PANIC("unknown iqm vertex type (%d)", va->type), false;
-        break; case IQM_POSITION: if(va->format != IQM_FLOAT || va->size != 3) return PANIC("!"); false; inposition = (float *)&buf[va->offset]; lil32pf(inposition, 3*hdr->num_vertexes);
-        break; case IQM_NORMAL: if(va->format != IQM_FLOAT || va->size != 3) return PANIC("!"); false; innormal = (float *)&buf[va->offset]; lil32pf(innormal, 3*hdr->num_vertexes);
-        break; case IQM_TANGENT: if(va->format != IQM_FLOAT || va->size != 4) return PANIC("!"); false; intangent = (float *)&buf[va->offset]; lil32pf(intangent, 4*hdr->num_vertexes);
-        break; case IQM_TEXCOORD: if(va->format != IQM_FLOAT || va->size != 2) return PANIC("!"); false; intexcoord = (float *)&buf[va->offset]; lil32pf(intexcoord, 2*hdr->num_vertexes);
-        break; case IQM_BLENDINDEXES: if(va->size != 4) return PANIC("!"); false; if(va->format != IQM_UBYTE && va->format != IQM_INT) return PANIC("!"); false;
+        break; case IQM_POSITION: ASSERT(va->format == IQM_FLOAT && va->size == 3); inposition = (float *)&buf[va->offset]; lil32pf(inposition, 3*hdr->num_vertexes);
+        break; case IQM_NORMAL: ASSERT(va->format == IQM_FLOAT && va->size == 3); innormal = (float *)&buf[va->offset]; lil32pf(innormal, 3*hdr->num_vertexes);
+        break; case IQM_TANGENT: ASSERT(va->format == IQM_FLOAT && va->size == 4); intangent = (float *)&buf[va->offset]; lil32pf(intangent, 4*hdr->num_vertexes);
+        break; case IQM_TEXCOORD: ASSERT(va->format == IQM_FLOAT && va->size == 2); intexcoord = (float *)&buf[va->offset]; lil32pf(intexcoord, 2*hdr->num_vertexes);
+        break; case IQM_COLOR: ASSERT(va->size == 4); ASSERT(va->format == IQM_UBYTE); invertexcolor8 = (uint8_t *)&buf[va->offset];
+        break; case IQM_BLENDINDEXES: ASSERT(va->size == 4); ASSERT(va->format == IQM_UBYTE || va->format == IQM_INT);
         if(va->format == IQM_UBYTE) inblendindex8 = (uint8_t *)&buf[va->offset];
         else inblendindexi = (int *)&buf[va->offset];
-        break; case IQM_BLENDWEIGHTS: if(va->size != 4) return PANIC("!"); false; if(va->format != IQM_UBYTE && va->format != IQM_FLOAT) return PANIC("!"); false;
+        break; case IQM_BLENDWEIGHTS: ASSERT(va->size == 4); ASSERT(va->format == IQM_UBYTE || va->format == IQM_FLOAT);
         if(va->format == IQM_UBYTE) inblendweight8 = (uint8_t *)&buf[va->offset];
         else inblendweightf = (float *)&buf[va->offset];
+        invertexindex = (inblendweight8 ? (float*)(inblendweight8 + 4) : inblendweightf + 4 );
         }
     }
 
@@ -10587,6 +10762,11 @@ bool model_load_meshes(iqm_t *q, const struct iqmheader *hdr, model_t *m) {
             uint8_t conv[4] = { inblendweightf[i*4] * 255, inblendweightf[i*4+1] * 255, inblendweightf[i*4+2] * 255, inblendweightf[i*4+3] * 255 };
             memcpy(v->blendweights, conv, sizeof(v->blendweights));
         }
+        if(invertexindex) {
+            float conv = i;
+            memcpy(&v->blendvertexindex, &conv, 4);
+        }
+        if(invertexcolor8) memcpy(v->color, &invertexcolor8[i*4], sizeof(v->color));
     }
 
     if(!vbo) glGenBuffers(1, &vbo);
@@ -10605,12 +10785,14 @@ if(inblendindex8) m->stride += sizeof(verts[0].blendindexes); // no index8? bug?
 if(inblendweight8) m->stride += sizeof(verts[0].blendweights); // no weight8? bug?
 if(inblendindexi) m->stride += sizeof(verts[0].blendindexes);
 if(inblendweightf) m->stride += sizeof(verts[0].blendweights);
+if(invertexcolor8) m->stride += sizeof(verts[0].color);
 #endif
 //for( int i = 0; i < 16; ++i ) printf("%.9g%s", ((float*)verts)[i], (i % 3) == 2 ? "\n" : ",");
 //m->verts = verts; //FREE(verts);
 m->verts = 0; FREE(verts);
 
     textures = CALLOC(hdr->num_meshes * 8, sizeof(GLuint));
+    colormaps = CALLOC(hdr->num_meshes * 8, sizeof(vec4));
     for(int i = 0; i < (int)hdr->num_meshes; i++) {
         int invalid = texture_checker().id;
         textures[i] = invalid;
@@ -10693,8 +10875,66 @@ bool model_load_anims(iqm_t *q, const struct iqmheader *hdr) {
 }
 
 static
+array(char) base64__decode(const char *in_) {
+    unsigned inlen = strlen(in_), outlen = inlen;
+    array(char) out_ = 0; array_resize(out_, outlen);
+
+    // based on code by Jon Mayo - November 13, 2003 (PUBLIC DOMAIN)
+    uint_least32_t v;
+    unsigned ii, io, rem;
+    char *out = (char *)out_;
+    const unsigned char *in = (const unsigned char *)in_;
+    const uint8_t base64dec_tab[256]= {
+        255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,
+        255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,
+        255,255,255,255,255,255,255,255,255,255,255,255,255, 62,255,255,
+         52, 53, 54, 55, 56, 57, 58, 59, 60, 61,255,255,255,  0,255,255,
+        255,  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14,
+         15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,255,255,255,255, 63,
+        255, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+         41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51,255,255,255,255,255,
+        255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,
+        255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,
+        255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,
+        255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,
+        255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,
+        255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,
+        255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,
+        255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,
+    };
+
+    for (io = 0, ii = 0,v = 0, rem = 0; ii < inlen; ii ++) {
+        unsigned char ch;
+        if (isspace(in[ii]))
+            continue;
+        if ((in[ii]=='=') || (!in[ii]))
+            break; /* stop at = or null character*/
+        ch = base64dec_tab[(unsigned char)in[ii]];
+        if (ch == 255)
+            break; /* stop at a parse error */
+        v = (v<<6) | ch;
+        rem += 6;
+        if (rem >= 8) {
+            rem -= 8;
+            if (io >= outlen)
+                return (array_free(out_), 0); /* truncation is failure */
+            out[io ++] = (v >> rem) & 255;
+        }
+    }
+    if (rem >= 8) {
+        rem -= 8;
+        if (io >= outlen)
+            return (array_free(out_), 0); /* truncation is failure */
+        out[io ++] = (v >> rem) & 255;
+    }
+    return (array_resize(out_, io), out_);
+}
+
+
+static
 bool model_load_textures(iqm_t *q, const struct iqmheader *hdr, model_t *model) {
     textures = textures ? textures : CALLOC(hdr->num_meshes * 8, sizeof(GLuint)); // up to 8 textures per mesh
+    colormaps = colormaps ? colormaps : CALLOC(hdr->num_meshes * 8, sizeof(vec4)); // up to 8 colormaps per mesh
 
     GLuint *out = textures;
 
@@ -10706,33 +10946,62 @@ bool model_load_textures(iqm_t *q, const struct iqmheader *hdr, model_t *model) 
         int invalid = texture_checker().id;
 
 #if 1
-        char* material_name;
-        // remove any material+name from materials (.fbx)
-        // try left token first
-        if( 1 ) {
-            material_name = va("%s", &str[m->material]);
-            char* plus = strrchr(material_name, '+');
-            if (plus) { strcpy(plus, file_ext(material_name)); }
-            *out = texture_compressed(material_name, flags).id;
+        char *material_embedded_texture = strstr(&str[m->material], "+b64:");
+        if( material_embedded_texture ) {
+            *material_embedded_texture = '\0';
+            material_embedded_texture += 5;
+            array(char) embedded_texture = base64__decode(material_embedded_texture);
+            //printf("%s %d\n", material_embedded_texture, array_count(embedded_texture));
+            //hexdump(embedded_texture, array_count(embedded_texture));
+            *out = texture_compressed_from_mem( embedded_texture, array_count(embedded_texture), 0 ).id;
+            array_free(embedded_texture);
         }
-        // else try right token
-        if (*out == invalid) {
-            material_name = file_normalize( va("%s", &str[m->material]) );
-            char* plus = strrchr(material_name, '+'), *slash = strrchr(material_name, '/');
-            if (plus) {
-                strcpy(slash ? slash + 1 : material_name, plus + 1);
+
+        char* material_color_hex = strstr(&str[m->material], "+$");
+        vec4 material_color = vec4(1,1,1,1);
+        if( material_color_hex ) {
+            *material_color_hex = '\0';
+            material_color_hex += 2;
+            material_color.r = ((material_color_hex[0] >= 'a') ? material_color_hex[0] - 'a' + 10 : material_color_hex[0] - '0') / 15.f;
+            material_color.g = ((material_color_hex[1] >= 'a') ? material_color_hex[1] - 'a' + 10 : material_color_hex[1] - '0') / 15.f;
+            material_color.b = ((material_color_hex[2] >= 'a') ? material_color_hex[2] - 'a' + 10 : material_color_hex[2] - '0') / 15.f;
+            #if 0 // not enabled because of some .obj files like suzanne, with color_hex=9990 found
+            if(material_color_hex[3])
+            material_color.a = ((material_color_hex[3] >= 'a') ? material_color_hex[3] - 'a' + 10 : material_color_hex[3] - '0') / 15.f;
+            else
+            #endif
+            material_color.a = 1;
+        }
+
+        if( !material_embedded_texture ) {
+            char* material_name;
+            // remove any material+name from materials (.fbx)
+            // try left token first
+            if( 1 ) {
+                material_name = va("%s", &str[m->material]);
+                char* plus = strrchr(material_name, '+');
+                if (plus) { strcpy(plus, file_ext(material_name)); }
                 *out = texture_compressed(material_name, flags).id;
             }
-        }
-        // else last resort
-        if (*out == invalid) {
-            *out = texture_compressed(material_name, flags).id; // needed?
+            // else try right token
+            if (*out == invalid) {
+                material_name = file_normalize( va("%s", &str[m->material]) );
+                char* plus = strrchr(material_name, '+'), *slash = strrchr(material_name, '/');
+                if (plus) {
+                    strcpy(slash ? slash + 1 : material_name, plus + 1);
+                    *out = texture_compressed(material_name, flags).id;
+                }
+            }
+            // else last resort
+            if (*out == invalid) {
+                *out = texture_compressed(material_name, flags).id; // needed?
+            }
         }
 
         if( *out != invalid) {
             PRINTF("loaded material[%d]: %s\n", i, &str[m->material]);
         } else {
-            PRINTF("fail: material[%d] not found: %s\n", i, &str[m->material]);
+            PRINTF("warn: material[%d] not found: %s\n", i, &str[m->material]);
             PRINTF("warn: using placeholder material[%d]=texture_checker\n", i);
             *out = texture_checker().id; // placeholder
         }
@@ -10743,6 +11012,7 @@ bool model_load_textures(iqm_t *q, const struct iqmheader *hdr, model_t *model) 
 
             material_t mt = {0};
             mt.name = STRDUP(&str[m->material]);
+            mt.layer[mt.count].color = material_color_hex ? material_color : vec4(1,1,1,1);
             mt.layer[mt.count++].texture = *out++;
             array_push(model->materials, mt);
         }
@@ -10756,7 +11026,7 @@ bool model_load_textures(iqm_t *q, const struct iqmheader *hdr, model_t *model) 
             *out = texture(it, flags).id;
 
             if( *out == invalid ) {
-                PRINTF("fail: material[%d] not found: %s\n", i, it);
+                PRINTF("warn: material[%d] not found: %s\n", i, it);
             } else {
                 PRINTF("loaded material[%d]: %s\n", i, it);
 
@@ -10785,6 +11055,7 @@ bool model_load_textures(iqm_t *q, const struct iqmheader *hdr, model_t *model) 
         material_t mt = {0};
         mt.name = "placeholder";
         mt.count = 1;
+        mt.layer[0].color = vec4(1,1,1,1);
         mt.layer[0].texture = texture_checker().id;
 
         array_push(model->materials, mt);
@@ -10800,8 +11071,8 @@ model_t model_from_mem(const void *mem, int len, int flags) {
     static int shaderprog = -1;
     if( shaderprog < 0 ) {
         const char *symbols[] = { "{{include-shadowmap}}", fs_0_0_shadowmap_lit }; // #define RIM
-        shaderprog = shader(strlerp(1,symbols,vs_32344443_332_model), strlerp(1,symbols,fs_32_4_model), //fs,
-            "att_position,att_texcoord,att_normal,att_tangent,att_indexes,att_weights,att_color,att_bitangent","fragColor");
+        shaderprog = shader(strlerp(1,symbols,vs_323444143_16_332_model), strlerp(1,symbols,fs_32_4_model), //fs,
+            "att_position,att_texcoord,att_normal,att_tangent,att_instanced_matrix,,,,att_indexes,att_weights,att_vertexindex,att_color,att_bitangent","fragColor");
     }
 
     iqm_t *q = CALLOC(1, sizeof(iqm_t));
@@ -10860,6 +11131,10 @@ model_t model_from_mem(const void *mem, int len, int flags) {
         m.flags = flags;
 
         id44(m.pivot);
+
+        m.num_instances = 0;
+        m.instanced_matrices = m.pivot;
+
         model_set_state(m);
     }
     return m;
@@ -10870,35 +11145,14 @@ model_t model(const char *filename, int flags) {
     return model_from_mem( ptr, len, flags );
 }
 
-void model_get_bone_pose(model_t m, float curframe, int joint, vec3 *pos, vec3 *from) { // bugs?
-    if(!m.iqm) return;
+bool model_get_bone_pose(model_t m, unsigned joint, mat34 *out) {
+    if(!m.iqm) return false;
     iqm_t *q = m.iqm;
 
-    // mat34 *mat = &frames[(int)curframe * numjoints];
-    float *a = outframe[joint];
+    if(joint >= numjoints) return false;
 
-#if 0
-           mat34 m34 = {0};
-           muladd34(m34, outframe[int(att_indexes.x)], att_weights.x);
-           muladd34(m34, outframe[int(att_indexes.y)], att_weights.y);
-           muladd34(m34, outframe[int(att_indexes.z)], att_weights.z);
-           muladd34(m34, outframe[int(att_indexes.w)], att_weights.w);
-           objPos = vec4(att_position, 1.0) * m34;
-#endif
-
-    *pos = vec3(a[12], a[13], a[14]);
-
-    if (joints[joint].parent >= 0) {
-        float *b = outframe[joints[joint].parent];
-
-        /*
-        @fixme: do as above
-        */
-
-        *from = vec3(b[12], b[13], b[14]);
-    } else {
-        *from = vec3(0, 0, 0);
-    }
+    multiply34x2(*out, outframe[joint], baseframe[joint]);
+    return true;
 }
 
 float model_animate_clip(model_t m, float curframe, int minframe, int maxframe, bool loop) {
@@ -10932,17 +11186,50 @@ float model_animate_clip(model_t m, float curframe, int minframe, int maxframe, 
             if(joints[i].parent >= 0) multiply34x2(outframe[i], outframe[joints[i].parent], mat);
             else copy34(outframe[i], mat);
         }
-
-        // model_render_skeleton
-        if(0)
-        for( int i = 0; i < numjoints; i++ ) {
-            vec3 pos, from;
-            model_get_bone_pose(m, curframe, i, &pos, &from);
-            ddraw_line(pos, from);
-        }
     }
 
     return retframe;
+}
+
+void model_render_skeleton(model_t m, mat44 M) {
+    if(!m.iqm) return;
+    iqm_t *q = m.iqm;
+
+    if(!numjoints) return;
+
+    ddraw_ontop_push(true);
+    ddraw_color_push(RED);
+
+    for( int joint = 0; joint < numjoints; joint++ ) {
+        if( joints[joint].parent < 0) continue;
+
+        // bone space...
+        mat34 f;
+        model_get_bone_pose(m, joint, &f);
+        vec3 pos = vec3(f[3],f[7],f[11]);
+
+        model_get_bone_pose(m, joints[joint].parent, &f);
+        vec3 src = vec3(f[3],f[7],f[11]);
+
+        // ...to model space
+        src = transform344(M, src);
+        pos = transform344(M, pos);
+
+        // red line
+        ddraw_color(RED);
+        ddraw_line(src, pos);
+
+        // green dot
+        ddraw_color(GREEN);
+        ddraw_point(pos);
+
+        // yellow text
+        ddraw_color(YELLOW);
+        ddraw_text(pos, 0.005, "%d", joint);
+    }
+
+    ddraw_color_pop();
+    ddraw_ontop_pop();
 }
 
 float model_animate(model_t m, float curframe) {
@@ -10960,25 +11247,35 @@ void model_draw_call(model_t m) {
 
     struct iqmtriangle *tris = NULL;
     for(int i = 0; i < nummeshes; i++) {
-        struct iqmmesh *m = &meshes[i];
+        struct iqmmesh *im = &meshes[i];
 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, textures[i] );
         glUniform1i(glGetUniformLocation(program, "fsDiffTex"), 0 /*<-- unit!*/ );
 
-        glDrawElements(GL_TRIANGLES, 3*m->num_triangles, GL_UNSIGNED_INT, &tris[m->first_triangle]);
+        int loc;
+        if ((loc = glGetUniformLocation(program, "u_textured")) >= 0) {
+            bool textured = !!textures[i] && textures[i] != texture_checker().id; // m.materials[i].layer[0].texture != texture_checker().id;
+            glUniform1i(loc, textured ? GL_TRUE : GL_FALSE);
+            if ((loc = glGetUniformLocation(program, "u_diffuse")) >= 0) {
+                glUniform4f(loc, m.materials[i].layer[0].color.r, m.materials[i].layer[0].color.g, m.materials[i].layer[0].color.b, m.materials[i].layer[0].color.a);
+            }
+        }
+
+        glDrawElementsInstanced(GL_TRIANGLES, 3*im->num_triangles, GL_UNSIGNED_INT, &tris[im->first_triangle], m.num_instances);
         profile_incstat("drawcalls", +1);
-        profile_incstat("triangles", +m->num_triangles);
+        profile_incstat("triangles", +im->num_triangles);
     }
 
     glBindVertexArray( 0 );
 }
 
-void model_render(model_t m, mat44 proj, mat44 view, mat44 model, int shader) {
+void model_render_instanced(model_t m, mat44 proj, mat44 view, mat44* models, int shader, unsigned count) {
     if(!m.iqm) return;
     iqm_t *q = m.iqm;
 
-    mat44 mv; multiply44x2(mv, view, model);
+    // @fixme: instanced billboards
+    mat44 mv; multiply44x2(mv, view, models[0]);
     if( m.billboard ) {
         float d = sqrt(mv[4*0+0] * mv[4*0+0] + mv[4*1+1] * mv[4*1+1] + mv[4*2+2] * mv[4*2+2]);
         if(m.billboard & 4) mv[4*0+0] = d, mv[4*0+1] =  0, mv[4*0+2] = 0;
@@ -10986,12 +11283,22 @@ void model_render(model_t m, mat44 proj, mat44 view, mat44 model, int shader) {
         if(m.billboard & 1) mv[4*2+0] = 0, mv[4*2+1] =  0, mv[4*2+2] = d;
     }
 
-    model_set_uniforms(m, shader > 0 ? shader : program, mv, proj, view, model);
+    if( count != m.num_instances ) {
+        m.num_instances = count;
+        m.instanced_matrices = models;
+        model_set_state(m);
+    }
+
+    model_set_uniforms(m, shader > 0 ? shader : program, mv, proj, view, models[0]);
     model_draw_call(m);
 }
 
+void model_render(model_t m, mat44 proj, mat44 view, mat44 model, int shader) {
+    model_render_instanced(m, proj, view, (mat44*)model, shader, 1);
+}
+
 static
-aabb aabb_transform( aabb A, mat44 M) {
+aabb aabb_transform( aabb A, mat44 M ) {
     // Based on "Transforming Axis-Aligned Bounding Boxes" by Jim Arvo, 1990
     aabb B = { {M[12],M[13],M[14]}, {M[12],M[13],M[14]} }; // extract translation from mat44
     for( int i = 0; i < 3; i++ )
@@ -11030,6 +11337,7 @@ void model_destroy(model_t m) {
     iqm_t *q = m.iqm;
 //    if(m.mesh) mesh_destroy(m.mesh);
     FREE(outframe);
+    FREE(colormaps);
     FREE(textures);
     FREE(baseframe);
     FREE(inversebaseframe);
@@ -11064,7 +11372,9 @@ void model_destroy(model_t m) {
 #undef bonematsoffset
 #undef buf
 #undef bounds
+#undef colormaps
 #line 0
+
 #line 1 "fwk_renderdd.c"
 static const char *dd_vs =
 //    "#version 130\n"
@@ -11185,12 +11495,32 @@ void ddraw_flush() {
     ddraw_color(WHITE); // reset color for next drawcall
 }
 
+static array(bool) dd_ontops;
 void ddraw_ontop(int enabled) {
     dd_ontop = !!enabled;
 }
+void ddraw_ontop_push(int enabled) {
+    array_push(dd_ontops, dd_ontop);
+    dd_ontop = !!enabled;
+}
+void ddraw_ontop_pop() {
+    bool *pop = array_pop(dd_ontops);
+    if(pop) dd_ontop = *pop;
+}
+
+static array(uint32_t) dd_colors;
 void ddraw_color(unsigned rgb) {
     dd_color = rgb;
 }
+void ddraw_color_push(unsigned rgb) {
+    array_push(dd_colors, dd_color);
+    dd_color = rgb;
+}
+void ddraw_color_pop() {
+    unsigned *pop = array_pop(dd_colors);
+    if(pop) dd_color = *pop;
+}
+
 void ddraw_point(vec3 from) {
 #if 0
     array(vec3) *found = map_find(dd_lists[dd_ontop][2], dd_color);
@@ -11270,7 +11600,7 @@ void ddraw_grid(float scale) {
 void (ddraw_text)(vec3 pos, float scale, const char *text) {
     // [ref] http://paulbourke.net/dataformats/hershey/ (PD)
     // [ref] https://sol.gfxile.net/hershey/fontprev.html (WTFPL2)
-    static const signed char *hershey[] = { /* simplex font */
+    static const char *hershey[] = { /* simplex font */
     "AQ","IKFVFH@@FCEBFAGBFC","FQEVEO@@MVMO","LVLZE:@@RZK:@@EMSM@@DGRG","[UIZI=@@MZ"
     "M=@@RSPUMVIVFUDSDQEOFNHMNKPJQIRGRDPBMAIAFBDD","`YVVDA@@IVKTKRJPHOFODQDSEUGVIVK"
     "UNTQTTUVV@@RHPGOEOCQASAUBVDVFTHRH","c[XMXNWOVOUNTLRGPDNBLAHAFBECDEDGEIFJMNNOOQ"
@@ -11311,9 +11641,9 @@ void (ddraw_text)(vec3 pos, float scale, const char *text) {
     vec3 src = pos, old = {0};
     for( signed char c; (c = *text++, c > 0 && c < 127); ) {
         if( c == '\n' || c == '\r' ) {
-            pos.x = src.x, pos.y -= scale * (hershey['W'-32][1] - 65) * 1.25f; // spacing @1
+            pos.x = src.x, pos.y -= scale * ((signed char)hershey['W'-32][1] - 65) * 1.25f; // spacing @1
         } else {
-            char *glyph = (char*)hershey[c - 32];
+            const char *glyph = (const char*)hershey[c - 32];
             if( c > 32 ) for( int pen = 0, i = 0; i < (glyph[0] - 65); i++ ) { // verts @0
                 int x = glyph[2 + i*2 + 0] - 65, y = glyph[2 + i*2 + 1] - 65;
                 if( x == -1 && y == -1 ) pen = 0; else {
@@ -11812,6 +12142,7 @@ void ddraw_demo() {
     ddraw_sphere(vec3(-3,0,-3),1);
 }
 #line 0
+
 #line 1 "fwk_scene.c"
 //
 // @todo: remove explicit GL code from here
@@ -12051,7 +12382,7 @@ scene_t* scene_get_active() {
 scene_t* scene_push() {
     scene_t *s = REALLOC(0, sizeof(scene_t)), clear = {0}; *s = clear;
     const char *symbols[] = { "{{include-shadowmap}}", fs_0_0_shadowmap_lit };
-    s->program = shader(strlerp(1, symbols, vs_332_32), strlerp(1, symbols, fs_32_4_model), "att_position,att_normal,att_texcoord", "fragcolor");
+    s->program = shader(strlerp(1, symbols, vs_332_32), strlerp(1, symbols, fs_32_4_model), "att_position,att_normal,att_texcoord,att_color", "fragcolor");
     s->skybox = skybox(NULL, 0);
     array_push(scenes, s);
     last_scene = s;
@@ -12206,6 +12537,7 @@ void scene_render(int flags) {
     glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
 }
 #line 0
+
 #line 1 "fwk_script.c"
 typedef lua_State lua;
 
@@ -12213,6 +12545,7 @@ typedef lua_State lua;
 lua *L;
 
 static void* script__realloc(void *userdef, void *ptr, size_t osize, size_t nsize) {
+    (void)userdef;
     return ptr = REALLOC( ptr, (osize+1) * nsize );
 }
 static int script__traceback(lua_State *L) {
@@ -12367,9 +12700,9 @@ void script_init() {
         atexit(script_quit);
     }
 }
-
 #undef XMACRO
 #line 0
+
 #line 1 "fwk_system.c"
 #if (is(tcc) && is(linux)) || (is(gcc) && !is(mingw)) // || is(clang)
 int __argc; char **__argv;
@@ -12454,7 +12787,7 @@ void app_reload() {
 }
 
 char* os_exec_output() {
-    static local char os_exec__output[4096] = {0};
+    static threadlocal char os_exec__output[4096] = {0};
     return os_exec__output;
 }
 int (os_exec)( const char *cmd ) {
@@ -12485,15 +12818,13 @@ char* (os_exec_)(int *rc, const char *cmd ) {
 #pragma comment(lib, "DbgHelp")
 #pragma comment(lib, "Kernel32")
 static int backtrace( void **addr, int maxtraces ) {
-    static HANDLE process = 0;
-    if( !process ) process = GetCurrentProcess();
-    if( !process ) exit( puts( "error: no current process" ) );
-    static int init = 0;
-    if( !init ) init = SymSetOptions(SYMOPT_UNDNAME), SymInitialize( process, NULL, TRUE );
-    if( !init ) exit( puts( "error: cannot initialize DbgHelp.lib" ) );
+    static bool init = 0;
+    do_once SymSetOptions(SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS | SYMOPT_INCLUDE_32BIT_MODULES);
+    do_once init = SymInitialize(GetCurrentProcess(), NULL, TRUE);
+    if(!init) return 0; // error: cannot initialize DbgHelp.lib
 
-    typedef USHORT (WINAPI *pFN)(); // TINYC
     //typedef USHORT (WINAPI *pFN)(__in ULONG, __in ULONG, __out PVOID*, __out_opt PULONG); // _MSC_VER
+    typedef USHORT (WINAPI *pFN)(); // TINYC
     static pFN rtlCaptureStackBackTrace = 0;
     if( !rtlCaptureStackBackTrace ) {
         rtlCaptureStackBackTrace = (pFN)GetProcAddress(LoadLibraryA("kernel32.dll"), "RtlCaptureStackBackTrace");
@@ -12503,56 +12834,40 @@ static int backtrace( void **addr, int maxtraces ) {
     }
     return rtlCaptureStackBackTrace(1, maxtraces, (PVOID *)addr, (DWORD *) 0);
 }
-static char **backtrace_symbols(void *const *array,int size) {
+static char **backtrace_symbols(void *const *list,int size) {
     HANDLE process = GetCurrentProcess();
-    enum { MAXSYMBOLNAME = 512 - sizeof(IMAGEHLP_SYMBOL64) };
-    char symbol64_buf     [ 512 ];
-    char symbol64_bufblank[ 512 ] = {0};
-    IMAGEHLP_SYMBOL64 *symbol64       = (IMAGEHLP_SYMBOL64*)symbol64_buf;
-    IMAGEHLP_SYMBOL64 *symbol64_blank = (IMAGEHLP_SYMBOL64*)symbol64_bufblank;
-    symbol64_blank->SizeOfStruct = sizeof(IMAGEHLP_SYMBOL64);
-    symbol64_blank->MaxNameLength = (MAXSYMBOLNAME-1) / 2; //wchar?
 
-    int symlen = size * sizeof(char *);
-    char **symbols = (char **)SYS_REALLOC(0, symlen);
+    struct symbol_t {
+        SYMBOL_INFO info;
+        TCHAR symbolname[256], terminator;
+    } si = { {0} };
+    si.info.SizeOfStruct = sizeof(SYMBOL_INFO);
+    si.info.MaxNameLen = sizeof(si.symbolname) / sizeof(TCHAR); // number of chars, not bytes
 
-    if( symbols ) {
-        for( int i = 0; i < size; ++i ) {
-            symbols[ i ] = NULL;
+    IMAGEHLP_LINE l64 = { 0 };
+    l64.SizeOfStruct = sizeof(IMAGEHLP_LINE);
+
+    static threadlocal array(char*) symbols = 0;
+    if( size > array_count(symbols) )
+    array_resize(symbols, size);
+
+    for( int i = 0; i < size; ++i ) {
+        if (symbols[i]) {
+            symbols[i][0] = '\0';
         }
 
-        char begin[1024];
-        for( int i = 0; i < size; ++i ) {
-            char **symbuf, *buffer = begin;
-
-            DWORD64 dw1 = 0, dw2 = 0;
-            *symbol64 = *symbol64_blank;
-            if( SymGetSymFromAddr64( process, (DWORD64)array[i], &dw1, symbol64 ) ) {
-                IMAGEHLP_LINE64 l64 = {0};
-                l64.SizeOfStruct = sizeof(IMAGEHLP_LINE64);
-                if( SymGetLineFromAddr64( process, (DWORD64)array[i], (DWORD*)&dw2, &l64 ) ) {
-                    // int lenbase( const char *str );
-                    int base = 0; // lenbase( l64.FileName );
-                    buffer += sprintf(buffer,"%s (%s:%d)%c", symbol64->Name, &l64.FileName[ base ], l64.LineNumber, 0);
-                } else {
-                    buffer += sprintf(buffer,"%s (?""?)%c", symbol64->Name, 0);
-                }
-            } else  buffer += sprintf(buffer,"(?""?)%c", 0);
-
-            size_t buflen = buffer - begin + 1;
-
-            symbuf = (char **)SYS_REALLOC( symbols, symlen + buflen );
-            if( symbuf ) {
-                memcpy( (char *)symbuf + symlen, begin, buflen );
-                symbuf[ i ] = (char *)(size_t)symlen;
-
-                symbols = symbuf;
-                symlen += buflen;
-            } else break;
+        if (SymFromAddr(process, (DWORD64)(uintptr_t)list[i], 0, &si.info)) {
+            //char undecorated[1024];
+            //UnDecorateSymbolName(si.info.Name, undecorated, sizeof(undecorated)-1, UNDNAME_COMPLETE);
+            char* undecorated = (char*)si.info.Name;
+            strcatf(&symbols[i], "%s", undecorated);
+        } else {
+            strcatf(&symbols[i], "%s", "(??)");
         }
 
-        for( int i = 0; i < size; ++i ) {
-            symbols[ i ] = (char *)symbols + (size_t)symbols[ i ];
+        DWORD dw = 0;
+        if (SymGetLineFromAddr(process, (DWORD64)(uintptr_t)list[i], &dw, &l64)) {
+            strcatf(&symbols[i], " (%s:%d)", l64.FileName, l64.LineNumber);
         }
     }
 
@@ -12563,76 +12878,63 @@ static int backtrace(void **heap, int num) { return 0; }
 static char **backtrace_symbols(void *const *sym,int num) { return 0; }
 #endif
 
-void trace_cb( int traces, int (*yield)(const char *)) {
+char *callstack( int traces ) {
+    static threadlocal char *output = 0;
+    if( output ) output[0] = '\0';
+
     enum { skip = 1 }; /* exclude 1 trace from stack (this function) */
     enum { maxtraces = 128 };
 
     int inc = 1;
     if( traces < 0 ) traces = -traces, inc = -1;
-    if( traces == 0 ) return;
+    if( traces == 0 ) return "";
     if( traces > maxtraces ) traces = maxtraces;
 
-    void *stack[ maxtraces ];
-    traces = backtrace( stack, traces );
-    char **symbols = backtrace_symbols( stack, traces );
+    void* stacks[maxtraces/* + 1*/]; // = { 0 };
+    traces = backtrace( stacks, traces );
+    char **symbols = backtrace_symbols( stacks, traces ); // @todo: optimization: map(void*,char*) cache; and retrieve only symbols not in cache
 
-    char demangled[1024] = "??", buf[1024];
+    char demangled[1024] = "??";
     int L = 0, B = inc>0 ? skip - 1 : traces, E = inc>0 ? traces : skip - 1;
     for( int i = B; ( i += inc ) != E; ) {
 #if is(linux)
-        char *address = strstr( symbols[i], "[" ) + 1; address[strlen(address) - 1] = '\0';
-        char *binary = symbols[i]; strstr( symbols[i], "(" )[0] = '\0';
-        char command[1024]; sprintf(command, "addr2line -e %s %s", binary, address);
-        for( FILE *fp = popen( command, "r" ); fp ; pclose(fp), fp = 0 ) {
+        #ifdef WITH_LINUX_CALLSTACKS
+        // @fixme: following snippet works if compiled with '-g', albeit terribly slow
+        // should concat addresses into a multi-address line
+
+        char *binary = symbols[i];
+        char *address = strchr( symbols[i], '(' ) + 1; 
+        *strrchr( address, ')') = '\0'; *(address - 1) = '\0';
+
+        for( FILE *fp = popen(va("addr2line -e %s %s", binary, address), "r" ); fp ; pclose(fp), fp = 0 ) { //addr2line -e binary -f -C address
             fgets(demangled, sizeof(demangled), fp);
             int len = strlen(demangled); while( len > 0 && demangled[len-1] < 32 ) demangled[--len] = 0;
         }
         symbols[i] = demangled;
+        #else
+        // make it shorter. ie, `0x00558997ccc87e ./a.out(+0x20187e) [0x00558997ccc87e]`
+        strchr(symbols[i], ')')[1] = '\0';
+        #endif
 #elif is(osx)
         /*struct*/ Dl_info info;
-        if( dladdr(stack[i], &info) && info.dli_sname ) {
+        if( dladdr(stacks[i], &info) && info.dli_sname ) {
             char *dmgbuf = info.dli_sname[0] != '_' ? NULL :
                  ifdef(cpp, __cxa_demangle(info.dli_sname, NULL, 0, NULL), info.dli_sname);
             strcpy( demangled, dmgbuf ? dmgbuf : info.dli_sname );
             symbols[i] = demangled;
-            FREE( dmgbuf );
+            free( dmgbuf );
         }
 #endif
-        sprintf(buf, "%03d: %#016p %s", ++L, stack[i], symbols[i]);
-        //sprintf(buf, "%03d: %s", ++L, symbols[i]);
-        if( yield(buf) < 0 ) break;
+        strcatf(&output, "%03d: %#016p %s\n", ++L, stacks[i], symbols[i]);
     }
 
-     symbols = SYS_REALLOC(symbols, 0);
-}
-
-static local char *trace_strbuf[128] = {0};
-static local int trace_counter = 0, trace_len = 0;
-int trace_(const char *line) {
-    int len = strlen(line);
-    trace_len += len + 1;
-    trace_strbuf[trace_counter] = (char*)SYS_REALLOC(trace_strbuf[trace_counter], (len * 1.5));
-    strcpy(trace_strbuf[trace_counter], line );
-    trace_counter = (trace_counter +1) % 128;
-    return 1;
-}
-char *callstack( int traces ) {
-#if is(linux)
-    return ""; // @fixme: not really working as expected
-#else
-    //if( trace_ ) trace_str_ = SYS_REALLOC(trace_str_, trace_lenbuf_ = 0);
-    trace_counter = trace_len = 0;
-    trace_cb( traces, trace_ );
-    static local char *buf = 0; // @fixme: 1 leak per invoking thread
-    buf = SYS_REALLOC(buf, 0);
-    buf = (char*)SYS_REALLOC( 0, trace_len + 1 ); buf[0] = 0;
-    for( int i = 0; i < trace_counter; ++i ) {
-        strcat(buf, trace_strbuf[i] ); // <-- optimize
-        strcat(buf, "\n");
-    }
-    return buf ? buf : ""; // @fixme: should return NULL if no callstack is retrieved?
+#if is(linux) || is(osx)
+     if(symbols) free(symbols);
 #endif
+
+     return output ? output : "";
 }
+
 int callstackf( FILE *fp, int traces ) {
     char *buf = callstack(traces);
     fputs(buf, fp);
@@ -12746,7 +13048,7 @@ int battery() {
     }
 
     int level = (ibstatus.BatteryLifePercent != 255) ? ibstatus.BatteryLifePercent : 0;
-    int charging = (ibstatus.BatteryFlag & 8 > 0);
+    int charging = (ibstatus.BatteryFlag & 8) > 0;
     return charging ? +level : -level;
 }
 
@@ -13245,6 +13547,7 @@ int (PANIC)(const char *error, const char *file, int line) {
     return 1;
 }
 #line 0
+
 #line 1 "fwk_ui.c"
 #define MAX_VERTEX_MEMORY 512 * 1024
 #define MAX_ELEMENT_MEMORY 128 * 1024
@@ -14044,6 +14347,7 @@ void ui_demo() {
     }
 }
 #line 0
+
 #line 1 "fwk_video.c"
 struct video_t {
     // mpeg player
@@ -14086,10 +14390,12 @@ static void mpeg_video_callback( plm_t* plm, plm_frame_t* frame, void* user ) {
         plm_frame_to_rgb( frame, v->surface, v->texture.w * 3 );
         texture_update( &v->texture, v->texture.w, v->texture.h, v->texture.n, v->surface, v->texture.flags );
     }
+    (void)plm;
 }
 static void mpeg_audio_callback(plm_t *plm, plm_samples_t *samples, void *user) {
     video_t *v = (video_t*)user;
     audio_queue(v->paused ? NULL : samples->interleaved, samples->count, AUDIO_FLOAT | AUDIO_2CH | AUDIO_44KHZ );
+    (void)plm;
 }
 
 video_t* video( const char *filename, int flags ) {
@@ -14190,10 +14496,9 @@ bool video_is_paused(video_t *v) {
 texture_t* video_textures( video_t *v ) {
     return v->has_ycbcr ? &v->textureY : &v->texture;
 }
-
 #line 0
-#line 1 "fwk_window.c"
 
+#line 1 "fwk_window.c"
 //-----------------------------------------------------------------------------
 // fps locking
 
@@ -14223,6 +14528,7 @@ int fps__timing_thread(void *arg) {
     }
     fps_active = 1;
 
+    (void)arg;
     return thread_exit(0), 0;
 }
 static
@@ -14319,6 +14625,8 @@ void window_drop_callback(GLFWwindow* window, int count, const char** paths) {
 
     if( errors ) PANIC("%d errors found during file dropping", errors);
     else  app_reload();
+
+    (void)window;
 }
 
 static // @todo
@@ -14446,6 +14754,9 @@ glfwWindowHint(GLFW_DOUBLEBUFFER, GL_TRUE);
 
 // Prevent fullscreen window minimize on focus loss
 glfwWindowHint( GLFW_AUTO_ICONIFY, GL_FALSE );
+
+// Fix SRGB on intels
+glfwWindowHint(GLFW_SRGB_CAPABLE, GLFW_TRUE);
 
     glfwWindowHint(GLFW_FOCUSED, GLFW_TRUE);
     glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
@@ -14772,6 +15083,514 @@ void window_unlock_aspect() {
     window_lock_aspect(0, 0);
 }
 #line 0
+
+#line 1 "fwk_obj.c"
+void *obj_initialize( void **ptr, char *type ) {
+    unsigned payload = ((unsigned char)type[0]) << 8; type[0] = '\1'; // @fixme: actually use this '\1' custom tag
+#ifndef NDEBUG
+    strcatf(&type, "%s", callstack(+16)); // debug: for debugging purposes only
+#endif
+    ptr[0] = OBJBOX((void *)type, payload);
+
+    return &ptr[1];
+}
+
+void obj_free( void *obj ) {
+    void *ptr = *((void**)obj - 1);
+    FREE( OBJUNBOX(ptr) );
+    obj = (void**)obj - 1;
+    FREE( obj );
+}
+
+void obj_del( void *obj ) {
+    unsigned type = obj_typeid(obj);
+    (type[dtor])(obj);
+    obj_free( obj );
+}
+
+unsigned obj_instances( const void *obj ) {
+    return OBJPAYLOAD3(obj) + 1;
+}
+
+// ---
+
+const char *obj_output( const void *obj ) {
+    void* ptr = *((void**)obj - 1);
+    char *str = OBJUNBOX(ptr);
+
+    while( *str != '\n' ) ++str;
+    return (const char *)str + 1;
+}
+void (obj_printf)( void *obj, const char *text ) {
+    void* ptr = *((void**)obj - 1);
+    char* str = OBJUNBOX(ptr);
+    unsigned payload = OBJPAYLOAD16(ptr);
+
+    strcatf(&str, "%s", text);
+
+    *((void**)obj - 1) = OBJBOX(str, payload);
+}
+
+// ---
+
+const char *obj_typeof( const void *obj ) {
+    void* ptr = *((void**)obj - 1);
+    ptr = OBJUNBOX(ptr);
+
+    char name[256]; sscanf((const char*)ptr + 1, "%[^\n]", name); // @fixme: overflow
+    return va("%s", name);
+}
+
+unsigned obj_typeid(const void *obj) {
+    void* ptr = *((void**)obj - 1);
+    unsigned payload = OBJPAYLOAD16(ptr);
+    return payload >> 8;
+}
+
+bool obj_typeeq( const void *obj1, const void *obj2 ) {
+    if( obj_typeid(obj1) != obj_typeid(obj2) ) return false;
+    return !strcmp( obj_typeof(obj1), obj_typeof(obj2) );
+}
+
+unsigned obj_typeid_from_name(const char *name) {
+    name += strbegi(name, "struct ") ? 8 : strbegi(name, "union ") ? 7 : 0;
+    unsigned typeid = hash_str(name) & 255; // @fixme: increase bits / decrease colliders (256 types only!)
+    ASSERT( typeid, "Name of given class has an empty (zeroed) hash. Limitation by design" );
+
+    static map(unsigned, char *) registered; // @fixme: add mutex
+    do_once map_init(registered, less_int, hash_int);
+    do_once map_insert(registered, 1, "(typeless)");
+    char **found = map_find(registered, typeid);
+    if(!found) map_insert(registered, typeid, STRDUP(name));
+    else ASSERT( !strcmp(name, *found), "Uh-oh, types collided. Please rename one of these two classes '%s'/'%s'", name, *found);
+
+    return typeid;
+}
+
+// ---
+
+unsigned obj_sizeof(const void *obj) {
+    void *ptr = (void**)obj - 1;
+    return ALLOCSIZE(ptr) - sizeof(void*);
+}
+
+void obj_zero(void *obj) {
+    // clear console log
+    void* ptr = *((void**)obj - 1);
+    char* str = OBJUNBOX(ptr);
+    if( str[0] ) {
+        unsigned payload = OBJPAYLOAD16(ptr);
+
+        unsigned namelen = strlen(obj_typeof(obj));
+        str = REALLOC(str, 1+namelen+2); // preserve \1+name+\n+\0
+        str[1+namelen+2-1] = '\0';
+
+        *((void**)obj - 1) = OBJBOX(str, payload);
+    }
+
+    // reset data
+    dtor(obj);
+    memset(obj, 0, obj_sizeof(obj));
+    ctor(obj);
+}
+
+void obj_hexdumpf(FILE *out, const void *obj) {
+    hexdumpf(out, obj, obj_sizeof(obj), 16);
+
+    const char *output = obj_output(obj);
+    fprintf( out, "; ptr=[%p] sizeof=%d typeof=%s typeid=%#x refs=%d\n%s%s\n",
+        obj, obj_sizeof(obj), obj_typeof(obj), obj_typeid(obj), (int)(OBJPAYLOAD16(obj) & 0xFF),
+        output[0] ? output : "(no output)", output[0] ? "---" : "");
+}
+
+void obj_hexdump(const void *obj) {
+    obj_hexdumpf( stdout, obj );
+}
+
+// object: load/save
+
+unsigned obj_load_buffer(void *obj, const void *src, unsigned srclen) {
+    unsigned objlen = obj_sizeof(obj);
+    if( srclen > objlen ) return 0; // @fixme: do something clever
+    memcpy(obj, src, srclen); // @fixme: do something clever
+    return objlen;
+}
+unsigned obj_load(void *obj, const array(char) buffer) {
+    unsigned bytes = buffer ? obj_load_buffer(obj, buffer, array_count((char*)buffer)) : 0;
+    return bytes;
+}
+unsigned obj_load_file(void *obj, FILE *fp) {
+    unsigned len = obj_sizeof(obj);
+    char *buffer = va("%*.s", len, "");
+    unsigned read = fread(buffer, 1, len, fp);
+    if( read != (1*len) ) {
+        return 0;
+    }
+    unsigned bytes = obj_load_buffer(obj, buffer, len);
+    return bytes;
+}
+
+unsigned obj_save_buffer(void *dst, unsigned cap, const void *obj) {
+    unsigned len = obj_sizeof(obj);
+    if( len > cap ) return 0;
+    memcpy(dst, obj, len); // @fixme: do something clever
+    return len;
+}
+array(char) obj_save(const void *obj) { // empty if error. must array_free() after use
+    array(char) data = 0;
+    unsigned len = obj_sizeof(obj);
+    array_resize(data, len);
+    unsigned bytes = obj_save_buffer(data, len, obj);
+    array_resize(data, bytes);
+    return data;
+}
+unsigned obj_save_file(FILE *fp, const void *obj) {
+    unsigned len = obj_sizeof(obj);
+    char *buffer = va("%*.s", len, "");
+    unsigned bytes = obj_save_buffer(buffer, len, obj);
+    if( bytes > 0 ) {
+        unsigned written = fwrite(buffer, 1, len, fp);
+        if( written == (1*len) ) {
+            return written;
+        }
+    }
+    return 0; // error
+}
+
+// ---
+
+static int threadlocal global_ref_count; // @fixme: make it atomic
+
+static void objref_check_atexit(void) {
+    if(global_ref_count > 0) fprintf(stderr, "Warn! Possible memory_leaks: %d refs not destroyed\n", global_ref_count);
+    if(global_ref_count < 0) fprintf(stderr, "Warn! Possible double free: %d refs double destroyed\n", -global_ref_count);
+}
+
+void* obj_ref(void *obj) {
+    do_once atexit(objref_check_atexit);
+
+    if( obj ) {
+        void *ptr = *((void**)obj - 1);
+        unsigned payload = OBJPAYLOAD16(ptr);
+        unsigned ref_count = payload & 255;
+        ASSERT(ref_count < 255, "Object cannot hold more than 256 refs. Limitation by design.");
+
+        *((void**)obj - 1) = OBJBOX(OBJUNBOX(ptr), payload + 1);
+        global_ref_count++;
+    }
+
+    return obj;
+}
+
+void* obj_unref(void *obj) {
+    if( obj ) {
+        void *ptr = *((void**)obj - 1);
+        unsigned payload = OBJPAYLOAD16(ptr);
+        unsigned ref_count = payload & 255;
+
+        *((void**)obj - 1) = OBJBOX(OBJUNBOX(ptr), payload - 1);
+        global_ref_count--;
+
+        if( ref_count <= 1 ) {
+            obj_del(obj);
+            return 0;
+        }
+    }
+
+    return obj;
+}
+
+// ---
+
+void dummy1() {}
+#define dummy8   dummy1,dummy1,dummy1,dummy1,dummy1,dummy1,dummy1,dummy1
+#define dummy64  dummy8,dummy8,dummy8,dummy8,dummy8,dummy8,dummy8,dummy8
+#define dummy256 dummy64,dummy64,dummy64,dummy64
+
+void (*dtor[256])() = { dummy256 };
+void (*ctor[256])() = { dummy256 };
+
+// ---
+
+static set(uintptr_t) vtables; // @fixme: add mutex
+
+void (obj_override)(const char *objclass, void (**vtable)(), void(*fn)()) {
+    do_once set_init(vtables, less_64, hash_64);
+    set_find_or_add(vtables, (uintptr_t)vtable);
+
+    vtable[ obj_typeid_from_name(objclass) ] = fn;
+}
+
+void (obj_extend)(const char *dstclass, const char *srcclass) { // wip, @testme
+    unsigned dst_id = obj_typeid_from_name(dstclass);
+    unsigned src_id = obj_typeid_from_name(srcclass);
+
+    // iterate src vtables, and assign them to dst
+    if(dst_id != src_id)
+    for each_set(vtables, void **, src_table) {
+        if( src_table[src_id] ) {
+            src_table[dst_id] = (void(*)()) (src_table[ src_id ]);
+        }
+    }
+}
+
+// ---
+
+void *obj_clone(const void *obj) { // @fixme: clone object console as well?
+    unsigned sz = obj_sizeof(obj);
+    const char *nm = obj_typeof(obj);
+    unsigned id = obj_typeid(obj);
+
+    void *obj2 = obj_initialize((void**)MALLOC(sizeof(void*)+sz), stringf("%c%s\n" "cloned" "\n", id, nm)); // STRDUP( OBJUNBOX(*((void**)obj - 1)) ));
+    memcpy(obj2, obj, sz);
+    return obj2;
+}
+
+void *obj_copy(void **dst, const void *src) {
+    if(!*dst) return *dst = obj_clone(src);
+
+    if( obj_typeeq(*dst, src) ) {
+        return memcpy(*dst, src, obj_sizeof(src));
+    }
+
+    return NULL;
+}
+
+void *obj_mutate(void **dst_, const void *src) {
+    // mutate a class. ie, convert a given object class into a different one,
+    // while preserving the original metas and references as much as possible.
+    //
+    // @fixme: systems might be tracking objects in the future. the fact that we
+    // can reallocate a pointer (and hence, change its address) seems way too dangerous,
+    // as the tracking systems could crash when referencing a mutated object.
+    // solutions: do not reallocate if sizeof(new_class) > sizeof(old_class) maybe? good enough?
+    // also, optimization hint: no need to reallocate if both sizes matches, just copy contents.
+
+    if(!*dst_) return *dst_ = obj_clone(src);
+
+    void *dst = *dst_;
+    dtor(dst);
+
+        unsigned src_sz = obj_sizeof(src);
+        unsigned src_id = obj_typeid(src);
+
+        void *dst_ptr = *((void**)dst - 1);
+        unsigned payload = (OBJPAYLOAD16(dst_ptr) & 255) | src_id << 8;
+        FREE( OBJUNBOX(dst_ptr) );
+        *((void**)dst - 1) = OBJBOX( STRDUP( OBJUNBOX(*((void**)src - 1)) ), payload);
+
+        void *base = (uintptr_t)((void**)dst - 1);
+        base = REALLOC(base, src_sz + sizeof(void*));
+        *dst_ = (char*)base + sizeof(void*);
+        dst = (char*)base + sizeof(void*);
+        memcpy(dst, src, src_sz);
+
+    ctor(dst);
+    return dst;
+}
+
+
+#ifdef OBJ_DEMO
+
+typedef struct MyObject {
+    char* id;
+    int x,y;
+    float rotation;
+    struct MyObject *next;
+} MyObject;
+
+void tests1() {
+    // Construct two objects
+    MyObject *root = obj_new(MyObject, 0);
+    MyObject *obj = obj_new(MyObject, "An identifier!", 0x11, 0x22, 3.1415f, root );
+
+    // Log some lines
+    obj_printf(root, "this is a logline #1\n");
+    obj_printf(root, "this is a logline #2\n");
+    obj_printf(root, "this is a logline #3\n");
+
+    obj_printf(obj, "yet another logline #1\n");
+    obj_printf(obj, "yet another logline #2\n");
+
+    // Dump contents of our objects
+
+    obj_hexdump(root);
+    obj_hexdump(obj);
+
+    // Save to mem
+
+    array(char) buffer = obj_save(obj);
+    printf("%d bytes\n", (int)array_count(buffer));
+
+    // Clear
+
+    obj_zero( obj );
+    obj_hexdump( obj );
+
+    // Reload
+
+    obj_load( obj, buffer );
+    obj_hexdump( obj );
+
+    // Copy tests
+
+    {
+        MyObject *clone = obj_clone(obj);
+        obj_hexdump(clone);
+        obj_del(clone);
+    }
+
+    {
+        MyObject *copy = 0;
+        obj_copy(&copy, obj);
+        obj_hexdump(copy);
+        obj_del(copy);
+    }
+
+    {
+        MyObject *copy = obj_new(MyObject, "A different identifier!", 0x33, 0x44, 0.0f, root );
+        obj_copy(&copy, obj);
+        obj_hexdump(copy);
+        obj_del(copy);
+    }
+
+    {
+        void *copy = obj_malloc(100, "an untyped class" );
+        obj_mutate(&copy, obj);
+        obj_hexdump(copy);
+        obj_copy(&copy, obj);
+        obj_hexdump(copy);
+        obj_del(copy);
+    }
+
+    // Benchmarking call overhead.
+    // We're here using dtor as a method to test. Since there is actually no
+    // destructor associated to this class, it will be safe to call it extensively (no double frees).
+    //
+    // results:
+    // 427 million calls/s @ old i5-4300/1.90Ghz laptop. compiled with "cl /Ox /Os /MT /DNDEBUG /GL /GF /arch:AVX2"
+
+    #ifndef N
+    #define N (INT32_MAX-1)
+    #endif
+
+    double t = (puts("benchmarking..."), -clock() / (double)CLOCKS_PER_SEC);
+    for( int i = 0; i < N; ++i ) {
+        dtor(root);
+    }
+    t += clock() / (double)CLOCKS_PER_SEC;
+    printf("Benchmark: %5.2f objcalls/s %5.2fM objcalls/s\n", N/(t), (N/1000)/(t*1000)); // ((N+N)*5) / (t) );
+
+}
+
+// --------------
+
+#define dump(obj) dump[obj_typeid(obj)](obj)
+#define area(obj) area[obj_typeid(obj)](obj)
+
+extern void  (*dump[256])();
+extern float (*area[256])();
+
+void  (*dump[256])() = {0};
+float (*area[256])() = {0};
+
+// --------------
+
+typedef struct box {
+    float w;
+} box;
+
+void  box_ctor(box *b) { printf("box already constructed: box-w:%f\n", b->w); }
+void  box_dtor(box *b) { puts("deleting box..."); }
+void  box_dump(box *b) { printf("box-w:%f\n", b->w); }
+float box_area(box *b) { return b->w * b->w; }
+
+#define REGISTER_BOX \
+    obj_override(box, ctor); \
+    obj_override(box, dump); \
+    obj_override(box, area); \
+    obj_override(box, dtor);
+
+typedef struct rect {
+    float w, h;
+} rect;
+
+void  rect_dump(rect *r) { printf("rect-w:%f rect-h:%f\n", r->w, r->h); }
+float rect_area(rect *r) { return r->w * r->h; }
+void  rect_dtor(rect *r) { puts("deleting rect..."); }
+
+#define REGISTER_RECT \
+    obj_override(rect, dump); \
+    obj_override(rect, area); \
+    obj_override(rect, dtor);
+
+void tests2() {
+    REGISTER_BOX
+    REGISTER_RECT
+
+    box *b = obj_new(box, 100);
+    rect *r = obj_new(rect, 100, 200);
+
+    dump(b);
+    dump(r);
+
+    printf("%f\n", area(b));
+    printf("%f\n", area(r));
+
+    obj_del(b);
+    obj_ref(r); obj_unref(r); //obj_del(r);
+
+    int *untyped = obj_malloc( sizeof(int) );
+    int *my_number = obj_malloc( sizeof(int), "a comment about my_number" );
+    char *my_text = obj_malloc( 32, "some debug info here" );
+
+    *untyped = 100;
+    *my_number = 123;
+    sprintf( my_text, "hello world" );
+
+    struct my_bitmap { int w, h, bpp; const char *pixels; };
+    struct my_bitmap *my_bitmap = obj_new(struct my_bitmap, 2,2,8, "\1\2\3\4");
+
+    printf( "%p(%s,%u)\n", my_bitmap, obj_typeof(my_bitmap), obj_typeid(my_bitmap) );
+    printf( "%d(%s,%d)\n", *untyped, obj_typeof(untyped), obj_typeid(untyped) );
+    printf( "%d(%s,%d)\n", *my_number, obj_typeof(my_number), obj_typeid(my_number) );
+    printf( "%s(%s,%d)\n", my_text, obj_typeof(my_text), obj_typeid(my_text) );
+
+    obj_printf(my_text, "hello world #1\n");
+    obj_printf(my_text, "hello world #2\n");
+    puts(obj_output(my_text));
+
+    printf( "%s(%s,%d)\n", my_text, obj_typeof(my_text), obj_typeid(my_text) );
+
+    printf( "equal?:%d\n", obj_typeeq(my_number, untyped) );
+    printf( "equal?:%d\n", obj_typeeq(my_number, my_number) );
+    printf( "equal?:%d\n", obj_typeeq(my_number, my_text) );
+    printf( "equal?:%d\n", obj_typeeq(my_number, my_bitmap) );
+
+    obj_free( untyped );
+    obj_free( my_text );
+    obj_free( my_bitmap );
+    obj_del( my_number ); // should not crash, even if allocated with obj_malloc()
+}
+
+int main() {
+    tests1();
+    tests2();
+    puts("ok");
+}
+
+/*
+    MEMBER( MyObject, char*, id );
+    MEMBER( MyObject, int, x );
+    MEMBER( MyObject, int, y );
+    MEMBER( MyObject, float, rotation, "(degrees)" );
+    MEMBER( MyObject, MyObject*, next, "(linked list)" );
+*/
+
+#define main main__
+#endif
+#line 0
+
 #line 1 "fwk_editor.c"
 // editing:
 // nope > functions: add/rem property
@@ -14982,7 +15801,7 @@ void editor() {
 }
 
 char* dialog_load() {
-    const char *windowTitle = NULL; 
+    const char *windowTitle = NULL;
     const char *defaultPathFile = NULL;
     const char *filterHints = NULL; // "image files"
     const char *filters[] = { "*.*" };
@@ -14992,7 +15811,7 @@ char* dialog_load() {
     return tinyfd_openFileDialog( windowTitle, defaultPathFile, countof(filters), filters, filterHints, allowMultipleSelections );
 }
 char* dialog_save() {
-    const char *windowTitle = NULL; 
+    const char *windowTitle = NULL;
     const char *defaultPathFile = NULL;
     const char *filterHints = NULL; // "image files"
     const char *filters[] = { "*.*" };
@@ -15000,9 +15819,8 @@ char* dialog_save() {
     tinyfd_assumeGraphicDisplay = 1;
     return tinyfd_saveFileDialog( windowTitle, defaultPathFile, countof(filters), filters, filterHints );
 }
-
-
 #line 0
+
 // editor is last in place, so it can use all internals from above headers
 
 #line 1 "fwk_main.c"

@@ -167,7 +167,7 @@ extern "C" {
 // new C keywords
 // @todo: autorun (needed?)
 
-#define countof(x)       (sizeof (x) / sizeof 0[x])
+#define countof(x)       (int)(sizeof (x) / sizeof 0[x])
 
 #define macro(name)      concat(name, __LINE__)
 #define concat(a,b)      conc4t(a,b)
@@ -181,12 +181,12 @@ extern "C" {
 //-----------------------------------------------------------------------------
 // new C macros
 
-#define ASSERT(expr, ...)   do { int fool_msvc[] = {0,}; if(!(expr)) { fool_msvc[0]++; breakpoint(stringf("!Expression failed: " #expr " " FILELINE "\n" __VA_ARGS__)); } } while(0)
-#define PRINTF(...)         PRINTF(stringf(__VA_ARGS__), 1[#__VA_ARGS__] == '!' ? callstack(+48) : "", __FILE__, __LINE__, __FUNCTION__)
+#define ASSERT(expr, ...)   do { int fool_msvc[] = {0,}; if(!(expr)) { fool_msvc[0]++; breakpoint(va("!Expression failed: " #expr " " FILELINE "\n" __VA_ARGS__)); } } while(0)
+#define PRINTF(...)         PRINTF(va(__VA_ARGS__), 1[#__VA_ARGS__] == '!' ? callstack(+48) : "", __FILE__, __LINE__, __FUNCTION__)
 
-#define FILELINE            __FILE__ ":" STRINGIZE(__LINE__)
-#define STRINGIZE(x)        STRINGIZ3(x)
-#define STRINGIZ3(x)        #x
+#define FILELINE                   __FILE__ ":" STRINGIZE(__LINE__)
+#define STRINGIZE(x)               STRINGIZ3(x)
+#define STRINGIZ3(x)               #x
 
 #define EXPAND(name, ...)          EXPAND_QUOTE(EXPAND_JOIN(name, EXPAND_COUNT_ARGS(__VA_ARGS__)), (__VA_ARGS__))
 #define EXPAND_QUOTE(x, y)         x y
@@ -197,44 +197,70 @@ extern "C" {
 #define EXPAND_ARGS(args)          EXPAND_RETURN_COUNT args
 #define EXPAND_RETURN_COUNT(_1_, _2_, _3_, _4_, _5_, _6_, _7_, _8_, _9_, count, ...) count
 
-//#define STATIC_ASSERT(EXPR)       typedef char UNIQUE_NAME(_static_assert_on_line)[(EXPR)?1:-1]
-#define STATIC_ASSERT(EXPR)         STATIC_ASSER7(EXPR, __LINE__)
-#define STATIC_ASSER7(EXPR, LINE)   STATIC_ASS3R7(EXPR, LINE)
-#define STATIC_ASS3R7(EXPR, LINE)   typedef struct { unsigned static_assert_on_line_##LINE : !!(EXPR); } static_assert_on_line_##LINE // typedef int static_assert_on_line_##LINE[ !!(EXPR) ]
+//#define STATIC_ASSERT(EXPR)      typedef char UNIQUE_NAME(_static_assert_on_line)[(EXPR)?1:-1]
+#define STATIC_ASSERT(EXPR)        STATIC_ASSER7(EXPR, __LINE__)
+#define STATIC_ASSER7(EXPR, LINE)  STATIC_ASS3R7(EXPR, LINE)
+#define STATIC_ASS3R7(EXPR, LINE)  typedef struct { unsigned static_assert_on_line_##LINE : !!(EXPR); } static_assert_on_line_##LINE // typedef int static_assert_on_line_##LINE[ !!(EXPR) ]
 
 #if defined(_MSC_VER) && !defined(__cplusplus)
-#define m_inline __inline // m_inline -> INLINE ?
+#define INLINE __inline
 #else
-#define m_inline inline   // m_inline -> INLINE ?
+#define INLINE inline
 #endif
 
 //-----------------------------------------------------------------------------
 // Headers
 
 {{FILE:fwk_config.h}}
+
 {{FILE:fwk_math.h}}
 
+
+
 {{FILE:fwk_audio.h}}
+
 {{FILE:fwk_collide.h}}
+
 {{FILE:fwk_cooker.h}}
+
 {{FILE:fwk_data.h}}
+
 {{FILE:fwk_dll.h}}
+
 {{FILE:fwk_ds.h}}
+
 {{FILE:fwk_editor.h}}
+
 {{FILE:fwk_file.h}}
+
 {{FILE:fwk_font.h}}
+
 {{FILE:fwk_input.h}}
+
 {{FILE:fwk_memory.h}}
+
 {{FILE:fwk_network.h}}
+
+{{FILE:fwk_obj.h}}
+
 {{FILE:fwk_profile.h}}
+
 {{FILE:fwk_render.h}}
+
 {{FILE:fwk_renderdd.h}}
+
 {{FILE:fwk_scene.h}}
+
 {{FILE:fwk_script.h}}
+
 {{FILE:fwk_string.h}}
+
 {{FILE:fwk_system.h}}
+
 {{FILE:fwk_ui.h}}
+
 {{FILE:fwk_video.h}}
+
 {{FILE:fwk_window.h}}
 
 // ----

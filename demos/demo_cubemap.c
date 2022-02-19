@@ -3,14 +3,11 @@
 int SKY_DIR = 0;
 const char *SKY_DIRS[] = {
     "cubemaps/bridge3/",
-    "cubemaps/coittower2/",
     "cubemaps/colors/",
     "cubemaps/colors2/",
     "cubemaps/mountain/",
     "cubemaps/room/",
     "cubemaps/stardust/",
-    "cubemaps/tantolunden2/",
-    "cubemaps/theforge/",
     "hdr/MonValley_G_DirtRoad_1k.hdr",
     "hdr/Factory_Catwalk_1k.hdr",
     "hdr/Shiodome_Stairs_1k.hdr",
@@ -90,7 +87,7 @@ int main(int argc, char** argv) {
             ui_separator();
             for (int i = 0; i < 9; i++) {
                 vec3 remap = scale3(add3(sky.cubemap.sh[i], vec3(1,1,1)), 127.5f); // -1..+1 -> 0..255
-                ui_color3(stringf("SH Coefficient [%d]", i), &remap.x);
+                ui_color3(va("SH Coefficient [%d]", i), &remap.x);
                 sky.cubemap.sh[i] = sub3(scale3(remap, 1/127.5f), vec3(1,1,1));
             }
             ui_end();

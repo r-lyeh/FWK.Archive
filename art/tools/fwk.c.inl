@@ -91,32 +91,58 @@
 //-----------------------------------------------------------------------------
 // C files
 
+#define  atexit(...) // hack to boost exit time. there are no critical systems that need to shutdown properly
+
 {{FILE:fwk_ds.c}}
+
 {{FILE:fwk_string.c}}
+
 {{FILE:fwk_compat.c}}
+
 {{FILE:fwk_profile.c}}
 
-#define  atexit(...) // hack to boost exit time. there are no critical systems that need to shutdown properly
 {{FILE:fwk_audio.c}}
+
 {{FILE:fwk_collide.c}}
+
 {{FILE:fwk_cooker.c}}
+
 {{FILE:fwk_data.c}}
+
 {{FILE:fwk_dll.c}}
+
 {{FILE:fwk_file.c}}
+
 {{FILE:fwk_font.c}}
+
 {{FILE:fwk_input.c}}
+
 {{FILE:fwk_math.c}}
+
 {{FILE:fwk_memory.c}}
+
 {{FILE:fwk_network.c}}
+
 {{FILE:fwk_render.c}}
+
 {{FILE:fwk_renderdd.c}}
+
 {{FILE:fwk_scene.c}}
+
 {{FILE:fwk_script.c}}
+
 {{FILE:fwk_system.c}}
+
 {{FILE:fwk_ui.c}}
+
 {{FILE:fwk_video.c}}
+
 {{FILE:fwk_window.c}}
+
+{{FILE:fwk_obj.c}}
+
 {{FILE:fwk_editor.c}}
+
 // editor is last in place, so it can use all internals from above headers
 
 {{FILE:fwk_main.c}}

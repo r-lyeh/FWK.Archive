@@ -277,9 +277,9 @@ void ModelRebind( Model *G, unsigned _shader ) {
 static const char *ibl_readkey( const char* pathfile, const char* key ) {
     char *data = vfs_read(pathfile);
     if( data ) {
-        const char *found = strstr(data, stringf("%s=", key));
+        const char *found = strstr(data, va("%s=", key));
         if( found ) return found + strlen(key) + 1;
-        found = strstr(data, stringf("%s =", key));
+        found = strstr(data, va("%s =", key));
         if( found ) return found + strlen(key) + 2;
     }
     return "";

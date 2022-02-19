@@ -3,10 +3,9 @@
 
 #include "fwk.h"
 
-// @todo: debugdraw skeleton
 // @todo: root motion on/off
 // @todo: anim controller.lua
-// @todo: get bone location (world space), modify bone transform (bone space)
+// @todo: modify bone transform (bone space)
 
 typedef struct animations_t {
     int anim_selector;
@@ -35,6 +34,11 @@ animations_t animations(const char *pathfile, int flags) {
 }
 
 int main() {
+    bool do_showaabb = 0;
+    bool do_showbones = 0;
+    bool do_showmarker = 1;
+    bool do_showmodel = 1;
+
     window_create(75, WINDOW_MSAA8);
     window_title(__FILE__);
 
@@ -82,7 +86,6 @@ int main() {
                 ddraw_text(vec3(-10,8,-10), 0.05, "%d/%d) %s\nx%.2f [%.0f..%.1f..%.0f]\n",
                     a.anim_selector, array_count(a.anims)-1, a.anim_names[ a.anim_selector ],
                     a.anim_speed, anim.min, custom.curframe, anim.max);
-                // @todo: get bone location (world space)
                 ddraw_color(YELLOW);
             }
 
@@ -91,25 +94,32 @@ int main() {
                 gizmo(&p, &r, &s);
                 mat44 M; rotationq44(M, eulerq(r)); scale44(M, s.x,s.y,s.z); relocate44(M, p.x,p.y,p.z);
 
-                    // pivot
-                    r.x -= 90;
-                        // control
-                        float speed = 0.1f;
-                        quat q = eulerq(r); // += custom.pivot
-                        vec3 rgt = rotate3q(vec3(1,0,0), q);
-                        vec3 up  = rotate3q(vec3(0,1,0), q);
-                        vec3 fwd = rotate3q(vec3(0,0,1), q);
-                        vec3 dir = scale3(fwd, speed * (input(KEY_UP) - input(KEY_DOWN)));
-                        r.x += input(KEY_RIGHT) - input(KEY_LEFT); // yaw
-                        p = add3(p, dir);
-                    r.x += 90;
+                // pivot
+                r.x -= 90;
+                    // control
+                    float speed = 0.1f;
+                    quat q = eulerq(r); // += custom.pivot
+                    vec3 rgt = rotate3q(vec3(1,0,0), q);
+                    vec3 up  = rotate3q(vec3(0,1,0), q);
+                    vec3 fwd = rotate3q(vec3(0,0,1), q);
+                    vec3 dir = scale3(fwd, speed * (input(KEY_I) - input(KEY_K)));
+                    r.x += input(KEY_L) - input(KEY_J); // yaw
+                    p = add3(p, dir);
+                r.x += 90;
 
+                if(do_showmodel)
                 model_render(custom, cam.proj, cam.view, M, 0); // custom.pivot);
 
-                aabb box = model_aabb(custom, M); // custom.pivot);
-                ddraw_aabb(box.min, box.max);
+                if(do_showbones)
+                model_render_skeleton(custom, M);
 
+                if(do_showmarker)
                 ddraw_position_dir(p, fwd, 1.0f);
+
+                if(do_showaabb) {
+                    aabb box = model_aabb(custom, M); // custom.pivot);
+                    ddraw_aabb(box.min, box.max);
+                }
             }
 
             profile("Skybox") {
@@ -121,21 +131,27 @@ int main() {
 
         fx_end();
 
+        // anim controller
+        if( input_down(KEY_UP) ) a.anim_speed = 1, ++a.anim_selector; if(a.anim_selector>=array_count(a.anims)) a.anim_selector = 0; // next anim
+        if( input_down(KEY_DOWN) ) a.anim_speed = 1, --a.anim_selector, custom.curframe = 0; if(a.anim_selector<0) a.anim_selector = array_count(a.anims) - 1; // previous anim
+        if( input_down(KEY_LEFT) || input_repeat(KEY_LEFT, 300) ) a.anim_speed = 0, custom.curframe-=0.5; // previous half frame
+        if( input_down(KEY_RIGHT) || input_repeat(KEY_RIGHT, 300) ) a.anim_speed = 0, custom.curframe+=0.5; // next half frame
+        if( input_down(KEY_SPACE)) a.anim_speed = !a.anim_speed; // toggle pause
+        if( input_down(KEY_ENTER) ) custom.curframe = 0; // restart anim
+        if( input(KEY_N) ) a.anim_speed = a.anim_speed - 0.01; // decrease anim speed
+        if( input(KEY_M) ) a.anim_speed = a.anim_speed + 0.01; // increase anim speed
+        vec2 anim = a.anims[ a.anim_selector ];
+        custom.curframe = model_animate_clip(custom, custom.curframe, anim.min, anim.max, strstri(a.anim_names[a.anim_selector], "loop"));
+
         // UI
         if( ui_begin("Animation", 0)) {
-            if( input_down(KEY_UP) ) a.anim_speed = 1, ++a.anim_selector; if(a.anim_selector>=array_count(a.anims)) a.anim_selector = 0; // next anim
-            if( input_down(KEY_DOWN) ) a.anim_speed = 1, --a.anim_selector; if(a.anim_selector<0) a.anim_selector = array_count(a.anims) - 1; // previous anim
-            if( input_down(KEY_LEFT) || input_repeat(KEY_LEFT, 300) ) a.anim_speed = 0, custom.curframe-=0.5; // previous half frame
-            if( input_down(KEY_RIGHT) || input_repeat(KEY_RIGHT, 300) ) a.anim_speed = 0, custom.curframe+=0.5; // next half frame
-            if( input_down(KEY_SPACE)) a.anim_speed = !a.anim_speed; // toggle pause
-            if( input_down(KEY_ENTER) ) custom.curframe = 0; // restart anim
-            if( input(KEY_N) ) a.anim_speed = a.anim_speed - 0.01; // decrease anim speed
-            if( input(KEY_M) ) a.anim_speed = a.anim_speed + 0.01; // increase anim speed
-            vec2 anim = a.anims[ a.anim_selector ];
-            custom.curframe = model_animate_clip(custom, custom.curframe, anim.min, anim.max, strstri(a.anim_names[a.anim_selector], "loop"));
-            ui_label(stringf("Anim %d/%d) %s@UP/DOWN keys", a.anim_selector, array_count(a.anims)-1, a.anim_names[ a.anim_selector ] ));
-            ui_label(stringf("Frame: [%.0f..%.1f..%.0f]@LEFT/RIGHT keys", anim.min, custom.curframe, anim.max));
-            ui_label(stringf("Speed: x%.2f@N,M keys", a.anim_speed));
+            ui_label(va("Anim %d/%d) %s@UP/DOWN keys", a.anim_selector, array_count(a.anims)-1, a.anim_names[ a.anim_selector ] ));
+            ui_label(va("Frame: [%.0f..%.1f..%.0f]@LEFT/RIGHT keys", anim.min, custom.curframe, anim.max));
+            ui_label(va("Speed: x%.2f@N,M keys", a.anim_speed));
+            if( ui_bool("Show aabb", &do_showaabb) );
+            if( ui_bool("Show bones", &do_showbones) );
+            if( ui_bool("Show model", &do_showmodel) );
+            if( ui_bool("Show marker", &do_showmarker) );
             if( ui_button("Restart anim@ENTER key") ) custom.curframe = 0;
             if( ui_button("Pause anim@SPACE key") ) a.anim_speed = !a.anim_speed;
             ui_end();

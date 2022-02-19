@@ -191,7 +191,7 @@ int main() {
 
         // font demo
         do_once font_scales(FONT_FACE1, 48, 24, 18, 12, 9, 6);
-        font_print(stringf(FONT_RIGHT FONT_BOTTOM FONT_H4 "%5.2f FPS", window_fps()));
+        font_print(va(FONT_RIGHT FONT_BOTTOM FONT_H4 "%5.2f FPS", window_fps()));
 
         // queue ui
         if( ui_begin("App", 0)) {
@@ -223,9 +223,9 @@ int main() {
         }
         if( ui_begin("Audio", 0)) {
             static float fx = 1, bgm = 1, master = 1;
-            if( ui_slider2("FX", &fx, stringf("%.2f", fx))) audio_volume_clip(fx);
-            if( ui_slider2("BGM", &bgm, stringf("%.2f", bgm))) audio_volume_stream(bgm);
-            if( ui_slider2("Master", &master, stringf("%.2f", master))) audio_volume_master(master);
+            if( ui_slider2("FX", &fx, va("%.2f", fx))) audio_volume_clip(fx);
+            if( ui_slider2("BGM", &bgm, va("%.2f", bgm))) audio_volume_stream(bgm);
+            if( ui_slider2("Master", &master, va("%.2f", master))) audio_volume_master(master);
             if( ui_button("Coin FX") ) audio_play(voice, 0);
             ui_end();
         }
@@ -262,10 +262,11 @@ int main() {
 
     // data tests (xml)
     const char *xml = vfs_read("test1.xml");
-    if(xml) if(data_push(xml)) {
+    if( xml && data_push(xml) ) {
         puts( xml );
         puts( data_string("/person_firstName") );
         puts( data_string("/person_lastName") );
+        data_pop();
     }
 
     // network test (https)

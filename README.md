@@ -3,17 +3,6 @@
 
 <p align="center">
 <img src="https://i.imgur.com/sInbRoA.gif"/><br/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_script.png"    width="204px" title="Script."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_font.png"      width="204px" title="Fonts."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_collide.png"   width="204px" title="Collision."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_model.png"     width="204px" title="Model."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_scene.png"     width="204px" title="Scene."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_sprite.png"    width="204px" title="Sprite."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_shadertoy.png" width="204px" title="Shadertoy."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_cubemap.png"   width="204px" title="Cubemaps and SH."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_video.png"     width="204px" title="Video."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_pbr.png"       width="204px" title="PBR."/>
-<br/>
 </p>
 
 ## Goals
@@ -47,7 +36,7 @@
 - [x] Render: PBR (metallic-roughness) workflow.
 - [x] Render: Cubemaps, panoramas and spherical harmonics. Rayleigh/Mie scattering.
 - [x] Render: Post-effects (SSAO,FXAA1/3,CRT,Contrast,Grain,Outline,Vignette...).
-- [x] Render: 3D Anims, skeletal anims and hardware skinning.
+- [x] Render: 3D Anims, skeletal anims, hardware skinning and instanced rendering.
 - [x] Render: 3D Debugdraw, batching and vectorial font.
 - [x] Render: 2D Sprites, spritesheets, AA zooming and batching.
 - [x] Compression: DEFLATE, LZMA, LZ4, ULZ, BALZ, BCM, CRUSH, LZW3, LZSS and PPP.
@@ -86,12 +75,10 @@
 // [x] shadertoy textures
 // [*] billboards (follow sprite API? state instead? ie, billboard(true); before rendering?)
 // [ ] soft shadows (vsm, vsmcube)
-// nice to have: [x] means done
+
+// nice to have:
 // [ ] fix leaks and todos
 // [ ] fwk_app: cpu usage, orientation
-// [x] app: app options, app flags, app tty, app paths, app battery,
-// [x] DS: array, map, set, string, sort, hash.
-// [x] system: debugger, callstack, exec, time/date.
 // [ ] fwk_input: cursor, mouse clip, mouse wrap,
 // [ ] zip0 seek-vfs optimization. zip_append_file is suboptimal, and requires tons of contiguous memory for giant files.
 // [ ] expose uniforms as ui options, also model_uniform();
@@ -99,9 +86,8 @@
 // [ ] lod: https://github.com/songrun/SeamAwareDecimater
 // [ ] lightmaps: https://blackpawn.com/texts/lightmaps/default.html 
 // [ ] https://github.com/jpcy/xatlas
--->
 
-<!--
+// plan:
 //[ ] Script: Refl/meta binding tool (during cook stage).
 //    fwk_cook (*.c, *.h) as .proto/.pbc maybe, free reflection+automatic bindings
 // 4) (json) level editor: load/save jsons, property editor for anything (remote osc server/client)
@@ -122,7 +108,7 @@
 //      cook: hlsl2glsl (XShaderCompiler), hlsl2spirv (dxc), spirv2many (spirv-cross), glsl2many (sokol-shdc)
 //      cook: tiled2json, spine2json, tlfx22json
 // 6) anims, I (playlist: forward/backwards/loop/rewind), II (blend/shapes), III (ik/bone), IV (graph/controller)
-//    blend anims, animtracks+animevents, draw skeleton, additive anims,
+//    blend anims, animtracks+animevents, ~~draw skeleton~~, additive anims,
 //    fwk_data: quantization: ~~half, quant, microfloat~~.
 //    anim; keyframes[] { frame+delay,frame+delay,... }, anim duration, anim flip
 //[ ] Maybe: AI/Logic pass.
@@ -155,7 +141,7 @@
 //    2d: billboards
 //    PBR/IBL/materials (from Foxotron+sgorsten) + shading models
 //    lightmapping/xatlas (demos), reflection probes
-//    instancing, frustum culling, impostors, mesh lods,
+//    ~~instancing~~, frustum culling, impostors, mesh lods,
 //    renderbuckets
 //    decals
 //    tessellation
@@ -167,7 +153,30 @@
 //    proj matrix: float a = zfar / (zfar - znear); -> float a = -znear / (zfar - znear);
 //    proj matrix: float b = (-znear * zfar) / (zfar - znear); -> float b = (znear * zfar) / (zfar - znear);
 //    }
+
+
+	char* os_exec(...) -> int rc = popen(...); [...] return va("%c%s", (unsigned char)rc, output);
+	char *result = os_exec("dir *.f")
+	int rc = result[0];
+	char *log = result+1;
+
 -->
+
+## Gallery
+<p align="center">
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_script.png"    width="204px" title="Script."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_font.png"      width="204px" title="Fonts."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_collide.png"   width="204px" title="Collision."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_model.png"     width="204px" title="Model."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_scene.png"     width="204px" title="Scene."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_sprite.png"    width="204px" title="Sprite."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_shadertoy.png" width="204px" title="Shadertoy."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_cubemap.png"   width="204px" title="Cubemaps and SH."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_video.png"     width="204px" title="Video."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_pbr.png"       width="204px" title="PBR."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_instanced.png" width="204px" title="Instanced rendering."/>
+<br/>
+</p>
 
 ## Build (as static library)
 Type `MAKE.bat` (Win) or `sh MAKE.bat` (Linux/OSX) to build everything. Alternatively,

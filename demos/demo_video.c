@@ -37,7 +37,7 @@ int main() {
         // audio
         if( ui_begin("Audio", 0)) {
             static float master = 1;
-            if( ui_slider2("Master", &master, stringf("%.2f", master))) audio_volume_master(master);
+            if( ui_slider2("Master", &master, va("%.2f", master))) audio_volume_master(master);
             ui_end();
         }
     }

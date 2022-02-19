@@ -175,9 +175,9 @@ int main(int argc, char **argv) {
         if( prev ) if( selector < browser_count - 1 ) ++selector, reload = 1;
         if( reload ) {
             reload = 0;
-            shaderfile = stringf("%s", browser[selector]);
+            shaderfile = va("%s", browser[selector]);
             printf("loading %s ...\n", shaderfile);
-            window_title(stringf("FWK - %s", browser[selector]));
+            window_title(va("FWK - %s", browser[selector]));
             shadertoy_init();
         }
 
@@ -186,7 +186,7 @@ int main(int argc, char **argv) {
 
         // UI
         if( ui_begin("Shadertoy", 0)) {
-            if( ui_list(stringf("Using %s", browser[selector]), browser, browser_count, &selector) ) {
+            if( ui_list(va("Using %s", browser[selector]), browser, browser_count, &selector) ) {
                 reload = 1;
             }
             ui_end();

@@ -374,8 +374,8 @@ char *prettify(char *raw, char **opt_name) {
 
     // prepare for 2nd pass
     *s++ = 0;
-    raw =  buf + MSIZE(buf)-1 - strlen(buf)-1;
-    strcpy(buf + MSIZE(buf)-1 - strlen(buf)-1, buf);
+    raw =  buf + ALLOCSIZE(buf)-1 - strlen(buf)-1;
+    strcpy(buf + ALLOCSIZE(buf)-1 - strlen(buf)-1, buf);
     s = buf;
 
     // 2nd pass, multi-lines
@@ -417,11 +417,11 @@ char *prettify(char *raw, char **opt_name) {
         bool is_function = strchr(line, '(') && strchr(line, '(') < strrchr(line, ')');
 
         char s[1024]; int n,nl,a;
-        /**/ if( line[0] == '#' )          { sscanf(line, "%*s %s", s);   *opt_name = strdup(stringf("#%s",s)); }
-        else if( strbegi(line, "macro"))   { sscanf(line, "%*s %[^(]",s); *opt_name = strdup(stringf("m%s",s)); }
-        else if( strbegi(line, "union"))   { sscanf(line, "%*s %s",s);    *opt_name = strdup(stringf("u%s",s)); }
-        else if( strbegi(line, "struct"))  { sscanf(line, "%*s %s",s);    *opt_name = strdup(stringf("s%s",s)); }
-        else if( strbegi(line, "enum"))    { sscanf(line, "%*s %s",s);    *opt_name = strdup(stringf("e%s",s)); }
+        /**/ if( line[0] == '#' )          { sscanf(line, "%*s %s", s);   *opt_name = stringf("#%s",s); }
+        else if( strbegi(line, "macro"))   { sscanf(line, "%*s %[^(]",s); *opt_name = stringf("m%s",s); }
+        else if( strbegi(line, "union"))   { sscanf(line, "%*s %s",s);    *opt_name = stringf("u%s",s); }
+        else if( strbegi(line, "struct"))  { sscanf(line, "%*s %s",s);    *opt_name = stringf("s%s",s); }
+        else if( strbegi(line, "enum"))    { sscanf(line, "%*s %s",s);    *opt_name = stringf("e%s",s); }
         else if( strbegi(line, "typedef")) { 
             char *last_word = strrchr(line, ' ') + 1;
             sscanf(last_word, "%[^[;]", s);
@@ -432,12 +432,12 @@ char *prettify(char *raw, char **opt_name) {
                 if(*line == '*') line++, --nl;
                 sprintf(s, "%.*s", nl, line);
             }
-            *opt_name = strdup(stringf("t%s",s));
+            *opt_name = stringf("t%s",s);
         }
         else if( line[0] != '#' && is_function && parse_c_function(line,&n,&nl,&a,1)) { 
             while(line[n] == ' ' || line[n] == '*') ++n, --nl; 
             sprintf(s,"%.*s",nl,line+n); 
-            *opt_name = strdup(stringf("f%s",s));
+            *opt_name = stringf("f%s",s);
         }
         // else isvar {}
 
@@ -457,7 +457,7 @@ char *prettify(char *raw, char **opt_name) {
             if( !strcmp(lower, *opt_name+1) ) *opt_name[0] = 'm';
             if( !strcmp(upper, *opt_name+1) ) *opt_name[0] = 'd';
             #else
-            char *found = strstr(line, stringf("%s(", (*opt_name)+1));
+            char *found = strstr(line, va("%s(", (*opt_name)+1));
             if(!found)
             *opt_name[0] = 'd';
             #endif
@@ -515,22 +515,22 @@ if( strbegi(line, "/""//") && line[3] != '/' ) {
     }
 
     if( strbegi(md, "example:") ) {
-        array_push(example, stringf("%s", md+8));
+        array_push(example, va("%s", md+8));
     }
     else if( strbegi(md, "> ") ) {
-        array_push(example, stringf("%s", md+2));
+        array_push(example, va("%s", md+2));
     }
     else if( strbegi(md, "!!!! ") ) {
-        array_push(notes, stringf("%d%s", 4, md+5));
+        array_push(notes, va("%d%s", 4, md+5));
     }
     else if( strbegi(md, "!!! ") ) {
-        array_push(notes, stringf("%d%s", 3, md+4));
+        array_push(notes, va("%d%s", 3, md+4));
     }
     else if( strbegi(md, "!! ") ) {
-        array_push(notes, stringf("%d%s", 2, md+3));
+        array_push(notes, va("%d%s", 2, md+3));
     }
     else if( strbegi(md, "! ") ) {
-        array_push(notes, stringf("%d%s", 1, md+2));
+        array_push(notes, va("%d%s", 1, md+2));
     }
     else if( md[0] ) {
         char heading[512]; sscanf(md, "%s", heading);
@@ -619,15 +619,15 @@ void print_decl(char *line) { // non-const, since prettify can modify input
     if( strchr(oneliner, '(') ) {
 #if 0
         // ret name(args); >> name(args)->ret
-        char *name_args = stringf("%s%s", name,strstr(pretty,name)+strlen(name));
-        char *ret = stringf("%.*s", (int)(strstr(pretty,name)-pretty),pretty);
+        char *name_args = va("%s%s", name,strstr(pretty,name)+strlen(name));
+        char *ret = va("%.*s", (int)(strstr(pretty,name)-pretty),pretty);
         sprintf(oneliner, "%.*s; // -> %s", (int)strlen(name_args)-1, name_args, ret);
         truncated = 1;
 #elif 0
         // ret name(args); >> name(args)->ret
-        char *open = stringf("%s(", name);
-        char *ret = stringf("%.*s", (int)(strstr(pretty,open)-pretty),pretty);
-        char *args = stringf("%s", strstr(pretty,name)+strlen(name));
+        char *open = va("%s(", name);
+        char *ret = va("%.*s", (int)(strstr(pretty,open)-pretty),pretty);
+        char *args = va("%s", strstr(pretty,name)+strlen(name));
 //        sprintf(oneliner, "%16s %-16s%s", ret, name, args);  //      API void print44     (mat44 m)
 //        sprintf(oneliner, "%-16s %-16s%s", ret, name, args); // API void      print44     (mat44 m)
           sprintf(oneliner, "%-16s %s%s", ret, name, args);

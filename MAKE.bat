@@ -16,7 +16,7 @@ fi
 
 if [ "$(uname)" != "Darwin" ]; then
     # setup (ArchLinux)
-     sudo pacman -Syu gcc ffmpeg
+     sudo pacman -Syu --noconfirm gcc ffmpeg
     # setup (Debian, Ubuntu, etc)
      sudo apt-get -y update
      sudo apt-get -y install gcc ffmpeg libx11-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev  # absolute minimum
@@ -57,6 +57,7 @@ if [ "$(uname)" != "Darwin" ]; then
     echo demo_font      && cc -o demo_font      demo_font.c      fwk.o -lm -ldl -lpthread -w -g $* &
     echo demo_material  && cc -o demo_material  demo_material.c  fwk.o -lm -ldl -lpthread -w -g $* &
     echo demo_pbr       && cc -o demo_pbr       demo_pbr.c       fwk.o -lm -ldl -lpthread -w -g $*
+    echo demo_instanced && cc -o demo_instanced demo_instanced.c fwk.o -lm -ldl -lpthread -w -g $*
 fi
 
 if [ "$(uname)" = "Darwin" ]; then
@@ -104,6 +105,7 @@ if [ "$(uname)" = "Darwin" ]; then
     echo demo_font      && cc -o demo_font      demo_font.c      fwk.o -framework cocoa -framework iokit -w -g $* &
     echo demo_material  && cc -o demo_material  demo_material.c  fwk.o -framework cocoa -framework iokit -w -g $* &
     echo demo_pbr       && cc -o demo_pbr       demo_pbr.c       fwk.o -framework cocoa -framework iokit -w -g $*
+    echo demo_instanced && cc -o demo_instanced demo_instanced.c fwk.o -framework cocoa -framework iokit -w -g $*
 fi
 
 exit
@@ -143,6 +145,13 @@ if "%Platform%"=="" (
 cd "%~dp0"
 echo @%~dp0\art\tools\tcc-win\tcc -I %~dp0\art\tools\tcc-win\include_mingw\winapi -I %~dp0\art\tools\tcc-win\include_mingw\ %%* > tcc.bat
 
+rem generate cooker and cook
+if "%1"=="cook" (
+    cl art\tools\cook.c -I.
+    cook
+
+    exit /b
+)
 rem generate dll
 if "%1"=="dll" (
     rem cl fwk.c /LD /DAPI=EXPORT                         && rem 6.6MiB
@@ -155,7 +164,7 @@ if "%1"=="dll" (
 rem generate bindings
 if "%1"=="bindings" (
     rem luajit
-    art\tools\luajit art\tools\make_luajit_bindings.lua > fwk.lua
+    art\tools\luajit art\tools\luajit_make_bindings.lua > fwk.lua
     move /y fwk.lua demos\lua
 
     exit /b
@@ -163,19 +172,39 @@ if "%1"=="bindings" (
 rem generate documentation
 if "%1"=="docs" (
 
-    rem set symbols for upcoming doc generation
-    set VERSION=2021.11
-    date /t > info.obj
-    set /p LAST_MODIFIED=<info.obj
-    rem set git symbols too
+    rem set symbols...
+    git describe --tags --abbrev=0 > info.obj
+    set /p VERSION=<info.obj
     git rev-list --count --first-parent HEAD > info.obj
     set /p GIT_REVISION=<info.obj
     git rev-parse --abbrev-ref HEAD > info.obj
     set /p GIT_BRANCH=<info.obj
+    date /t > info.obj
+    set /p LAST_MODIFIED=<info.obj
 
+    rem ...and generate docs
     cl art\docs\docs.c fwk.c -I. %2
     docs fwk.h --excluded=3rd_glad.h,fwk.h,fwk_compat.h, > fwk.html
     move /y fwk.html art\docs\docs.html
+
+    exit /b
+)
+rem generate prior files to a github release
+if "%1"=="github" (
+    call make.bat dll
+    call make.bat docs
+    call make.bat bindings
+
+    call make.bat split
+    rd /q /s art\sources
+    md art\sources
+    md art\sources\3rd
+    move /y 3rd_*.? art\sources\3rd
+    move /y fwk_*.? art\sources
+    echo.> "art\sources\; for browsing purposes. do not compile these"
+    echo.> "art\sources\; required sources are at root folder"
+
+    call make.bat tidy
 
     exit /b
 )
@@ -267,23 +296,24 @@ if "%Platform%"=="x64" (
     rem cl fwk.c        /nologo /openmp /Zi /DAPI=EXPORT /LD %*
 
     rem framework static
-    cl fwk.c            /nologo /openmp /Zi /c %*
+    cl fwk.c            /nologo /openmp /Zi /MT /c %*
 
     rem demos
-    cl demo.c           /nologo /openmp /Zi fwk.obj %*
-    cl demo_cubemap.c   /nologo /openmp /Zi fwk.obj %*
-    cl demo_collide.c   /nologo /openmp /Zi fwk.obj %*
-    cl demo_model.c     /nologo /openmp /Zi fwk.obj %*
-    cl demo_scene.c     /nologo /openmp /Zi fwk.obj %*
-    cl demo_shadertoy.c /nologo /openmp /Zi fwk.obj %*
-    cl demo_sprite.c    /nologo /openmp /Zi fwk.obj %*
-    cl demo_video.c     /nologo /openmp /Zi fwk.obj %*
-    cl demo_script.c    /nologo /openmp /Zi fwk.obj %*
-    cl demo_socket.c    /nologo /openmp /Zi fwk.obj %*
-    cl demo_easing.c    /nologo /openmp /Zi fwk.obj %*
-    cl demo_font.c      /nologo /openmp /Zi fwk.obj %*
-    cl demo_material.c  /nologo /openmp /Zi fwk.obj %*
-    cl demo_pbr.c       /nologo /openmp /Zi fwk.obj %*
+    cl demo.c           /nologo /openmp /Zi /MT fwk.obj %*
+    cl demo_cubemap.c   /nologo /openmp /Zi /MT fwk.obj %*
+    cl demo_collide.c   /nologo /openmp /Zi /MT fwk.obj %*
+    cl demo_model.c     /nologo /openmp /Zi /MT fwk.obj %*
+    cl demo_scene.c     /nologo /openmp /Zi /MT fwk.obj %*
+    cl demo_shadertoy.c /nologo /openmp /Zi /MT fwk.obj %*
+    cl demo_sprite.c    /nologo /openmp /Zi /MT fwk.obj %*
+    cl demo_video.c     /nologo /openmp /Zi /MT fwk.obj %*
+    cl demo_script.c    /nologo /openmp /Zi /MT fwk.obj %*
+    cl demo_socket.c    /nologo /openmp /Zi /MT fwk.obj %*
+    cl demo_easing.c    /nologo /openmp /Zi /MT fwk.obj %*
+    cl demo_font.c      /nologo /openmp /Zi /MT fwk.obj %*
+    cl demo_material.c  /nologo /openmp /Zi /MT fwk.obj %*
+    cl demo_pbr.c       /nologo /openmp /Zi /MT fwk.obj %*
+    cl demo_instanced.c /nologo /openmp /Zi /MT fwk.obj %*
 
 ) else if "%Platform%"=="mingw64" (
     rem pipeline
@@ -310,6 +340,7 @@ if "%Platform%"=="x64" (
     echo demo_font      && gcc -o demo_font      demo_font.c      fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99 -w -g
     echo demo_material  && gcc -o demo_material  demo_material.c  fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99 -w -g
     echo demo_pbr       && gcc -o demo_pbr       demo_pbr.c       fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99 -w -g
+    echo demo_instanced && gcc -o demo_instanced demo_instanced.c fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99 -w -g
 
 ) else (
     rem pipeline
@@ -336,9 +367,10 @@ if "%Platform%"=="x64" (
     echo demo_font      && tcc demo_font.c      fwk.o %*
     echo demo_material  && tcc demo_material.c  fwk.o %*
     echo demo_pbr       && tcc demo_pbr.c       fwk.o %*
+    echo demo_instanced && tcc demo_instanced.c fwk.o %*
 )
 
-rem PAUSE only if double-clicked from Windows
+rem PAUSE only if double-clicked from Windows explorer
 (((echo.%cmdcmdline%)|%WINDIR%\system32\find.exe /I "%~0")>nul)&&pause
 
 exit /b

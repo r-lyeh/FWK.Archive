@@ -29,7 +29,7 @@ static void tinywav(FILE *fp, short numChannels, short bitsPerSample, int sample
 
 #define MID_IMPLEMENTATION
 #define MID_ENABLE_RAW
-#include "mid.h"
+#include "3rd_mid.h"
 
 // io
 unsigned char *readfile(const char *pathfile, int *size) {

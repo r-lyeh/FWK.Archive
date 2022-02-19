@@ -1,6 +1,8 @@
 // License: BSD unless otherwise stated.
 // https://github.com/ccxvii/asstools
 
+char* base64_encode(const void *inbuffer, unsigned inlen);
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1001,21 +1003,23 @@ void export_node(FILE *out, const struct aiScene *scene, const struct aiNode *no
         else {
             char buffer[4096] = {0};
 
+            enum aiTextureType semantic = aiTextureType_UNKNOWN;
+
             struct aiString str;
             if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE_DIFFUSE(0), &str))
-                { strcat(buffer, "+"); strcat(buffer, get_base_name(str.data)); }
+                { strcat(buffer, "+"); strcat(buffer, get_base_name(str.data)); semantic=aiTextureType_DIFFUSE; }
             if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE_SPECULAR(0), &str))
-                { strcat(buffer, "+"); strcat(buffer, get_base_name(str.data)); }
+                { strcat(buffer, "+"); strcat(buffer, get_base_name(str.data)); semantic=aiTextureType_SPECULAR; }
             if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE_AMBIENT(0), &str))
-                { strcat(buffer, "+"); strcat(buffer, get_base_name(str.data)); }
+                { strcat(buffer, "+"); strcat(buffer, get_base_name(str.data)); semantic=aiTextureType_AMBIENT; }
             if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE_EMISSIVE(0), &str))
-                { strcat(buffer, "+"); strcat(buffer, get_base_name(str.data)); }
+                { strcat(buffer, "+"); strcat(buffer, get_base_name(str.data)); semantic=aiTextureType_EMISSIVE; }
             if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE_NORMALS(0), &str))
-                { strcat(buffer, "+"); strcat(buffer, get_base_name(str.data)); }
+                { strcat(buffer, "+"); strcat(buffer, get_base_name(str.data)); semantic=aiTextureType_NORMALS; } //aiTextureType_NORMAL_CAMERA
             if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE_HEIGHT(0), &str))
                 { strcat(buffer, "+"); strcat(buffer, get_base_name(str.data)); }
             if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE_SHININESS(0), &str))
-                { strcat(buffer, "+"); strcat(buffer, get_base_name(str.data)); }
+                { strcat(buffer, "+"); strcat(buffer, get_base_name(str.data)); semantic=aiTextureType_SHININESS; }
             if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE_OPACITY(0), &str))
                 { strcat(buffer, "+"); strcat(buffer, get_base_name(str.data)); }
             if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE_DISPLACEMENT(0), &str))
@@ -1027,8 +1031,60 @@ void export_node(FILE *out, const struct aiScene *scene, const struct aiNode *no
             if (!aiGetMaterialString(material, AI_MATKEY_TEXTURE(aiTextureType_UNKNOWN, 0), &str)) // AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE
                 { strcat(buffer, "+"); strcat(buffer, get_base_name(str.data)); }
 
+#if 1 // material colors
+            char colorbuffer[32] = {0};
+            struct aiColor4D color;
+            struct aiColor4D translucentColor;
+            enum aiReturn result = AI_FAILURE, result2 = AI_FAILURE;
+            if( result == AI_FAILURE ) {
+                result = aiGetMaterialColor( material, AI_MATKEY_COLOR_DIFFUSE, &color );
+                result2 = aiGetMaterialColor( material, AI_MATKEY_COLOR_TRANSPARENT, &translucentColor );
+                if (result2 == AI_SUCCESS)
+                color.a = (1.0 - translucentColor.r);
+                //printf("diffuse:%d, transp:%d, ", result == AI_SUCCESS, result2 == AI_SUCCESS);
+            }
+            if( result == AI_FAILURE ) { result = aiGetMaterialColor( material, AI_MATKEY_COLOR_REFLECTIVE, &color ); /*printf("reflective:%d, ", result == AI_SUCCESS);*/ }
+            if( result == AI_FAILURE ) { result = aiGetMaterialColor( material, AI_MATKEY_COLOR_SPECULAR, &color );   /*printf("specular:%d, ", result == AI_SUCCESS);*/ }
+            if( result == AI_FAILURE ) { result = aiGetMaterialColor( material, AI_MATKEY_COLOR_AMBIENT, &color );    /*printf("ambient:%d, ", result == AI_SUCCESS);*/ }
+            if( result == AI_FAILURE ) { result = aiGetMaterialColor( material, AI_MATKEY_COLOR_EMISSIVE, &color );   /*printf("emissive:%d, ", result == AI_SUCCESS);*/ }
+            if ( result == AI_SUCCESS ) {
+                const char hex[] = "0123456789abcdef";
+                // printf("rgba %f %f %f %f\n", color.r, color.g, color.b, color.a); // system("pause");
+                unsigned char r = ((unsigned char)(color.r * 255)) >> 4;
+                unsigned char g = ((unsigned char)(color.g * 255)) >> 4;
+                unsigned char b = ((unsigned char)(color.b * 255)) >> 4;
+                unsigned char a = ((unsigned char)(color.a * 255)) >> 4;
+                sprintf(colorbuffer, "+$%c%c%c%c", hex[r], hex[g], hex[b], hex[a] );
+            }
+#endif
+
+#if 1 // embedded textures
+            char *embedded = 0;
+            if( strchr(buffer, '*') ) { // look for embedded textures. referenced like *1, *2, *3... where N is texture ID
+                int tex_id = atoi(buffer+1);
+                if( tex_id < scene->mNumTextures ) {
+                    struct aiTexture *tex = scene->mTextures[tex_id];
+                    struct aiTexel *data = tex->pcData;
+                    unsigned w = tex->mWidth + !tex->mWidth;
+                    unsigned h = tex->mHeight + !tex->mHeight;
+                    const char *hint = tex->achFormatHint; // "rgba8888" or "png"
+                    #if 1
+                    embedded = base64_encode(data, w * h * sizeof(struct aiTexel)); // leak
+                    #else
+                    fprintf(stderr, "%dx%d (%s)\n", w,h,hint);
+                    char name[260]; sprintf(name, "tex_%d.%s", tex_id, hint);
+                    FILE *out = fopen(name, "wb");
+                    for(unsigned y = 0; y < h; ++y)
+                        for(unsigned x = 0; x < w; ++x)
+                            fwrite(&data[x+y*w].b, 1, 4, out);
+                    fclose(out);
+                    #endif
+                }
+            }
+#endif
+
             aiGetMaterialString(material, AI_MATKEY_NAME, &str);
-            fprintf(out, "material \"%s%s\"\n", str.data, buffer);
+            fprintf(out, "material \"%s%s%s%s%s\"\n", str.data, buffer, colorbuffer, embedded ? "+b64:":"", embedded ? embedded:"");
         }
 
         struct vb *vb = (struct vb*) malloc(mesh->mNumVertices * sizeof(*vb));
@@ -1451,4 +1507,51 @@ flags |= (doflipUV ? aiProcess_FlipUVs : 0);
     aiReleaseImport(scene);
 
     return 0;
+}
+
+// base64 de/encoder. Based on code by Jon Mayo - November 13, 2003 (PUBLIC DOMAIN).
+// - rlyeh, public domain
+
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <stddef.h>
+#include <ctype.h>
+
+unsigned base64_bounds(unsigned size) {
+    return 4 * ((size + 2) / 3);
+}
+
+char* base64_encode(const void *in_, unsigned inlen) {
+    unsigned outlen = base64_bounds(inlen);
+    char *out_ = calloc(1, outlen);
+
+    uint_least32_t v;
+    unsigned ii, io, rem;
+    char *out = (char *)out_;
+    const unsigned char *in = (const unsigned char *)in_;
+    const uint8_t base64enc_tab[]= "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+    for(io = 0, ii = 0, v = 0, rem = 0; ii < inlen; ii ++) {
+        unsigned char ch;
+        ch = in[ii];
+        v = (v << 8) | ch;
+        rem += 8;
+        while (rem >= 6) {
+            rem -= 6;
+            if (io >= outlen)
+                return (free(out_), 0); /* truncation is failure */
+            out[io ++] = base64enc_tab[(v >> rem) & 63];
+        }
+    }
+    if (rem) {
+        v <<= (6 - rem);
+        if (io >= outlen)
+            return (free(out_), 0); /* truncation is failure */
+        out[io ++] = base64enc_tab[v & 63];
+    }
+    if (io < outlen)
+        out[io] = 0;
+
+    return out_;
 }
