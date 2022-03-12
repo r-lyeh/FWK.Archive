@@ -36,6 +36,7 @@
 
 API void  editor();
 API bool  editor_active();
+API vec3  editor_pick(float mouse_x, float mouse_y);
 
 API char* dialog_load();
 API char* dialog_save();

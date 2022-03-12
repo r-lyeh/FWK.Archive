@@ -39,8 +39,15 @@ cook_script_t cook_script(const char *rules, const char *infile, const char *out
     if(!symbols) map_init(symbols, less_str, hash_str);
     if(!groups)  map_init(groups, less_str, hash_str);
 
+    // pretty (truncated) input (C:/prj/FWK/art/file.wav -> file.wav)
+    int artlen = strlen(ART);
+    const char *pretty = infile;
+    if( !strncmp(pretty, ART, artlen) ) pretty += artlen;
+    while(pretty[0] == '/') ++pretty;
+
     map_find_or_add(symbols, "INFILE", STRDUP(infile));
     map_find_or_add(symbols, "INPUT", STRDUP(infile));
+    map_find_or_add(symbols, "PRETTY", STRDUP(pretty));
     map_find_or_add(symbols, "OUTPUT", STRDUP(outfile));
     map_find_or_add(symbols, "TOOLS", STRDUP(TOOLS));
     map_find_or_add(symbols, "PROGRESS", STRDUP(va("%03d", cooker_progress())));
@@ -428,12 +435,14 @@ int cook(void *userdata) {
     }
 
     // deleted files
+    //time_t time_now = time(NULL);
+    //struct tm *tm_now = localtime(&time_now);
     for( int i = 0, end = array_count(deleted); i < end; ++i ) {
         printf("Deleting %03d%% %s\n", (i+1) == end ? 100 : (i * 100) / end, deleted[i]);
         FILE* out = fopen(COOKER_TMPFILE, "wb"); fclose(out);
         FILE* in = fopen(COOKER_TMPFILE, "rb");
         char *comment = "0";
-        zip_append_file(z, deleted[i], comment, in, 0);
+        zip_append_file/*_timeinfo*/(z, deleted[i], comment, in, 0/*, tm_now*/);
         fclose(in);
     }
     // added or changed files
@@ -469,13 +478,22 @@ int cook(void *userdata) {
         else if( cs.compress_level >= 0 ) {
             FILE *in = fopen(cs.finalfile, "rb");
 
-                static __thread char cwd[MAX_PATHFILE] = {0};
-                if(!cwd[0]) snprintf(cwd, MAX_PATHFILE-1, "%s", app_path()), strswap(cwd, "\\", "/");
-                if(strbegi(fname, cwd)) fname += strlen(cwd);
+#if 0
+                struct stat st; stat(fname, &st);
+                struct tm *timeinfo = localtime(&st.st_mtime);
+                ASSERT(timeinfo);
+
+                // pretty (truncated) input (C:/prj/FWK/art/file.wav -> file.wav)
+                static threadlocal int artlen = 0; if(!artlen) artlen = strlen(ART);
+                const char *pretty = fname;
+                if( !strncmp(pretty, ART, artlen) ) pretty += artlen;
+                while(pretty[0] == '/') ++pretty;
+                fname = pretty;
                 //puts(fname);
+#endif
 
                 char *comment = va("%d", inlen);
-                if( !zip_append_file(z, fname, comment, in, cs.compress_level) ) {
+                if( !zip_append_file/*_timeinfo*/(z, fname, comment, in, cs.compress_level/*, timeinfo*/) ) {
                     PANIC("failed to add processed file into %s: %s", zipfile, fname);
                 }
 
@@ -506,18 +524,26 @@ bool cooker_start( const char *masks, int flags ) {
     if(rules[0] == 0) return false;
 
     if( strstr(rules, "ART=") ) {
-        ART = STRDUP( strstr(rules, "ART=") + 4 ); // @leak
+        ART = va( "%s", strstr(rules, "ART=") + 4 );
         char *r = strchr( ART, '\r' ); if(r) *r = 0;
         char *n = strchr( ART, '\n' ); if(n) *n = 0;
         char *s = strchr( ART, ';' );  if(s) *s = 0;
         char *w = strchr( ART, ' ' );  if(w) *w = 0;
-        if( !strendi(ART, "/") ) strcat((char*)ART, "/");
+        char *t = file_pathabs(ART); for(int i = 0; t[i]; ++i) if(t[i]=='\\') t[i] = '/';
+        if( !strendi(t, "/") ) strcat(t, "/");
+        ART = STRDUP(t); // @leak
     }
 
-    // get normalized current working directory (absolute)
-    char cwd[MAX_PATHFILE] = {0};
-    getcwd(cwd, sizeof(cwd));
-    for(int i = 0; cwd[i]; ++i) if(cwd[i] == '\\') cwd[i] = '/';
+    if( strstr(rules, "TOOLS=") ) {
+        TOOLS = va( "%s", strstr(rules, "TOOLS=") + 6 );
+        char *r = strchr( TOOLS, '\r' ); if(r) *r = 0;
+        char *n = strchr( TOOLS, '\n' ); if(n) *n = 0;
+        char *s = strchr( TOOLS, ';' );  if(s) *s = 0;
+        char *w = strchr( TOOLS, ' ' );  if(w) *w = 0;
+        char *t = file_pathabs(TOOLS); for(int i = 0; t[i]; ++i) if(t[i]=='\\') t[i] = '/';
+        if( !strendi(t, "/") ) strcat(t, "/");
+        TOOLS = STRDUP(t); // @leak
+    }
 
     // scan disk
     const char **list = file_list(ART, "**");
@@ -525,11 +551,10 @@ bool cooker_start( const char *masks, int flags ) {
     for( int i = 0; list[i]; ++i ) {
         const char *fname = list[i];
 
-        // also, skip folders and internal files like .art.zip
-        // if( file_directory(fname) ) continue;
-        // if( fname[0] == '.' ) continue;
-        if( fname[0] == '.' ) continue; // discard system dirs and hidden files
-        if( strstri(fname, TOOLS) ) continue; // discard tools folder
+        // skip special files, folders and internal files like .art.zip
+        const char *dir = file_path(fname);
+        if( dir[0] == '.' ) continue; // discard system dirs and hidden files
+        if( strbegi(dir, TOOLS) ) continue; // discard tools folder
         if( !file_ext(fname)[0] ) continue; // discard extensionless entries
         if( !file_size(fname)) continue; // skip dirs and empty files
 
@@ -546,24 +571,13 @@ bool cooker_start( const char *masks, int flags ) {
         // [...]
         // fi.normalized = ; tolower->to_underscore([]();:+ )->remove_extra_underscores
 
-        // make buffer writable
-        char buffer[MAX_PATHFILE];
-        snprintf(buffer, MAX_PATHFILE, "%s", fname);
-
-        // normalize path
-        for(int i = 0; buffer[i]; ++i) if(buffer[i] == '\\') buffer[i] = '/';
-
-        // rebase from absolute to relative
-        char *buf = buffer; int cwdlen = strlen(cwd);
-        if( !strncmp(buf, cwd, cwdlen) ) buf += cwdlen;
-        while(buf[0] == '/') ++buf;
-
-        if( file_name(buf)[0] == '.' ) continue; // skip system files
+        if (file_name(fname)[0] == '.') continue; // skip system files
+        if (file_name(fname)[0] == ';') continue; // skip comment files
 
         struct fs fi = {0};
-        fi.fname = STRDUP(buf);
-        fi.bytes = file_size(buf);
-        fi.stamp = file_stamp(buf); // human-readable base10 timestamp
+        fi.fname = STRDUP(fname);
+        fi.bytes = file_size(fname);
+        fi.stamp = file_stamp(fname); // human-readable base10 timestamp
 
         array_push(fs_now, fi);
     }

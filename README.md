@@ -191,9 +191,16 @@ echo OSX (gcc+clang)       && cc  demo.c -ObjC fwk.c -o demo -w -framework cocoa
 - Note: TCC is partially supported on Windows+Linux. Beware, no threading.
 
 ## Build (as dynamic library)
-- Windows: `cl fwk.c /LD /DAPI=EXPORT && cl demo.c fwk.lib /DAPI=IMPORT`
-- OSX: `cc -ObjC -dynamiclib -o libfwk.dylib fwk.c -framework cocoa -framework iokit`
-- Test it by typing `cd demos/lua && luajit demo_luajit.lua`
+Type `MAKE.bat dll` or `sh MAKE.bat dll` (Linux/OSX) to build FWK as a dynamic library. Alternatively,
+
+```lua
+echo Windows && cl fwk.c /LD /DAPI=EXPORT
+echo Linux   && cc -fPIC fwk.c -shared -o libfwk.so -w
+echo OSX     && cc -ObjC -dynamiclib -o libfwk.dylib fwk.c -framework cocoa -framework iokit -w
+```
+
+- Quick test on Windows: `cl demo.c fwk.lib /DAPI=IMPORT`
+- Or also, copy the dynamic library into `demos/lua` and then run `luajit demo_luajit_model.lua` from there.
 
 ## Amalgamation
 - Split FWK into separate files by running `art/tools/split.bat` (or `sh art/tools/split.bat` in Linux/OSX).

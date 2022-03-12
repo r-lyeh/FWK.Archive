@@ -6,11 +6,24 @@ cd `dirname $0`
 # copy demos to root folder. local changes are preserved
 cp -n demos/*.c .
 
+# tidy environment
 if [ "$1" = "tidy" ]; then
     rm demo_* 2> /dev/null
     rm demo 2> /dev/null
     rm fwk.o 2> /dev/null
     rm .art*.zip 2> /dev/null
+    rm fwk_*.* 2> /dev/null
+    rm 3rd_*.* 2> /dev/null
+    rm libfwk* 2> /dev/null
+    exit
+fi
+# shortcuts for split & join amalgamation scripts
+if [ "$1" = "split" ]; then
+    sh art/tools/split.bat
+    exit
+fi
+if [ "$1" = "join" ]; then
+    sh art/tools/join.bat
     exit
 fi
 
@@ -38,6 +51,14 @@ if [ "$(uname)" != "Darwin" ]; then
     chmod +x art/tools/ffmpeg.linux
     chmod +x art/tools/cuttlefish.linux
     chmod +x art/tools/PVRTexToolCLI.linux
+
+    # framework (as dynamic library)
+    if [ "$1" = "dll" ]; then
+        cc -o libfwk.so fwk.c -shared -fPIC -w -g
+        cp libfwk.so demos/lua/
+        sudo cp libfwk.so /usr/lib
+        exit
+    fi
 
     # framework
     echo fwk            && cc -c fwk.c -w -g $*
@@ -83,8 +104,10 @@ if [ "$(uname)" = "Darwin" ]; then
 
     # framework (as dynamic library)
     if [ "$1" = "dll" ]; then
-        cc -ObjC -dynamiclib -o libfwk.dylib fwk.c -framework cocoa -framework iokit
+        cc -ObjC -dynamiclib -o libfwk.dylib fwk.c -framework cocoa -framework iokit -w -g
         cp libfwk.dylib demos/lua
+        # sudo cp libfwk.dylib /usr/lib
+        exit
     fi
 
     # framework
@@ -116,9 +139,9 @@ exit
 @echo off
 
 rem setup
-if "%Platform%"=="" (
+if "%cc%"=="" (
     echo Warning: Trying VS 2022/2019/2017/2015/2013 x64 ...
-    set Platform=x64
+    set cc=cl
            if exist "%VS190COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat" (
               @call "%VS190COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat"
     ) else if exist "%VS160COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat" (
@@ -137,8 +160,8 @@ if "%Platform%"=="" (
               @call "%ProgramFiles(x86)%/microsoft visual studio/2017/community/VC/Auxiliary/Build/vcvarsx86_amd64.bat"
     ) else (
         echo Warning: Trying Mingw64 ...
-        set Platform=mingw64
-        where /q gcc.exe || ( set Platform=tcc&&echo Warning: Trying TCC ... )
+        set cc=gcc
+        where /q gcc.exe || ( set cc=tcc&&echo Warning: Trying TCC ... )
     )
 )
 
@@ -275,7 +298,9 @@ if exist "fwk_*" (
     call art\tools\join
 )
 
-if "%Platform%"=="x64" (
+echo [%cc%]
+
+if "%cc%"=="cl" (
     rem pipeline
     rem cl art/tools/ass2iqe.c   /Feart/tools/ass2iqe.exe  /nologo /openmp /O2 /Oy /MT /DNDEBUG /DFINAL assimp.lib
     rem cl art/tools/iqe2iqm.cpp /Feart/tools/iqe2iqm.exe  /nologo /openmp /O2 /Oy /MT /DNDEBUG /DFINAL
@@ -315,34 +340,7 @@ if "%Platform%"=="x64" (
     cl demo_pbr.c       /nologo /openmp /Zi /MT fwk.obj %*
     cl demo_instanced.c /nologo /openmp /Zi /MT fwk.obj %*
 
-) else if "%Platform%"=="mingw64" (
-    rem pipeline
-    rem gcc art/tools/ass2iqe.c   -o art/tools/ass2iqe.exe  -w -lassimp
-    rem gcc art/tools/iqe2iqm.cpp -o art/tools/iqe2iqm.exe  -w -lstdc++
-    rem gcc art/tools/mid2wav.c   -o art/tools/mid2wav.exe  -w
-    rem gcc art/tools/xml2json.c  -o art/tools/xml2json.exe -w
-
-    rem framework
-    echo fwk            && gcc -c fwk.c -std=c99 -w -g
-
-    rem demos
-    echo demo           && gcc -o demo           demo.c           fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99 -w -g
-    echo demo_cubemap   && gcc -o demo_cubemap   demo_cubemap.c   fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99 -w -g
-    echo demo_collide   && gcc -o demo_collide   demo_collide.c   fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99 -w -g
-    echo demo_model     && gcc -o demo_model     demo_model.c     fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99 -w -g
-    echo demo_scene     && gcc -o demo_scene     demo_scene.c     fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99 -w -g
-    echo demo_shadertoy && gcc -o demo_shadertoy demo_shadertoy.c fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99 -w -g
-    echo demo_sprite    && gcc -o demo_sprite    demo_sprite.c    fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99 -w -g
-    echo demo_video     && gcc -o demo_video     demo_video.c     fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99 -w -g
-    echo demo_script    && gcc -o demo_script    demo_script.c    fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99 -w -g
-    echo demo_socket    && gcc -o demo_socket    demo_socket.c    fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99 -w -g
-    echo demo_easing    && gcc -o demo_easing    demo_easing.c    fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99 -w -g
-    echo demo_font      && gcc -o demo_font      demo_font.c      fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99 -w -g
-    echo demo_material  && gcc -o demo_material  demo_material.c  fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99 -w -g
-    echo demo_pbr       && gcc -o demo_pbr       demo_pbr.c       fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99 -w -g
-    echo demo_instanced && gcc -o demo_instanced demo_instanced.c fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -std=c99 -w -g
-
-) else (
+) else if "%cc%"=="tcc" (
     rem pipeline
     rem gcc art/tools/ass2iqe.c   -o art/tools/ass2iqe.exe  -w -lassimp
     rem gcc art/tools/iqe2iqm.cpp -o art/tools/iqe2iqm.exe  -w -lstdc++
@@ -368,6 +366,33 @@ if "%Platform%"=="x64" (
     echo demo_material  && tcc demo_material.c  fwk.o %*
     echo demo_pbr       && tcc demo_pbr.c       fwk.o %*
     echo demo_instanced && tcc demo_instanced.c fwk.o %*
+
+) else ( rem if "%cc%"=="gcc" or "clang"
+    rem pipeline
+    rem %cc% art/tools/ass2iqe.c   -o art/tools/ass2iqe.exe  -w -lassimp
+    rem %cc% art/tools/iqe2iqm.cpp -o art/tools/iqe2iqm.exe  -w -lstdc++
+    rem %cc% art/tools/mid2wav.c   -o art/tools/mid2wav.exe  -w
+    rem %cc% art/tools/xml2json.c  -o art/tools/xml2json.exe -w
+
+    rem framework
+    echo fwk            && %cc% -c fwk.c -w -g %*
+
+    rem demos
+    echo demo           && %cc% -o demo           demo.c           fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
+    echo demo_cubemap   && %cc% -o demo_cubemap   demo_cubemap.c   fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
+    echo demo_collide   && %cc% -o demo_collide   demo_collide.c   fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
+    echo demo_model     && %cc% -o demo_model     demo_model.c     fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
+    echo demo_scene     && %cc% -o demo_scene     demo_scene.c     fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
+    echo demo_shadertoy && %cc% -o demo_shadertoy demo_shadertoy.c fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
+    echo demo_sprite    && %cc% -o demo_sprite    demo_sprite.c    fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
+    echo demo_video     && %cc% -o demo_video     demo_video.c     fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
+    echo demo_script    && %cc% -o demo_script    demo_script.c    fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
+    echo demo_socket    && %cc% -o demo_socket    demo_socket.c    fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
+    echo demo_easing    && %cc% -o demo_easing    demo_easing.c    fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
+    echo demo_font      && %cc% -o demo_font      demo_font.c      fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
+    echo demo_material  && %cc% -o demo_material  demo_material.c  fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
+    echo demo_pbr       && %cc% -o demo_pbr       demo_pbr.c       fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
+    echo demo_instanced && %cc% -o demo_instanced demo_instanced.c fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
 )
 
 rem PAUSE only if double-clicked from Windows explorer

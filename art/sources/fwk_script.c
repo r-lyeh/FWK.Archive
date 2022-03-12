@@ -1,11 +1,11 @@
 typedef lua_State lua;
 
 // the Lua interpreter
-lua *L;
+static lua *L;
 
 static void* script__realloc(void *userdef, void *ptr, size_t osize, size_t nsize) {
     (void)userdef;
-    return ptr = REALLOC( ptr, (osize+1) * nsize );
+    return ptr = REALLOC( ptr, /* (osize+1) * */ nsize );
 }
 static int script__traceback(lua_State *L) {
     if (!lua_isstring(L, 1)) { // try metamethod if non-string error object
@@ -136,15 +136,17 @@ int window_swap_lua(lua *L) {
 XMACRO(WRAP_ALL)
 
 void script_quit(void) {
-    lua_close(L);
-    L = 0;
+    if( L ) {
+        lua_close(L);
+        L = 0;
+    }
 }
 void script_init() {
     if( !L ) {
-        fwk_init();
+        // fwk_init();
 
         // initialize Lua
-        L = lua_newstate(script__realloc, 0); // L = luaL_newstate();
+        L = luaL_newstate(); // lua_newstate(script__realloc, 0);
 
         // load various Lua libraries
         luaL_openlibs(L);
@@ -154,7 +156,8 @@ void script_init() {
         luaopen_string(L);
         luaopen_math(L);
 
-        XMACRO(BIND_ALL);
+        // @fixme: disabled because of libfwk.so, which crashes when reaching this point
+        // XMACRO(BIND_ALL);
 
         atexit(script_quit);
     }

@@ -47,11 +47,6 @@ typedef float mat33[9];
 typedef float mat34[12];
 typedef float mat44[16];
 
-// A value type representing an abstract direction vector in 3D space, independent of any coordinate system.
-// A concrete 3D coordinate system with defined x, y, and z axes.
-typedef enum AXIS_ENUMS { axis_front, axis_back, axis_left, axis_right, axis_up, axis_down } AXIS_ENUMS;
-typedef union coord_system { struct { AXIS_ENUMS x,y,z; }; } coord_system;
-
 // ----------------------------------------------------------------------------
 
 API void     randset(uint64_t state);
@@ -315,14 +310,11 @@ API bool invert44(mat44 T, const mat44 M);
 API vec4 transform444(const mat44, const vec4);
 API bool unproject44(vec3 *out, vec3 xyd, vec4 viewport, mat44 mvp);
 
-API vec3 transform_axis(const coord_system, const AXIS_ENUMS);
-API void rebase44(mat44 m, const coord_system src_basis, const coord_system dst_basis);
-
 API void compose44(mat44 m, vec3 t, quat q, vec3 s);
 
 // ----------------------------------------------------------------------------
 
-API vec3 transform33(mat33 m, vec3 p);
+API vec3 transform33(const mat33 m, vec3 p);
 
 API vec4 transform444(const mat44 m, const vec4 p);
 
@@ -330,28 +322,39 @@ API vec3 transform344(const mat44 m, const vec3 p);
 
 API vec3 transformq(const quat q, const vec3 v);
 
-API vec3 transform_axis(const coord_system basis, const AXIS_ENUMS to);
+#if 0
+// A value type representing an abstract direction vector in 3D space, independent of any coordinate system.
+// A concrete 3D coordinate system with defined x, y, and z axes.
+typedef enum AXIS_ENUMS { axis_front, axis_back, axis_left, axis_right, axis_up, axis_down } AXIS_ENUMS;
+typedef union coord_system { struct { AXIS_ENUMS x,y,z; }; } coord_system;
+
+API vec3 transform_axis(const coord_system, const AXIS_ENUMS);
+
+API void rebase44(mat44 m, const coord_system src_basis, const coord_system dst_basis);
+
+//API vec3 transform_axis(const coord_system basis, const AXIS_ENUMS to);
 
 // A vector is the difference between two points in 3D space, possessing both direction and magnitude
-API vec3 transform_vector  (const mat44 m, const vec3 vector)   ;
+API vec3 transform_vector  (const mat44 m, const vec3 vector);
 
 // A point is a specific location within a 3D space
-API vec3 transform_point   (const mat44 m, const vec3 p)    ; // return (m * vec4{point,1).xyz()/r.w;
+API vec3 transform_point   (const mat44 m, const vec3 p);
 
 // A tangent is a unit-length vector which is parallel to a piece of geometry, such as a surface or a curve
-API vec3 transform_tangent (const mat44 m, const vec3 tangent)  ;//{ return norm3(transform_vector(m, tangent)); }
+API vec3 transform_tangent (const mat44 m, const vec3 tangent);
 
 // A normal is a unit-length bivector which is perpendicular to a piece of geometry, such as a surface or a curve
-API vec3 transform_normal  (const mat44 m, const vec3 normal)   ;
+API vec3 transform_normal  (const mat44 m, const vec3 normal);
 
 // A quaternion can describe both a rotation and a uniform scaling in 3D space
-API quat transform_quat     (const mat44 m, const quat q)      ;
+API quat transform_quat    (const mat44 m, const quat q);
 
 // A matrix can describe a general transformation of homogeneous coordinates in projective space
 API float* transform_matrix(mat44 out, const mat44 m, const mat44 matrix);
 
 // Scaling factors are not a vector, they are a compact representation of a scaling matrix
 API vec3 transform_scaling (const mat44 m, const vec3 scaling);
+#endif
 
 // ----------------------------------------------------------------------------
 // !!! for debugging

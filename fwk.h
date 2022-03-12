@@ -268,6 +268,10 @@ extern "C" {
 #define WITH_XREALLOC_POISON 1 ///+
 #endif
 
+#ifndef WITH_LINUX_CALLSTACKS
+#define WITH_LINUX_CALLSTACKS 0 ///+
+#endif
+
 // -----------------------------------------------------------------------------
 // system headers
 
@@ -373,11 +377,6 @@ typedef union quat { struct { float x,y,z,w; }; vec3 xyz; vec4 xyzw; float v[1];
 typedef float mat33[9];
 typedef float mat34[12];
 typedef float mat44[16];
-
-// A value type representing an abstract direction vector in 3D space, independent of any coordinate system.
-// A concrete 3D coordinate system with defined x, y, and z axes.
-typedef enum AXIS_ENUMS { axis_front, axis_back, axis_left, axis_right, axis_up, axis_down } AXIS_ENUMS;
-typedef union coord_system { struct { AXIS_ENUMS x,y,z; }; } coord_system;
 
 // ----------------------------------------------------------------------------
 
@@ -642,14 +641,11 @@ API bool invert44(mat44 T, const mat44 M);
 API vec4 transform444(const mat44, const vec4);
 API bool unproject44(vec3 *out, vec3 xyd, vec4 viewport, mat44 mvp);
 
-API vec3 transform_axis(const coord_system, const AXIS_ENUMS);
-API void rebase44(mat44 m, const coord_system src_basis, const coord_system dst_basis);
-
 API void compose44(mat44 m, vec3 t, quat q, vec3 s);
 
 // ----------------------------------------------------------------------------
 
-API vec3 transform33(mat33 m, vec3 p);
+API vec3 transform33(const mat33 m, vec3 p);
 
 API vec4 transform444(const mat44 m, const vec4 p);
 
@@ -657,28 +653,39 @@ API vec3 transform344(const mat44 m, const vec3 p);
 
 API vec3 transformq(const quat q, const vec3 v);
 
-API vec3 transform_axis(const coord_system basis, const AXIS_ENUMS to);
+#if 0
+// A value type representing an abstract direction vector in 3D space, independent of any coordinate system.
+// A concrete 3D coordinate system with defined x, y, and z axes.
+typedef enum AXIS_ENUMS { axis_front, axis_back, axis_left, axis_right, axis_up, axis_down } AXIS_ENUMS;
+typedef union coord_system { struct { AXIS_ENUMS x,y,z; }; } coord_system;
+
+API vec3 transform_axis(const coord_system, const AXIS_ENUMS);
+
+API void rebase44(mat44 m, const coord_system src_basis, const coord_system dst_basis);
+
+//API vec3 transform_axis(const coord_system basis, const AXIS_ENUMS to);
 
 // A vector is the difference between two points in 3D space, possessing both direction and magnitude
-API vec3 transform_vector  (const mat44 m, const vec3 vector)   ;
+API vec3 transform_vector  (const mat44 m, const vec3 vector);
 
 // A point is a specific location within a 3D space
-API vec3 transform_point   (const mat44 m, const vec3 p)    ; // return (m * vec4{point,1).xyz()/r.w;
+API vec3 transform_point   (const mat44 m, const vec3 p);
 
 // A tangent is a unit-length vector which is parallel to a piece of geometry, such as a surface or a curve
-API vec3 transform_tangent (const mat44 m, const vec3 tangent)  ;//{ return norm3(transform_vector(m, tangent)); }
+API vec3 transform_tangent (const mat44 m, const vec3 tangent);
 
 // A normal is a unit-length bivector which is perpendicular to a piece of geometry, such as a surface or a curve
-API vec3 transform_normal  (const mat44 m, const vec3 normal)   ;
+API vec3 transform_normal  (const mat44 m, const vec3 normal);
 
 // A quaternion can describe both a rotation and a uniform scaling in 3D space
-API quat transform_quat     (const mat44 m, const quat q)      ;
+API quat transform_quat    (const mat44 m, const quat q);
 
 // A matrix can describe a general transformation of homogeneous coordinates in projective space
 API float* transform_matrix(mat44 out, const mat44 m, const mat44 matrix);
 
 // Scaling factors are not a vector, they are a compact representation of a scaling matrix
 API vec3 transform_scaling (const mat44 m, const vec3 scaling);
+#endif
 
 // ----------------------------------------------------------------------------
 // !!! for debugging
@@ -1105,17 +1112,17 @@ static __thread unsigned array_c_;
  } while(0)
 
 #if 0 // snippet below does work
-#define array_unique(t, cmpfunc)
-    array_sort(t, cmpfunc);
-    for( int i = 0, end = array_count(t) - 1; i < end; ) {
-        if( !strcmp(t[i], t[i+1]) ) {
-            //array_erase(t, i+1);
-            memmove(&(t)[i+1], &(t)[i+2], (end - 1 - i) * sizeof((t)[0]) );
-            array_pop(t);
-            --end;
-        } else {
-            ++i;
-        }
+#define array_unique(t, cmpfunc) \
+    array_sort(t, cmpfunc); \
+    for( int i = 0, end = array_count(t) - 1; i < end; ) { \
+        if( !strcmp(t[i], t[i+1]) ) { \
+            /* array_erase(t, i+1); */ \
+            memmove(&(t)[i+1], &(t)[i+2], (end - 1 - i) * sizeof((t)[0]) ); \
+            array_pop(t); \
+            --end; \
+        } else { \
+            ++i; \
+        } \
     }
 #endif
 
@@ -1392,6 +1399,7 @@ API bool  (map_sort)(map* m);
 
 API void  editor();
 API bool  editor_active();
+API vec3  editor_pick(float mouse_x, float mouse_y);
 
 API char* dialog_load();
 API char* dialog_save();
@@ -1418,6 +1426,7 @@ API char *       file_load(const char *filename, int *len);
 API uint64_t     file_size(const char *pathfile);
 API bool         file_directory(const char *pathfile);
 
+API char *       file_pathabs(const char *pathfile); // ../dir/./file.ext -> c:/prj/dir/file.ext
 API char *       file_path(const char *pathfile); // c:/prj/dir/file.ext -> c:/prj/dir/
 API char *       file_name(const char *pathfile); // c:/prj/dir/file.ext -> file.ext
 API char *       file_ext(const char *pathfile); // c:/prj/dir/file.ext -> .ext
@@ -1674,20 +1683,15 @@ API void*  forget( void *ptr );
 
 // memory api
 #define ALLOCSIZE(p)   xsize(p)
-#define REALLOC(p,n)   (len1_ = (n), (len1_ ? WATCH(xrealloc((p),len1_),len1_) : xrealloc(FORGET(p),0)))
 #define MALLOC(n)      REALLOC(0,(n))
 #define FREE(p)        REALLOC(FORGET(p), 0)
-#define CALLOC(m,n)    (len2_ = (m)*(n), memset(REALLOC(0,len2_),0,len2_))
-#define STRDUP(s)      (len3_ = strlen(s)+1, ((char*)memcpy(REALLOC(0,len3_), (s), len3_)))
-static __thread size_t len1_, len2_, len3_;
+#define REALLOC(p,n)   REALLOC_((p),(n))
+#define CALLOC(m,n)    CALLOC_((m),(n))
+#define STRDUP(s)      STRDUP_(s)
 
-#if 0 // ifndef REALLOC
-#define REALLOC            realloc
-#define MALLOC(n)          REALLOC(0, n)
-#define FREE(p)            REALLOC(p, 0)
-#define CALLOC(c, n)       memset(MALLOC((c)*(n)), 0, (c)*(n))
-#define STRDUP(s)          strcpy(MALLOC(strlen(s)+1), (s))
-#endif
+static INLINE void *(REALLOC_)(void *p, size_t n) { return n ? WATCH(xrealloc(p,n),n) : xrealloc(FORGET(p),0); } ///-
+static INLINE void *(CALLOC_)(size_t m, size_t n) { return n *= m, memset(REALLOC(0,n),0,n); } ///-
+static INLINE char *(STRDUP_)(const char *s) { size_t n = strlen(s)+1; return ((char*)memcpy(REALLOC(0,n), s, n)); } ///-
 #line 0
 
 #line 1 "fwk_network.h"
@@ -1838,8 +1842,8 @@ API void *      obj_mutate(void **dst, const void *src);
 #define ctor(obj) obj_method0(obj, ctor) // ctor[obj_typeid(obj)](obj)
 #define dtor(obj) obj_method0(obj, dtor) // dtor[obj_typeid(obj)](obj)
 
-API extern void (*ctor[256])();
-API extern void (*dtor[256])();
+API extern void (*ctor[256])(); ///-
+API extern void (*dtor[256])(); ///-
 
 // object: syntax sugars
 
@@ -1853,7 +1857,7 @@ API extern void (*dtor[256])();
                 ctor(obj_tmpalloc), \
                 (type*)obj_tmpalloc )
 
-#define     obj_override(class, method)    obj_override(#class, method, class##_##method)
+#define     obj_override(class, method)    obj_override(#class, (void(**)())method, (void(*)())class##_##method)
 #define     obj_method0(obj, method)       method[obj_typeid(obj)]((obj))
 #define     obj_method(obj, method, ...)   method[obj_typeid(obj)]((obj), __VA_ARGS__)
 
@@ -2750,6 +2754,10 @@ API void     window_screenshot(const char* filename_png);
 } // extern "C"
 #endif
 
-#include "fwk" // for glad
+// for glad
+#ifdef _WIN32
+#define GLAD_API_CALL API
+#endif
+#include "fwk"
 
 #endif // FWK_H

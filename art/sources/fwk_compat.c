@@ -39,11 +39,11 @@ const struct in6_addr in6addr_loopback;   /* ::1 */
 #endif
 
 #if   defined MAX_PATH
-#define MAX_PATHFILE MAX_PATH
+#define DIR_MAX MAX_PATH
 #elif defined PATH_MAX
-#define MAX_PATHFILE PATH_MAX
+#define DIR_MAX PATH_MAX
 #else
-#define MAX_PATHFILE 260
+#define DIR_MAX 260
 #endif
 
 #ifdef _WIN32 // _MSC_VER and __MINGW64__
@@ -55,7 +55,7 @@ const struct in6_addr in6addr_loopback;   /* ::1 */
 #include <sys/stat.h>
 FILE *fmemopen(void *buf, size_t len, const char *type) {
     int fd = -1;
-    char temppath[MAX_PATHFILE - 14], filename[MAX_PATHFILE + 1];
+    char temppath[DIR_MAX - 14], filename[DIR_MAX + 1];
     if( GetTempPathA(sizeof(temppath), temppath) )
     if( GetTempFileNameA(temppath, "fwk_temp", 0, filename) )
     if( !_sopen_s(&fd, filename, _O_CREAT | _O_SHORT_LIVED | _O_TEMPORARY | _O_RDWR | _O_BINARY | _O_NOINHERIT, _SH_DENYRW, _S_IREAD | _S_IWRITE) )
@@ -81,7 +81,7 @@ const char *pathfile_from_handle(FILE *fp) {
     int fd = fileno(fp);
     HANDLE handle = (HANDLE)_get_osfhandle( fd ); // <io.h>
     DWORD size = GetFinalPathNameByHandleW(handle, NULL, 0, VOLUME_NAME_DOS);
-    wchar_t name[MAX_PATHFILE] = L"";
+    wchar_t name[DIR_MAX] = L"";
     size = GetFinalPathNameByHandleW(handle, name, size, VOLUME_NAME_DOS);
     name[size] = L'\0';
     return wchar16to8(name + 4); // skip \\?\ header
@@ -90,7 +90,7 @@ const char *pathfile_from_handle(FILE *fp) {
     // In OSX:
     //     #include <sys/syslimits.h>
     //     #include <fcntl.h>
-    //     char filePath[MAX_PATHFILE];
+    //     char filePath[DIR_MAX];
     //     if (fcntl(fd, F_GETPATH, filePath) != -1) {
     //         // do something with the file path
     //     }

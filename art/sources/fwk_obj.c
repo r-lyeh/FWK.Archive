@@ -292,7 +292,7 @@ void *obj_mutate(void **dst_, const void *src) {
         FREE( OBJUNBOX(dst_ptr) );
         *((void**)dst - 1) = OBJBOX( STRDUP( OBJUNBOX(*((void**)src - 1)) ), payload);
 
-        void *base = (uintptr_t)((void**)dst - 1);
+        void *base = (void*)((void**)dst - 1);
         base = REALLOC(base, src_sz + sizeof(void*));
         *dst_ = (char*)base + sizeof(void*);
         dst = (char*)base + sizeof(void*);

@@ -24,17 +24,12 @@ API void*  forget( void *ptr );
 
 // memory api
 #define ALLOCSIZE(p)   xsize(p)
-#define REALLOC(p,n)   (len1_ = (n), (len1_ ? WATCH(xrealloc((p),len1_),len1_) : xrealloc(FORGET(p),0)))
 #define MALLOC(n)      REALLOC(0,(n))
 #define FREE(p)        REALLOC(FORGET(p), 0)
-#define CALLOC(m,n)    (len2_ = (m)*(n), memset(REALLOC(0,len2_),0,len2_))
-#define STRDUP(s)      (len3_ = strlen(s)+1, ((char*)memcpy(REALLOC(0,len3_), (s), len3_)))
-static __thread size_t len1_, len2_, len3_;
+#define REALLOC(p,n)   REALLOC_((p),(n))
+#define CALLOC(m,n)    CALLOC_((m),(n))
+#define STRDUP(s)      STRDUP_(s)
 
-#if 0 // ifndef REALLOC
-#define REALLOC            realloc
-#define MALLOC(n)          REALLOC(0, n)
-#define FREE(p)            REALLOC(p, 0)
-#define CALLOC(c, n)       memset(MALLOC((c)*(n)), 0, (c)*(n))
-#define STRDUP(s)          strcpy(MALLOC(strlen(s)+1), (s))
-#endif
+static INLINE void *(REALLOC_)(void *p, size_t n) { return n ? WATCH(xrealloc(p,n),n) : xrealloc(FORGET(p),0); } ///-
+static INLINE void *(CALLOC_)(size_t m, size_t n) { return n *= m, memset(REALLOC(0,n),0,n); } ///-
+static INLINE char *(STRDUP_)(const char *s) { size_t n = strlen(s)+1; return ((char*)memcpy(REALLOC(0,n), s, n)); } ///-

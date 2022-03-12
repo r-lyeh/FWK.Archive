@@ -3350,6 +3350,11 @@ array(char) base64__decode(const char *in_) {
     return (array_resize(out_, io), out_);
 }
 
+// prevents crash on osx when strcpy'ing non __restrict arguments
+static char* strcpy_safe(char *d, const char *s) {
+    sprintf(d, "%s", s);
+    return d;
+}
 
 static
 bool model_load_textures(iqm_t *q, const struct iqmheader *hdr, model_t *model) {
@@ -3400,7 +3405,7 @@ bool model_load_textures(iqm_t *q, const struct iqmheader *hdr, model_t *model) 
             if( 1 ) {
                 material_name = va("%s", &str[m->material]);
                 char* plus = strrchr(material_name, '+');
-                if (plus) { strcpy(plus, file_ext(material_name)); }
+                if (plus) { strcpy_safe(plus, file_ext(material_name)); }
                 *out = texture_compressed(material_name, flags).id;
             }
             // else try right token
@@ -3408,7 +3413,7 @@ bool model_load_textures(iqm_t *q, const struct iqmheader *hdr, model_t *model) 
                 material_name = file_normalize( va("%s", &str[m->material]) );
                 char* plus = strrchr(material_name, '+'), *slash = strrchr(material_name, '/');
                 if (plus) {
-                    strcpy(slash ? slash + 1 : material_name, plus + 1);
+                    strcpy_safe(slash ? slash + 1 : material_name, plus + 1);
                     *out = texture_compressed(material_name, flags).id;
                 }
             }
@@ -3705,7 +3710,7 @@ void model_render_instanced(model_t m, mat44 proj, mat44 view, mat44* models, in
 
     if( count != m.num_instances ) {
         m.num_instances = count;
-        m.instanced_matrices = models;
+        m.instanced_matrices = (float*)models;
         model_set_state(m);
     }
 

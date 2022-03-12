@@ -54,6 +54,10 @@
 #define WITH_XREALLOC_POISON 1 ///+
 #endif
 
+#ifndef WITH_LINUX_CALLSTACKS
+#define WITH_LINUX_CALLSTACKS 0 ///+
+#endif
+
 // -----------------------------------------------------------------------------
 // system headers
 

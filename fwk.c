@@ -91,7 +91,9 @@
 //-----------------------------------------------------------------------------
 // C files
 
-#define  atexit(...) // hack to boost exit time. there are no critical systems that need to shutdown properly
+#if is(win32) // hack to boost exit time. there are no critical systems that need to shutdown properly on Windows,
+#define atexit(...) // however Linux needs proper atexit() to deinitialize 3rd_miniaudio.h; likely OSX as well.
+#endif
 
 #line 1 "fwk_ds.c"
 // -----------------------------------------------------------------------------
@@ -815,11 +817,11 @@ const struct in6_addr in6addr_loopback;   /* ::1 */
 #endif
 
 #if   defined MAX_PATH
-#define MAX_PATHFILE MAX_PATH
+#define DIR_MAX MAX_PATH
 #elif defined PATH_MAX
-#define MAX_PATHFILE PATH_MAX
+#define DIR_MAX PATH_MAX
 #else
-#define MAX_PATHFILE 260
+#define DIR_MAX 260
 #endif
 
 #ifdef _WIN32 // _MSC_VER and __MINGW64__
@@ -831,7 +833,7 @@ const struct in6_addr in6addr_loopback;   /* ::1 */
 #include <sys/stat.h>
 FILE *fmemopen(void *buf, size_t len, const char *type) {
     int fd = -1;
-    char temppath[MAX_PATHFILE - 14], filename[MAX_PATHFILE + 1];
+    char temppath[DIR_MAX - 14], filename[DIR_MAX + 1];
     if( GetTempPathA(sizeof(temppath), temppath) )
     if( GetTempFileNameA(temppath, "fwk_temp", 0, filename) )
     if( !_sopen_s(&fd, filename, _O_CREAT | _O_SHORT_LIVED | _O_TEMPORARY | _O_RDWR | _O_BINARY | _O_NOINHERIT, _SH_DENYRW, _S_IREAD | _S_IWRITE) )
@@ -857,7 +859,7 @@ const char *pathfile_from_handle(FILE *fp) {
     int fd = fileno(fp);
     HANDLE handle = (HANDLE)_get_osfhandle( fd ); // <io.h>
     DWORD size = GetFinalPathNameByHandleW(handle, NULL, 0, VOLUME_NAME_DOS);
-    wchar_t name[MAX_PATHFILE] = L"";
+    wchar_t name[DIR_MAX] = L"";
     size = GetFinalPathNameByHandleW(handle, name, size, VOLUME_NAME_DOS);
     name[size] = L'\0';
     return wchar16to8(name + 4); // skip \\?\ header
@@ -866,7 +868,7 @@ const char *pathfile_from_handle(FILE *fp) {
     // In OSX:
     //     #include <sys/syslimits.h>
     //     #include <fcntl.h>
-    //     char filePath[MAX_PATHFILE];
+    //     char filePath[DIR_MAX];
     //     if (fcntl(fd, F_GETPATH, filePath) != -1) {
     //         // do something with the file path
     //     }
@@ -2302,8 +2304,15 @@ cook_script_t cook_script(const char *rules, const char *infile, const char *out
     if(!symbols) map_init(symbols, less_str, hash_str);
     if(!groups)  map_init(groups, less_str, hash_str);
 
+    // pretty (truncated) input (C:/prj/FWK/art/file.wav -> file.wav)
+    int artlen = strlen(ART);
+    const char *pretty = infile;
+    if( !strncmp(pretty, ART, artlen) ) pretty += artlen;
+    while(pretty[0] == '/') ++pretty;
+
     map_find_or_add(symbols, "INFILE", STRDUP(infile));
     map_find_or_add(symbols, "INPUT", STRDUP(infile));
+    map_find_or_add(symbols, "PRETTY", STRDUP(pretty));
     map_find_or_add(symbols, "OUTPUT", STRDUP(outfile));
     map_find_or_add(symbols, "TOOLS", STRDUP(TOOLS));
     map_find_or_add(symbols, "PROGRESS", STRDUP(va("%03d", cooker_progress())));
@@ -2691,12 +2700,14 @@ int cook(void *userdata) {
     }
 
     // deleted files
+    //time_t time_now = time(NULL);
+    //struct tm *tm_now = localtime(&time_now);
     for( int i = 0, end = array_count(deleted); i < end; ++i ) {
         printf("Deleting %03d%% %s\n", (i+1) == end ? 100 : (i * 100) / end, deleted[i]);
         FILE* out = fopen(COOKER_TMPFILE, "wb"); fclose(out);
         FILE* in = fopen(COOKER_TMPFILE, "rb");
         char *comment = "0";
-        zip_append_file(z, deleted[i], comment, in, 0);
+        zip_append_file/*_timeinfo*/(z, deleted[i], comment, in, 0/*, tm_now*/);
         fclose(in);
     }
     // added or changed files
@@ -2732,13 +2743,22 @@ int cook(void *userdata) {
         else if( cs.compress_level >= 0 ) {
             FILE *in = fopen(cs.finalfile, "rb");
 
-                static __thread char cwd[MAX_PATHFILE] = {0};
-                if(!cwd[0]) snprintf(cwd, MAX_PATHFILE-1, "%s", app_path()), strswap(cwd, "\\", "/");
-                if(strbegi(fname, cwd)) fname += strlen(cwd);
+#if 0
+                struct stat st; stat(fname, &st);
+                struct tm *timeinfo = localtime(&st.st_mtime);
+                ASSERT(timeinfo);
+
+                // pretty (truncated) input (C:/prj/FWK/art/file.wav -> file.wav)
+                static threadlocal int artlen = 0; if(!artlen) artlen = strlen(ART);
+                const char *pretty = fname;
+                if( !strncmp(pretty, ART, artlen) ) pretty += artlen;
+                while(pretty[0] == '/') ++pretty;
+                fname = pretty;
                 //puts(fname);
+#endif
 
                 char *comment = va("%d", inlen);
-                if( !zip_append_file(z, fname, comment, in, cs.compress_level) ) {
+                if( !zip_append_file/*_timeinfo*/(z, fname, comment, in, cs.compress_level/*, timeinfo*/) ) {
                     PANIC("failed to add processed file into %s: %s", zipfile, fname);
                 }
 
@@ -2769,18 +2789,26 @@ bool cooker_start( const char *masks, int flags ) {
     if(rules[0] == 0) return false;
 
     if( strstr(rules, "ART=") ) {
-        ART = STRDUP( strstr(rules, "ART=") + 4 ); // @leak
+        ART = va( "%s", strstr(rules, "ART=") + 4 );
         char *r = strchr( ART, '\r' ); if(r) *r = 0;
         char *n = strchr( ART, '\n' ); if(n) *n = 0;
         char *s = strchr( ART, ';' );  if(s) *s = 0;
         char *w = strchr( ART, ' ' );  if(w) *w = 0;
-        if( !strendi(ART, "/") ) strcat((char*)ART, "/");
+        char *t = file_pathabs(ART); for(int i = 0; t[i]; ++i) if(t[i]=='\\') t[i] = '/';
+        if( !strendi(t, "/") ) strcat(t, "/");
+        ART = STRDUP(t); // @leak
     }
 
-    // get normalized current working directory (absolute)
-    char cwd[MAX_PATHFILE] = {0};
-    getcwd(cwd, sizeof(cwd));
-    for(int i = 0; cwd[i]; ++i) if(cwd[i] == '\\') cwd[i] = '/';
+    if( strstr(rules, "TOOLS=") ) {
+        TOOLS = va( "%s", strstr(rules, "TOOLS=") + 6 );
+        char *r = strchr( TOOLS, '\r' ); if(r) *r = 0;
+        char *n = strchr( TOOLS, '\n' ); if(n) *n = 0;
+        char *s = strchr( TOOLS, ';' );  if(s) *s = 0;
+        char *w = strchr( TOOLS, ' ' );  if(w) *w = 0;
+        char *t = file_pathabs(TOOLS); for(int i = 0; t[i]; ++i) if(t[i]=='\\') t[i] = '/';
+        if( !strendi(t, "/") ) strcat(t, "/");
+        TOOLS = STRDUP(t); // @leak
+    }
 
     // scan disk
     const char **list = file_list(ART, "**");
@@ -2788,11 +2816,10 @@ bool cooker_start( const char *masks, int flags ) {
     for( int i = 0; list[i]; ++i ) {
         const char *fname = list[i];
 
-        // also, skip folders and internal files like .art.zip
-        // if( file_directory(fname) ) continue;
-        // if( fname[0] == '.' ) continue;
-        if( fname[0] == '.' ) continue; // discard system dirs and hidden files
-        if( strstri(fname, TOOLS) ) continue; // discard tools folder
+        // skip special files, folders and internal files like .art.zip
+        const char *dir = file_path(fname);
+        if( dir[0] == '.' ) continue; // discard system dirs and hidden files
+        if( strbegi(dir, TOOLS) ) continue; // discard tools folder
         if( !file_ext(fname)[0] ) continue; // discard extensionless entries
         if( !file_size(fname)) continue; // skip dirs and empty files
 
@@ -2809,24 +2836,13 @@ bool cooker_start( const char *masks, int flags ) {
         // [...]
         // fi.normalized = ; tolower->to_underscore([]();:+ )->remove_extra_underscores
 
-        // make buffer writable
-        char buffer[MAX_PATHFILE];
-        snprintf(buffer, MAX_PATHFILE, "%s", fname);
-
-        // normalize path
-        for(int i = 0; buffer[i]; ++i) if(buffer[i] == '\\') buffer[i] = '/';
-
-        // rebase from absolute to relative
-        char *buf = buffer; int cwdlen = strlen(cwd);
-        if( !strncmp(buf, cwd, cwdlen) ) buf += cwdlen;
-        while(buf[0] == '/') ++buf;
-
-        if( file_name(buf)[0] == '.' ) continue; // skip system files
+        if (file_name(fname)[0] == '.') continue; // skip system files
+        if (file_name(fname)[0] == ';') continue; // skip comment files
 
         struct fs fi = {0};
-        fi.fname = STRDUP(buf);
-        fi.bytes = file_size(buf);
-        fi.stamp = file_stamp(buf); // human-readable base10 timestamp
+        fi.fname = STRDUP(fname);
+        fi.bytes = file_size(fname);
+        fi.stamp = file_stamp(fname); // human-readable base10 timestamp
 
         array_push(fs_now, fi);
     }
@@ -3058,6 +3074,15 @@ printf("%d\n", adder(2,3));
 char *file_name(const char *pathfile) {
     char *s = strrchr(pathfile, '/'), *t = strrchr(pathfile, '\\');
     return va("%s", s > t ? s+1 : t ? t+1 : pathfile);
+}
+char *file_pathabs( const char *pathfile ) {
+    char *out = va("%.*s", DIR_MAX+1, "");
+#ifdef _WIN32
+    _fullpath(out, pathfile, DIR_MAX);
+#else
+    realpath(pathfile, out);
+#endif
+    return out;
 }
 char *file_path(const char *pathfile) {
     return va("%.*s", (int)(strlen(pathfile)-strlen(file_name(pathfile))), pathfile);
@@ -3408,8 +3433,13 @@ char *vfs_unpack(const char *pathfile, int *size) { // must free() after use
             void*    (*fn_unpack[3])(void *, unsigned) = {(void*)zip_extract, (void*)tar_extract, (void*)pak_extract};
             unsigned (*fn_size[3])(void *, unsigned) = {(void*)zip_size, (void*)tar_size, (void*)pak_size};
 
+#if 0
             const char* cleanup = pathfile + strbegi(pathfile, dir->path) * strlen(dir->path);
             while (cleanup[0] == '/') ++cleanup;
+#else
+            const char *cleanup = pathfile;
+#endif          
+
             int index = fn_find[dir->type](dir->archive, cleanup);
             data = fn_unpack[dir->type](dir->archive, index);
             if( size ) *size = fn_size[dir->type](dir->archive, index);
@@ -3455,9 +3485,11 @@ char* vfs_load(const char *pathfile, int *size_out) { // @todo: fix leaks
     int size = 0;
     void *ptr = 0;
 
+#if 0
     // clean pathfile
     while (pathfile[0] == '.' && pathfile[1] == '/') pathfile += 2;
     while (pathfile[0] == '/') ++pathfile;
+#endif
 
     const char *lookup_id = /*file_normalize_with_folder*/(pathfile);
 
@@ -3530,11 +3562,11 @@ const char *vfs_find(const char *pathfile) {
 
     // pool of temp files. recycles after every loop
     enum { MAX_TEMP_FILES = 16 };
-    static threadlocal char temps[MAX_TEMP_FILES][MAX_PATHFILE] = {0};
+    static threadlocal char temps[MAX_TEMP_FILES][DIR_MAX] = {0};
     static threadlocal int i = 0;
     if( temps[i]) unlink(temps[i]);
     i = (i + 1) % MAX_TEMP_FILES;
-    if(!temps[i][0]) snprintf(temps[i], MAX_PATHFILE, "%s", tmpnam(0));
+    if(!temps[i][0]) snprintf(temps[i], DIR_MAX, "%s", tmpnam(0));
     char *name = temps[i];
 
     FILE *tmp = fopen(name, "wb"); //unlink(name);
@@ -7127,18 +7159,6 @@ bool unproject44(vec3 *out, vec3 xyd, vec4 viewport, mat44 mvp) {
     return false;
 }
 
-vec3 transform_axis(const coord_system, const AXIS_ENUMS);
-void rebase44(mat44 m, const coord_system src_basis, const coord_system dst_basis) {
-    vec3 v1 = transform_axis(src_basis, dst_basis.x);
-    vec3 v2 = transform_axis(src_basis, dst_basis.y);
-    vec3 v3 = transform_axis(src_basis, dst_basis.z);
-    m[ 0] = v1.x; m[ 1] = v1.y; m[ 2] = v1.z; m[ 3] = 0;
-    m[ 4] = v2.x; m[ 5] = v2.y; m[ 6] = v2.z; m[ 7] = 0;
-    m[ 8] = v3.x; m[ 9] = v3.y; m[10] = v3.z; m[11] = 0;
-    m[12] =    0; m[13] =    0; m[14] =    0; m[15] = 1;
-}
-
-
 void compose44(mat44 m, vec3 t, quat q, vec3 s) {
 #if 0
     // quat to rotation matrix
@@ -7176,7 +7196,7 @@ void compose44(mat44 m, vec3 t, quat q, vec3 s) {
 
 // ----------------------------------------------------------------------------
 
-vec3 transform33(mat33 m, vec3 p) {
+vec3 transform33(const mat33 m, vec3 p) {
     float x = (m[0] * p.x) + (m[4] * p.y) + (m[ 8] * p.z);
     float y = (m[1] * p.x) + (m[5] * p.y) + (m[ 9] * p.z);
     float z = (m[2] * p.x) + (m[6] * p.y) + (m[10] * p.z);
@@ -7208,6 +7228,18 @@ vec3 transformq(const quat q, const vec3 v) {  // !!! ok, i guess
     vec3 b = scale3(v, s*s - dot3(u,u));
     vec3 c = scale3(cross3(u,v), 2*s);
     return add3(a, add3(b,c));
+}
+
+#if 0
+vec3 transform_axis(const coord_system, const AXIS_ENUMS);
+void rebase44(mat44 m, const coord_system src_basis, const coord_system dst_basis) {
+    vec3 v1 = transform_axis(src_basis, dst_basis.x);
+    vec3 v2 = transform_axis(src_basis, dst_basis.y);
+    vec3 v3 = transform_axis(src_basis, dst_basis.z);
+    m[ 0] = v1.x; m[ 1] = v1.y; m[ 2] = v1.z; m[ 3] = 0;
+    m[ 4] = v2.x; m[ 5] = v2.y; m[ 6] = v2.z; m[ 7] = 0;
+    m[ 8] = v3.x; m[ 9] = v3.y; m[10] = v3.z; m[11] = 0;
+    m[12] =    0; m[13] =    0; m[14] =    0; m[15] = 1;
 }
 
 vec3 transform_axis(const coord_system basis, const AXIS_ENUMS to) {
@@ -7263,6 +7295,7 @@ vec3 transform_scaling (const mat44 m, const vec3 scaling) {
     mat44 out; transform_matrix(out, m, s);
     return vec3( out[0], out[5], out[10] );
 }
+#endif
 
 // ----------------------------------------------------------------------------
 // !!! for debugging
@@ -10930,6 +10963,11 @@ array(char) base64__decode(const char *in_) {
     return (array_resize(out_, io), out_);
 }
 
+// prevents crash on osx when strcpy'ing non __restrict arguments
+static char* strcpy_safe(char *d, const char *s) {
+    sprintf(d, "%s", s);
+    return d;
+}
 
 static
 bool model_load_textures(iqm_t *q, const struct iqmheader *hdr, model_t *model) {
@@ -10980,7 +11018,7 @@ bool model_load_textures(iqm_t *q, const struct iqmheader *hdr, model_t *model) 
             if( 1 ) {
                 material_name = va("%s", &str[m->material]);
                 char* plus = strrchr(material_name, '+');
-                if (plus) { strcpy(plus, file_ext(material_name)); }
+                if (plus) { strcpy_safe(plus, file_ext(material_name)); }
                 *out = texture_compressed(material_name, flags).id;
             }
             // else try right token
@@ -10988,7 +11026,7 @@ bool model_load_textures(iqm_t *q, const struct iqmheader *hdr, model_t *model) 
                 material_name = file_normalize( va("%s", &str[m->material]) );
                 char* plus = strrchr(material_name, '+'), *slash = strrchr(material_name, '/');
                 if (plus) {
-                    strcpy(slash ? slash + 1 : material_name, plus + 1);
+                    strcpy_safe(slash ? slash + 1 : material_name, plus + 1);
                     *out = texture_compressed(material_name, flags).id;
                 }
             }
@@ -11285,7 +11323,7 @@ void model_render_instanced(model_t m, mat44 proj, mat44 view, mat44* models, in
 
     if( count != m.num_instances ) {
         m.num_instances = count;
-        m.instanced_matrices = models;
+        m.instanced_matrices = (float*)models;
         model_set_state(m);
     }
 
@@ -12542,11 +12580,11 @@ void scene_render(int flags) {
 typedef lua_State lua;
 
 // the Lua interpreter
-lua *L;
+static lua *L;
 
 static void* script__realloc(void *userdef, void *ptr, size_t osize, size_t nsize) {
     (void)userdef;
-    return ptr = REALLOC( ptr, (osize+1) * nsize );
+    return ptr = REALLOC( ptr, /* (osize+1) * */ nsize );
 }
 static int script__traceback(lua_State *L) {
     if (!lua_isstring(L, 1)) { // try metamethod if non-string error object
@@ -12677,15 +12715,17 @@ int window_swap_lua(lua *L) {
 XMACRO(WRAP_ALL)
 
 void script_quit(void) {
-    lua_close(L);
-    L = 0;
+    if( L ) {
+        lua_close(L);
+        L = 0;
+    }
 }
 void script_init() {
     if( !L ) {
-        fwk_init();
+        // fwk_init();
 
         // initialize Lua
-        L = lua_newstate(script__realloc, 0); // L = luaL_newstate();
+        L = luaL_newstate(); // lua_newstate(script__realloc, 0);
 
         // load various Lua libraries
         luaL_openlibs(L);
@@ -12695,7 +12735,8 @@ void script_init() {
         luaopen_string(L);
         luaopen_math(L);
 
-        XMACRO(BIND_ALL);
+        // @fixme: disabled because of libfwk.so, which crashes when reaching this point
+        // XMACRO(BIND_ALL);
 
         atexit(script_quit);
     }
@@ -15379,7 +15420,7 @@ void *obj_mutate(void **dst_, const void *src) {
         FREE( OBJUNBOX(dst_ptr) );
         *((void**)dst - 1) = OBJBOX( STRDUP( OBJUNBOX(*((void**)src - 1)) ), payload);
 
-        void *base = (uintptr_t)((void**)dst - 1);
+        void *base = (void*)((void**)dst - 1);
         base = REALLOC(base, src_sz + sizeof(void*));
         *dst_ = (char*)base + sizeof(void*);
         dst = (char*)base + sizeof(void*);

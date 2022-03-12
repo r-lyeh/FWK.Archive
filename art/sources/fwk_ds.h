@@ -131,17 +131,17 @@ static __thread unsigned array_c_;
  } while(0)
 
 #if 0 // snippet below does work
-#define array_unique(t, cmpfunc)
-    array_sort(t, cmpfunc);
-    for( int i = 0, end = array_count(t) - 1; i < end; ) {
-        if( !strcmp(t[i], t[i+1]) ) {
-            //array_erase(t, i+1);
-            memmove(&(t)[i+1], &(t)[i+2], (end - 1 - i) * sizeof((t)[0]) );
-            array_pop(t);
-            --end;
-        } else {
-            ++i;
-        }
+#define array_unique(t, cmpfunc) \
+    array_sort(t, cmpfunc); \
+    for( int i = 0, end = array_count(t) - 1; i < end; ) { \
+        if( !strcmp(t[i], t[i+1]) ) { \
+            /* array_erase(t, i+1); */ \
+            memmove(&(t)[i+1], &(t)[i+2], (end - 1 - i) * sizeof((t)[0]) ); \
+            array_pop(t); \
+            --end; \
+        } else { \
+            ++i; \
+        } \
     }
 #endif
 

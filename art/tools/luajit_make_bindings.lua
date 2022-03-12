@@ -31,4 +31,48 @@ local result = lcpp.compile(glue .. fwk_h)
 print( trim_multilines(result) )
 
 print(']])')
-print('return ffi.load("fwk")')
+
+print([[
+local _M = {}
+function _M.vec2(x,y)
+   local v = ffi.new("union vec2")
+   v.x = x
+   v.y = y
+   return v
+end
+function _M.vec3(x,y,z)
+   local v = ffi.new("union vec3")
+   v.x = x
+   v.y = y
+   v.z = z
+   return v
+end
+function _M.vec4(x,y,z,w)
+   local v = ffi.new("union vec4")
+   v.x = x
+   v.y = y
+   v.z = z
+   v.w = w
+   return v
+end
+function _M.quat(x,y,z,w)
+   local q = ffi.new("union quat")
+   v.x = x
+   v.y = y
+   v.z = z
+   v.w = w
+   return q
+end
+function _M.mat44()
+   local m = ffi.new("float [16]")
+   return m
+end
+
+local fwk = ffi.load("fwk")
+
+return setmetatable( _M, {
+   __index = function( table, key )
+      return fwk[ key ]
+   end
+} )
+]])

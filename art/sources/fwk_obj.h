@@ -96,8 +96,8 @@ API void *      obj_mutate(void **dst, const void *src);
 #define ctor(obj) obj_method0(obj, ctor) // ctor[obj_typeid(obj)](obj)
 #define dtor(obj) obj_method0(obj, dtor) // dtor[obj_typeid(obj)](obj)
 
-API extern void (*ctor[256])();
-API extern void (*dtor[256])();
+API extern void (*ctor[256])(); ///-
+API extern void (*dtor[256])(); ///-
 
 // object: syntax sugars
 
@@ -111,7 +111,7 @@ API extern void (*dtor[256])();
                 ctor(obj_tmpalloc), \
                 (type*)obj_tmpalloc )
 
-#define     obj_override(class, method)    obj_override(#class, method, class##_##method)
+#define     obj_override(class, method)    obj_override(#class, (void(**)())method, (void(*)())class##_##method)
 #define     obj_method0(obj, method)       method[obj_typeid(obj)]((obj))
 #define     obj_method(obj, method, ...)   method[obj_typeid(obj)]((obj), __VA_ARGS__)
 

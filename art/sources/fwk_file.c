@@ -5,6 +5,15 @@ char *file_name(const char *pathfile) {
     char *s = strrchr(pathfile, '/'), *t = strrchr(pathfile, '\\');
     return va("%s", s > t ? s+1 : t ? t+1 : pathfile);
 }
+char *file_pathabs( const char *pathfile ) {
+    char *out = va("%.*s", DIR_MAX+1, "");
+#ifdef _WIN32
+    _fullpath(out, pathfile, DIR_MAX);
+#else
+    realpath(pathfile, out);
+#endif
+    return out;
+}
 char *file_path(const char *pathfile) {
     return va("%.*s", (int)(strlen(pathfile)-strlen(file_name(pathfile))), pathfile);
 }
@@ -354,8 +363,13 @@ char *vfs_unpack(const char *pathfile, int *size) { // must free() after use
             void*    (*fn_unpack[3])(void *, unsigned) = {(void*)zip_extract, (void*)tar_extract, (void*)pak_extract};
             unsigned (*fn_size[3])(void *, unsigned) = {(void*)zip_size, (void*)tar_size, (void*)pak_size};
 
+#if 0
             const char* cleanup = pathfile + strbegi(pathfile, dir->path) * strlen(dir->path);
             while (cleanup[0] == '/') ++cleanup;
+#else
+            const char *cleanup = pathfile;
+#endif          
+
             int index = fn_find[dir->type](dir->archive, cleanup);
             data = fn_unpack[dir->type](dir->archive, index);
             if( size ) *size = fn_size[dir->type](dir->archive, index);
@@ -401,9 +415,11 @@ char* vfs_load(const char *pathfile, int *size_out) { // @todo: fix leaks
     int size = 0;
     void *ptr = 0;
 
+#if 0
     // clean pathfile
     while (pathfile[0] == '.' && pathfile[1] == '/') pathfile += 2;
     while (pathfile[0] == '/') ++pathfile;
+#endif
 
     const char *lookup_id = /*file_normalize_with_folder*/(pathfile);
 
@@ -476,11 +492,11 @@ const char *vfs_find(const char *pathfile) {
 
     // pool of temp files. recycles after every loop
     enum { MAX_TEMP_FILES = 16 };
-    static threadlocal char temps[MAX_TEMP_FILES][MAX_PATHFILE] = {0};
+    static threadlocal char temps[MAX_TEMP_FILES][DIR_MAX] = {0};
     static threadlocal int i = 0;
     if( temps[i]) unlink(temps[i]);
     i = (i + 1) % MAX_TEMP_FILES;
-    if(!temps[i][0]) snprintf(temps[i], MAX_PATHFILE, "%s", tmpnam(0));
+    if(!temps[i][0]) snprintf(temps[i], DIR_MAX, "%s", tmpnam(0));
     char *name = temps[i];
 
     FILE *tmp = fopen(name, "wb"); //unlink(name);

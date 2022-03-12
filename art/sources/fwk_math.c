@@ -723,18 +723,6 @@ bool unproject44(vec3 *out, vec3 xyd, vec4 viewport, mat44 mvp) {
     return false;
 }
 
-vec3 transform_axis(const coord_system, const AXIS_ENUMS);
-void rebase44(mat44 m, const coord_system src_basis, const coord_system dst_basis) {
-    vec3 v1 = transform_axis(src_basis, dst_basis.x);
-    vec3 v2 = transform_axis(src_basis, dst_basis.y);
-    vec3 v3 = transform_axis(src_basis, dst_basis.z);
-    m[ 0] = v1.x; m[ 1] = v1.y; m[ 2] = v1.z; m[ 3] = 0;
-    m[ 4] = v2.x; m[ 5] = v2.y; m[ 6] = v2.z; m[ 7] = 0;
-    m[ 8] = v3.x; m[ 9] = v3.y; m[10] = v3.z; m[11] = 0;
-    m[12] =    0; m[13] =    0; m[14] =    0; m[15] = 1;
-}
-
-
 void compose44(mat44 m, vec3 t, quat q, vec3 s) {
 #if 0
     // quat to rotation matrix
@@ -772,7 +760,7 @@ void compose44(mat44 m, vec3 t, quat q, vec3 s) {
 
 // ----------------------------------------------------------------------------
 
-vec3 transform33(mat33 m, vec3 p) {
+vec3 transform33(const mat33 m, vec3 p) {
     float x = (m[0] * p.x) + (m[4] * p.y) + (m[ 8] * p.z);
     float y = (m[1] * p.x) + (m[5] * p.y) + (m[ 9] * p.z);
     float z = (m[2] * p.x) + (m[6] * p.y) + (m[10] * p.z);
@@ -804,6 +792,18 @@ vec3 transformq(const quat q, const vec3 v) {  // !!! ok, i guess
     vec3 b = scale3(v, s*s - dot3(u,u));
     vec3 c = scale3(cross3(u,v), 2*s);
     return add3(a, add3(b,c));
+}
+
+#if 0
+vec3 transform_axis(const coord_system, const AXIS_ENUMS);
+void rebase44(mat44 m, const coord_system src_basis, const coord_system dst_basis) {
+    vec3 v1 = transform_axis(src_basis, dst_basis.x);
+    vec3 v2 = transform_axis(src_basis, dst_basis.y);
+    vec3 v3 = transform_axis(src_basis, dst_basis.z);
+    m[ 0] = v1.x; m[ 1] = v1.y; m[ 2] = v1.z; m[ 3] = 0;
+    m[ 4] = v2.x; m[ 5] = v2.y; m[ 6] = v2.z; m[ 7] = 0;
+    m[ 8] = v3.x; m[ 9] = v3.y; m[10] = v3.z; m[11] = 0;
+    m[12] =    0; m[13] =    0; m[14] =    0; m[15] = 1;
 }
 
 vec3 transform_axis(const coord_system basis, const AXIS_ENUMS to) {
@@ -859,6 +859,7 @@ vec3 transform_scaling (const mat44 m, const vec3 scaling) {
     mat44 out; transform_matrix(out, m, s);
     return vec3( out[0], out[5], out[10] );
 }
+#endif
 
 // ----------------------------------------------------------------------------
 // !!! for debugging

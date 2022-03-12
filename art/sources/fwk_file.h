@@ -15,6 +15,7 @@ API char *       file_load(const char *filename, int *len);
 API uint64_t     file_size(const char *pathfile);
 API bool         file_directory(const char *pathfile);
 
+API char *       file_pathabs(const char *pathfile); // ../dir/./file.ext -> c:/prj/dir/file.ext
 API char *       file_path(const char *pathfile); // c:/prj/dir/file.ext -> c:/prj/dir/
 API char *       file_name(const char *pathfile); // c:/prj/dir/file.ext -> file.ext
 API char *       file_ext(const char *pathfile); // c:/prj/dir/file.ext -> .ext

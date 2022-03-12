@@ -677,7 +677,9 @@ bcm_divbwt(const unsigned char *T, unsigned char *U, int *A, int n);
 
 
 /*- Constants -*/
+#ifndef INLINE
 #define INLINE __inline
+#endif
 #if defined(ALPHABET_SIZE) && (ALPHABET_SIZE < 1)
 # undef ALPHABET_SIZE
 #endif
