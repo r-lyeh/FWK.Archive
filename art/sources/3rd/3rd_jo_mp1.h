@@ -339,9 +339,9 @@ bool jo_read_mp1(const void *input, int inputSize, short **output_, int *outputS
 					int b = bitAlloc[i][ch];
 					if (b++) {
 						int samp = samples[i][ch];
-						double f = ((samp >> b - 1) & 1) ? 0 : -1;
-						f += (samp & ((1 << b - 1) - 1)) / (double)(1 << b - 1);
-						f = (f + 1.0 / (1 << b - 1)) * (1 << b) / ((1 << b) - 1.0);
+						double f = ((samp >> (b - 1)) & 1) ? 0 : -1;
+						f += (samp & ((1 << (b - 1)) - 1)) / (double)(1 << (b - 1));
+						f = (f + 1.0 / (1 << (b - 1))) * (1 << b) / ((1 << b) - 1.0);
 						f *= s_jo_multTbl[scaleIdx[i][ch]];
 						bandTbl[ch][i] = f;
 					}

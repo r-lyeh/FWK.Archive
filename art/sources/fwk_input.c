@@ -173,7 +173,7 @@ static struct controller_t *input_logger(int position, int advance) {
 }
 
 void input_mappings() {
-    unsigned char* mappings = vfs_read("gamecontrollerdb.txt");
+    char* mappings = vfs_read("gamecontrollerdb.txt");
     if( mappings ) { glfwUpdateGamepadMappings(mappings); /*REALLOC(mappings, 0);*/ }
 }
 
@@ -225,7 +225,7 @@ void input_update() {
     };
     for(int i = 0; i < countof(table); ++i) {
         //if( table[i] ) bits[i] = glfwGetKey(win, table[i] ) == GLFW_PRESS;
-        bits[i] = ((_GLFWwindow*)win)->keys[ table[i] ];
+        bits[i] = glfwGetKeys(win)[ table[i] ];
     }
     #undef k
     #undef k2

@@ -161,7 +161,7 @@ char *ext = strrchr(base, '.'); //if (ext) ext[0] = '\0'; // remove all extensio
             strlcat(built, "_", 256);
             strlcat(built, tokens[i], 256);
         }
-        snprintf( ids[ ids_count ], 64, "%s", &built[1] );
+        strncpy( ids[ ids_count ], &built[1], 64 );
         len += strlen( ids[ ids_count++ ] );
     }
     // concat in inverse order: file/path1/path2/...
@@ -205,6 +205,7 @@ const char** file_list(const char *cwd, const char *masks) {
                 #if is(win32)
                 char *copy = STRDUP(line); // full path already provided
                 #else
+                while(line[0] == '/') ++line;
                 char *copy = STRDUP(va("%s%s", cwd, line)); // need to prepend path
                 #endif
                 array_push(list, copy);
@@ -410,6 +411,11 @@ char* vfs_load(const char *pathfile, int *size_out) { // @todo: fix leaks
     pathfile = va("%s", vfs_resolve(pathfile));
     base = file_name(pathfile);
     folder = file_path(pathfile);
+        // make folder variable easier to read in logs: /home/rlyeh/prj/fwk/art/demos/audio/coin.wav -> demos/audio/coin.wav 
+        static int artlen = 0; do_once artlen = strlen(ART);
+        if( !strncmp(folder, ART, artlen) ) {
+            folder += artlen;
+        }
     //}
 
     int size = 0;

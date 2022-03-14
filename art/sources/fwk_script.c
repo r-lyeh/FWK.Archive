@@ -3,6 +3,10 @@ typedef lua_State lua;
 // the Lua interpreter
 static lua *L;
 
+#if is(linux)
+void luaopen_libfwk(lua_State *L) {}
+#endif
+
 static void* script__realloc(void *userdef, void *ptr, size_t osize, size_t nsize) {
     (void)userdef;
     return ptr = REALLOC( ptr, /* (osize+1) * */ nsize );
@@ -143,10 +147,10 @@ void script_quit(void) {
 }
 void script_init() {
     if( !L ) {
-        // fwk_init();
+        fwk_init();
 
         // initialize Lua
-        L = luaL_newstate(); // lua_newstate(script__realloc, 0);
+        L = lua_newstate(script__realloc, 0); // L = luaL_newstate();
 
         // load various Lua libraries
         luaL_openlibs(L);
@@ -156,8 +160,10 @@ void script_init() {
         luaopen_string(L);
         luaopen_math(L);
 
-        // @fixme: disabled because of libfwk.so, which crashes when reaching this point
-        // XMACRO(BIND_ALL);
+        // @fixme: workaround that prevents script binding on lua 5.4.3 on top of luajit 2.1.0-beta3 on linux. lua_setglobal() crashing when accessing null L->l_G
+        if(L->l_G) {
+        XMACRO(BIND_ALL);
+        }
 
         atexit(script_quit);
     }

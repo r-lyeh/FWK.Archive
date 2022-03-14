@@ -318,7 +318,7 @@ unsigned scene_count() {
 }
 
 object_t* scene_index(unsigned obj_index) {
-    unsigned obj_count = scene_count(last_scene);
+    unsigned obj_count = scene_count();
     ASSERT(obj_index < obj_count, "Object index %d exceeds number (%d) of spawned objects", obj_index, obj_count);
     return &last_scene->objs[obj_index];
 }
@@ -342,7 +342,7 @@ void scene_render(int flags) {
     //    glPolygonMode( GL_FRONT_AND_BACK, flags & SCENE_WIREFRAME ? GL_LINE : GL_FILL );
 
         mesh_render(&last_scene->skybox.geometry);
-        skybox_pop_state(&last_scene->skybox);
+        skybox_pop_state();
         }
 
         ddraw_flush();

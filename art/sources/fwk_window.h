@@ -49,8 +49,6 @@ API void     window_pause();
 API int      window_has_pause();
 API void     window_visible(int visible);
 API int      window_has_visible();
-API void     window_videorec(const char* filename_mpg);
-API int      window_has_videorec();
 
 API void     window_lock_aspect(unsigned numer, unsigned denom);
 API void     window_unlock_aspect();

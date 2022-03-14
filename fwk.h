@@ -105,22 +105,22 @@ extern "C" {
 #define ifdef_gcc                      ifdef_false
 #define ifdef_mingw                    ifdef_false
 #define ifdef_tcc                      ifdef_false
-#define ifdef_msc                      ifdef_true
+#define ifdef_cl                       ifdef_true
 #elif defined __TINYC__
 #define ifdef_gcc                      ifdef_false
 #define ifdef_mingw                    ifdef_false
 #define ifdef_tcc                      ifdef_true
-#define ifdef_msc                      ifdef_false
+#define ifdef_cl                       ifdef_false
 #elif defined __MINGW64__ // __MINGW__ ?
 #define ifdef_gcc                      ifdef_true
 #define ifdef_mingw                    ifdef_true
 #define ifdef_tcc                      ifdef_false
-#define ifdef_msc                      ifdef_false
+#define ifdef_cl                       ifdef_false
 #else // also __clang__
 #define ifdef_gcc                      ifdef_true
 #define ifdef_mingw                    ifdef_false
 #define ifdef_tcc                      ifdef_false
-#define ifdef_msc                      ifdef_false
+#define ifdef_cl                       ifdef_false
 #endif
 
 #ifdef __cplusplus
@@ -213,7 +213,7 @@ extern "C" {
 
 #line 1 "fwk_config.h"
 
-#ifdef _MSC_VER
+#if is(cl)
 #define IMPORT __declspec(dllimport)
 #define EXPORT __declspec(dllexport)
 #define STATIC
@@ -359,7 +359,7 @@ extern "C" {
 
 // ----------------------------------------------------------------------------
 
-#define ptr(type)         0[&(type).x]
+//#define ptr(type)         0[&(type).x]
 #define vec2(x, y      )  M_CAST(vec2, (float)(x), (float)(y)                        )
 #define vec3(x, y, z   )  M_CAST(vec3, (float)(x), (float)(y), (float)(z),           )
 #define vec4(x, y, z, w)  M_CAST(vec4, (float)(x), (float)(y), (float)(z), (float)(w))
@@ -368,12 +368,12 @@ extern "C" {
 #define mat33(...)        M_CAST(mat33, __VA_ARGS__ )
 #define mat34(...)        M_CAST(mat34, __VA_ARGS__ )
 #define mat44(...)        M_CAST(mat44, __VA_ARGS__ )
-#define coord_system(...) M_CAST(coord_system, __VA_ARGS__)
+//#define coord_system(...) M_CAST(coord_system, __VA_ARGS__)
 
-typedef union vec2 { struct { float x,y; }; struct { float r,g; }; struct { float w,h; }; struct { float min,max; }; float v[1]; } vec2;
-typedef union vec3 { struct { float x,y,z; }; struct { float r,g,b; }; struct { float w,h,d; }; vec2 xy; vec2 rg; vec2 wh; float v[1]; } vec3;
-typedef union vec4 { struct { float x,y,z,w; }; struct { float r,g,b,a; }; vec2 xy; vec3 xyz; vec2 rg; vec3 rgb; vec2 wh; vec3 whd; float v[1]; } vec4;
-typedef union quat { struct { float x,y,z,w; }; vec3 xyz; vec4 xyzw; float v[1]; } quat;
+typedef union vec2 { struct { float X,Y; };     struct { float x,y; }; struct { float r,g; }; struct { float w,h; }; struct { float min,max; }; float v2[2]; float array[1]; } vec2;
+typedef union vec3 { struct { float X,Y,Z; };   struct { float x,y,z; }; struct { float r,g,b; }; struct { float w,h,d; }; vec2 xy; vec2 rg; vec2 wh; float v3[3]; float array[1]; } vec3;
+typedef union vec4 { struct { float X,Y,Z,W; }; struct { float x,y,z,w; }; struct { float r,g,b,a; }; vec2 xy; vec3 xyz; vec2 rg; vec3 rgb; vec2 wh; vec3 whd; float v4[4]; float array[1]; } vec4;
+typedef union quat { struct { float X,Y,Z,W; }; struct { float x,y,z,w; }; vec3 xyz; vec4 xyzw; float v4[4]; float array[1]; } quat;
 typedef float mat33[9];
 typedef float mat34[12];
 typedef float mat44[16];
@@ -1031,7 +1031,7 @@ API size_t vlen( void* p );
 #define array_at(t,i) (t[i])
 #define array_count(t) (int)( (t) ? array_vlen_(t) / sizeof(0[t]) : 0u )
 #define array_bytes(t) (int)( (t) ? array_vlen_(t) : 0u )
-#define array_sort(t, cmpfunc) qsort( t, array_count(t), sizeof(0[t]), cmpfunc == strcmp ? strcmp_qsort : cmpfunc )
+#define array_sort(t, cmpfunc) qsort( t, array_count(t), sizeof(0[t]), (uintptr_t)cmpfunc == (uintptr_t)strcmp ? strcmp_qsort : cmpfunc )
 #define array_empty(t) ( !array_count(t) )
 static __thread unsigned array_c_;
 
@@ -1542,7 +1542,7 @@ enum FONT_FLAGS {
 
 // configures
 API void  font_face(const char *face_tag, const char *filename_ttf, float font_size, unsigned flags);
-API void  font_face_from_mem(const char *tag, const unsigned char *ttf_buffer, unsigned ttf_len, float font_size, unsigned flags);
+API void  font_face_from_mem(const char *tag, const void *ttf_buffer, unsigned ttf_len, float font_size, unsigned flags);
 API void  font_scales(const char *face_tag, float h1, float h2, float h3, float h4, float h5, float h6);
 API void  font_color(const char *color_tag, uint32_t color);
 
@@ -1646,7 +1646,7 @@ enum INPUT_ENUMS {
     // -- floats: x7 gamepad, x3 mouse, x4 touch, x4 window
     GAMEPAD_LPAD, GAMEPAD_LPADX = GAMEPAD_LPAD, GAMEPAD_LPADY,
     GAMEPAD_RPAD, GAMEPAD_RPADX = GAMEPAD_RPAD, GAMEPAD_RPADY,
-    GAMEPAD_LT, GAMEPAD_RT, GAMEPAD_BATTERY,
+    GAMEPAD_LTRIGGER, GAMEPAD_LT = GAMEPAD_LTRIGGER, GAMEPAD_RTRIGGER, GAMEPAD_RT = GAMEPAD_RTRIGGER, GAMEPAD_BATTERY,
     MOUSE, MOUSE_X = MOUSE, MOUSE_Y, MOUSE_W,
     TOUCH_X1, TOUCH_Y1, TOUCH_X2, TOUCH_Y2,
     WINDOW_RESIZE, WINDOW_RESIZEX = WINDOW_RESIZE, WINDOW_RESIZEY, WINDOW_ORIENTATION, WINDOW_BATTERY,
@@ -1884,6 +1884,7 @@ static threadlocal void *obj_tmpalloc;
 
 #if WITH_PROFILE
 #   define profile_init() do { map_init(profiler, less_str, hash_str); } while(0)
+#   define profile_enable(on) do { profiler_enabled = !!(on); } while(0)
 #   define profile(section) for( \
         struct profile_t *found = map_find_or_add(profiler, section "@" FILELINE, (struct profile_t){NAN} ), *dummy = (\
         found->cost = -time_us(), found); found->cost < 0; found->cost += time_us(), found->avg = found->cost * 0.25 + found->avg * 0.75)  ///+
@@ -1892,7 +1893,7 @@ static threadlocal void *obj_tmpalloc;
         if(!found) found = map_insert(profiler, name, (struct profile_t){0}); \
         found->stat += accum; \
         } } while(0) ///+
-#   define profile_render() if(profiler) do { \
+#   define profile_render() if(profiler && profiler_enabled) do { \
         for(float _i = ui_begin("Profiler",0), _r; _i ; ui_end(), _i = 0) { \
             for each_map_ptr(profiler, const char *, key, struct profile_t, val ) \
                 if( !isnan(val->stat) ) ui_slider2(va("Stat: %s", *key), (_r = val->stat, &_r), va("%.2f", val->stat)), val->stat = 0; \
@@ -1903,8 +1904,10 @@ static threadlocal void *obj_tmpalloc;
 struct profile_t { double stat; int32_t cost, avg; }; ///-
 typedef map(char *, struct profile_t) profiler_t; ///-
 extern API profiler_t profiler; ///-
+extern API int profiler_enabled; ///-
 #else
 #   define profile_init()               do {} while(0)
+#   define profile_enable(x)            do {} while(0)
 #   define profile_incstat(name, accum) do {} while(0)
 #   define profile(...)                 if(1) // for(int _p = 1; _p; _p = 0)
 #   define profile_render()
@@ -1925,9 +1928,11 @@ typedef unsigned handle; // GLuint
 // -----------------------------------------------------------------------------
 // colors
 
-API uint32_t rgba( uint8_t r, uint8_t g, uint8_t b, uint8_t a );
-API uint32_t bgra( uint8_t r, uint8_t g, uint8_t b, uint8_t a );
-API float    alpha( uint32_t rgba );
+API unsigned rgba( uint8_t r, uint8_t g, uint8_t b, uint8_t a );
+API unsigned bgra( uint8_t b, uint8_t g, uint8_t r, uint8_t a );
+API unsigned rgbaf( float r, float g, float b, float a );
+API unsigned bgraf( float b, float g, float r, float a );
+API float    alpha( unsigned rgba );
 
 #define RGBX(rgb,x)   ( ((rgb)&0xFFFFFF) | (((unsigned)(x))<<24) )
 #define RGB3(r,g,b)   ( ((r)<<16) | ((g)<<8) | (b) )
@@ -1976,7 +1981,7 @@ typedef struct image_t {
 } image_t;
 
 API image_t image(const char *pathfile, int flags);
-API image_t image_from_mem(const char *ptr, int len, int flags);
+API image_t image_from_mem(const void *ptr, int len, int flags);
 API void    image_destroy(image_t *img);
 
 // -----------------------------------------------------------------------------
@@ -2031,7 +2036,7 @@ API texture_t texture_compressed(const char *filename, unsigned flags);
 API texture_t texture_compressed_from_mem(const void *data, int len, unsigned flags);
 
 API texture_t texture(const char* filename, int flags);
-API texture_t texture_from_mem(const char* ptr, int len, int flags);
+API texture_t texture_from_mem(const void* ptr, int len, int flags);
 API texture_t texture_create(unsigned w, unsigned h, unsigned n, void *pixels, int flags);
 API texture_t texture_checker();
 API void      texture_destroy(texture_t *t);
@@ -2195,8 +2200,7 @@ typedef struct material_t {
         handle texture;
         float  value;
         vec4   color; // uint32_t
-    };
-    struct material_layer_t layer[MAX_CHANNELS_PER_MATERIAL];
+    } layer[MAX_CHANNELS_PER_MATERIAL];
 
 } material_t;
 
@@ -2286,6 +2290,7 @@ API char *   fx_name(int pass);
 // utils
 
 API void*    screenshot(unsigned components); // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA
+API void*    screenshot_async(unsigned components); // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA
 #line 0
 
 #line 1 "fwk_renderdd.h"
@@ -2322,6 +2327,7 @@ API void ddraw_capsule(vec3 from, vec3 to, float radius);
 API void ddraw_circle(vec3 pos, vec3 n, float radius);
 API void ddraw_cone(vec3 center, vec3 top, float radius);
 API void ddraw_cube(vec3 center, float radius);
+API void ddraw_cube33(vec3 center, vec3 radius, mat33 M);
 API void ddraw_diamond(vec3 from, vec3 to, float size);
 API void ddraw_frustum(float projview[16]);
 API void ddraw_ground(float scale);
@@ -2337,17 +2343,17 @@ API void ddraw_point(vec3 from);
 API void ddraw_position(vec3 pos, float radius);
 API void ddraw_position_dir(vec3 pos, vec3 dir, float radius);
 API void ddraw_pyramid(vec3 center, float height, int segments);
+API void ddraw_cylinder(vec3 center, float height, int segments);
 API void ddraw_sphere(vec3 pos, float radius);
 API void ddraw_square(vec3 pos, float radius);
 API void ddraw_text(vec3 pos, float scale, const char *text);
 API void ddraw_text2d(vec2 pos, float scale, const char *text);
 API void ddraw_triangle(vec3 p1, vec3 p2, vec3 p3);
 //
+API void ddraw_prism(vec3 center, float radius, float height, vec3 normal, int segments);
+//
 API void ddraw_demo();
 API void ddraw_flush();
-
-#define ddraw_text(pos, scale, ...) ddraw_text(pos, scale, va(__VA_ARGS__))
-#define ddraw_text2d(pos, scale, ...) ddraw_text2d(pos, scale, va(__VA_ARGS__))
 #line 0
 
 #line 1 "fwk_scene.h"
@@ -2480,10 +2486,13 @@ API int          strmatch(const char *s, const char *wildcard);
 API int          strcmp_qsort(const void *a, const void *b);
 API int          strcmpi_qsort(const void *a, const void *b);
 
+API bool         strbeg(const char *src, const char *sub); // returns true if both strings match at beginning. case sensitive
+API bool         strend(const char *src, const char *sub); // returns true if both strings match at end. case sensitive
+
 API bool         strbegi(const char *src, const char *sub);  // returns true if both strings match at beginning. case insensitive
 API bool         strendi(const char *src, const char *sub);  // returns true if both strings match at end. case insensitive
 API const char * strstri(const char *src, const char *sub);  // returns find first substring in string. case insensitive.
-#define          strcmpi  ifdef(msc, _stricmp, strcasecmp)
+#define          strcmpi  ifdef(cl, _stricmp, strcasecmp)
 
 API char *       strupper(const char *str);
 API char *       strlower(const char *str);
@@ -2683,6 +2692,16 @@ API double      video_position(video_t *v);
 API void        video_pause(video_t *v, bool paused);
 API bool        video_is_paused(video_t *v);
 API void       video_destroy( video_t *v );
+
+// -----------------------------------------------------------------------------
+// video recorder (uses external ffmpeg and fallbacks to built-in mpeg1 encoder)
+// - rlyeh, public domain
+//
+// @fixme: MSAA can cause some artifacts with PBOs: either use glDisable(GL_MULTISAMPLE) before recording or do not create window with WINDOW_MSAA at all.
+
+API void       videorec_start(const char *outfile_mp4);
+API bool        videorec_active();
+API void       videorec_stop(void);
 #line 0
 
 #line 1 "fwk_window.h"
@@ -2737,8 +2756,6 @@ API void     window_pause();
 API int      window_has_pause();
 API void     window_visible(int visible);
 API int      window_has_visible();
-API void     window_videorec(const char* filename_mpg);
-API int      window_has_videorec();
 
 API void     window_lock_aspect(unsigned numer, unsigned denom);
 API void     window_unlock_aspect();
@@ -2756,7 +2773,7 @@ API void     window_screenshot(const char* filename_png);
 
 // for glad
 #ifdef _WIN32
-#define GLAD_API_CALL API
+//#define GLAD_API_CALL API
 #endif
 #include "fwk"
 

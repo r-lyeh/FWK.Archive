@@ -953,14 +953,21 @@ void shader_colormap(const char *name, colormap_t c ) {
 // -----------------------------------------------------------------------------
 // colors
 
-uint32_t rgba( uint8_t r, uint8_t g, uint8_t b, uint8_t a ) {
-    return r << 24 | g << 16 | b << 8 | a;
+unsigned rgba( uint8_t r, uint8_t g, uint8_t b, uint8_t a ) {
+    return a << 24 | r << 16 | g << 8 | b;
 }
-uint32_t bgra( uint8_t r, uint8_t g, uint8_t b, uint8_t a ) {
-    return rgba(b,g,r,a);
+unsigned bgra( uint8_t b, uint8_t g, uint8_t r, uint8_t a ) {
+    return rgba(r,g,b,a);
 }
-float alpha( uint32_t rgba ) {
-    return ( rgba & 255 ) / 255.f;
+float alpha( unsigned rgba ) {
+    return ( rgba >> 24 ) / 255.f;
+}
+
+unsigned rgbaf(float r, float g, float b, float a) {
+    return rgba(r * 255, g * 255, b * 255, a * 255);
+}
+unsigned bgraf(float b, float g, float r, float a) {
+    return rgba(r * 255, g * 255, b * 255, a * 255);
 }
 
 // -----------------------------------------------------------------------------
@@ -977,7 +984,7 @@ image_t image_create(int x, int y, int flags) {
     return img;
 }
 
-image_t image_from_mem(const char *data, int size, int flags) {
+image_t image_from_mem(const void *data, int size, int flags) {
     image_t img = {0};
     if( data && size ) {
         stbi_set_flip_vertically_on_load(flags & IMAGE_FLIP ? 1 : 0);
@@ -988,9 +995,9 @@ image_t image_from_mem(const char *data, int size, int flags) {
         if(flags & IMAGE_RGB) n = 3;
         if(flags & IMAGE_RGBA) n = 4;
         if(flags & IMAGE_FLOAT)
-        img.pixels = stbi_loadf_from_memory(data, size, &img.x,&img.y,&img.n, n);
+        img.pixels = stbi_loadf_from_memory((const stbi_uc*)data, size, (int*)&img.x,(int*)&img.y,(int*)&img.n, n);
         else
-        img.pixels = stbi_load_from_memory(data, size, &img.x,&img.y,&img.n, n);
+        img.pixels = stbi_load_from_memory((const stbi_uc*)data, size, (int*)&img.x,(int*)&img.y,(int*)&img.n, n);
         if( img.pixels ) {
             PRINTF("Loaded image (%dx%d %.*s->%.*s)\n",img.w,img.h,img.n,"RGBA",n?n:img.n,"RGBA");
         } else {
@@ -1172,7 +1179,7 @@ texture_t texture_checker() {
     return texture;
 }
 
-texture_t texture_from_mem(const char *ptr, int len, int flags) {
+texture_t texture_from_mem(const void *ptr, int len, int flags) {
     image_t img = image_from_mem(ptr, len, flags);
     if( img.pixels ) {
         texture_t t = texture_create(img.x, img.y, img.n, img.pixels, flags);
@@ -1630,7 +1637,7 @@ void fullscreen_rgb_quad( texture_t texture, float gamma ) {
 
         program = shader(vs, fs, "", "fragcolor" );
         u_inv_gamma = glGetUniformLocation(program, "u_inv_gamma");
-        glGenVertexArrays( 1, &vao );
+        glGenVertexArrays( 1, (GLuint*)&vao );
     }
 
     GLenum texture_type = texture.flags & TEXTURE_ARRAY ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_2D;
@@ -1666,7 +1673,7 @@ void fullscreen_ycbcr_quad( texture_t textureYCbCr[3], float gamma ) {
         ucb = glGetUniformLocation(program, "u_texture_cb");
         ucr = glGetUniformLocation(program, "u_texture_cr");
 
-        glGenVertexArrays( 1, &vao );
+        glGenVertexArrays( 1, (GLuint*)&vao );
     }
 
 //    glEnable( GL_BLEND );
@@ -2257,58 +2264,57 @@ void mesh_destroy(mesh_t *m) {
 // screenshots
 
 void* screenshot( unsigned n ) { // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA
+    // sync, 10 ms -- pixel perfect
+
     int w = window_width(), h = window_height();
     int mode = n == 3 ? GL_RGB : n == -3 ? GL_BGR : n == 4 ? GL_RGBA : GL_BGRA;
     static threadlocal uint8_t *pixels = 0;
-    pixels = (uint8_t*)REALLOC(pixels, w * h * 4 );
-#if 1
-    // sync, 10 ms
+    pixels = (uint8_t*)REALLOC(pixels, w * h * 4 ); // @leak per thread
+
     glBindBuffer(GL_PIXEL_PACK_BUFFER, 0); // disable any pbo, in case somebody did for us
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
     glReadBuffer(GL_FRONT);
     glReadPixels(0, 0, w, h, mode, GL_UNSIGNED_BYTE, pixels);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     return pixels;
-#else
-    // async
+}
+
+void* screenshot_async( unsigned n ) { // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA
+    // async, 0 ms -- @fixme: MSAA can cause some artifacts with PBOs: either use glDisable(GL_MULTISAMPLE) when recording or do not create window with WINDOW_MSAAx options at all.
+
+    int w = window_width(), h = window_height();
+    int mode = n == 3 ? GL_RGB : n == -3 ? GL_BGR : n == 4 ? GL_RGBA : GL_BGRA;
+    static threadlocal uint8_t *pixels = 0;
+    pixels = (uint8_t*)REALLOC(pixels, w * h * 4 ); // @leak per thread
+
     enum { NUM_PBOS = 16 };
-    static threadlocal GLuint pbo[NUM_PBOS] = {0}, lastw, lasth;
-    static threadlocal int frame = 0, bound = 0;
+    static threadlocal GLuint pbo[NUM_PBOS] = {0}, lastw = 0, lasth = 0, bound = 0;
 
     if( lastw != w || lasth != h ) {
         lastw = w, lasth = h;
-        frame = 0;
         bound = 0;
 
-        // @fixme: delete previous pbos
         for( int i = 0; i < NUM_PBOS; ++i ) {
-        glGenBuffers(1, &pbo[i]);
+        if(!pbo[i]) glGenBuffers(1, &pbo[i]);
         glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo[i]);
         glBufferData(GL_PIXEL_PACK_BUFFER, w * h * 4, NULL, GL_STREAM_READ); // GL_STATIC_READ);
+        //glReadPixels(0, 0, w, h, mode, GL_UNSIGNED_BYTE, (GLvoid*)((GLchar*)NULL+0));
         }
     }
 
-    if (frame < NUM_PBOS) {
-        // do setup during initial frames
-        glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo[bound]);
-        glReadPixels(0, 0, w, h, mode, GL_UNSIGNED_BYTE, (GLvoid*)((GLchar*)NULL+0));
-    } else {
-        // read from oldest bound pbo
-        glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo[bound]);
-        void *ptr = glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
-        memcpy(pixels, ptr, w * h * abs(n));
-        glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
-        // trigger next read
-        glReadPixels(0, 0, w, h, mode, GL_UNSIGNED_BYTE, (GLvoid*)((GLchar*)NULL+0));
-    }
+    // read from oldest bound pbo
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo[bound]);
+    void *ptr = glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
+    memcpy(pixels, ptr, w * h * abs(n));
+    glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+
+    // trigger next read
+    glReadBuffer(GL_FRONT);
+    glReadPixels(0, 0, w, h, mode, GL_UNSIGNED_BYTE, (GLvoid*)((GLchar*)NULL+0));
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
 
     bound = (bound + 1) % NUM_PBOS;
-    frame += frame >= 0 && frame < NUM_PBOS;
-    frame *= frame == NUM_PBOS ? -1 : +1;
-
-    glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
     return pixels;
-#endif
 }
 
 // -----------------------------------------------------------------------------
@@ -3072,7 +3078,6 @@ void model_set_state(model_t m) {
         unsigned mat4_size = sizeof(vec4) * 4;
 
         // vertex buffer object
-        if(!m.vao_instanced) glGenBuffers(1, &m.vao_instanced);
         glBindBuffer(GL_ARRAY_BUFFER, m.vao_instanced);
         glBufferData(GL_ARRAY_BUFFER, m.num_instances * mat4_size, m.instanced_matrices, GL_STATIC_DRAW);
 
@@ -3337,14 +3342,14 @@ array(char) base64__decode(const char *in_) {
         if (rem >= 8) {
             rem -= 8;
             if (io >= outlen)
-                return (array_free(out_), 0); /* truncation is failure */
+                return (array_free(out_), NULL); /* truncation is failure */
             out[io ++] = (v >> rem) & 255;
         }
     }
     if (rem >= 8) {
         rem -= 8;
         if (io >= outlen)
-            return (array_free(out_), 0); /* truncation is failure */
+            return (array_free(out_), NULL); /* truncation is failure */
         out[io ++] = (v >> rem) & 255;
     }
     return (array_resize(out_, io), out_);
@@ -3560,6 +3565,7 @@ model_t model_from_mem(const void *mem, int len, int flags) {
         m.num_instances = 0;
         m.instanced_matrices = m.pivot;
 
+        glGenBuffers(1, &m.vao_instanced);
         model_set_state(m);
     }
     return m;
@@ -3650,7 +3656,7 @@ void model_render_skeleton(model_t m, mat44 M) {
 
         // yellow text
         ddraw_color(YELLOW);
-        ddraw_text(pos, 0.005, "%d", joint);
+        ddraw_text(pos, 0.005, va("%d", joint));
     }
 
     ddraw_color_pop();
@@ -3722,7 +3728,7 @@ void model_render(model_t m, mat44 proj, mat44 view, mat44 model, int shader) {
     model_render_instanced(m, proj, view, (mat44*)model, shader, 1);
 }
 
-static
+// static
 aabb aabb_transform( aabb A, mat44 M ) {
     // Based on "Transforming Axis-Aligned Bounding Boxes" by Jim Arvo, 1990
     aabb B = { {M[12],M[13],M[14]}, {M[12],M[13],M[14]} }; // extract translation from mat44

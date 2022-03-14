@@ -91,7 +91,9 @@
 //-----------------------------------------------------------------------------
 // C files
 
-#define  atexit(...) // hack to boost exit time. there are no critical systems that need to shutdown properly
+#if is(win32) // hack to boost exit time. there are no critical systems that need to shutdown properly on Windows,
+#define atexit(...) // however Linux needs proper atexit() to deinitialize 3rd_miniaudio.h; likely OSX as well.
+#endif
 
 {{FILE:fwk_ds.c}}
 

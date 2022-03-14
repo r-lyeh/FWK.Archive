@@ -72,7 +72,7 @@ enum FONT_FLAGS {
 
 // configures
 API void  font_face(const char *face_tag, const char *filename_ttf, float font_size, unsigned flags);
-API void  font_face_from_mem(const char *tag, const unsigned char *ttf_buffer, unsigned ttf_len, float font_size, unsigned flags);
+API void  font_face_from_mem(const char *tag, const void *ttf_buffer, unsigned ttf_len, float font_size, unsigned flags);
 API void  font_scales(const char *face_tag, float h1, float h2, float h3, float h4, float h5, float h6);
 API void  font_color(const char *color_tag, uint32_t color);
 

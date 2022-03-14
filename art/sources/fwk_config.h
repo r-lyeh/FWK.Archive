@@ -1,5 +1,5 @@
 
-#ifdef _MSC_VER
+#if is(cl)
 #define IMPORT __declspec(dllimport)
 #define EXPORT __declspec(dllexport)
 #define STATIC

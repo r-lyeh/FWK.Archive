@@ -1612,9 +1612,12 @@ static font_t fonts[8] = {0};
 static
 void font_init() {
     do_once {
-        for( int i = 0; i < 6; ++i ) {
-            font_face_from_mem(FONT_FACE1 + i, bm_mini_ttf,0, 48, 0);
-        }
+        font_face_from_mem(FONT_FACE1, bm_mini_ttf,0, 48, 0);
+        font_face_from_mem(FONT_FACE2, bm_mini_ttf,0, 48, 0);
+        font_face_from_mem(FONT_FACE3, bm_mini_ttf,0, 48, 0);
+        font_face_from_mem(FONT_FACE4, bm_mini_ttf,0, 48, 0);
+        font_face_from_mem(FONT_FACE5, bm_mini_ttf,0, 48, 0);
+        font_face_from_mem(FONT_FACE6, bm_mini_ttf,0, 48, 0);
     }
 }
 
@@ -1659,7 +1662,9 @@ void font_scales(const char *tag, float h1, float h2, float h3, float h4, float 
 // 1. Call stb_truetype.h routines to read and parse a .ttf file.
 // 1. Create a bitmap that is uploaded to the gpu using opengl.
 // 1. Calculate and save a bunch of useful variables and put them in the global font variable.
-void font_face_from_mem(const char *tag, const unsigned char *ttf_buffer, unsigned ttf_len, float font_size, unsigned flags) {
+void font_face_from_mem(const char *tag, const void *ttf_bufferv, unsigned ttf_len, float font_size, unsigned flags) {
+    const unsigned char *ttf_buffer = ttf_bufferv;
+
     flags |= FONT_ASCII; // ensure this minimal range [0020-00FF] is always in
 
     unsigned index = *tag - FONT_FACE1[0];
@@ -1687,8 +1692,8 @@ void font_face_from_mem(const char *tag, const unsigned char *ttf_buffer, unsign
     f->scale[6] = 0.3000f; // H6
 
     const char *vs_filename = 0, *fs_filename = 0;
-    char *vs = vs_filename ? file_read(vs_filename) : mv_vs_source;
-    char *fs = fs_filename ? file_read(fs_filename) : mv_fs_source;
+    const char *vs = vs_filename ? file_read(vs_filename) : mv_vs_source;
+    const char *fs = fs_filename ? file_read(fs_filename) : mv_fs_source;
     f->program = shader(vs, fs, "vertexPosition,instanceGlyph", "outColor");
 
     // figure out what ranges we're about to bake
@@ -1895,7 +1900,7 @@ void font_face_from_mem(const char *tag, const unsigned char *ttf_buffer, unsign
 void font_face(const char *tag, const char *filename_ttf, float font_size, unsigned flags) {
     do_once font_init();
 
-    const unsigned char *buffer = file_read(filename_ttf);
+    const char *buffer = file_read(filename_ttf);
     if(!buffer) buffer = vfs_read(filename_ttf);
     font_face_from_mem(tag, buffer,0, font_size, flags);
 }

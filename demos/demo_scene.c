@@ -103,7 +103,7 @@ int main() {
         profile("Debugdraw") {
             ddraw_grid(0);
             ddraw_color(YELLOW);
-            ddraw_text(vec3(+1,+1,-1), 0.04f, "(%f,%f,%f)", cam.position.x,cam.position.y,cam.position.z);
+            ddraw_text(vec3(+1,+1,-1), 0.04f, va("(%f,%f,%f)", cam.position.x,cam.position.y,cam.position.z));
             ddraw_color(YELLOW);
             ddraw_flush();
         }
@@ -128,7 +128,7 @@ int main() {
             float delta = (window_delta()*30); // 30fps anim
             m1.curframe = model_animate(m1, m1.curframe + delta);
 
-            ddraw_text(vec3(-10,5,-10), 0.05, "Frame: %.1f", m1.curframe);
+            ddraw_text(vec3(-10,5,-10), 0.05, va("Frame: %.1f", m1.curframe));
         }
 
         // post-fxs end here

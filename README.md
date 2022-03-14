@@ -24,7 +24,7 @@
 - [x] Window: windowed, soft/hard fullscreen, msaa, icon, cursor handling.
 - [x] Input: keyboard, mouse and gamepads.
 - [x] Script: Lua scripting, Luajit bindings.
-- [x] Network: downloads (HTTPS) and sockets (TCP/UDP).
+- [x] Network: downloads (HTTPS) and sockets (TCP/UDP). <!-- [*] Object, GameObject, W/ECS -->
 - [x] UI: color3/4, button, list, slider, toggle, checkbox, editbox, dialog, image, menus.
 - [x] Font: TTF and TTC. Basic syntax highlighter. Unicode ranges, atlasing, I18N.
 - [x] Image: JPG, PNG, BMP, PSD, PIC, PNM, ICO.
@@ -33,7 +33,7 @@
 - [x] Audio: WAV/FLAC, OGG/MP1/MP3, MOD/XM/S3M/IT, SFXR and MID.
 - [x] Video: MP4, MPG, OGV, MKV, WMV and AVI.
 - [x] Model: IQM/E, GLTF/2, GLB, FBX, OBJ, DAE, BLEND, MD3/5, MS3D, SMD, X, 3DS, BVH, DXF, LWO.
-- [x] Render: PBR (metallic-roughness) workflow.
+- [x] Render: PBR (metallic-roughness) workflow. <!-- @todo: merge demo_pbr.c rendering code into fwk_render.c -->
 - [x] Render: Cubemaps, panoramas and spherical harmonics. Rayleigh/Mie scattering.
 - [x] Render: Post-effects (SSAO,FXAA1/3,CRT,Contrast,Grain,Outline,Vignette...).
 - [x] Render: 3D Anims, skeletal anims, hardware skinning and instanced rendering.
@@ -48,29 +48,59 @@
 - [x] [Documentation (wip)](https://bit.ly/-fwk-).
 
 ## Roadmap ᕕ(ᐛ)ᕗ (in order of arrival; ✱: partial support)
-- [ ] Network: NAT traversal. Socketless API, message API and pub/sub wrappers (enet/websocket).
+- [ ] Editor: gizmos✱, scene tree, property editor, load/save, undo/redo, copy/paste. <!-- editor = tree of nodes. levels and objects are nodes, and widgets are also nodes --><!-- you can perform actions on nodes, with or without descendants, top-bottom or bottom-top --><!-- operations include load/save, reset, undo/redo, play/render vis on/off/alpha logic on/off/other ddraw on/off log on/off, etc --> 
+- [ ] Level objects: volumes✱, triggers, platforms, streaming. 
+- [ ] World: W/ECS, gameobj, serialization/merge, diff/patch. 
+- [ ] Scene: toggles on/off (billboards✱, materials, un/lit, cast shadows, wireframe, skybox/mie, collide, physics).
+- [ ] Scene: node singleton display, node console, node labels, node outlines. <!-- node == gameobj ? -->
+- [ ] Math: quat2, bezier, catmull.
 - [ ] Render: Materials (colors✱, textures✱, matcaps✱, videos✱, shadertoys✱). Shadertoys as post-fx✱. <!--materials as postfx, as they have an update() method -->
 - [ ] Render: Hard/soft shadow mapping and baked lightmaps.
-- [ ] Scene: toggles on/off (billboards✱, materials, un/lit, cast shadows, wireframe, skybox/mie, collide, physics).
-- [ ] Scene: node singleton display, node console, node labels, node outlines.
-- [ ] Math: quat2, bezier, catmull.
-- [ ] Editor: gizmos✱, scene tree, property editor, load/save, undo/redo, copy/paste. <!-- editor = tree of nodes. levels and objects are nodes, and widgets are also nodes --><!-- you can perform actions on nodes, with or without descendants, top-bottom or bottom-top --><!-- operations include load/save, reset, undo/redo, play/render vis on/off/alpha logic on/off/other ddraw on/off log on/off, etc -->
-- [ ] Level objects: volumes✱, triggers, platforms, streaming.
 - [ ] Script: DLL✱ (module->plugin/sys), Lua✱, Luajit✱, Teal✱ and TypeScript.
-- [ ] Script: Docs/Refl/Meta binding tool (during cook stage).
+- [ ] Network: NAT traversal. Socketless API, message API and pub/sub wrappers (enet/websocket).
 - [ ] Pipeline: Extend: shaders, bindings. Per-platform✱, per-type✱, per-asset options. GIF, PKM.
 - [ ] Pipeline: Extend atlas (sprite/lightmaps). Fit packing (sprites).
-- [ ] Maybe: Font text layout and shaping, underlining, soft/hard shadows, outlines.
-- [ ] Maybe: Tiled maps and 2D spines. Sprite parallaxs.
-- [ ] Maybe: Animation pass.
+- [ ] Pipeline: Extend bindings and messaging: parse C headers during cooking stage. <!-- msgs,docs,refl,meta,lua -->
 - [ ] Maybe: AI/Logic pass.
+- [ ] Maybe: Animation pass.
+- [ ] Maybe: VM/Replication pass.
+- [ ] Maybe: Mobile/WASM pass. 
 - [ ] Maybe: Lighting pass.
-- [ ] Maybe: VM/ECS/Replication pass.
-- [ ] API: More examples. Also, less examples.
+- [ ] Maybe: Node/Graph editor. <!-- reused into materials, animgraphs and blueprints -->
+- [ ] Maybe: Tiled maps and 2D spines. Sprite parallaxs.
+- [ ] Maybe: Font text layout and shaping, underlining, soft/hard shadows, outlines.
+- [ ] API: Fewer and better examples.
 - [ ] API: Discuss API and freeze it.
-- [ ] API: Document everything.
+- [ ] API: Document everything. 
 
 <!--
+
+## 2021 Discord poll
+A. Core pass: struct serialization, file checksums (crc32, md5, sha1), math (quat2, bezier, catmull).
+B. Network pass: NAT Traversal, Socketless API, Message API, pub/sub wrappers (enet/websocket).
+
+C. World pass: world/entity/component/systems, serialization (load/save/merge), diff/patch. #3
+D. Scene pass: scenegraph, BVH, frustum culling, toggleviews (billboards, materials, un/lit, cast shadows, wireframe, skybox/mie, collide, physics). #3
+X. VM pass: auto/VM replication, manual/replication channels, node sharding/clustering.
+
+E. Editor pass: gizmos, scene tree, property editor, load/save, undo/redo, copy/paste, VCS integration. #1
+F. Level pass: volumes, triggers, platforms, level streaming. #2
+G. Debug pass: object singleton display, object console, object labels, object outlines.
+
+H. Material pass: colors, textures, matcaps, videos, shadertoys. Shadertoys as post-fx.
+I. Lighting pass: hard/soft shadow mapping, omnilights, spotlights, VSM, CSM and baked lightmaps.
+J. Render pass: reflection probes, object instancing, billboards, impostors, mesh lods, decals.
+K. FX pass: particles and emitters (TLFX), kawaii physics, clothes, breakables.
+
+L. Animation pass: playlists, blend/shapes, ik/bones, animgraph/controllers. Also 2D skeletal sprites (Spine).
+M. Logic pass: game state, h/fsm, planning goal, behavior trees, navpaths/waypoints, pathfinding, swarm/flocks. 
+N. Script pass: DLL (module->plugin/sys), Lua, Luajit, Teal and TypeScript. Docs/Refl/Meta binding tool (during cook stage).
+O. Social pass: Achievements, Scores, Rankings, Friends, Invites, Steam/Itchio 3rd-party store integrations, etc.
+P. UI/UX pass: HUD, UI Widgets, user/system notifications/toasts, touch input, touch gestures.
+
+Q. Portability pass: Mobile iOS/Android, Web/WASM, RaspberryPi. #4
+R. Documentation pass: API, functions, samples, examples, pipeline. #5
+
 // almost done:
 // [x] shadertoy textures
 // [*] billboards (follow sprite API? state instead? ie, billboard(true); before rendering?)
@@ -90,8 +120,7 @@
 // plan:
 //[ ] Script: Refl/meta binding tool (during cook stage).
 //    fwk_cook (*.c, *.h) as .proto/.pbc maybe, free reflection+automatic bindings
-// 4) (json) level editor: load/save jsons, property editor for anything (remote osc server/client)
-//    cam: friction, projections (dimetric, isometric, ...)
+// 4) editor (json level): load/save jsons, property editor for anything (remote osc server/client)
 //    gizmo: proportional, arcball XY (+shift for Z/tilt)
 //    scene: scenegraph, obj naming, ~~obj picking, obj bounds,~~ obj collisions, obj/scene streaming
 //    placeholders google
@@ -101,6 +130,7 @@
 //    level: box triggers, start/end, spawn, streaming, checkpoints,
 //    level: jump, shoots, platforms, collisions
 //    level: 60s, 70s, 80s, 90s
+//[ ] cam: friction, projections (dimetric, isometric, ...)
 //[ ] Render: Materials (textures, matcaps, videos, shadertoys).
 //    material: fixed color, texture or script that returns color
 //    animated textures (shadertoys, videos)
@@ -110,7 +140,8 @@
 // 6) anims, I (playlist: forward/backwards/loop/rewind), II (blend/shapes), III (ik/bone), IV (graph/controller)
 //    blend anims, animtracks+animevents, ~~draw skeleton~~, additive anims,
 //    fwk_data: quantization: ~~half, quant, microfloat~~.
-//    anim; keyframes[] { frame+delay,frame+delay,... }, anim duration, anim flip
+//    anim; keyframes[] { frame+delay,frame+delay,... }, anim duration, anim flip,
+//    anim tracks / anim events
 //[ ] Maybe: AI/Logic pass.
 //    app: app state manager (h/fsm modules)
 //    scripts: states, signals, h/fsm, coroutines, load/save context
@@ -154,11 +185,10 @@
 //    proj matrix: float b = (-znear * zfar) / (zfar - znear); -> float b = (znear * zfar) / (zfar - znear);
 //    }
 
-
-	char* os_exec(...) -> int rc = popen(...); [...] return va("%c%s", (unsigned char)rc, output);
+	char* os_exec(...) -> int rc = popen(...); [...] return va("%8d,%s", rc, output);
 	char *result = os_exec("dir *.f")
-	int rc = result[0];
-	char *log = result+1;
+	int rc = atoi(result);
+	char *log = result+9;
 
 -->
 
@@ -174,7 +204,7 @@
 <img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_cubemap.png"   width="204px" title="Cubemaps and SH."/>
 <img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_video.png"     width="204px" title="Video."/>
 <img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_pbr.png"       width="204px" title="PBR."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_instanced.png" width="204px" title="Instanced rendering."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_instanced.png" width="204px" title="Instancing."/>
 <br/>
 </p>
 
@@ -184,7 +214,7 @@ Type `MAKE.bat` (Win) or `sh MAKE.bat` (Linux/OSX) to build everything. Alternat
 ```lua
 echo Windows (vc+tcc)      && cl  demo.c       fwk.c
 echo Windows (mingw64)     && gcc demo.c       fwk.c -o demo -w -lws2_32 -lgdi32 -lwinmm -ldbghelp
-echo Linux (gcc+clang+tcc) && cc  demo.c       fwk.c -o demo -w -lm -ldl -lpthread
+echo Linux (gcc+clang+tcc) && cc  demo.c       fwk.c -o demo -w -lm -ldl -lpthread -lX11
 echo OSX (gcc+clang)       && cc  demo.c -ObjC fwk.c -o demo -w -framework cocoa -framework iokit
 ```
 <!-- - Note: Windows: Assimp.dll may need [this package installed](https://www.microsoft.com/en-us/download/confirmation.aspx?id=30679).-->
@@ -195,7 +225,7 @@ Type `MAKE.bat dll` or `sh MAKE.bat dll` (Linux/OSX) to build FWK as a dynamic l
 
 ```lua
 echo Windows && cl fwk.c /LD /DAPI=EXPORT
-echo Linux   && cc -fPIC fwk.c -shared -o libfwk.so -w
+echo Linux   && cc -fPIC fwk.c -shared -o libfwk.so -w -lX11
 echo OSX     && cc -ObjC -dynamiclib -o libfwk.dylib fwk.c -framework cocoa -framework iokit -w
 ```
 
@@ -234,6 +264,7 @@ Also dual-licensed as [0-BSD](https://opensource.org/licenses/FPL-1.0.0) or [MIT
 Any contribution to this repository is implicitly subjected to the same release conditions aforementioned.
 
 ## Credits (Artwork + demos)
+- [DavidLam](https://en.wikipedia.org/wiki/Tokamak_(software)), for tokamak physics engine (ZLIB). 
 - [FMS_Cat](https://gist.github.com/FMS-Cat/a1ccea3ce866c34706084e3526204f4f), for nicest VHS/VCR shader around (MIT).
 - [Goblin165cm](https://sketchfab.com/3d-models/halloween-little-witch-ccc023590bfb4789af9322864e42d1ab), for witch 3D model (CC BY 4.0).
 - [Nanofactory](https://sketchfab.com/3d-models/kgirls01-d2f946f58a8040ae993cda70c97b302c), for kgirls01 3D model (CC BY-NC-ND 4.0).

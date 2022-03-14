@@ -11,9 +11,11 @@ typedef unsigned handle; // GLuint
 // -----------------------------------------------------------------------------
 // colors
 
-API uint32_t rgba( uint8_t r, uint8_t g, uint8_t b, uint8_t a );
-API uint32_t bgra( uint8_t r, uint8_t g, uint8_t b, uint8_t a );
-API float    alpha( uint32_t rgba );
+API unsigned rgba( uint8_t r, uint8_t g, uint8_t b, uint8_t a );
+API unsigned bgra( uint8_t b, uint8_t g, uint8_t r, uint8_t a );
+API unsigned rgbaf( float r, float g, float b, float a );
+API unsigned bgraf( float b, float g, float r, float a );
+API float    alpha( unsigned rgba );
 
 #define RGBX(rgb,x)   ( ((rgb)&0xFFFFFF) | (((unsigned)(x))<<24) )
 #define RGB3(r,g,b)   ( ((r)<<16) | ((g)<<8) | (b) )
@@ -62,7 +64,7 @@ typedef struct image_t {
 } image_t;
 
 API image_t image(const char *pathfile, int flags);
-API image_t image_from_mem(const char *ptr, int len, int flags);
+API image_t image_from_mem(const void *ptr, int len, int flags);
 API void    image_destroy(image_t *img);
 
 // -----------------------------------------------------------------------------
@@ -117,7 +119,7 @@ API texture_t texture_compressed(const char *filename, unsigned flags);
 API texture_t texture_compressed_from_mem(const void *data, int len, unsigned flags);
 
 API texture_t texture(const char* filename, int flags);
-API texture_t texture_from_mem(const char* ptr, int len, int flags);
+API texture_t texture_from_mem(const void* ptr, int len, int flags);
 API texture_t texture_create(unsigned w, unsigned h, unsigned n, void *pixels, int flags);
 API texture_t texture_checker();
 API void      texture_destroy(texture_t *t);
@@ -281,8 +283,7 @@ typedef struct material_t {
         handle texture;
         float  value;
         vec4   color; // uint32_t
-    };
-    struct material_layer_t layer[MAX_CHANNELS_PER_MATERIAL];
+    } layer[MAX_CHANNELS_PER_MATERIAL];
 
 } material_t;
 
@@ -372,3 +373,4 @@ API char *   fx_name(int pass);
 // utils
 
 API void*    screenshot(unsigned components); // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA
+API void*    screenshot_async(unsigned components); // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA

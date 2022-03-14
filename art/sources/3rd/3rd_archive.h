@@ -1373,7 +1373,7 @@ int dir_yield(dir *d, const char *pathfile, char *name, int namelen) {
 #else
     snprintf(name, namelen, "%s/", pathfile);
     for( DIR *dir = opendir(name); dir; ok = (closedir(dir), dir = 0, 1)) {
-        for( struct dirent *ep; ep = readdir(dir); ) {
+        for( struct dirent *ep; (ep = readdir(dir)) != NULL; ) {
             if( ep->d_name[0] == '.' ) continue;
             snprintf(name, namelen, "%s/%s", pathfile, ep->d_name);
             struct stat st; if( stat(name, &st) < 0 ) continue;

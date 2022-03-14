@@ -67,7 +67,7 @@ int gizmo(vec3 *pos, vec3 *rot, vec3 *sca) {
             float magx = (mouse.x - src2.x) * (mouse.x - src2.x); \
             float magy = (mouse.y - src2.y) * (mouse.y - src2.y); \
             float sgn = (magx > magy ? mouse.x > src2.x : mouse.y > src2.y) ? 1 : -1; \
-            sca->v[component] -= sgn * mag * 0.01; \
+            sca->v3[component] -= sgn * mag * 0.01; \
             src2 = vec2(mouse.x, mouse.y); \
         } )
     #define gizmo_rotate(X,Y,Z,COLOR) do { \
@@ -89,8 +89,8 @@ int gizmo(vec3 *pos, vec3 *rot, vec3 *sca) {
                 float magx = (mouse.x - src2.x) * (mouse.x - src2.x); \
                 float magy = (mouse.y - src2.y) * (mouse.y - src2.y); \
                 float sgn = (magx > magy ? mouse.x > src2.x : mouse.y > src2.y) ? 1 : -1; \
-                rot->v[component] += sgn * mag; \
-                /*rot->v[component] = clampf(rot->v[component], -360, +360);*/ \
+                rot->v3[component] += sgn * mag; \
+                /*rot->v3[component] = clampf(rot->v3[component], -360, +360);*/ \
                 src2 = vec2(mouse.x, mouse.y); \
                 \
             } \
@@ -164,7 +164,7 @@ void editor_update() {
 
     if( ui_begin("Editor", 0) ) {
         bool x;
-        ui_float2("mouse (2d pick)", &editor_mouse.x);
+        ui_float2("mouse (2d pick)", editor_mouse.v2);
         if( ui_bool("breakpoint", (x = 0, &x)) ) breakpoint("editor breakpoint");
         if( ui_bool("debugger", (x = has_debugger(), &x))) {}
         if( ui_bool("fullscreen", (x = window_has_fullscreen(), &x)) ) window_fullscreen( x );
@@ -173,9 +173,9 @@ void editor_update() {
         ui_separator();
         if( editor_selected >= 0 ) {
             ui_label(va("[%p]", obj));
-            if(ui_float3("Position", &obj->pos.x))   object_teleport(obj, obj->pos), gizmo__mode = 0;
-            if(ui_float3("Rotation", &obj->euler.x)) object_rotate(obj, obj->euler), gizmo__mode = 2;
-            if(ui_float3("Scale", &obj->sca.x))      object_scale(obj, obj->sca),    gizmo__mode = 1;
+            if(ui_float3("Position", obj->pos.v3))   object_teleport(obj, obj->pos), gizmo__mode = 0;
+            if(ui_float3("Rotation", obj->euler.v3)) object_rotate(obj, obj->euler), gizmo__mode = 2;
+            if(ui_float3("Scale", obj->sca.v3))      object_scale(obj, obj->sca),    gizmo__mode = 1;
         }
         ui_end();
     }

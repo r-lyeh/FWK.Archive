@@ -31,10 +31,13 @@ API int          strmatch(const char *s, const char *wildcard);
 API int          strcmp_qsort(const void *a, const void *b);
 API int          strcmpi_qsort(const void *a, const void *b);
 
+API bool         strbeg(const char *src, const char *sub); // returns true if both strings match at beginning. case sensitive
+API bool         strend(const char *src, const char *sub); // returns true if both strings match at end. case sensitive
+
 API bool         strbegi(const char *src, const char *sub);  // returns true if both strings match at beginning. case insensitive
 API bool         strendi(const char *src, const char *sub);  // returns true if both strings match at end. case insensitive
 API const char * strstri(const char *src, const char *sub);  // returns find first substring in string. case insensitive.
-#define          strcmpi  ifdef(msc, _stricmp, strcasecmp)
+#define          strcmpi  ifdef(cl, _stricmp, strcasecmp)
 
 API char *       strupper(const char *str);
 API char *       strlower(const char *str);

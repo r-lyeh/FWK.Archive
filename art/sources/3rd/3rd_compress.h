@@ -10326,9 +10326,9 @@ static int UlzCompressFast(const uint8_t* in, int inlen, uint8_t* out, int outle
 
             anchor=p+best_len;
             ++p;
-            u->HashTable[Hash32(&in[p])]=p++;
-            u->HashTable[Hash32(&in[p])]=p++;
-            u->HashTable[Hash32(&in[p])]=p++;
+            u->HashTable[Hash32(&in[p])]=p; ++p;
+            u->HashTable[Hash32(&in[p])]=p; ++p;
+            u->HashTable[Hash32(&in[p])]=p; ++p;
             p=anchor;
         }
         else

@@ -28,7 +28,7 @@
 
 // ----------------------------------------------------------------------------
 
-#define ptr(type)         0[&(type).x]
+//#define ptr(type)         0[&(type).x]
 #define vec2(x, y      )  M_CAST(vec2, (float)(x), (float)(y)                        )
 #define vec3(x, y, z   )  M_CAST(vec3, (float)(x), (float)(y), (float)(z),           )
 #define vec4(x, y, z, w)  M_CAST(vec4, (float)(x), (float)(y), (float)(z), (float)(w))
@@ -37,12 +37,12 @@
 #define mat33(...)        M_CAST(mat33, __VA_ARGS__ )
 #define mat34(...)        M_CAST(mat34, __VA_ARGS__ )
 #define mat44(...)        M_CAST(mat44, __VA_ARGS__ )
-#define coord_system(...) M_CAST(coord_system, __VA_ARGS__)
+//#define coord_system(...) M_CAST(coord_system, __VA_ARGS__)
 
-typedef union vec2 { struct { float x,y; }; struct { float r,g; }; struct { float w,h; }; struct { float min,max; }; float v[1]; } vec2;
-typedef union vec3 { struct { float x,y,z; }; struct { float r,g,b; }; struct { float w,h,d; }; vec2 xy; vec2 rg; vec2 wh; float v[1]; } vec3;
-typedef union vec4 { struct { float x,y,z,w; }; struct { float r,g,b,a; }; vec2 xy; vec3 xyz; vec2 rg; vec3 rgb; vec2 wh; vec3 whd; float v[1]; } vec4;
-typedef union quat { struct { float x,y,z,w; }; vec3 xyz; vec4 xyzw; float v[1]; } quat;
+typedef union vec2 { struct { float X,Y; };     struct { float x,y; }; struct { float r,g; }; struct { float w,h; }; struct { float min,max; }; float v2[2]; float array[1]; } vec2;
+typedef union vec3 { struct { float X,Y,Z; };   struct { float x,y,z; }; struct { float r,g,b; }; struct { float w,h,d; }; vec2 xy; vec2 rg; vec2 wh; float v3[3]; float array[1]; } vec3;
+typedef union vec4 { struct { float X,Y,Z,W; }; struct { float x,y,z,w; }; struct { float r,g,b,a; }; vec2 xy; vec3 xyz; vec2 rg; vec3 rgb; vec2 wh; vec3 whd; float v4[4]; float array[1]; } vec4;
+typedef union quat { struct { float X,Y,Z,W; }; struct { float x,y,z,w; }; vec3 xyz; vec4 xyzw; float v4[4]; float array[1]; } quat;
 typedef float mat33[9];
 typedef float mat34[12];
 typedef float mat44[16];

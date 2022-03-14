@@ -137,3 +137,7 @@ void fwk_init() {
 // int NvOptimusEnablement = 1;
 // int AmdPowerXpressRequestHighPerformance = 1;
 
+#if is(linux) && is(tcc) // fixes `tcc: error: undefined symbol '__dso_handle'`
+int __dso_handle; // compiled with: `tcc demo.c fwk.c -D__STDC_NO_VLA__ -lX11`
+#endif
+

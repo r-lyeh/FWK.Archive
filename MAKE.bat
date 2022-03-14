@@ -12,9 +12,11 @@ if [ "$1" = "tidy" ]; then
     rm demo 2> /dev/null
     rm fwk.o 2> /dev/null
     rm .art*.zip 2> /dev/null
+    rm demos/lua/.art*.zip 2> /dev/null
     rm fwk_*.* 2> /dev/null
     rm 3rd_*.* 2> /dev/null
     rm libfwk* 2> /dev/null
+    rm -rf *.dSYM 2> /dev/null
     exit
 fi
 # shortcuts for split & join amalgamation scripts
@@ -29,7 +31,7 @@ fi
 
 if [ "$(uname)" != "Darwin" ]; then
     # setup (ArchLinux)
-     sudo pacman -Syu --noconfirm gcc ffmpeg
+     sudo pacman -S --noconfirm gcc ffmpeg # -Syu
     # setup (Debian, Ubuntu, etc)
      sudo apt-get -y update
      sudo apt-get -y install gcc ffmpeg libx11-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev  # absolute minimum
@@ -54,9 +56,9 @@ if [ "$(uname)" != "Darwin" ]; then
 
     # framework (as dynamic library)
     if [ "$1" = "dll" ]; then
-        cc -o libfwk.so fwk.c -shared -fPIC -w -g
+        cc -o libfwk.so fwk.c -shared -fPIC -w -g -lX11
         cp libfwk.so demos/lua/
-        sudo cp libfwk.so /usr/lib
+        # cd demos/lua && LD_LIBRARY_PATH=$(PWD)/libfwk.so:$LD_LIBRARY_PATH luajit demo_luajit_model.lua
         exit
     fi
 
@@ -64,21 +66,21 @@ if [ "$(uname)" != "Darwin" ]; then
     echo fwk            && cc -c fwk.c -w -g $*
 
     # demos
-    echo demo           && cc -o demo           demo.c           fwk.o -lm -ldl -lpthread -w -g $* &
-    echo demo_cubemap   && cc -o demo_cubemap   demo_cubemap.c   fwk.o -lm -ldl -lpthread -w -g $* &
-    echo demo_collide   && cc -o demo_collide   demo_collide.c   fwk.o -lm -ldl -lpthread -w -g $* &
-    echo demo_model     && cc -o demo_model     demo_model.c     fwk.o -lm -ldl -lpthread -w -g $* &
-    echo demo_scene     && cc -o demo_scene     demo_scene.c     fwk.o -lm -ldl -lpthread -w -g $* &
-    echo demo_shadertoy && cc -o demo_shadertoy demo_shadertoy.c fwk.o -lm -ldl -lpthread -w -g $* &
-    echo demo_sprite    && cc -o demo_sprite    demo_sprite.c    fwk.o -lm -ldl -lpthread -w -g $* &
-    echo demo_video     && cc -o demo_video     demo_video.c     fwk.o -lm -ldl -lpthread -w -g $* &
-    echo demo_script    && cc -o demo_script    demo_script.c    fwk.o -lm -ldl -lpthread -w -g $* &
-    echo demo_socket    && cc -o demo_socket    demo_socket.c    fwk.o -lm -ldl -lpthread -w -g $* &
-    echo demo_easing    && cc -o demo_easing    demo_easing.c    fwk.o -lm -ldl -lpthread -w -g $* &
-    echo demo_font      && cc -o demo_font      demo_font.c      fwk.o -lm -ldl -lpthread -w -g $* &
-    echo demo_material  && cc -o demo_material  demo_material.c  fwk.o -lm -ldl -lpthread -w -g $* &
-    echo demo_pbr       && cc -o demo_pbr       demo_pbr.c       fwk.o -lm -ldl -lpthread -w -g $*
-    echo demo_instanced && cc -o demo_instanced demo_instanced.c fwk.o -lm -ldl -lpthread -w -g $*
+    echo demo           && cc -o demo           demo.c           fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
+    echo demo_cubemap   && cc -o demo_cubemap   demo_cubemap.c   fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
+    echo demo_collide   && cc -o demo_collide   demo_collide.c   fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
+    echo demo_model     && cc -o demo_model     demo_model.c     fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
+    echo demo_scene     && cc -o demo_scene     demo_scene.c     fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
+    echo demo_shadertoy && cc -o demo_shadertoy demo_shadertoy.c fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
+    echo demo_sprite    && cc -o demo_sprite    demo_sprite.c    fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
+    echo demo_video     && cc -o demo_video     demo_video.c     fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
+    echo demo_script    && cc -o demo_script    demo_script.c    fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
+    echo demo_socket    && cc -o demo_socket    demo_socket.c    fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
+    echo demo_easing    && cc -o demo_easing    demo_easing.c    fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
+    echo demo_font      && cc -o demo_font      demo_font.c      fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
+    echo demo_material  && cc -o demo_material  demo_material.c  fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
+    echo demo_pbr       && cc -o demo_pbr       demo_pbr.c       fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
+    echo demo_instanced && cc -o demo_instanced demo_instanced.c fwk.o -lm -ldl -lpthread -lX11 -w -g $*
 fi
 
 if [ "$(uname)" = "Darwin" ]; then
@@ -106,7 +108,7 @@ if [ "$(uname)" = "Darwin" ]; then
     if [ "$1" = "dll" ]; then
         cc -ObjC -dynamiclib -o libfwk.dylib fwk.c -framework cocoa -framework iokit -w -g
         cp libfwk.dylib demos/lua
-        # sudo cp libfwk.dylib /usr/lib
+        # cd demos/lua && luajit demo_luajit_model.lua
         exit
     fi
 
@@ -127,15 +129,15 @@ if [ "$(uname)" = "Darwin" ]; then
     echo demo_easing    && cc -o demo_easing    demo_easing.c    fwk.o -framework cocoa -framework iokit -w -g $* &
     echo demo_font      && cc -o demo_font      demo_font.c      fwk.o -framework cocoa -framework iokit -w -g $* &
     echo demo_material  && cc -o demo_material  demo_material.c  fwk.o -framework cocoa -framework iokit -w -g $* &
-    echo demo_pbr       && cc -o demo_pbr       demo_pbr.c       fwk.o -framework cocoa -framework iokit -w -g $*
+    echo demo_pbr       && cc -o demo_pbr       demo_pbr.c       fwk.o -framework cocoa -framework iokit -w -g $* &
     echo demo_instanced && cc -o demo_instanced demo_instanced.c fwk.o -framework cocoa -framework iokit -w -g $*
 fi
 
 exit
 
 
-
-:windows -----------------------------------------------------------------------
+:: -----------------------------------------------------------------------------
+:windows
 @echo off
 
 rem setup
@@ -214,7 +216,7 @@ if "%1"=="docs" (
 )
 rem generate prior files to a github release
 if "%1"=="github" (
-    call make.bat dll
+    rem call make.bat dll
     call make.bat docs
     call make.bat bindings
 

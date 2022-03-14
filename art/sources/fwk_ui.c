@@ -692,15 +692,16 @@ int ui_bits##X(const char *label, uint##X##_t *enabled) { \
 \
         uint8_t copy = *enabled; \
         for( int i = 0; i < X; ++i ) { \
+            int b = (X-1-i); \
             nk_layout_row_push(ui_ctx, 10); \
             /* bit */ \
-            int val = (*enabled >> i) & 1; \
+            int val = (*enabled >> b) & 1; \
             int chg = nk_checkbox_label(ui_ctx, "", &val); \
-            *enabled = (*enabled & ~(1 << i)) | ((!!val) << i); \
+            *enabled = (*enabled & ~(1 << b)) | ((!!val) << b); \
             /* tooltip */ \
             struct nk_rect bb = { offset + 10 + i * 14, bounds.y, 14, 30 }; /* 10:padding,14:width,30:height */ \
             if (nk_input_is_mouse_hovering_rect(&ui_ctx->input, bb) && !ui_popups_active) { \
-                nk_tooltipf(ui_ctx, "Bit %d", i); \
+                nk_tooltipf(ui_ctx, "Bit %d", b); \
             } \
         } \
 \
@@ -754,7 +755,7 @@ void ui_demo() {
         if( ui_float2("my float2", float2) ) puts("float2 changed");
         if( ui_float3("my float3", float3) ) puts("float3 changed");
         if( ui_float4("my float4", float4) ) puts("float4 changed");
-        if( ui_bits8("my bitmask", &bitmask) ) puts("bitmask changed");
+        if( ui_bits8("my bitmask", &bitmask) ) printf("bitmask changed %x\n", bitmask);
         if( ui_separator() ) {}
         if( ui_toggle("my toggle", &toggle) ) printf("toggle %s\n", toggle ? "on":"off");
         if( ui_separator() ) {}
@@ -789,7 +790,7 @@ void ui_demo() {
                 text_len = 0;
             }
 
-            if(text_len > 0 && text[0] != '>') { snprintf(text, 64, va(">%s", text)); text_len++; }
+            if(text_len > 0 && text[0] != '>') { strncpy(text, va(">%s", text), 64); text_len++; }
         }
 
         ui_end();

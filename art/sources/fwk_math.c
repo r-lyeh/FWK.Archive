@@ -357,10 +357,10 @@ void scale33(mat33 m, float x, float y, float z) {
 void id33(mat33 m) {
     scaling33(m, 1,1,1);
 }
-void extract33(mat33 m, const mat44 m4) {  // extract rot/sca from mat44
-    m[0] = m4[0]; m[1] = m4[1]; m[2] = m4[ 2];
-    m[3] = m4[4]; m[4] = m4[5]; m[5] = m4[ 6];
-    m[6] = m4[8]; m[7] = m4[9]; m[8] = m4[10];
+void extract33(mat33 m, const mat44 M) {  // extract rot/sca from mat44
+    m[0] = M[0]; m[1] = M[1]; m[2] = M[ 2];
+    m[3] = M[4]; m[4] = M[5]; m[5] = M[ 6];
+    m[6] = M[8]; m[7] = M[9]; m[8] = M[10];
 }
 void copy33(mat33 m, const mat33 a) {
     for(int i = 0; i < 9; ++i) m[i] = a[i];
@@ -646,6 +646,21 @@ void transpose44(mat44 m, const mat44 a) { // M[i][j] = A[j][i];
     m[ 8] = a[2]; m[ 9] = a[6]; m[10] = a[10]; m[11] = a[14];
     m[12] = a[3]; m[13] = a[7]; m[14] = a[11]; m[15] = a[15];
 }
+
+// @todo: test me
+// float det33 = M[0,0]*((M[1,1]*M[2,2])-(M[2,1]*M[1,2]))-M[0,1]*(M[1,0]*M[2,2]-M[2,0]*M[1,2])+M[0,2]*(M[1,0]*M[2,1]-M[2,0]*M[1,1]);
+//
+// float det33 = 
+//   rgt.x * fwd.y * upv.z - rgt.z * fwd.y * upv.x +
+//   rgt.y * fwd.z * upv.x - rgt.y * fwd.x * upv.z + 
+//   rgt.z * fwd.x * upv.y - rgt.x * fwd.z * upv.y;
+//
+// void transpose33(mat33 m, const mat33 a) { // M[i][j] = A[j][i];
+//     m[0] = a[0]; m[1] = a[3]; m[2] = a[6];
+//     m[3] = a[1]; m[4] = a[4]; m[5] = a[7];
+//     m[6] = a[2]; m[7] = a[5]; m[8] = a[8];
+// }
+
 float det44(const mat44 M) { // !!! ok, i guess
     float s[6], c[6];
     s[0] = M[0*4+0]*M[1*4+1] - M[1*4+0]*M[0*4+1];

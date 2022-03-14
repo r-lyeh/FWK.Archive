@@ -279,15 +279,6 @@ void (ddraw_text)(vec3 pos, float scale, const char *text) {
     }
 }
 
-/*
-void ddraw_prism(vec3 pos, int segments) {
-    ddraw_color(vec3(1,1,1));
-    float cycle = 2 * 3.14159 + 2 * 3.14159 / segments, acc = 0;
-    for( int i = 0; i < segments; ++i, acc += cycle ) {
-        ddraw_line(add3(pos,vec3(cos(acc),0,sin(acc))), add3(pos,vec3(cos(acc+cycle),0,sin(acc+cycle))));
-    }
-}
-*/
 void ddraw_prism(vec3 center, float radius, float height, vec3 normal, int segments) {
     vec3 left = {0}, up = {0};
     ortho3(&left, &up, normal);
@@ -338,6 +329,37 @@ void ddraw_cube(vec3 center, float radius) { // draw_prism(center, 1, -1, vec3(0
     ddraw_line(vec3(l.x,l.y,r.z), vec3(l.x,r.y,r.z));
     ddraw_line(vec3(r.x,l.y,l.z), vec3(r.x,r.y,l.z));
 }
+
+#if 0 // @fixme: broken
+void ddraw_cube44(vec3 radius, mat44 M) {
+    float m33[9]; extract33(m33, M); // = { M[0,1,2], M[4,5,6], M[8,9,10] }    
+    ddraw_cube33( vec3(M[12], M[13], M[14]), radius, m33 );
+}
+#endif
+
+void ddraw_cube33(vec3 center, vec3 radius, mat33 M) {
+    vec3 half = scale3(radius, 0.5f);
+    vec3 l = vec3(-half.x,+half.y,-half.z); // left-top-far
+    vec3 r = vec3(+half.x,-half.y,+half.z); // right-bottom-near
+
+    vec3 points[8] = {
+        vec3(l.x, r.y, r.z),
+        vec3(l.x, r.y, l.z),
+        vec3(r.x, r.y, l.z),
+        vec3(r.x, r.y, r.z),
+        vec3(l.x, l.y, r.z),
+        vec3(l.x, l.y, l.z),
+        vec3(r.x, l.y, l.z),
+        vec3(r.x, l.y, r.z),
+    };
+
+    for( int i = 0; i < 8; ++i ) {
+        points[i] = add3(center, transform33(M, points[i]));
+    }
+
+    ddraw_bounds(points);
+}
+
 void ddraw_normal(vec3 pos, vec3 n) {
     ddraw_color(YELLOW);
     ddraw_line(pos, add3(pos, norm3(n)));
@@ -349,7 +371,7 @@ void ddraw_pentagon(vec3 pos, float r) { ddraw_prism(pos, r, 0, vec3(0,1,0), 5);
 void ddraw_square(vec3 pos, float r) { ddraw_prism(pos, r, 0, vec3(0,1,0), 4); }
 //void ddraw_triangle(vec3 pos, float r) { ddraw_prism(pos, r, 0, vec3(0,1,0), 3); }
 void ddraw_sphere(vec3 center, float radius) {
-    float lod = 15, yp = -radius, rp = 0, y, r, x, z;
+    float lod = 6, yp = -radius, rp = 0, y, r, x, z;
     for( int j = 1; j <= lod / 2; ++j, yp = y, rp = r ) {
         y = j * 2.f / (lod / 2) - 1;
         r = cosf(y * 3.14159f / 2) * radius;
@@ -465,6 +487,9 @@ void ddraw_capsule(vec3 from, vec3 to, float r) {
 void ddraw_pyramid(vec3 center, float height, int segments) {
     ddraw_prism(center, 1, height, vec3(0,1,0), segments);
 }
+void ddraw_cylinder(vec3 center, float height, int segments) {
+    ddraw_prism(center, 1, -height, vec3(0,1,0), segments);    
+}
 void ddraw_diamond(vec3 from, vec3 to, float size) {
     poly p = diamond(from, to, size);
     vec3 *dmd = p.verts;
@@ -579,11 +604,10 @@ void ddraw_frustum(float projview[16]) {
 }
 void ddraw_arrow(vec3 begin, vec3 end) {
     vec3 diff = sub3(end, begin);
-    float len = len3(diff);
-    float stick_len = len * 2 / 3, head_radius = len / 6;
+    float len = len3(diff), stick_len = len * 2 / 3;
 
     ddraw_line(begin, end);
-    ddraw_cone_lowres(add3(begin, scale3(norm3(diff), stick_len)), end, head_radius);
+    ddraw_cone_lowres(add3(begin, scale3(norm3(diff), stick_len)), end, len / 6);
 }
 
 void ddraw_plane(vec3 p, vec3 n, float scale) {
@@ -688,7 +712,7 @@ void ddraw_position_dir( vec3 position, vec3 direction, float radius ) {
     (position.y < 0 ? ddraw_line_dashed : ddraw_line)( ground, position );
 
     vec3 n = norm3(direction), up = vec3(0,1,0);
-    for( int i = 0; i < 10 && i <= abs(position.y); ++i ) {
+    for( int i = 0; i < 10 && i <= fabs(position.y); ++i ) {
         if( i < 2 && len3(direction) )
         ddraw_circle__with_orientation(ground, n, radius);
         else
@@ -725,7 +749,7 @@ void ddraw_demo() {
     ddraw_color(ORANGE);
     ddraw_arrow(origin, vec3(-1,1,1));
     ddraw_color(YELLOW);
-    ddraw_text(vec3(-1,1,1), 0.008f, "hello 1%s2!", "world");
+    ddraw_text(vec3(-1,1,1), 0.008f, va("hello 1%s2!", "world"));
 
     const char abc[] = " !\"#$%&'()*+,-./\n"
         "0123456789:;<=>?@\n"
@@ -735,9 +759,9 @@ void ddraw_demo() {
 
 
     for( int i = -5; i <= 5; ++i ) {
-        ddraw_pyramid(vec3(i*2,0,3),  0, i+5+2); ddraw_text(vec3(i*2,0,3), 0.008f, "%d/1", i);
-        ddraw_pyramid(vec3(i*2,0,6), -2, i+5+2); ddraw_text(vec3(i*2,0,6), 0.008f, "%d/2", i);
-        ddraw_pyramid(vec3(i*2,0,9), +2, i+5+2); ddraw_text(vec3(i*2,0,9), 0.008f, "%d/3", i);
+        ddraw_pyramid(vec3(i*2,0,3),  0, i+5+2); ddraw_text(vec3(i*2,0,3), 0.008f, va("%d/1", i));
+        ddraw_pyramid(vec3(i*2,0,6), -2, i+5+2); ddraw_text(vec3(i*2,0,6), 0.008f, va("%d/2", i));
+        ddraw_pyramid(vec3(i*2,0,9), +2, i+5+2); ddraw_text(vec3(i*2,0,9), 0.008f, va("%d/3", i));
     }
 
 #if 1 // @fixme: add positions to these

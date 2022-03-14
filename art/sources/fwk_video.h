@@ -25,3 +25,13 @@ API double      video_position(video_t *v);
 API void        video_pause(video_t *v, bool paused);
 API bool        video_is_paused(video_t *v);
 API void       video_destroy( video_t *v );
+
+// -----------------------------------------------------------------------------
+// video recorder (uses external ffmpeg and fallbacks to built-in mpeg1 encoder)
+// - rlyeh, public domain
+//
+// @fixme: MSAA can cause some artifacts with PBOs: either use glDisable(GL_MULTISAMPLE) before recording or do not create window with WINDOW_MSAA at all.
+
+API void       videorec_start(const char *outfile_mp4);
+API bool        videorec_active();
+API void       videorec_stop(void);

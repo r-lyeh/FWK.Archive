@@ -104,7 +104,6 @@ static uint64_t frame_count;
 static double t, dt, fps, hz = 0.00;
 static char title[128] = {0};
 static char screenshot_file[512];
-static char videorec_file[512];
 static int locked_aspect_ratio = 0;
 
 void window_drop_callback(GLFWwindow* window, int count, const char** paths) {
@@ -112,7 +111,7 @@ void window_drop_callback(GLFWwindow* window, int count, const char** paths) {
     // @fixme: remove USERNAME for nonwin32
     // @fixme: wait until any active import (launch) is done
 
-    char pathdir[512]; snprintf(pathdir, 512, "%s/import/%llu_%s/", ART, date(), ifdef(linux, getlogin(), getenv("USERNAME")));
+    char pathdir[512]; snprintf(pathdir, 512, "%s/import/%llu_%s/", ART, (unsigned long long)date(), ifdef(linux, getlogin(), getenv("USERNAME")));
     mkdir( pathdir, 0777 );
 
     int errors = 0;
@@ -345,7 +344,7 @@ int window_swap() {
         #if WITH_SELFIES
 
 //            static int frame = 100;
-            bool do_it = (cooker_progress() >= 100); // && ( frame > 0 && !--frame ); // || input_down(KEY_F12)
+            bool do_it = cooker_progress() >= 100; // && ( frame > 0 && !--frame ); // || input_down(KEY_F12)
             if(do_it) {
                snprintf(screenshot_file, 512, "%s.png", app_name());
 
@@ -405,12 +404,9 @@ int window_swap() {
             }
             screenshot_file[0] = 0;
         }
-        if( videorec_file[0] ) {
-            for( FILE *fp = fopen(videorec_file, "a+b"); fp; fclose(fp), fp = 0) {
-                void* rgb = screenshot(-3); // 3 RGB, -3 BGR
-                jo_write_mpeg(fp, rgb, window_width(), window_height(), 24);  // 24fps
-            }
-            // videorec_file[0] = 0;
+        if( videorec_active() ) {
+            void videorec_frame();
+            videorec_frame();
         }
 
         if( !first ) {
@@ -560,13 +556,6 @@ int window_has_visible() {
 
 void window_screenshot(const char* filename_png) {
     snprintf(screenshot_file, 512, "%s", filename_png ? filename_png : "");
-}
-
-void window_videorec(const char* filename_mpg) {
-    snprintf(videorec_file, 512, "%s", filename_mpg ? filename_mpg : "");
-}
-int window_has_videorec() {
-    return !!videorec_file[0];
 }
 
 void window_lock_aspect(unsigned numer, unsigned denom) {

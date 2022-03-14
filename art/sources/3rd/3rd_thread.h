@@ -3,7 +3,7 @@
           Licensing information can be found at the end of the file.
 ------------------------------------------------------------------------------
 
-thread.h - v0.3 - Cross platform threading functions for C/C++.
+thread.h - v0.31 - Cross platform threading functions for C/C++.
 
 Do this:
     #define THREAD_IMPLEMENTATION
@@ -1319,7 +1319,7 @@ thread_tls_t thread_tls_create( void )
 
         pthread_key_t tls;
         if( pthread_key_create( &tls, NULL ) == 0 )
-            return (thread_tls_t) tls;
+            return (thread_tls_t) (uintptr_t) tls; //< @r-lyeh: uintptr_t
         else
             return NULL;
 
@@ -1337,7 +1337,7 @@ void thread_tls_destroy( thread_tls_t tls )
 
     #elif defined( __linux__ ) || defined( __APPLE__ ) || defined( __ANDROID__ )
 
-        pthread_key_delete( (pthread_key_t) tls );
+        pthread_key_delete( (pthread_key_t) (uintptr_t) tls ); //< @r-lyeh: uintptr_t
 
     #else
         #error Unknown platform.
@@ -1353,7 +1353,7 @@ void thread_tls_set( thread_tls_t tls, void* value )
 
     #elif defined( __linux__ ) || defined( __APPLE__ ) || defined( __ANDROID__ )
 
-        pthread_setspecific( (pthread_key_t) tls, value );
+        pthread_setspecific( (pthread_key_t) (uintptr_t) tls, value ); //< @r-lyeh: uintptr_t
 
     #else
         #error Unknown platform.
@@ -1369,7 +1369,7 @@ void* thread_tls_get( thread_tls_t tls )
 
     #elif defined( __linux__ ) || defined( __APPLE__ ) || defined( __ANDROID__ )
 
-        return pthread_getspecific( (pthread_key_t) tls );
+        return pthread_getspecific( (pthread_key_t) (uintptr_t) tls ); //< @r-lyeh: uintptr_t
 
     #else
         #error Unknown platform.

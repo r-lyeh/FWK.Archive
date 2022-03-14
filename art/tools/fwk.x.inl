@@ -17,12 +17,12 @@
 #define COMPRESS_C                          // compress.c
 #define ENET_IMPLEMENTATION                 // enet
 #define GJK_C                               // gjk
-#define LSH_GLFW_IMPLEMENTATION             // glfw
-#define GLFW_INCLUDE_NONE                   // glfw
+#define _GLFW_IMPLEMENTATION                // glfw336
+#define GLFW_INCLUDE_NONE                   // glfw336
 #define HTTPS_IMPLEMENTATION                // https
 #define JO_MPEG_COMPONENTS 3                // jo_mpeg
 #define JSON5_C                             // json5
-#define LUA_IMPL                            // lua542
+#define LUA_IMPL                            // lua544
 #define MINIAUDIO_IMPLEMENTATION            // miniaudio
 #define MA_NO_FLAC                          // miniaudio
 #define NK_GLFW_GL3_IMPLEMENTATION          // nuklear
@@ -49,10 +49,9 @@
 #ifdef __APPLE__
 #define _GLFW_COCOA                         // glfw osx
 #elif defined _WIN32
-#define _GLFW_WIN                           // glfw win32
+#define _GLFW_WIN32                         // glfw win32
 #else
-#define _GLFW_X11                           // glfw linux, also _GLFW_MESA + LSH_GLFW_OSMESA
-#define LSH_GLFW_X11                        // or _GLFW_WAYLAND + LSH_GLFW_WAYLAND as well
+#define _GLFW_X11                           // glfw linux, also _GLFW_OSMESA or _GLFW_WAYLAND
 #endif
 
 #if defined __TINYC__ && defined _WIN32
@@ -125,7 +124,7 @@ int execv(const char *path, char *const argv[]);
 #undef R
 #define error l_error
 #define panic l_panic
-{{FILE:3rd_lua543.h}}
+{{FILE:3rd_lua.h}}
 #undef cast
 #undef G
 //---
@@ -133,6 +132,8 @@ int execv(const char *path, char *const argv[]);
 {{FILE:3rd_stb_image_write.h}}
 //---
 #undef freelist
+#define STBTT_malloc(x,u)  ((void)(u),MALLOC(x))
+#define STBTT_free(x,u)    ((void)(u),FREE(x))
 {{FILE:3rd_nuklear.h}}
 {{FILE:3rd_nuklear_glfw_gl3.h}}
 //---

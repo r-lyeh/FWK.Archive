@@ -105,22 +105,22 @@ extern "C" {
 #define ifdef_gcc                      ifdef_false
 #define ifdef_mingw                    ifdef_false
 #define ifdef_tcc                      ifdef_false
-#define ifdef_msc                      ifdef_true
+#define ifdef_cl                       ifdef_true
 #elif defined __TINYC__
 #define ifdef_gcc                      ifdef_false
 #define ifdef_mingw                    ifdef_false
 #define ifdef_tcc                      ifdef_true
-#define ifdef_msc                      ifdef_false
+#define ifdef_cl                       ifdef_false
 #elif defined __MINGW64__ // __MINGW__ ?
 #define ifdef_gcc                      ifdef_true
 #define ifdef_mingw                    ifdef_true
 #define ifdef_tcc                      ifdef_false
-#define ifdef_msc                      ifdef_false
+#define ifdef_cl                       ifdef_false
 #else // also __clang__
 #define ifdef_gcc                      ifdef_true
 #define ifdef_mingw                    ifdef_false
 #define ifdef_tcc                      ifdef_false
-#define ifdef_msc                      ifdef_false
+#define ifdef_cl                       ifdef_false
 #endif
 
 #ifdef __cplusplus
@@ -269,6 +269,10 @@ extern "C" {
 } // extern "C"
 #endif
 
-#include "fwk" // for glad
+// for glad
+#ifdef _WIN32
+//#define GLAD_API_CALL API
+#endif
+#include "fwk"
 
 #endif // FWK_H

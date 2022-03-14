@@ -815,7 +815,7 @@ int poly_hit_aabb_transform(struct gjk_result *res, poly p, vec3 pos3, mat33 rot
     box[5] = vec3(a.max.x, a.min.y, a.max.z);
     box[6] = vec3(a.max.x, a.max.y, a.min.z);
     box[7] = vec3(a.max.x, a.max.y, a.max.z);
-    return poly_hit_poly_transform(res, p, pos3, rot33, poly(&box[0], 8), zero, &id[0].x);
+    return poly_hit_poly_transform(res, p, pos3, rot33, poly(&box[0], 8), zero, id[0].v3);
 }
 int poly_test_aabb(poly p, aabb a) {
     struct gjk_result res;

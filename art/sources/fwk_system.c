@@ -96,7 +96,7 @@ int (os_exec)( const char *cmd ) {
     return rc;
 }
 char* (os_exec_)(int *rc, const char *cmd ) {
-    int x = os_exec(cmd);
+    int x = (os_exec)(cmd);
     if(rc) *rc = x;
     return os_exec_output();
 }
@@ -156,7 +156,7 @@ static char **backtrace_symbols(void *const *list,int size) {
             char* undecorated = (char*)si.info.Name;
             strcatf(&symbols[i], "%s", undecorated);
         } else {
-            strcatf(&symbols[i], "%s", "(??)");
+            strcatf(&symbols[i], "%s", "(?""?)");
         }
 
         DWORD dw = 0;
@@ -238,7 +238,7 @@ int callstackf( FILE *fp, int traces ) {
 // -----------------------------------------------------------------------------
 // endian
 
-#if is(msc)
+#if is(cl)
 #include <stdlib.h>
 #define swap16 _byteswap_ushort
 #define swap32 _byteswap_ulong
@@ -723,7 +723,7 @@ void hexdump( const void *ptr, unsigned len ) {
     hexdumpf( stdout, ptr, len, 16 );
 }
 
-#if 0 // is(msc) only
+#if 0 // is(cl) only
 static void debugbreak(void) {
     do { \
         __try { DebugBreak(); } \
@@ -802,7 +802,7 @@ unsigned determine_color_from_text(const char *text) {
 int (PRINTF)(const char *text, const char *stack, const char *file, int line, const char *function) {
     double secs = time_ss();
     uint32_t color = /*errno ? RED :*/ determine_color_from_text(text); // errno = 0;
-    #if is(msc)
+    #if is(cl)
     char *slash = strrchr(file, '\\'); if(slash) file = slash + 1;
     #endif
     char *location = va("|%s|%s:%d", /*errno?strerror(errno):*/function, file, line);

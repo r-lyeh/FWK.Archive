@@ -3,7 +3,6 @@
 
 #include "fwk.h"
 
-
 int main() {
     // options
     bool  do_about = 0;
@@ -91,8 +90,8 @@ int main() {
         if( input_down(KEY_F5) ) app_reload();
         if( input_down(KEY_W) && input_held(KEY_LCTRL) ) break;
         if( input_down(KEY_F11) ) window_fullscreen( window_has_fullscreen() ^ 1 );
-        if( input_down(KEY_Z) ) window_screenshot(__FILE__ ".png");
-        if( input_down(KEY_V) ) window_videorec(window_has_videorec() ? 0 : __FILE__ ".mpg");
+        if( input_down(KEY_X) ) window_screenshot(__FILE__ ".png");
+        if( input_down(KEY_Z) ) videorec_start(__FILE__ ".mp4");
 
         // vec2 filtered_lpad = input_filter_deadzone(input2(GAMEPAD_LPAD), do_gamepad_deadzone + 1e-3);
         // vec2 filtered_rpad = input_filter_deadzone(input2(GAMEPAD_RPAD), do_gamepad_deadzone + 1e-3);
@@ -110,7 +109,7 @@ int main() {
         profile("Debugdraw") {
             ddraw_grid(0);
             ddraw_color(YELLOW);
-            ddraw_text(vec3(+1,+1,-1), 0.04f, "(%f,%f,%f)", cam.position.x,cam.position.y,cam.position.z);
+            ddraw_text(vec3(+1,+1,-1), 0.04f, va("(%f,%f,%f)", cam.position.x,cam.position.y,cam.position.z));
             if(do_debugdraw) ddraw_demo(); // showcase many debugdraw shapes
             ddraw_color(YELLOW);
             ddraw_flush();
@@ -198,11 +197,11 @@ int main() {
             if(ui_bool("Show debugdraw demo", &do_debugdraw)) {}
             if(ui_separator()) {}
             if(ui_slider("Gamepad deadzone", &do_gamepad_deadzone)) {}
-            if(ui_float2("Gamepad polarity", &do_gamepad_polarity.x)) {}
-            if(ui_float2("Gamepad sensitivity", &do_gamepad_sensitivity.x)) {}
+            if(ui_float2("Gamepad polarity", do_gamepad_polarity.v2)) {}
+            if(ui_float2("Gamepad sensitivity", do_gamepad_sensitivity.v2)) {}
             if(ui_separator()) {}
-            if(ui_float2("Mouse polarity", &do_mouse_polarity.x)) {}
-            if(ui_float2("Mouse sensitivity", &do_mouse_sensitivity.x)) {}
+            if(ui_float2("Mouse polarity", do_mouse_polarity.v2)) {}
+            if(ui_float2("Mouse sensitivity", do_mouse_sensitivity.v2)) {}
             if(ui_separator()) {}
             if(ui_button("About...")) { do_about = 1; audio_play(voice, 0); }
             if(ui_dialog("About", __FILE__ "\n" __DATE__ "\n" "Public Domain.", 0, &do_about)) {}
@@ -210,7 +209,7 @@ int main() {
         }
         if( ui_begin("Camera", 0)) {
             if( ui_float("Speed", &cam.speed) ) {}
-            if( ui_float3("Position", &cam.position.x) ) {}
+            if( ui_float3("Position", cam.position.v3) ) {}
             ui_end();
         }
         if( ui_begin("FX", 0) ) {

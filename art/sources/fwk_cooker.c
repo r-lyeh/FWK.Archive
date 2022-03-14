@@ -357,7 +357,7 @@ int zipscan_diff( zip* old, array(struct fs) now ) {
         } else {
             uint64_t oldsize = atoi64(zip_comment(old,found)); // zip_size(old, found); returns sizeof processed asset. return original size of unprocessed asset, which we store in comment section
             uint64_t oldstamp = atoi64(zip_modt(old, found)+20);
-            if( oldsize != now[i].bytes || abs(oldstamp - now[i].stamp) > 1 ) { // @fixme: should use hash instead. hashof(tool) ^ hashof(args used) ^ hashof(rawsize) ^ hashof(rawdate)
+            if( oldsize != now[i].bytes || oldstamp > (now[i].stamp + 1) ) { // @fixme: should use hash instead. hashof(tool) ^ hashof(args used) ^ hashof(rawsize) ^ hashof(rawdate)
                 printf("%s:\t%llu vs %llu, %llu vs %llu\n", now[i].fname, (uint64_t)oldsize,(uint64_t)now[i].bytes, (uint64_t)oldstamp,(uint64_t)now[i].stamp);
                 array_push(changed, STRDUP(now[i].fname));
                 array_push(uncooked, STRDUP(now[i].fname));
@@ -466,7 +466,7 @@ int cook(void *userdata) {
         }
 
         // invoke cooking script and recap status
-        int rc = cs.script[0] ? os_exec(cs.script) : 0;
+        int rc = cs.script[0] ? (os_exec)(cs.script) : 0;
         int outlen = file_size(cs.finalfile);
         int failed = cs.script[0] ? rc || !outlen : 0;
 
@@ -623,7 +623,7 @@ int cooker_progress() {
             ++count;
         }
     }
-    return sum / (count+!count);
+    return cooker_jobs() ? sum / (count+!count) : 100;
 }
 
 int cooker_jobs() {

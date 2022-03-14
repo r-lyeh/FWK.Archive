@@ -81,11 +81,11 @@ int main() {
                 custom.curframe += delta * a.anim_speed; // 30 hz anim timer
                 custom.curframe = model_animate_clip(custom, custom.curframe, anim.min, anim.max, strstri(a.anim_names[a.anim_selector], "loop"));
 
-                ddraw_text(vec3(-10,5,-10), 0.05, "Frame: %.1f", custom.curframe);
+                ddraw_text(vec3(-10,5,-10), 0.05, va("Frame: %.1f", custom.curframe));
                 ddraw_color(WHITE);
-                ddraw_text(vec3(-10,8,-10), 0.05, "%d/%d) %s\nx%.2f [%.0f..%.1f..%.0f]\n",
+                ddraw_text(vec3(-10,8,-10), 0.05, va("%d/%d) %s\nx%.2f [%.0f..%.1f..%.0f]\n",
                     a.anim_selector, array_count(a.anims)-1, a.anim_names[ a.anim_selector ],
-                    a.anim_speed, anim.min, custom.curframe, anim.max);
+                    a.anim_speed, anim.min, custom.curframe, anim.max));
                 ddraw_color(YELLOW);
             }
 
@@ -95,9 +95,9 @@ int main() {
                 mat44 M; rotationq44(M, eulerq(r)); scale44(M, s.x,s.y,s.z); relocate44(M, p.x,p.y,p.z);
 
                 // pivot
-                r.x -= 90;
+                r.x -= 170;
                     // control
-                    float speed = 0.1f;
+                    float speed = 0.2f;
                     quat q = eulerq(r); // += custom.pivot
                     vec3 rgt = rotate3q(vec3(1,0,0), q);
                     vec3 up  = rotate3q(vec3(0,1,0), q);
@@ -105,7 +105,7 @@ int main() {
                     vec3 dir = scale3(fwd, speed * (input(KEY_I) - input(KEY_K)));
                     r.x += input(KEY_L) - input(KEY_J); // yaw
                     p = add3(p, dir);
-                r.x += 90;
+                r.x += 170;
 
                 if(do_showmodel)
                 model_render(custom, cam.proj, cam.view, M, 0); // custom.pivot);

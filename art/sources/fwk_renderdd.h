@@ -31,6 +31,7 @@ API void ddraw_capsule(vec3 from, vec3 to, float radius);
 API void ddraw_circle(vec3 pos, vec3 n, float radius);
 API void ddraw_cone(vec3 center, vec3 top, float radius);
 API void ddraw_cube(vec3 center, float radius);
+API void ddraw_cube33(vec3 center, vec3 radius, mat33 M);
 API void ddraw_diamond(vec3 from, vec3 to, float size);
 API void ddraw_frustum(float projview[16]);
 API void ddraw_ground(float scale);
@@ -46,14 +47,14 @@ API void ddraw_point(vec3 from);
 API void ddraw_position(vec3 pos, float radius);
 API void ddraw_position_dir(vec3 pos, vec3 dir, float radius);
 API void ddraw_pyramid(vec3 center, float height, int segments);
+API void ddraw_cylinder(vec3 center, float height, int segments);
 API void ddraw_sphere(vec3 pos, float radius);
 API void ddraw_square(vec3 pos, float radius);
 API void ddraw_text(vec3 pos, float scale, const char *text);
 API void ddraw_text2d(vec2 pos, float scale, const char *text);
 API void ddraw_triangle(vec3 p1, vec3 p2, vec3 p3);
 //
+API void ddraw_prism(vec3 center, float radius, float height, vec3 normal, int segments);
+//
 API void ddraw_demo();
 API void ddraw_flush();
-
-#define ddraw_text(pos, scale, ...) ddraw_text(pos, scale, va(__VA_ARGS__))
-#define ddraw_text2d(pos, scale, ...) ddraw_text2d(pos, scale, va(__VA_ARGS__))

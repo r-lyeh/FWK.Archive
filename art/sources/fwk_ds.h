@@ -50,7 +50,7 @@ API size_t vlen( void* p );
 #define array_at(t,i) (t[i])
 #define array_count(t) (int)( (t) ? array_vlen_(t) / sizeof(0[t]) : 0u )
 #define array_bytes(t) (int)( (t) ? array_vlen_(t) : 0u )
-#define array_sort(t, cmpfunc) qsort( t, array_count(t), sizeof(0[t]), cmpfunc == strcmp ? strcmp_qsort : cmpfunc )
+#define array_sort(t, cmpfunc) qsort( t, array_count(t), sizeof(0[t]), (uintptr_t)cmpfunc == (uintptr_t)strcmp ? strcmp_qsort : cmpfunc )
 #define array_empty(t) ( !array_count(t) )
 static __thread unsigned array_c_;
 

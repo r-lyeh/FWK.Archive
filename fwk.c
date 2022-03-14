@@ -524,6 +524,34 @@ int strcmpi_qsort(const void *a, const void *b) {
     return strcmpi(*ia, *ib);
 }
 
+bool strbeg(const char *a, const char *b) { // returns true if both strings match at beginning. case sensitive
+    return strncmp(a, b, strlen(b)) ? false : true;
+}
+bool strend(const char *a, const char *b) { // returns true if both strings match at end. case sensitive
+    int la = strlen(a), lb = strlen(b);
+    if( la < lb ) return false;
+    return strncmp(a + la - lb, b, lb) ? false : true;
+}
+/*
+int main() {
+    printf("strbeg(abc abc) = %d\n", strbeg("abc", "abc"));
+    printf("strbeg(abc abcd) = %d\n", strbeg("abc", "abcd"));
+    printf("strbeg(abcd abc) = %d\n", strbeg("abcd", "abc"));
+    printf("strbeg(abc (empty)) = %d\n", strbeg("abc", ""));
+    printf("strbeg((empty) abc) = %d\n", strbeg("", "abc"));
+    printf("strbeg(123 abcd) = %d\n", strbeg("123", "abcd"));
+    printf("strbeg(abcd 123) = %d\n", strbeg("abcd", "123"));
+    puts("---");
+    printf("strend(abc abc) = %d\n", strend("abc", "abc"));
+    printf("strend(abc 0abc) = %d\n", strend("abc", "0abc"));
+    printf("strend(abcd bcd) = %d\n", strend("abcd", "bcd"));
+    printf("strend(abc (empty)) = %d\n", strend("abc", ""));
+    printf("strend((empty) abc) = %d\n", strend("", "abc"));
+    printf("strend(123 abcd) = %d\n", strend("123", "abcd"));
+    printf("strend(abcd 123) = %d\n", strend("abcd", "123"));
+}
+*/
+
 bool strbegi(const char *a, const char *b) { // returns true if both strings match at beginning. case insensitive
     int la = strlen(a), lb = strlen(b);
     if( la < lb ) return 0;
@@ -760,7 +788,7 @@ uint32_t extract_utf32(const char **p) {
 array(uint32_t) strutf32( const char *utf8 ) {
     static __thread int slot = 0;
     static __thread char *buf[16] = {0};
-    static __thread array(int) list[16] = {0};
+    static __thread array(uint32_t) list[16] = {0};
 
     slot = (slot+1) % 16;
     array_resize(list[slot], 0);
@@ -804,8 +832,8 @@ const struct in6_addr in6addr_loopback;   /* ::1 */
 #define pclose        _pclose
 //#define strncasecmp   _strnicmp
 #define mkdir(p,m)    mkdir(p)
-#define chdir         ifdef(msc, _chdir, chdir)
-#if is(msc) || is(tcc)
+#define chdir         ifdef(cl, _chdir, chdir)
+#if is(cl) || is(tcc)
 #define ftruncate     _chsize_s
 #endif
 #else // gcc
@@ -849,7 +877,7 @@ FILE *fmemopen(void *buf, size_t len, const char *type) {
 #define tmpfile file_temp
 #endif
 
-#define tmpnam file_tempname
+#define tmpnam(x) file_tempname()
 
 
 #if 0
@@ -894,6 +922,7 @@ static void fwk_pre_swap_subsystems();
 #line 1 "fwk_profile.c"
 #if WITH_PROFILE
 profiler_t profiler;
+int profiler_enabled = 1;
 #endif
 #line 0
 
@@ -1031,13 +1060,12 @@ static bool load_sample(sts_mixer_sample_t* sample, const char *filename) {
     }
     drmp3_config mp3_cfg = { 2, 44100 };
     drmp3_uint64 mp3_fc;
-    if( !channels ) for( short *fbuf = 0; fbuf = drmp3_open_file_and_read_pcm_frames_s16(filename, &mp3_cfg, &mp3_fc, NULL); ) {
+    if( !channels ) for( short *fbuf = drmp3_open_file_and_read_pcm_frames_s16(filename, &mp3_cfg, &mp3_fc, NULL); fbuf ; fbuf = 0 ) {
         channels = mp3_cfg.channels;
         sample->frequency = mp3_cfg.sampleRate;
         sample->audio_format = STS_MIXER_SAMPLE_FORMAT_16;
         sample->length = mp3_fc; //  / sizeof(float) / mp3_cfg.channels;
         sample->data = fbuf;
-        break;
     }
     if( !channels ) {
         int inputSize = file_size( filename );
@@ -2165,7 +2193,7 @@ int poly_hit_aabb_transform(struct gjk_result *res, poly p, vec3 pos3, mat33 rot
     box[5] = vec3(a.max.x, a.min.y, a.max.z);
     box[6] = vec3(a.max.x, a.max.y, a.min.z);
     box[7] = vec3(a.max.x, a.max.y, a.max.z);
-    return poly_hit_poly_transform(res, p, pos3, rot33, poly(&box[0], 8), zero, &id[0].x);
+    return poly_hit_poly_transform(res, p, pos3, rot33, poly(&box[0], 8), zero, id[0].v3);
 }
 int poly_test_aabb(poly p, aabb a) {
     struct gjk_result res;
@@ -2622,7 +2650,7 @@ int zipscan_diff( zip* old, array(struct fs) now ) {
         } else {
             uint64_t oldsize = atoi64(zip_comment(old,found)); // zip_size(old, found); returns sizeof processed asset. return original size of unprocessed asset, which we store in comment section
             uint64_t oldstamp = atoi64(zip_modt(old, found)+20);
-            if( oldsize != now[i].bytes || abs(oldstamp - now[i].stamp) > 1 ) { // @fixme: should use hash instead. hashof(tool) ^ hashof(args used) ^ hashof(rawsize) ^ hashof(rawdate)
+            if( oldsize != now[i].bytes || oldstamp > (now[i].stamp + 1) ) { // @fixme: should use hash instead. hashof(tool) ^ hashof(args used) ^ hashof(rawsize) ^ hashof(rawdate)
                 printf("%s:\t%llu vs %llu, %llu vs %llu\n", now[i].fname, (uint64_t)oldsize,(uint64_t)now[i].bytes, (uint64_t)oldstamp,(uint64_t)now[i].stamp);
                 array_push(changed, STRDUP(now[i].fname));
                 array_push(uncooked, STRDUP(now[i].fname));
@@ -2731,7 +2759,7 @@ int cook(void *userdata) {
         }
 
         // invoke cooking script and recap status
-        int rc = cs.script[0] ? os_exec(cs.script) : 0;
+        int rc = cs.script[0] ? (os_exec)(cs.script) : 0;
         int outlen = file_size(cs.finalfile);
         int failed = cs.script[0] ? rc || !outlen : 0;
 
@@ -2888,7 +2916,7 @@ int cooker_progress() {
             ++count;
         }
     }
-    return sum / (count+!count);
+    return cooker_jobs() ? sum / (count+!count) : 100;
 }
 
 int cooker_jobs() {
@@ -3231,7 +3259,7 @@ char *ext = strrchr(base, '.'); //if (ext) ext[0] = '\0'; // remove all extensio
             strlcat(built, "_", 256);
             strlcat(built, tokens[i], 256);
         }
-        snprintf( ids[ ids_count ], 64, "%s", &built[1] );
+        strncpy( ids[ ids_count ], &built[1], 64 );
         len += strlen( ids[ ids_count++ ] );
     }
     // concat in inverse order: file/path1/path2/...
@@ -3275,6 +3303,7 @@ const char** file_list(const char *cwd, const char *masks) {
                 #if is(win32)
                 char *copy = STRDUP(line); // full path already provided
                 #else
+                while(line[0] == '/') ++line;
                 char *copy = STRDUP(va("%s%s", cwd, line)); // need to prepend path
                 #endif
                 array_push(list, copy);
@@ -3480,6 +3509,11 @@ char* vfs_load(const char *pathfile, int *size_out) { // @todo: fix leaks
     pathfile = va("%s", vfs_resolve(pathfile));
     base = file_name(pathfile);
     folder = file_path(pathfile);
+        // make folder variable easier to read in logs: /home/rlyeh/prj/fwk/art/demos/audio/coin.wav -> demos/audio/coin.wav 
+        static int artlen = 0; do_once artlen = strlen(ART);
+        if( !strncmp(folder, ART, artlen) ) {
+            folder += artlen;
+        }
     //}
 
     int size = 0;
@@ -5241,9 +5275,12 @@ static font_t fonts[8] = {0};
 static
 void font_init() {
     do_once {
-        for( int i = 0; i < 6; ++i ) {
-            font_face_from_mem(FONT_FACE1 + i, bm_mini_ttf,0, 48, 0);
-        }
+        font_face_from_mem(FONT_FACE1, bm_mini_ttf,0, 48, 0);
+        font_face_from_mem(FONT_FACE2, bm_mini_ttf,0, 48, 0);
+        font_face_from_mem(FONT_FACE3, bm_mini_ttf,0, 48, 0);
+        font_face_from_mem(FONT_FACE4, bm_mini_ttf,0, 48, 0);
+        font_face_from_mem(FONT_FACE5, bm_mini_ttf,0, 48, 0);
+        font_face_from_mem(FONT_FACE6, bm_mini_ttf,0, 48, 0);
     }
 }
 
@@ -5288,7 +5325,9 @@ void font_scales(const char *tag, float h1, float h2, float h3, float h4, float 
 // 1. Call stb_truetype.h routines to read and parse a .ttf file.
 // 1. Create a bitmap that is uploaded to the gpu using opengl.
 // 1. Calculate and save a bunch of useful variables and put them in the global font variable.
-void font_face_from_mem(const char *tag, const unsigned char *ttf_buffer, unsigned ttf_len, float font_size, unsigned flags) {
+void font_face_from_mem(const char *tag, const void *ttf_bufferv, unsigned ttf_len, float font_size, unsigned flags) {
+    const unsigned char *ttf_buffer = ttf_bufferv;
+
     flags |= FONT_ASCII; // ensure this minimal range [0020-00FF] is always in
 
     unsigned index = *tag - FONT_FACE1[0];
@@ -5316,8 +5355,8 @@ void font_face_from_mem(const char *tag, const unsigned char *ttf_buffer, unsign
     f->scale[6] = 0.3000f; // H6
 
     const char *vs_filename = 0, *fs_filename = 0;
-    char *vs = vs_filename ? file_read(vs_filename) : mv_vs_source;
-    char *fs = fs_filename ? file_read(fs_filename) : mv_fs_source;
+    const char *vs = vs_filename ? file_read(vs_filename) : mv_vs_source;
+    const char *fs = fs_filename ? file_read(fs_filename) : mv_fs_source;
     f->program = shader(vs, fs, "vertexPosition,instanceGlyph", "outColor");
 
     // figure out what ranges we're about to bake
@@ -5524,7 +5563,7 @@ void font_face_from_mem(const char *tag, const unsigned char *ttf_buffer, unsign
 void font_face(const char *tag, const char *filename_ttf, float font_size, unsigned flags) {
     do_once font_init();
 
-    const unsigned char *buffer = file_read(filename_ttf);
+    const char *buffer = file_read(filename_ttf);
     if(!buffer) buffer = vfs_read(filename_ttf);
     font_face_from_mem(tag, buffer,0, font_size, flags);
 }
@@ -6145,7 +6184,7 @@ static struct controller_t *input_logger(int position, int advance) {
 }
 
 void input_mappings() {
-    unsigned char* mappings = vfs_read("gamecontrollerdb.txt");
+    char* mappings = vfs_read("gamecontrollerdb.txt");
     if( mappings ) { glfwUpdateGamepadMappings(mappings); /*REALLOC(mappings, 0);*/ }
 }
 
@@ -6197,7 +6236,7 @@ void input_update() {
     };
     for(int i = 0; i < countof(table); ++i) {
         //if( table[i] ) bits[i] = glfwGetKey(win, table[i] ) == GLFW_PRESS;
-        bits[i] = ((_GLFWwindow*)win)->keys[ table[i] ];
+        bits[i] = glfwGetKeys(win)[ table[i] ];
     }
     #undef k
     #undef k2
@@ -6793,10 +6832,10 @@ void scale33(mat33 m, float x, float y, float z) {
 void id33(mat33 m) {
     scaling33(m, 1,1,1);
 }
-void extract33(mat33 m, const mat44 m4) {  // extract rot/sca from mat44
-    m[0] = m4[0]; m[1] = m4[1]; m[2] = m4[ 2];
-    m[3] = m4[4]; m[4] = m4[5]; m[5] = m4[ 6];
-    m[6] = m4[8]; m[7] = m4[9]; m[8] = m4[10];
+void extract33(mat33 m, const mat44 M) {  // extract rot/sca from mat44
+    m[0] = M[0]; m[1] = M[1]; m[2] = M[ 2];
+    m[3] = M[4]; m[4] = M[5]; m[5] = M[ 6];
+    m[6] = M[8]; m[7] = M[9]; m[8] = M[10];
 }
 void copy33(mat33 m, const mat33 a) {
     for(int i = 0; i < 9; ++i) m[i] = a[i];
@@ -7082,6 +7121,21 @@ void transpose44(mat44 m, const mat44 a) { // M[i][j] = A[j][i];
     m[ 8] = a[2]; m[ 9] = a[6]; m[10] = a[10]; m[11] = a[14];
     m[12] = a[3]; m[13] = a[7]; m[14] = a[11]; m[15] = a[15];
 }
+
+// @todo: test me
+// float det33 = M[0,0]*((M[1,1]*M[2,2])-(M[2,1]*M[1,2]))-M[0,1]*(M[1,0]*M[2,2]-M[2,0]*M[1,2])+M[0,2]*(M[1,0]*M[2,1]-M[2,0]*M[1,1]);
+//
+// float det33 = 
+//   rgt.x * fwd.y * upv.z - rgt.z * fwd.y * upv.x +
+//   rgt.y * fwd.z * upv.x - rgt.y * fwd.x * upv.z + 
+//   rgt.z * fwd.x * upv.y - rgt.x * fwd.z * upv.y;
+//
+// void transpose33(mat33 m, const mat33 a) { // M[i][j] = A[j][i];
+//     m[0] = a[0]; m[1] = a[3]; m[2] = a[6];
+//     m[3] = a[1]; m[4] = a[4]; m[5] = a[7];
+//     m[6] = a[2]; m[7] = a[5]; m[8] = a[8];
+// }
+
 float det44(const mat44 M) { // !!! ok, i guess
     float s[6], c[6];
     s[0] = M[0*4+0]*M[1*4+1] - M[1*4+0]*M[0*4+1];
@@ -8566,14 +8620,21 @@ void shader_colormap(const char *name, colormap_t c ) {
 // -----------------------------------------------------------------------------
 // colors
 
-uint32_t rgba( uint8_t r, uint8_t g, uint8_t b, uint8_t a ) {
-    return r << 24 | g << 16 | b << 8 | a;
+unsigned rgba( uint8_t r, uint8_t g, uint8_t b, uint8_t a ) {
+    return a << 24 | r << 16 | g << 8 | b;
 }
-uint32_t bgra( uint8_t r, uint8_t g, uint8_t b, uint8_t a ) {
-    return rgba(b,g,r,a);
+unsigned bgra( uint8_t b, uint8_t g, uint8_t r, uint8_t a ) {
+    return rgba(r,g,b,a);
 }
-float alpha( uint32_t rgba ) {
-    return ( rgba & 255 ) / 255.f;
+float alpha( unsigned rgba ) {
+    return ( rgba >> 24 ) / 255.f;
+}
+
+unsigned rgbaf(float r, float g, float b, float a) {
+    return rgba(r * 255, g * 255, b * 255, a * 255);
+}
+unsigned bgraf(float b, float g, float r, float a) {
+    return rgba(r * 255, g * 255, b * 255, a * 255);
 }
 
 // -----------------------------------------------------------------------------
@@ -8590,7 +8651,7 @@ image_t image_create(int x, int y, int flags) {
     return img;
 }
 
-image_t image_from_mem(const char *data, int size, int flags) {
+image_t image_from_mem(const void *data, int size, int flags) {
     image_t img = {0};
     if( data && size ) {
         stbi_set_flip_vertically_on_load(flags & IMAGE_FLIP ? 1 : 0);
@@ -8601,9 +8662,9 @@ image_t image_from_mem(const char *data, int size, int flags) {
         if(flags & IMAGE_RGB) n = 3;
         if(flags & IMAGE_RGBA) n = 4;
         if(flags & IMAGE_FLOAT)
-        img.pixels = stbi_loadf_from_memory(data, size, &img.x,&img.y,&img.n, n);
+        img.pixels = stbi_loadf_from_memory((const stbi_uc*)data, size, (int*)&img.x,(int*)&img.y,(int*)&img.n, n);
         else
-        img.pixels = stbi_load_from_memory(data, size, &img.x,&img.y,&img.n, n);
+        img.pixels = stbi_load_from_memory((const stbi_uc*)data, size, (int*)&img.x,(int*)&img.y,(int*)&img.n, n);
         if( img.pixels ) {
             PRINTF("Loaded image (%dx%d %.*s->%.*s)\n",img.w,img.h,img.n,"RGBA",n?n:img.n,"RGBA");
         } else {
@@ -8785,7 +8846,7 @@ texture_t texture_checker() {
     return texture;
 }
 
-texture_t texture_from_mem(const char *ptr, int len, int flags) {
+texture_t texture_from_mem(const void *ptr, int len, int flags) {
     image_t img = image_from_mem(ptr, len, flags);
     if( img.pixels ) {
         texture_t t = texture_create(img.x, img.y, img.n, img.pixels, flags);
@@ -9243,7 +9304,7 @@ void fullscreen_rgb_quad( texture_t texture, float gamma ) {
 
         program = shader(vs, fs, "", "fragcolor" );
         u_inv_gamma = glGetUniformLocation(program, "u_inv_gamma");
-        glGenVertexArrays( 1, &vao );
+        glGenVertexArrays( 1, (GLuint*)&vao );
     }
 
     GLenum texture_type = texture.flags & TEXTURE_ARRAY ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_2D;
@@ -9279,7 +9340,7 @@ void fullscreen_ycbcr_quad( texture_t textureYCbCr[3], float gamma ) {
         ucb = glGetUniformLocation(program, "u_texture_cb");
         ucr = glGetUniformLocation(program, "u_texture_cr");
 
-        glGenVertexArrays( 1, &vao );
+        glGenVertexArrays( 1, (GLuint*)&vao );
     }
 
 //    glEnable( GL_BLEND );
@@ -9870,58 +9931,57 @@ void mesh_destroy(mesh_t *m) {
 // screenshots
 
 void* screenshot( unsigned n ) { // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA
+    // sync, 10 ms -- pixel perfect
+
     int w = window_width(), h = window_height();
     int mode = n == 3 ? GL_RGB : n == -3 ? GL_BGR : n == 4 ? GL_RGBA : GL_BGRA;
     static threadlocal uint8_t *pixels = 0;
-    pixels = (uint8_t*)REALLOC(pixels, w * h * 4 );
-#if 1
-    // sync, 10 ms
+    pixels = (uint8_t*)REALLOC(pixels, w * h * 4 ); // @leak per thread
+
     glBindBuffer(GL_PIXEL_PACK_BUFFER, 0); // disable any pbo, in case somebody did for us
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
     glReadBuffer(GL_FRONT);
     glReadPixels(0, 0, w, h, mode, GL_UNSIGNED_BYTE, pixels);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     return pixels;
-#else
-    // async
+}
+
+void* screenshot_async( unsigned n ) { // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA
+    // async, 0 ms -- @fixme: MSAA can cause some artifacts with PBOs: either use glDisable(GL_MULTISAMPLE) when recording or do not create window with WINDOW_MSAAx options at all.
+
+    int w = window_width(), h = window_height();
+    int mode = n == 3 ? GL_RGB : n == -3 ? GL_BGR : n == 4 ? GL_RGBA : GL_BGRA;
+    static threadlocal uint8_t *pixels = 0;
+    pixels = (uint8_t*)REALLOC(pixels, w * h * 4 ); // @leak per thread
+
     enum { NUM_PBOS = 16 };
-    static threadlocal GLuint pbo[NUM_PBOS] = {0}, lastw, lasth;
-    static threadlocal int frame = 0, bound = 0;
+    static threadlocal GLuint pbo[NUM_PBOS] = {0}, lastw = 0, lasth = 0, bound = 0;
 
     if( lastw != w || lasth != h ) {
         lastw = w, lasth = h;
-        frame = 0;
         bound = 0;
 
-        // @fixme: delete previous pbos
         for( int i = 0; i < NUM_PBOS; ++i ) {
-        glGenBuffers(1, &pbo[i]);
+        if(!pbo[i]) glGenBuffers(1, &pbo[i]);
         glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo[i]);
         glBufferData(GL_PIXEL_PACK_BUFFER, w * h * 4, NULL, GL_STREAM_READ); // GL_STATIC_READ);
+        //glReadPixels(0, 0, w, h, mode, GL_UNSIGNED_BYTE, (GLvoid*)((GLchar*)NULL+0));
         }
     }
 
-    if (frame < NUM_PBOS) {
-        // do setup during initial frames
-        glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo[bound]);
-        glReadPixels(0, 0, w, h, mode, GL_UNSIGNED_BYTE, (GLvoid*)((GLchar*)NULL+0));
-    } else {
-        // read from oldest bound pbo
-        glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo[bound]);
-        void *ptr = glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
-        memcpy(pixels, ptr, w * h * abs(n));
-        glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
-        // trigger next read
-        glReadPixels(0, 0, w, h, mode, GL_UNSIGNED_BYTE, (GLvoid*)((GLchar*)NULL+0));
-    }
+    // read from oldest bound pbo
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo[bound]);
+    void *ptr = glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
+    memcpy(pixels, ptr, w * h * abs(n));
+    glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+
+    // trigger next read
+    glReadBuffer(GL_FRONT);
+    glReadPixels(0, 0, w, h, mode, GL_UNSIGNED_BYTE, (GLvoid*)((GLchar*)NULL+0));
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
 
     bound = (bound + 1) % NUM_PBOS;
-    frame += frame >= 0 && frame < NUM_PBOS;
-    frame *= frame == NUM_PBOS ? -1 : +1;
-
-    glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
     return pixels;
-#endif
 }
 
 // -----------------------------------------------------------------------------
@@ -10685,7 +10745,6 @@ void model_set_state(model_t m) {
         unsigned mat4_size = sizeof(vec4) * 4;
 
         // vertex buffer object
-        if(!m.vao_instanced) glGenBuffers(1, &m.vao_instanced);
         glBindBuffer(GL_ARRAY_BUFFER, m.vao_instanced);
         glBufferData(GL_ARRAY_BUFFER, m.num_instances * mat4_size, m.instanced_matrices, GL_STATIC_DRAW);
 
@@ -10950,14 +11009,14 @@ array(char) base64__decode(const char *in_) {
         if (rem >= 8) {
             rem -= 8;
             if (io >= outlen)
-                return (array_free(out_), 0); /* truncation is failure */
+                return (array_free(out_), NULL); /* truncation is failure */
             out[io ++] = (v >> rem) & 255;
         }
     }
     if (rem >= 8) {
         rem -= 8;
         if (io >= outlen)
-            return (array_free(out_), 0); /* truncation is failure */
+            return (array_free(out_), NULL); /* truncation is failure */
         out[io ++] = (v >> rem) & 255;
     }
     return (array_resize(out_, io), out_);
@@ -11173,6 +11232,7 @@ model_t model_from_mem(const void *mem, int len, int flags) {
         m.num_instances = 0;
         m.instanced_matrices = m.pivot;
 
+        glGenBuffers(1, &m.vao_instanced);
         model_set_state(m);
     }
     return m;
@@ -11263,7 +11323,7 @@ void model_render_skeleton(model_t m, mat44 M) {
 
         // yellow text
         ddraw_color(YELLOW);
-        ddraw_text(pos, 0.005, "%d", joint);
+        ddraw_text(pos, 0.005, va("%d", joint));
     }
 
     ddraw_color_pop();
@@ -11335,7 +11395,7 @@ void model_render(model_t m, mat44 proj, mat44 view, mat44 model, int shader) {
     model_render_instanced(m, proj, view, (mat44*)model, shader, 1);
 }
 
-static
+// static
 aabb aabb_transform( aabb A, mat44 M ) {
     // Based on "Transforming Axis-Aligned Bounding Boxes" by Jim Arvo, 1990
     aabb B = { {M[12],M[13],M[14]}, {M[12],M[13],M[14]} }; // extract translation from mat44
@@ -11695,15 +11755,6 @@ void (ddraw_text)(vec3 pos, float scale, const char *text) {
     }
 }
 
-/*
-void ddraw_prism(vec3 pos, int segments) {
-    ddraw_color(vec3(1,1,1));
-    float cycle = 2 * 3.14159 + 2 * 3.14159 / segments, acc = 0;
-    for( int i = 0; i < segments; ++i, acc += cycle ) {
-        ddraw_line(add3(pos,vec3(cos(acc),0,sin(acc))), add3(pos,vec3(cos(acc+cycle),0,sin(acc+cycle))));
-    }
-}
-*/
 void ddraw_prism(vec3 center, float radius, float height, vec3 normal, int segments) {
     vec3 left = {0}, up = {0};
     ortho3(&left, &up, normal);
@@ -11754,6 +11805,37 @@ void ddraw_cube(vec3 center, float radius) { // draw_prism(center, 1, -1, vec3(0
     ddraw_line(vec3(l.x,l.y,r.z), vec3(l.x,r.y,r.z));
     ddraw_line(vec3(r.x,l.y,l.z), vec3(r.x,r.y,l.z));
 }
+
+#if 0 // @fixme: broken
+void ddraw_cube44(vec3 radius, mat44 M) {
+    float m33[9]; extract33(m33, M); // = { M[0,1,2], M[4,5,6], M[8,9,10] }    
+    ddraw_cube33( vec3(M[12], M[13], M[14]), radius, m33 );
+}
+#endif
+
+void ddraw_cube33(vec3 center, vec3 radius, mat33 M) {
+    vec3 half = scale3(radius, 0.5f);
+    vec3 l = vec3(-half.x,+half.y,-half.z); // left-top-far
+    vec3 r = vec3(+half.x,-half.y,+half.z); // right-bottom-near
+
+    vec3 points[8] = {
+        vec3(l.x, r.y, r.z),
+        vec3(l.x, r.y, l.z),
+        vec3(r.x, r.y, l.z),
+        vec3(r.x, r.y, r.z),
+        vec3(l.x, l.y, r.z),
+        vec3(l.x, l.y, l.z),
+        vec3(r.x, l.y, l.z),
+        vec3(r.x, l.y, r.z),
+    };
+
+    for( int i = 0; i < 8; ++i ) {
+        points[i] = add3(center, transform33(M, points[i]));
+    }
+
+    ddraw_bounds(points);
+}
+
 void ddraw_normal(vec3 pos, vec3 n) {
     ddraw_color(YELLOW);
     ddraw_line(pos, add3(pos, norm3(n)));
@@ -11765,7 +11847,7 @@ void ddraw_pentagon(vec3 pos, float r) { ddraw_prism(pos, r, 0, vec3(0,1,0), 5);
 void ddraw_square(vec3 pos, float r) { ddraw_prism(pos, r, 0, vec3(0,1,0), 4); }
 //void ddraw_triangle(vec3 pos, float r) { ddraw_prism(pos, r, 0, vec3(0,1,0), 3); }
 void ddraw_sphere(vec3 center, float radius) {
-    float lod = 15, yp = -radius, rp = 0, y, r, x, z;
+    float lod = 6, yp = -radius, rp = 0, y, r, x, z;
     for( int j = 1; j <= lod / 2; ++j, yp = y, rp = r ) {
         y = j * 2.f / (lod / 2) - 1;
         r = cosf(y * 3.14159f / 2) * radius;
@@ -11881,6 +11963,9 @@ void ddraw_capsule(vec3 from, vec3 to, float r) {
 void ddraw_pyramid(vec3 center, float height, int segments) {
     ddraw_prism(center, 1, height, vec3(0,1,0), segments);
 }
+void ddraw_cylinder(vec3 center, float height, int segments) {
+    ddraw_prism(center, 1, -height, vec3(0,1,0), segments);    
+}
 void ddraw_diamond(vec3 from, vec3 to, float size) {
     poly p = diamond(from, to, size);
     vec3 *dmd = p.verts;
@@ -11995,11 +12080,10 @@ void ddraw_frustum(float projview[16]) {
 }
 void ddraw_arrow(vec3 begin, vec3 end) {
     vec3 diff = sub3(end, begin);
-    float len = len3(diff);
-    float stick_len = len * 2 / 3, head_radius = len / 6;
+    float len = len3(diff), stick_len = len * 2 / 3;
 
     ddraw_line(begin, end);
-    ddraw_cone_lowres(add3(begin, scale3(norm3(diff), stick_len)), end, head_radius);
+    ddraw_cone_lowres(add3(begin, scale3(norm3(diff), stick_len)), end, len / 6);
 }
 
 void ddraw_plane(vec3 p, vec3 n, float scale) {
@@ -12104,7 +12188,7 @@ void ddraw_position_dir( vec3 position, vec3 direction, float radius ) {
     (position.y < 0 ? ddraw_line_dashed : ddraw_line)( ground, position );
 
     vec3 n = norm3(direction), up = vec3(0,1,0);
-    for( int i = 0; i < 10 && i <= abs(position.y); ++i ) {
+    for( int i = 0; i < 10 && i <= fabs(position.y); ++i ) {
         if( i < 2 && len3(direction) )
         ddraw_circle__with_orientation(ground, n, radius);
         else
@@ -12141,7 +12225,7 @@ void ddraw_demo() {
     ddraw_color(ORANGE);
     ddraw_arrow(origin, vec3(-1,1,1));
     ddraw_color(YELLOW);
-    ddraw_text(vec3(-1,1,1), 0.008f, "hello 1%s2!", "world");
+    ddraw_text(vec3(-1,1,1), 0.008f, va("hello 1%s2!", "world"));
 
     const char abc[] = " !\"#$%&'()*+,-./\n"
         "0123456789:;<=>?@\n"
@@ -12151,9 +12235,9 @@ void ddraw_demo() {
 
 
     for( int i = -5; i <= 5; ++i ) {
-        ddraw_pyramid(vec3(i*2,0,3),  0, i+5+2); ddraw_text(vec3(i*2,0,3), 0.008f, "%d/1", i);
-        ddraw_pyramid(vec3(i*2,0,6), -2, i+5+2); ddraw_text(vec3(i*2,0,6), 0.008f, "%d/2", i);
-        ddraw_pyramid(vec3(i*2,0,9), +2, i+5+2); ddraw_text(vec3(i*2,0,9), 0.008f, "%d/3", i);
+        ddraw_pyramid(vec3(i*2,0,3),  0, i+5+2); ddraw_text(vec3(i*2,0,3), 0.008f, va("%d/1", i));
+        ddraw_pyramid(vec3(i*2,0,6), -2, i+5+2); ddraw_text(vec3(i*2,0,6), 0.008f, va("%d/2", i));
+        ddraw_pyramid(vec3(i*2,0,9), +2, i+5+2); ddraw_text(vec3(i*2,0,9), 0.008f, va("%d/3", i));
     }
 
 #if 1 // @fixme: add positions to these
@@ -12502,7 +12586,7 @@ unsigned scene_count() {
 }
 
 object_t* scene_index(unsigned obj_index) {
-    unsigned obj_count = scene_count(last_scene);
+    unsigned obj_count = scene_count();
     ASSERT(obj_index < obj_count, "Object index %d exceeds number (%d) of spawned objects", obj_index, obj_count);
     return &last_scene->objs[obj_index];
 }
@@ -12526,7 +12610,7 @@ void scene_render(int flags) {
     //    glPolygonMode( GL_FRONT_AND_BACK, flags & SCENE_WIREFRAME ? GL_LINE : GL_FILL );
 
         mesh_render(&last_scene->skybox.geometry);
-        skybox_pop_state(&last_scene->skybox);
+        skybox_pop_state();
         }
 
         ddraw_flush();
@@ -12581,6 +12665,10 @@ typedef lua_State lua;
 
 // the Lua interpreter
 static lua *L;
+
+#if is(linux)
+void luaopen_libfwk(lua_State *L) {}
+#endif
 
 static void* script__realloc(void *userdef, void *ptr, size_t osize, size_t nsize) {
     (void)userdef;
@@ -12722,10 +12810,10 @@ void script_quit(void) {
 }
 void script_init() {
     if( !L ) {
-        // fwk_init();
+        fwk_init();
 
         // initialize Lua
-        L = luaL_newstate(); // lua_newstate(script__realloc, 0);
+        L = lua_newstate(script__realloc, 0); // L = luaL_newstate();
 
         // load various Lua libraries
         luaL_openlibs(L);
@@ -12735,8 +12823,10 @@ void script_init() {
         luaopen_string(L);
         luaopen_math(L);
 
-        // @fixme: disabled because of libfwk.so, which crashes when reaching this point
-        // XMACRO(BIND_ALL);
+        // @fixme: workaround that prevents script binding on lua 5.4.3 on top of luajit 2.1.0-beta3 on linux. lua_setglobal() crashing when accessing null L->l_G
+        if(L->l_G) {
+        XMACRO(BIND_ALL);
+        }
 
         atexit(script_quit);
     }
@@ -12843,7 +12933,7 @@ int (os_exec)( const char *cmd ) {
     return rc;
 }
 char* (os_exec_)(int *rc, const char *cmd ) {
-    int x = os_exec(cmd);
+    int x = (os_exec)(cmd);
     if(rc) *rc = x;
     return os_exec_output();
 }
@@ -12903,7 +12993,7 @@ static char **backtrace_symbols(void *const *list,int size) {
             char* undecorated = (char*)si.info.Name;
             strcatf(&symbols[i], "%s", undecorated);
         } else {
-            strcatf(&symbols[i], "%s", "(??)");
+            strcatf(&symbols[i], "%s", "(?""?)");
         }
 
         DWORD dw = 0;
@@ -12985,7 +13075,7 @@ int callstackf( FILE *fp, int traces ) {
 // -----------------------------------------------------------------------------
 // endian
 
-#if is(msc)
+#if is(cl)
 #include <stdlib.h>
 #define swap16 _byteswap_ushort
 #define swap32 _byteswap_ulong
@@ -13470,7 +13560,7 @@ void hexdump( const void *ptr, unsigned len ) {
     hexdumpf( stdout, ptr, len, 16 );
 }
 
-#if 0 // is(msc) only
+#if 0 // is(cl) only
 static void debugbreak(void) {
     do { \
         __try { DebugBreak(); } \
@@ -13549,7 +13639,7 @@ unsigned determine_color_from_text(const char *text) {
 int (PRINTF)(const char *text, const char *stack, const char *file, int line, const char *function) {
     double secs = time_ss();
     uint32_t color = /*errno ? RED :*/ determine_color_from_text(text); // errno = 0;
-    #if is(msc)
+    #if is(cl)
     char *slash = strrchr(file, '\\'); if(slash) file = slash + 1;
     #endif
     char *location = va("|%s|%s:%d", /*errno?strerror(errno):*/function, file, line);
@@ -14284,15 +14374,16 @@ int ui_bits##X(const char *label, uint##X##_t *enabled) { \
 \
         uint8_t copy = *enabled; \
         for( int i = 0; i < X; ++i ) { \
+            int b = (X-1-i); \
             nk_layout_row_push(ui_ctx, 10); \
             /* bit */ \
-            int val = (*enabled >> i) & 1; \
+            int val = (*enabled >> b) & 1; \
             int chg = nk_checkbox_label(ui_ctx, "", &val); \
-            *enabled = (*enabled & ~(1 << i)) | ((!!val) << i); \
+            *enabled = (*enabled & ~(1 << b)) | ((!!val) << b); \
             /* tooltip */ \
             struct nk_rect bb = { offset + 10 + i * 14, bounds.y, 14, 30 }; /* 10:padding,14:width,30:height */ \
             if (nk_input_is_mouse_hovering_rect(&ui_ctx->input, bb) && !ui_popups_active) { \
-                nk_tooltipf(ui_ctx, "Bit %d", i); \
+                nk_tooltipf(ui_ctx, "Bit %d", b); \
             } \
         } \
 \
@@ -14346,7 +14437,7 @@ void ui_demo() {
         if( ui_float2("my float2", float2) ) puts("float2 changed");
         if( ui_float3("my float3", float3) ) puts("float3 changed");
         if( ui_float4("my float4", float4) ) puts("float4 changed");
-        if( ui_bits8("my bitmask", &bitmask) ) puts("bitmask changed");
+        if( ui_bits8("my bitmask", &bitmask) ) printf("bitmask changed %x\n", bitmask);
         if( ui_separator() ) {}
         if( ui_toggle("my toggle", &toggle) ) printf("toggle %s\n", toggle ? "on":"off");
         if( ui_separator() ) {}
@@ -14381,7 +14472,7 @@ void ui_demo() {
                 text_len = 0;
             }
 
-            if(text_len > 0 && text[0] != '>') { snprintf(text, 64, va(">%s", text)); text_len++; }
+            if(text_len > 0 && text[0] != '>') { strncpy(text, va(">%s", text), 64); text_len++; }
         }
 
         ui_end();
@@ -14537,6 +14628,77 @@ bool video_is_paused(video_t *v) {
 texture_t* video_textures( video_t *v ) {
     return v->has_ycbcr ? &v->textureY : &v->texture;
 }
+
+// -----------------------------------------------------------------------------
+// ffmpeg video recording
+// [src] http://blog.mmacklin.com/2013/06/11/real-time-video-capture-with-ffmpeg/
+
+static FILE* rec_ffmpeg;
+static FILE* rec_mpeg1;
+
+void videorec_stop(void) {
+    if( rec_ffmpeg ) {
+        if(rec_ffmpeg) ifdef(win32, _pclose, pclose)(rec_ffmpeg);
+        rec_ffmpeg = 0;
+
+        if(rec_mpeg1) fclose(rec_mpeg1);
+        rec_mpeg1 = 0;
+    }
+}
+
+void videorec_start(const char *outfile_mp4) {
+    do_once atexit(videorec_stop);
+
+    // first choice: external ffmpeg encoder
+    if( !rec_ffmpeg ) {
+        extern const char *TOOLS;
+
+        char *cmd = va("%s/ffmpeg%s "
+                    "-hide_banner -loglevel error " // less verbose
+                    "-r 60 -f rawvideo -pix_fmt bgr24 -s %dx%d " // raw BGR WxH-60Hz frames
+                    // "-framerate 30 " // interpolating new video output frames from the source frames
+                    "-i - "              // read frames from stdin
+                    //"-draw_mouse 1 "
+                    "-threads 0 "
+                    //"-vsync vfr "
+                    "-preset ultrafast " // collection of options that will provide a certain encoding speed [fast,ultrafast]
+                    // "-tune zerolatency " // change settings based upon the specifics of your input
+                    //"-crf 21 "           // range of the CRF scale [0(lossless)..23(default)..51(worst quality)]
+                    "-pix_fmt yuv420p "  // compatible with Windows Media Player and Quicktime
+                    "-vf vflip "         // flip Y
+//                  "-vf \"pad=ceil(iw/2)*2:ceil(ih/2)*2\" "
+                    "-y \"%s\"", TOOLS, ifdef(win32, ".exe", ifdef(osx, ".osx",".linux")), window_width(), window_height(), outfile_mp4);    // overwrite output file
+
+        // -rtbufsize 100M (https://trac.ffmpeg.org/wiki/DirectShow#BufferingLatency) Prevent some frames in the buffer from being dropped.
+        // -probesize 10M (https://www.ffmpeg.org/ffmpeg-formats.html#Format-Options) Set probing size in bytes, i.e. the size of the data to analyze to get stream information. A higher value will enable detecting more information in case it is dispersed into the stream, but will increase latency. Must be an integer not lesser than 32. It is 5000000 by default.
+        // -c:v libx264 (https://www.ffmpeg.org/ffmpeg.html#Main-options) Select an encoder (when used before an output file) or a decoder (when used before an input file) for one or more streams. codec is the name of a decoder/encoder or a special value copy (output only) to indicate that the stream is not to be re-encoded.
+
+        // open pipe to ffmpeg's stdin in binary write mode
+        rec_ffmpeg = ifdef(win32, _popen, popen)(cmd, "wb");
+    }
+
+    // fallback: built-in mpeg1 encoder
+    if( !rec_ffmpeg ) {
+        rec_mpeg1 = fopen(outfile_mp4, "wb"); // "a+b"
+    }
+}
+
+bool videorec_active() {
+    return rec_ffmpeg || rec_mpeg1;
+}
+
+void videorec_frame() {
+    if( videorec_active() ) {
+        void* pixels = screenshot_async(-3); // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA. ps: BGR is fastest on my intel discrete gpu
+
+        if( rec_ffmpeg ) {
+            fwrite(pixels, 3 * window_width() * window_height(), 1, rec_ffmpeg);
+        }
+        if( rec_mpeg1 ) {
+            jo_write_mpeg(rec_mpeg1, pixels, window_width(), window_height(), 24);  // 24fps
+        }
+    }
+}
 #line 0
 
 #line 1 "fwk_window.c"
@@ -14646,7 +14808,6 @@ static uint64_t frame_count;
 static double t, dt, fps, hz = 0.00;
 static char title[128] = {0};
 static char screenshot_file[512];
-static char videorec_file[512];
 static int locked_aspect_ratio = 0;
 
 void window_drop_callback(GLFWwindow* window, int count, const char** paths) {
@@ -14654,7 +14815,7 @@ void window_drop_callback(GLFWwindow* window, int count, const char** paths) {
     // @fixme: remove USERNAME for nonwin32
     // @fixme: wait until any active import (launch) is done
 
-    char pathdir[512]; snprintf(pathdir, 512, "%s/import/%llu_%s/", ART, date(), ifdef(linux, getlogin(), getenv("USERNAME")));
+    char pathdir[512]; snprintf(pathdir, 512, "%s/import/%llu_%s/", ART, (unsigned long long)date(), ifdef(linux, getlogin(), getenv("USERNAME")));
     mkdir( pathdir, 0777 );
 
     int errors = 0;
@@ -14887,7 +15048,7 @@ int window_swap() {
         #if WITH_SELFIES
 
 //            static int frame = 100;
-            bool do_it = (cooker_progress() >= 100); // && ( frame > 0 && !--frame ); // || input_down(KEY_F12)
+            bool do_it = cooker_progress() >= 100; // && ( frame > 0 && !--frame ); // || input_down(KEY_F12)
             if(do_it) {
                snprintf(screenshot_file, 512, "%s.png", app_name());
 
@@ -14947,12 +15108,9 @@ int window_swap() {
             }
             screenshot_file[0] = 0;
         }
-        if( videorec_file[0] ) {
-            for( FILE *fp = fopen(videorec_file, "a+b"); fp; fclose(fp), fp = 0) {
-                void* rgb = screenshot(-3); // 3 RGB, -3 BGR
-                jo_write_mpeg(fp, rgb, window_width(), window_height(), 24);  // 24fps
-            }
-            // videorec_file[0] = 0;
+        if( videorec_active() ) {
+            void videorec_frame();
+            videorec_frame();
         }
 
         if( !first ) {
@@ -15102,13 +15260,6 @@ int window_has_visible() {
 
 void window_screenshot(const char* filename_png) {
     snprintf(screenshot_file, 512, "%s", filename_png ? filename_png : "");
-}
-
-void window_videorec(const char* filename_mpg) {
-    snprintf(videorec_file, 512, "%s", filename_mpg ? filename_mpg : "");
-}
-int window_has_videorec() {
-    return !!videorec_file[0];
 }
 
 void window_lock_aspect(unsigned numer, unsigned denom) {
@@ -15702,7 +15853,7 @@ int gizmo(vec3 *pos, vec3 *rot, vec3 *sca) {
             float magx = (mouse.x - src2.x) * (mouse.x - src2.x); \
             float magy = (mouse.y - src2.y) * (mouse.y - src2.y); \
             float sgn = (magx > magy ? mouse.x > src2.x : mouse.y > src2.y) ? 1 : -1; \
-            sca->v[component] -= sgn * mag * 0.01; \
+            sca->v3[component] -= sgn * mag * 0.01; \
             src2 = vec2(mouse.x, mouse.y); \
         } )
     #define gizmo_rotate(X,Y,Z,COLOR) do { \
@@ -15724,8 +15875,8 @@ int gizmo(vec3 *pos, vec3 *rot, vec3 *sca) {
                 float magx = (mouse.x - src2.x) * (mouse.x - src2.x); \
                 float magy = (mouse.y - src2.y) * (mouse.y - src2.y); \
                 float sgn = (magx > magy ? mouse.x > src2.x : mouse.y > src2.y) ? 1 : -1; \
-                rot->v[component] += sgn * mag; \
-                /*rot->v[component] = clampf(rot->v[component], -360, +360);*/ \
+                rot->v3[component] += sgn * mag; \
+                /*rot->v3[component] = clampf(rot->v3[component], -360, +360);*/ \
                 src2 = vec2(mouse.x, mouse.y); \
                 \
             } \
@@ -15799,7 +15950,7 @@ void editor_update() {
 
     if( ui_begin("Editor", 0) ) {
         bool x;
-        ui_float2("mouse (2d pick)", &editor_mouse.x);
+        ui_float2("mouse (2d pick)", editor_mouse.v2);
         if( ui_bool("breakpoint", (x = 0, &x)) ) breakpoint("editor breakpoint");
         if( ui_bool("debugger", (x = has_debugger(), &x))) {}
         if( ui_bool("fullscreen", (x = window_has_fullscreen(), &x)) ) window_fullscreen( x );
@@ -15808,9 +15959,9 @@ void editor_update() {
         ui_separator();
         if( editor_selected >= 0 ) {
             ui_label(va("[%p]", obj));
-            if(ui_float3("Position", &obj->pos.x))   object_teleport(obj, obj->pos), gizmo__mode = 0;
-            if(ui_float3("Rotation", &obj->euler.x)) object_rotate(obj, obj->euler), gizmo__mode = 2;
-            if(ui_float3("Scale", &obj->sca.x))      object_scale(obj, obj->sca),    gizmo__mode = 1;
+            if(ui_float3("Position", obj->pos.v3))   object_teleport(obj, obj->pos), gizmo__mode = 0;
+            if(ui_float3("Rotation", obj->euler.v3)) object_rotate(obj, obj->euler), gizmo__mode = 2;
+            if(ui_float3("Scale", obj->sca.v3))      object_scale(obj, obj->sca),    gizmo__mode = 1;
         }
         ui_end();
     }
@@ -16003,5 +16154,9 @@ void fwk_init() {
 // Enable more performant GPUs on laptops. Does this work into a dll?
 // int NvOptimusEnablement = 1;
 // int AmdPowerXpressRequestHighPerformance = 1;
+
+#if is(linux) && is(tcc) // fixes `tcc: error: undefined symbol '__dso_handle'`
+int __dso_handle; // compiled with: `tcc demo.c fwk.c -D__STDC_NO_VLA__ -lX11`
+#endif
 
 #line 0

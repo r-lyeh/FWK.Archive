@@ -186,7 +186,7 @@ int main(int argc, char **argv) {
 
         // UI
         if( ui_begin("Shadertoy", 0)) {
-            if( ui_list(va("Using %s", browser[selector]), browser, browser_count, &selector) ) {
+            if( ui_list(va("Using %s", file_name(browser[selector])), browser, browser_count, &selector) ) {
                 reload = 1;
             }
             ui_end();

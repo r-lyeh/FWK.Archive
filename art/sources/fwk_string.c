@@ -63,6 +63,34 @@ int strcmpi_qsort(const void *a, const void *b) {
     return strcmpi(*ia, *ib);
 }
 
+bool strbeg(const char *a, const char *b) { // returns true if both strings match at beginning. case sensitive
+    return strncmp(a, b, strlen(b)) ? false : true;
+}
+bool strend(const char *a, const char *b) { // returns true if both strings match at end. case sensitive
+    int la = strlen(a), lb = strlen(b);
+    if( la < lb ) return false;
+    return strncmp(a + la - lb, b, lb) ? false : true;
+}
+/*
+int main() {
+    printf("strbeg(abc abc) = %d\n", strbeg("abc", "abc"));
+    printf("strbeg(abc abcd) = %d\n", strbeg("abc", "abcd"));
+    printf("strbeg(abcd abc) = %d\n", strbeg("abcd", "abc"));
+    printf("strbeg(abc (empty)) = %d\n", strbeg("abc", ""));
+    printf("strbeg((empty) abc) = %d\n", strbeg("", "abc"));
+    printf("strbeg(123 abcd) = %d\n", strbeg("123", "abcd"));
+    printf("strbeg(abcd 123) = %d\n", strbeg("abcd", "123"));
+    puts("---");
+    printf("strend(abc abc) = %d\n", strend("abc", "abc"));
+    printf("strend(abc 0abc) = %d\n", strend("abc", "0abc"));
+    printf("strend(abcd bcd) = %d\n", strend("abcd", "bcd"));
+    printf("strend(abc (empty)) = %d\n", strend("abc", ""));
+    printf("strend((empty) abc) = %d\n", strend("", "abc"));
+    printf("strend(123 abcd) = %d\n", strend("123", "abcd"));
+    printf("strend(abcd 123) = %d\n", strend("abcd", "123"));
+}
+*/
+
 bool strbegi(const char *a, const char *b) { // returns true if both strings match at beginning. case insensitive
     int la = strlen(a), lb = strlen(b);
     if( la < lb ) return 0;
@@ -299,7 +327,7 @@ uint32_t extract_utf32(const char **p) {
 array(uint32_t) strutf32( const char *utf8 ) {
     static __thread int slot = 0;
     static __thread char *buf[16] = {0};
-    static __thread array(int) list[16] = {0};
+    static __thread array(uint32_t) list[16] = {0};
 
     slot = (slot+1) % 16;
     array_resize(list[slot], 0);

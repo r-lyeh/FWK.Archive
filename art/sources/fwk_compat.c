@@ -26,8 +26,8 @@ const struct in6_addr in6addr_loopback;   /* ::1 */
 #define pclose        _pclose
 //#define strncasecmp   _strnicmp
 #define mkdir(p,m)    mkdir(p)
-#define chdir         ifdef(msc, _chdir, chdir)
-#if is(msc) || is(tcc)
+#define chdir         ifdef(cl, _chdir, chdir)
+#if is(cl) || is(tcc)
 #define ftruncate     _chsize_s
 #endif
 #else // gcc
@@ -71,7 +71,7 @@ FILE *fmemopen(void *buf, size_t len, const char *type) {
 #define tmpfile file_temp
 #endif
 
-#define tmpnam file_tempname
+#define tmpnam(x) file_tempname()
 
 
 #if 0

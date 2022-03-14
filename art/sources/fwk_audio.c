@@ -131,13 +131,12 @@ static bool load_sample(sts_mixer_sample_t* sample, const char *filename) {
     }
     drmp3_config mp3_cfg = { 2, 44100 };
     drmp3_uint64 mp3_fc;
-    if( !channels ) for( short *fbuf = 0; fbuf = drmp3_open_file_and_read_pcm_frames_s16(filename, &mp3_cfg, &mp3_fc, NULL); ) {
+    if( !channels ) for( short *fbuf = drmp3_open_file_and_read_pcm_frames_s16(filename, &mp3_cfg, &mp3_fc, NULL); fbuf ; fbuf = 0 ) {
         channels = mp3_cfg.channels;
         sample->frequency = mp3_cfg.sampleRate;
         sample->audio_format = STS_MIXER_SAMPLE_FORMAT_16;
         sample->length = mp3_fc; //  / sizeof(float) / mp3_cfg.channels;
         sample->data = fbuf;
-        break;
     }
     if( !channels ) {
         int inputSize = file_size( filename );
