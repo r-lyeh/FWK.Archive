@@ -1,4 +1,4 @@
-<h1 align="center"><a href="https://bit.ly/-fwk-">F·W·K</a></h1>
+<h1 align="center"><a href="https://bit.ly/F-W-K">F·W·K</a></h1>
 <p align="center">3D game framework in C, with Luajit bindings now.</p>
 
 <p align="center">
@@ -45,7 +45,7 @@
 - [x] Disk cache.
 - [x] Scene handling.
 - [x] Profiler, stats and leaks finder.
-- [x] [Documentation (wip)](https://bit.ly/-fwk-).
+- [x] [Documentation (wip)](https://bit.ly/F-W-K).
 
 ## Roadmap ᕕ(ᐛ)ᕗ (in order of arrival; ✱: partial support)
 - [ ] Editor: gizmos✱, scene tree, property editor, load/save, undo/redo, copy/paste. <!-- editor = tree of nodes. levels and objects are nodes, and widgets are also nodes --><!-- you can perform actions on nodes, with or without descendants, top-bottom or bottom-top --><!-- operations include load/save, reset, undo/redo, play/render vis on/off/alpha logic on/off/other ddraw on/off log on/off, etc --> 
@@ -208,6 +208,25 @@ R. Documentation pass: API, functions, samples, examples, pipeline. #5
 <br/>
 </p>
 
+## Hello FWK
+```C
+#include "fwk.h" // Minimal C sample
+int main(int argc, char **argv) {
+    window_create(75.0, 0); // 75% size, no extra flags
+    while( window_swap() && !input(KEY_ESC) ) { // game loop
+        puts("hello fwk");
+    }
+}
+```
+
+```lua
+local fwk = require("fwk") -- Minimal Lua sample
+fwk.window_create(75.0,0) -- 75% size, no extra flags
+while fwk.window_swap() and fwk.input(fwk.KEY_ESC) == 0 do -- game loop
+    print("hello fwk")
+end
+```
+
 ## Build (as static library)
 Type `MAKE.bat` (Win) or `sh MAKE.bat` (Linux/OSX) to build everything. Alternatively,
 
@@ -233,8 +252,8 @@ echo OSX     && cc -ObjC -dynamiclib -o libfwk.dylib fwk.c -framework cocoa -fra
 - Or also, copy the dynamic library into `demos/lua` and then run `luajit demo_luajit_model.lua` from there.
 
 ## Amalgamation
-- Split FWK into separate files by running `art/tools/split.bat` (or `sh art/tools/split.bat` in Linux/OSX).
-- Merge those files back into FWK by running `art/tools/join.bat` (or `sh art/tools/join.bat` in Linux/OSX).
+- Split FWK into separate files by running `MAKE.bat split` (or `sh MAKE.bat split` in Linux/OSX).
+- Merge those files back into FWK by running `MAKE.bat join` (or `sh MAKE.bat join` in Linux/OSX).
 - Optionally, generate a single-header distribution by executing following script:
 
 ```lua
@@ -248,9 +267,9 @@ echo #endif // FWK_C >> fwk-single-header.c
 ```
 
 ## Extra tips
-- Dropped files into game window will be imported & saved into [`art/import`](art/import) folder.
+- Dropped files into game window will be imported & saved into [`editor/import`](editor/import) folder.
 - Linux/OSX users can optionally install wine to use the Windows pipeline as an alternate asset pipeline (use `--with-wine` flag).
-- Although not recommended, you can remove the cooking stage by invoking `--with-jobs=0` or by removing the [`art/tools`](art/tools) folder.
+- Although not recommended, you can remove the cooking stage by invoking `--with-jobs=0` or by removing the [`editor/tools`](editor/tools) folder.
 - Depending on your IDE, you might need to [split all amalgamated](#Amalgamation) files when debugging FWK.
 <!-- - On windows + vc, you can use `make bindings` or `make docs` to generate everything prior to a release --><!-- gamecontrollerdb.txt -->
 

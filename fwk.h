@@ -208,6 +208,14 @@ extern "C" {
 #define INLINE inline
 #endif
 
+#if defined(_MSC_VER)
+#define FORCE_INLINE __forceinline 
+#elif defined(__GNUC__)
+#define FORCE_INLINE __attribute__((always_inline))
+#else
+#define FORCE_INLINE INLINE
+#endif
+
 //-----------------------------------------------------------------------------
 // Headers
 
@@ -1417,6 +1425,7 @@ API bool  gizmo_active();
 // - note: directory/with/trailing/slash/ as mount_point, or zip/tar/pak archive otherwise.
 //
 // @todo: file_mmap
+// @todo: file_find() from first file_scan()
 
 // physical filesystem. files
 
@@ -1445,8 +1454,12 @@ API bool         file_move(const char *src, const char *dst);
 API FILE*        file_temp();
 API char*        file_tempname();
 
-// @todo file_find() from first file_scan()
+// compressed zipfiles
 
+API array(char*) zipfile_list(const char *zipname);
+API array(char)  zipfile_extract(const char *zipname, const char *filename);
+API bool         zipfile_append(const char *zipname, const char *filename, int clevel);
+API bool         zipfile_append_mem(const char *zipname, const char *entryname, const void *ptr, unsigned len, int clevel);
 
 // virtual filesystem
 
@@ -1673,6 +1686,7 @@ enum INPUT_ENUMS {
 // default allocator (aborts on out-of-mem)
 API void*  xrealloc(void* p, size_t sz);
 API size_t xsize(void* p);
+API char*  xstats(void);
 
 // stack based allocator (negative bytes does rewind stack, like when entering new frame)
 API void*  stack(int bytes);
@@ -1689,9 +1703,9 @@ API void*  forget( void *ptr );
 #define CALLOC(m,n)    CALLOC_((m),(n))
 #define STRDUP(s)      STRDUP_(s)
 
-static INLINE void *(REALLOC_)(void *p, size_t n) { return n ? WATCH(xrealloc(p,n),n) : xrealloc(FORGET(p),0); } ///-
-static INLINE void *(CALLOC_)(size_t m, size_t n) { return n *= m, memset(REALLOC(0,n),0,n); } ///-
-static INLINE char *(STRDUP_)(const char *s) { size_t n = strlen(s)+1; return ((char*)memcpy(REALLOC(0,n), s, n)); } ///-
+static FORCE_INLINE void *(REALLOC_)(void *p, size_t n) { return n ? WATCH(xrealloc(p,n),n) : xrealloc(FORGET(p),0); } ///-
+static FORCE_INLINE void *(CALLOC_)(size_t m, size_t n) { return n *= m, memset(REALLOC(0,n),0,n); } ///-
+static FORCE_INLINE char *(STRDUP_)(const char *s) { size_t n = strlen(s)+1; return ((char*)memcpy(REALLOC(0,n), s, n)); } ///-
 #line 0
 
 #line 1 "fwk_network.h"
@@ -2030,6 +2044,7 @@ typedef struct texture_t {
     unsigned flags;
     char* filename;
     bool transparent;
+    unsigned fbo; // for texture recording
 } texture_t;
 
 API texture_t texture_compressed(const char *filename, unsigned flags);
@@ -2043,6 +2058,9 @@ API void      texture_destroy(texture_t *t);
 // textureLod(filename, dir, lod);
 // void texture_add_loader( int(*loader)(const char *filename, int *w, int *h, int *bpp, int reqbpp, int flags) );
 API unsigned  texture_update(texture_t *t, unsigned w, unsigned h, unsigned n, void *pixels, int flags);
+
+API bool      texture_rec_begin(texture_t *t); // texture_rec
+API void      texture_rec_end(texture_t *t); // texture_rec
 
 // -----------------------------------------------------------------------------
 // brdf
@@ -2354,6 +2372,7 @@ API void ddraw_prism(vec3 center, float radius, float height, vec3 normal, int s
 //
 API void ddraw_demo();
 API void ddraw_flush();
+API void ddraw_flush_projview(mat44 proj, mat44 view);
 #line 0
 
 #line 1 "fwk_scene.h"
@@ -2474,10 +2493,16 @@ char* strtok_s(char* str,const char* delimiters,char** context); // tcc misses t
 #define strtok_r strtok_s
 #endif
 
+#if 0
 #define each_substring(str, delims, keyname) \
     ( int len_ = strlen(str) + 1; len_; len_ = 0 ) \
     for( char buf_[1024], *ptr_ = len_ < 1024 ? buf_ : REALLOC(0, len_), *lit_ = (char*)(str), *_bak = (snprintf(ptr_, len_, "%s", lit_), ptr_); _bak; _bak = 0, (ptr_ == buf_ ? 0 : REALLOC(ptr_, 0)) ) \
     for( char *next_token = 0, *keyname = strtok_r(_bak, delims, &next_token); keyname; keyname = strtok_r(NULL, delims, &next_token) )
+#else
+#define each_substring(str, delims, keyname) \
+    ( char** tokens_ = strsplit((str), (delims)), *keyname = 0; tokens_; tokens_ = 0) \
+    for( int i_ = 0, end_ = array_count(tokens_); i_ < (keyname = tokens_[i_], end_); ++i_ )
+#endif
 
 // utils
 

@@ -2303,7 +2303,7 @@ int frustum_test_aabb(frustum f, aabb a) {
 // -----------------------------------------------------------------------------
 
 const char *ART = "art/";
-const char *TOOLS = ifdef(win32, "art/tools/", "art//tools/");
+const char *TOOLS = ifdef(win32, "editor/tools/", "editor//tools/");
 const char *FWK_INI = "fwk.ini";
 
 typedef struct cook_script_t {
@@ -2852,12 +2852,17 @@ bool cooker_start( const char *masks, int flags ) {
         if( !file_size(fname)) continue; // skip dirs and empty files
 
         // exclude vc c/c++ .obj files. they're not 3d wavefront .obj files
-        if( strstr(fname, ".obj") || strstr(fname, ".OBJ") ) {
+        if( strend(fname, ".obj") ) {
             char header[4] = {0};
             for( FILE *in = fopen(fname, "rb"); in; fclose(in), in = NULL) {
                 fread(header, 1, 2, in);
             }
             if( !memcmp(header, "\x64\x86", 2) ) continue;
+            if( !memcmp(header, "\x00\x00", 2) ) continue;
+        }
+        // exclude vc/gcc files
+        if( strend(fname, ".a") || strend(fname, ".pdb") || strend(fname, ".lib") || strend(fname, ".ilk") || strend(fname, ".exp") ) {
+            continue;
         }
 
         // @todo: normalize path & rebase here (absolute to local)
@@ -3338,6 +3343,70 @@ FILE *file_temp(void) {
     FILE *fp = fopen(fname, "w+b");
     if( fp ) unlink(fname);
     return fp;
+}
+
+// -----------------------------------------------------------------------------
+// compressed archives
+
+// return list of files inside zipfile
+array(char*) zipfile_list(const char *zipname) {
+    static threadlocal array(char*) list[16] = {0};
+    static threadlocal int count = 0;
+
+    count = (count+1) % 16;
+    array_resize(list[count], 0);
+
+    for( zip *z = zip_open(zipname, "rb"); z; zip_close(z), z = 0) {
+        for( unsigned i = 0; i < zip_count(z); ++i ) {
+            array_push( list[count], zip_name(z, i) );
+        }
+    }
+
+    return list[count];
+}
+
+// extract single file content from zipfile
+array(char) zipfile_extract(const char *zipname, const char *filename) {
+    static threadlocal array(char) list[16] = {0};
+    static threadlocal int count = 0;
+
+    array(char) out = list[count = (count+1) % 16];
+    array_resize(out, 0);
+
+    for( zip *z = zip_open(zipname, "rb"); z; zip_close(z), z = 0) {
+        int index = zip_find(z, filename); // convert entry to index. returns <0 if not found.
+        if( index < 0 ) return zip_close(z), out;
+
+        unsigned outlen = zip_size(z, index);
+        unsigned excess = zip_excess(z, index);
+        array_resize(out, outlen + 1 + excess);
+        unsigned ret = zip_extract_inplace(z, index, out, array_count(out));
+        if(ret) { out[outlen] = '\0'; array_resize(out, outlen); } else { array_resize(out, 0); }
+    }
+
+    return out;
+}
+
+// append single file into zipfile. compress with DEFLATE|6. Other compressors are also supported (try LZMA|5, ULZ|9, LZ4X|3, etc.)
+bool zipfile_append(const char *zipname, const char *filename, int clevel) {
+    bool ok = false;
+    for( zip *z = zip_open(zipname, "a+b"); z; zip_close(z), z = 0) {
+        for( FILE *fp = fopen(filename, "rb"); fp; fclose(fp), fp = 0) {
+            ok = zip_append_file(z, filename, "", fp, clevel);
+        }
+    }
+    return ok;
+}
+
+// append mem blob into zipfile. compress with DEFLATE|6. Other compressors are also supported (try LZMA|5, ULZ|9, LZ4X|3, etc.)
+// @fixme: implement zip_append_mem() and use that instead
+bool zipfile_append_mem(const char *zipname, const char *entryname, const void *ptr, unsigned len, int clevel) {
+    bool ok = false;
+    if( ptr )
+    for( zip *z = zip_open(zipname, "a+b"); z; zip_close(z), z = 0) {
+        ok = zip_append_mem(z, entryname, "", ptr, len, clevel);
+    }
+    return ok;
 }
 
 // -----------------------------------------------------------------------------
@@ -7390,7 +7459,12 @@ size_t dlmalloc_usable_size(void*); // __ANDROID_API__
 
 // xrealloc --------------------------------------------------------------------
 
+static threadlocal uint64_t xstats_current = 0, xstats_total = 0;
+
 void* xrealloc(void* oldptr, size_t size) {
+    // for stats
+    size_t oldsize = xsize(oldptr);
+
     void *ptr = SYS_REALLOC(oldptr, size);
     if( !ptr && size ) {
         PANIC("Not memory enough (trying to allocate %u bytes)", (unsigned)size);
@@ -7400,11 +7474,25 @@ void* xrealloc(void* oldptr, size_t size) {
         memset(ptr, 0xCD, size);
     }
 #endif
+
+    // for stats
+    if( oldptr ) {
+        xstats_current += (int64_t)size - (int64_t)oldsize;
+    } else {
+        xstats_current += size;
+    }
+    if( xstats_current > xstats_total ) {
+        xstats_total = xstats_current;
+    }
+
     return ptr;
 }
 size_t xsize(void* p) {
     if( p ) return SYS_MSIZE(p);
     return 0;
+}
+char *xstats(void) {
+    return va("%03u/%03uMB", (unsigned)xstats_current / 1024 / 1024, (unsigned)xstats_total / 1024 / 1024);
 }
 
 // stack -----------------------------------------------------------------------
@@ -8725,6 +8813,10 @@ int allocate_texture_unit() {
 }
 
 unsigned texture_update(texture_t *t, unsigned w, unsigned h, unsigned n, void *pixels, int flags) {
+    if( t && !t->id ) {
+        glGenTextures( 1, &t->id );
+        return texture_update(t, w, h, n, pixels, flags);
+    }
     ASSERT( t && t->id );
     ASSERT( n <= 4 );
     GLuint pixel_types[] = { GL_RED, GL_RED, GL_RG, GL_RGB, GL_RGBA, GL_R32F, GL_R32F, GL_RG32F, GL_RGB32F, GL_RGBA32F };
@@ -8870,8 +8962,28 @@ texture_t texture(const char *pathfile, int flags) {
 
 void texture_destroy( texture_t *t ) {
     if(t->filename && t->filename[0]) FREE(t->filename), t->filename = 0;
+    if(t->fbo) fbo_destroy(t->fbo), t->fbo = 0;
     if(t->id) glDeleteTextures(1, &t->id), t->id = 0;
     *t = (texture_t){0};
+}
+
+bool texture_rec_begin(texture_t *t) {
+    for( unsigned w = window_width(), h = window_height(); w*h ; ) {
+        // resize if needed
+        if( t->w != w || t->h != h ) {
+            // re-create texture, set texture parameters and content
+            texture_update(t, w, h, 4, NULL, TEXTURE_RGBA);
+            if(!t->fbo) t->fbo = fbo(t->id, 0, 0);
+        }
+        // bind fbo to texture
+        fbo_bind(t->fbo);
+        return true;
+    }
+    return false;
+
+}
+void texture_rec_end(texture_t *t) {
+    fbo_unbind();
 }
 
 // ktx texture loader
@@ -11512,11 +11624,15 @@ static bool        dd_use_line = 0;
 static bool        dd_ontop = 0;
 
 void ddraw_flush() {
+    ddraw_flush_projview(camera_get_active()->proj, camera_get_active()->view);
+}
+
+void ddraw_flush_projview(mat44 proj, mat44 view) {
     glEnable(GL_DEPTH_TEST);
     glActiveTexture(GL_TEXTURE0);
 
     mat44 mvp;
-    multiply44x2(mvp, camera_get_active()->proj, camera_get_active()->view); // MVP where M=id
+    multiply44x2(mvp, proj, view); // MVP where M=id
 
     glUseProgram(dd_program);
     glUniformMatrix4fv(glGetUniformLocation(dd_program, "u_MVP"), 1, GL_FALSE, mvp);
@@ -12272,6 +12388,8 @@ void ddraw_demo() {
 static camera_t *last_camera;
 
 camera_t camera() {
+    camera_t *old = last_camera;
+
     camera_t cam = {0};
     cam.speed = 1;
     cam.position = vec3(10,10,10);
@@ -12290,7 +12408,8 @@ camera_t camera() {
     // update proj & view
     camera_lookat(&cam,vec3(-5,0,-5));
 
-    last_camera = &cam;
+    last_camera = old;
+    *camera_get_active() = cam;
     return cam;
 }
 
@@ -12385,6 +12504,8 @@ void camera_fps(camera_t *cam, float yaw, float pitch) {
 }
 
 void camera_orbit( camera_t *cam, float yaw, float pitch, float inc_distance ) {
+    last_camera = cam;
+
     vec2 inc_mouse = vec2(yaw, pitch);
 
     // @todo: worth moving all these members into camera_t ?
@@ -12796,7 +12917,6 @@ int window_swap_lua(lua *L) {
     X(void, window_create, float, int ) \
     X(bool, window_swap ) \
     X(void, ddraw_grid, float ) \
-    X(void, ddraw_flush ) \
     X(bool, ui_begin, string, int ) \
     X(void, ui_end )
 
@@ -12851,7 +12971,7 @@ const char *app_path() { // should return absolute path always
     char *b = strrchr(buffer, '\\'); if(!b) b = buffer + strlen(buffer);
     char slash = (a < b ? *a : b < a ? *b : '/');
     snprintf(buffer, 1024, "%.*s%c", length - (int)(a < b ? b - a : a - b), buffer, slash), buffer;
-    if( strendi(buffer, "art\\tools\\tcc-win\\") ) { // fix tcc -g -run case. @fixme: fix on non art-tools custom pipeline folder
+    if( strendi(buffer, "editor\\tools\\tcc-win\\") ) { // fix tcc -g -run case. @fixme: fix on non art-tools custom pipeline folder
         strcat(buffer, "..\\..\\..\\");
     }
 #else // #elif is(linux)
@@ -13708,6 +13828,12 @@ void ui_create() {
 #define ICON_MAX 0xF2E0
 #define ICON_FILE_O "\xef\x80\x96" // U+f016
 #define ICON_BARS "\xef\x83\x89" // U+f0c9
+#define ICON_FOLDER_OPEN "\xef\x81\xbc"  // U+f07c
+#define ICON_PAUSE "\xef\x81\x8c"    // U+f04c
+#define ICON_PLAY "\xef\x81\x8b" // U+f04b
+#define ICON_STOP "\xef\x81\x8d" // U+f04d
+#define ICON_DATABASE "\xef\x87\x80" // U+f1c0
+#define ICON_CUBE "\xef\x86\xb2" // U+f1b2
 #define ICON_TEST_GLYPH ICON_FILE_O
 
         {struct nk_font_atlas *atlas;
@@ -13817,6 +13943,32 @@ void ui_separator_line() {
     nk_stroke_line(canvas, space.x+0,space.y+0,space.x+space.w,space.y+0, 3.0, nk_rgb(128,128,128));
 }
 
+NK_API nk_bool
+nk_menu_begin_text_styled(struct nk_context *ctx, const char *title, int len,
+    nk_flags align, struct nk_vec2 size, struct nk_style_button *style_button) //< @r-lyeh: added style_button param
+{
+    struct nk_window *win;
+    const struct nk_input *in;
+    struct nk_rect header;
+    int is_clicked = nk_false;
+    nk_flags state;
+
+    NK_ASSERT(ctx);
+    NK_ASSERT(ctx->current);
+    NK_ASSERT(ctx->current->layout);
+    if (!ctx || !ctx->current || !ctx->current->layout)
+        return 0;
+
+    win = ctx->current;
+    state = nk_widget(&header, ctx);
+    if (!state) return 0;
+    in = (state == NK_WIDGET_ROM || win->flags & NK_WINDOW_ROM) ? 0 : &ctx->input;
+    if (nk_do_button_text(&ctx->last_widget_state, &win->buffer, header,
+        title, len, align, NK_BUTTON_DEFAULT, style_button, in, ctx->style.font))
+        is_clicked = nk_true;
+    return nk_menu_begin(ctx, win, title, is_clicked, header, size);
+}
+
 static
 void ui_menu_render() {
     // clean up from past frame
@@ -13826,17 +13978,56 @@ void ui_menu_render() {
     // process menus
     if( nk_begin(ui_ctx, "Menu", nk_rect(0, 0, window_width(), 32), NK_WINDOW_NO_SCROLLBAR/*|NK_WINDOW_BACKGROUND*/)) {
         nk_menubar_begin(ui_ctx);
-        nk_layout_row_begin(ui_ctx, NK_STATIC, 25, array_count(ui_items));
 
+#if 0
+        nk_layout_row_dynamic(ui_ctx, 25/*h*/, array_count(ui_items));
+#else
+        // adjust size for all the next UI elements
+        {
+            const struct nk_style *style = &ui_ctx->style;
+            const struct nk_user_font *f = style->font;
+
+            nk_layout_row_template_begin(ui_ctx, 25/*h*/);
+            for(int i = 0; i < array_count(ui_items); ++i) {
+                char first_token[64];
+                sscanf(ui_items[i], "%[^,;|]", first_token);
+
+                float pixels_width = f->width(f->userdata, f->height, first_token, strlen(first_token));
+                pixels_width += ( style->window.header.label_padding.x + style->window.header.padding.x ) * 2;
+                if( pixels_width < 40 ) pixels_width = 40; // @fixme: hardcoded min-value 40w for a single icon glyph
+                nk_layout_row_template_push_static(ui_ctx, pixels_width);
+            }
+            nk_layout_row_template_end(ui_ctx);
+        }
+#endif
+
+        // display the UI elements
         for( int i = 0, end = array_count(ui_items); i < end; ++i ) {
-            char id[64]; sscanf(ui_items[i], "%[^,;|]", id);
+            array(char*) ids = strsplit(ui_items[i], ",;|");
 
-            nk_layout_row_push(ui_ctx, 45);
-            if (nk_menu_begin_label(ui_ctx, id, NK_TEXT_LEFT, nk_vec2(120, 200))) {
+            // transparent style
+            static struct nk_style_button transparent_style;
+            do_once transparent_style = ui_ctx->style.button;
+            do_once transparent_style.normal.data.color = nk_rgba(0,0,0,0);
+            do_once transparent_style.border_color = nk_rgba(0,0,0,0);
+            do_once transparent_style.active = transparent_style.normal;
+            do_once transparent_style.hover = transparent_style.normal;
+            do_once transparent_style.hover.data.color = nk_rgba(0,0,0,127);
+            transparent_style.text_alignment = NK_TEXT_ALIGN_CENTERED|NK_TEXT_ALIGN_MIDDLE; // array_count(ids) > 1 ? NK_TEXT_ALIGN_LEFT : NK_TEXT_ALIGN_CENTERED;
+
+            // single button
+            if( array_count(ids) == 1 ) {
+                if( nk_button_label_styled(ui_ctx, &transparent_style, ids[0]) )
+                    ui_results = vec2(i+1, 0+1);
+            }
+
+            // dropdown menu
+            if( array_count(ids) > 1 )
+            if( nk_menu_begin_text_styled(ui_ctx, ids[0], strlen(ids[0]), NK_TEXT_ALIGN_CENTERED|NK_TEXT_ALIGN_MIDDLE, nk_vec2(120, array_count(ids)* 32), &transparent_style) ) { // nk_menu_begin_label(ui_ctx, ids[0], NK_TEXT_LEFT, nk_vec2(120, array_count(ids)* 32)) ) {
                 nk_layout_row_dynamic(ui_ctx, 32, 1);
 
-                int j = 0;
-                for each_substring(ui_items[i] + strlen(id) + 1, ",;|", item) {
+                for( int j = 1; j < array_count(ids); ++j ) {
+                    char *item = ids[j];
                     if( *item == '-' ) {
                         while(*item == '-') ++item;
                         //nk_menu_item_label(ui_ctx, "---", NK_TEXT_LEFT);
@@ -13846,13 +14037,13 @@ void ui_menu_render() {
                     if( nk_menu_item_label(ui_ctx, item, NK_TEXT_LEFT) ) {
                         ui_results = vec2(i+1, j+1);
                     }
-                    ++j;
-                }
+                }                    
+
                 nk_menu_end(ui_ctx);
             }
         }
 
-        nk_layout_row_end(ui_ctx);
+        //nk_layout_row_end(ui_ctx);
         nk_menubar_end(ui_ctx);
     }
     nk_end(ui_ctx);
@@ -13904,7 +14095,8 @@ void ui_render() {
 
 // ----------------------------------------------------------------------------
 
-int ui_begin(const char *title, int flags) {
+static
+int ui_begin_panel_or_window_(const char *title, int flags, bool is_window) {
     if( window_width() <= 0 ) return 0;
     if( window_height() <= 0 ) return 0;
 
@@ -13918,6 +14110,7 @@ int ui_begin(const char *title, int flags) {
     for(int i = 0; title[i]; ++i) hash = (hash ^ title[i]) * mult;
     ui_hue = (hash & 0x3F) / (float)0x3F; ui_hue += !ui_hue;
 
+    int is_panel = !is_window;
 #if 0
     static int rows = 0;
     static hashmap(const char*,int) map, *init = 0;
@@ -13935,7 +14128,11 @@ int ui_begin(const char *title, int flags) {
     if( ui_menu_active() ) ++row; // add 1 to skip menu
 #endif
 
-    int window_flags = nk_window_is_active(ui_ctx, title) ? 0 : NK_WINDOW_MINIMIZED; //NK_MINIMIZED;
+    int is_active = nk_window_is_active(ui_ctx, title);
+
+    int window_flags = 0;
+    if( is_panel ) window_flags |= is_active ? 0 : NK_WINDOW_MINIMIZED; //NK_MINIMIZED;
+    else window_flags |= NK_WINDOW_CLOSABLE | NK_WINDOW_MINIMIZABLE;
     window_flags |= NK_WINDOW_BORDER;
     window_flags |= NK_WINDOW_SCALABLE;
     window_flags |= NK_WINDOW_MOVABLE;
@@ -13945,29 +14142,66 @@ int ui_begin(const char *title, int flags) {
 
 //  struct nk_style *s = &ui_ctx->style;
 //  nk_style_push_color(ui_ctx, &s->window.header.normal.data.color, nk_hsv_f(ui_hue,0.6,0.8));
-if( posx[row] > 0 ) window_flags &= ~NK_WINDOW_MINIMIZED;
 
-    int ui_open;
-    vec2 offset = vec2(0, 32*row);
+// if( is_window ) window_flags &= ~(NK_WINDOW_MINIMIZED | NK_WINDOW_MINIMIZABLE); // modal
+if( is_panel ) if( posx[row] > 0 ) window_flags &= ~NK_WINDOW_MINIMIZED;
+
+    vec2 offset = vec2(is_panel ? 0 : 32*row, 32*row);
     float w = window_width() / 3.33, h = window_height() - offset.y * 2;
     if( nk_begin(ui_ctx, title, nk_rect(offset.x, offset.y, offset.x+w, offset.y+h), window_flags) ) {
 
 posx[row] = nk_window_get_position(ui_ctx).x;
 
-        ui_open = 1;
+        return 1;
     } else {
-        ui_end();
-        ui_open = 0;
+if(is_panel)        ui_end();
+else ui_window_end();
+        return 0;
     }
-
-    return ui_open;
 }
 
+static int ui_has_window = 0;
+static int ui_has_menubar = 0;
+int ui_window(const char *title, int flags) {
+    ui_has_window = 1;
+    return ui_begin_panel_or_window_(title, flags, true);
+}
+int ui_window_end() {
+    if(ui_has_menubar) nk_menubar_end(ui_ctx), ui_has_menubar = 0;
+    nk_end(ui_ctx), ui_has_window = 0;
+    return 0;
+}
+
+int ui_begin(const char *title, int flags) {
+    if( ui_has_window ) {
+        // transparent style
+        static struct nk_style_button transparent_style;
+        do_once transparent_style = ui_ctx->style.button;
+        do_once transparent_style.normal.data.color = nk_rgba(0,0,0,0);
+        do_once transparent_style.border_color = nk_rgba(0,0,0,0);
+        do_once transparent_style.active = transparent_style.normal;
+        do_once transparent_style.hover = transparent_style.normal;
+        do_once transparent_style.hover.data.color = nk_rgba(0,0,0,127);
+        transparent_style.text_alignment = NK_TEXT_ALIGN_CENTERED|NK_TEXT_ALIGN_MIDDLE;
+
+        if(!ui_has_menubar) nk_menubar_begin(ui_ctx);
+        if(!ui_has_menubar) nk_layout_row_begin(ui_ctx, NK_STATIC, 25, 4);
+        if(!ui_has_menubar) nk_layout_row_push(ui_ctx, 70);
+        ui_has_menubar = 1;
+
+        return nk_menu_begin_text_styled(ui_ctx, title, strlen(title), NK_TEXT_ALIGN_CENTERED|NK_TEXT_ALIGN_MIDDLE, nk_vec2(220, 200), &transparent_style);    
+    }
+
+    return ui_begin_panel_or_window_(title, flags, false);
+}
 void ui_end() {
+    if( ui_has_window ) {
+        nk_menu_end(ui_ctx);
+        return;
+    }
     nk_end(ui_ctx);
 //  nk_style_pop_color(ui_ctx);
 }
-
 
 int ui_button(const char *s) {
     nk_layout_row_dynamic(ui_ctx, 0, 1);
@@ -14414,9 +14648,6 @@ void ui_demo() {
     static bool show_dialog = false;
     static uint8_t bitmask = 0x55;
 
-    // if( ui_menu("File;Open;Save;Quit") ) printf("menu option %d\n", ui_item());
-    // if( ui_menu("Edit;Cut;Copy;Paste") ) printf("menu option %d\n", ui_item());
-
     if( ui_begin("UI", 0)) {
         if( ui_label("my label")) {}
         if( ui_label("my label with tooltip@built on " __DATE__ " " __TIME__)) {}
@@ -14477,6 +14708,64 @@ void ui_demo() {
 
         ui_end();
     }
+
+#if 0
+    if( ui_window("Window #3", 0) ) {
+        ui_label("label #3");
+        ui_window_end();
+    }
+
+    if( ui_window("Window #2", 0) ) {
+        if( ui_begin("panel #2", 0) ) {
+            ui_label("label #2");
+            ui_end();
+        }
+        ui_window_end();
+    }
+
+    if( ui_window("Window #1", 0) ) {
+        if( ui_begin("panel #1a", 0) ) {
+            if( ui_bool("my bool", &boolean) ) puts("bool changed");
+            if( ui_int("my int", &integer) ) puts("int changed");
+            if( ui_float("my float", &floating) ) puts("float changed");
+            if( ui_string("my string", string, 64) ) puts("string changed");
+            if( ui_separator() ) {}
+            if( ui_slider("my slider", &slider)) puts("slider changed");
+            if( ui_slider2("my slider 2", &slider2, va("%.2f", slider2))) puts("slider2 changed");
+            ui_end();
+        }
+        if( ui_begin("panel #1b", 0) ) {
+            if( ui_bool("my bool", &boolean) ) puts("bool changed");
+            if( ui_int("my int", &integer) ) puts("int changed");
+            if( ui_float("my float", &floating) ) puts("float changed");
+            if( ui_string("my string", string, 64) ) puts("string changed");
+            if( ui_separator() ) {}
+            if( ui_slider("my slider", &slider)) puts("slider changed");
+            if( ui_slider2("my slider 2", &slider2, va("%.2f", slider2))) puts("slider2 changed");
+            ui_end();
+        }
+
+        const char *title = "Window #1";
+        struct nk_window *win = nk_window_find(ui_ctx, title);
+        if( win ) {
+            struct nk_rect bounds = win->bounds; bounds.y += 65; bounds.h -= 65; // exclude title bar (~32) + menu bounds (~25)
+
+            static texture_t tx = {0};
+            if( texture_rec_begin(&tx, bounds.w, bounds.h )) {
+                    glClearColor(1, 0, 1, 1);
+                    glClear(GL_COLOR_BUFFER_BIT);
+                texture_rec_end(&tx);
+            }
+
+            struct nk_image image = nk_image_id((int)tx.id); //(int)4);
+            struct nk_command_buffer* buffer = nk_window_get_canvas(ui_ctx);
+            nk_draw_image(buffer, bounds, &image, nk_white);
+        }
+
+        ui_window_end();
+    }
+#endif
+
 }
 #line 0
 
@@ -14637,13 +14926,11 @@ static FILE* rec_ffmpeg;
 static FILE* rec_mpeg1;
 
 void videorec_stop(void) {
-    if( rec_ffmpeg ) {
-        if(rec_ffmpeg) ifdef(win32, _pclose, pclose)(rec_ffmpeg);
-        rec_ffmpeg = 0;
+    if(rec_ffmpeg) ifdef(win32, _pclose, pclose)(rec_ffmpeg);
+    rec_ffmpeg = 0;
 
-        if(rec_mpeg1) fclose(rec_mpeg1);
-        rec_mpeg1 = 0;
-    }
+    if(rec_mpeg1) fclose(rec_mpeg1);
+    rec_mpeg1 = 0;
 }
 
 void videorec_start(const char *outfile_mp4) {
@@ -14653,7 +14940,9 @@ void videorec_start(const char *outfile_mp4) {
     if( !rec_ffmpeg ) {
         extern const char *TOOLS;
 
-        char *cmd = va("%s/ffmpeg%s "
+        char *tools_native_path = strswap( va("%s/", TOOLS), ifdef(win32, "/", "\\"), ifdef(win32, "\\", "/") );
+
+        char *cmd = va("%sffmpeg%s "
                     "-hide_banner -loglevel error " // less verbose
                     "-r 60 -f rawvideo -pix_fmt bgr24 -s %dx%d " // raw BGR WxH-60Hz frames
                     // "-framerate 30 " // interpolating new video output frames from the source frames
@@ -14667,14 +14956,15 @@ void videorec_start(const char *outfile_mp4) {
                     "-pix_fmt yuv420p "  // compatible with Windows Media Player and Quicktime
                     "-vf vflip "         // flip Y
 //                  "-vf \"pad=ceil(iw/2)*2:ceil(ih/2)*2\" "
-                    "-y \"%s\"", TOOLS, ifdef(win32, ".exe", ifdef(osx, ".osx",".linux")), window_width(), window_height(), outfile_mp4);    // overwrite output file
+                    "-y \"%s\"", tools_native_path, ifdef(win32, ".exe", ifdef(osx, ".osx",".linux")), 
+                    window_width(), window_height(), outfile_mp4);    // overwrite output file
 
         // -rtbufsize 100M (https://trac.ffmpeg.org/wiki/DirectShow#BufferingLatency) Prevent some frames in the buffer from being dropped.
         // -probesize 10M (https://www.ffmpeg.org/ffmpeg-formats.html#Format-Options) Set probing size in bytes, i.e. the size of the data to analyze to get stream information. A higher value will enable detecting more information in case it is dispersed into the stream, but will increase latency. Must be an integer not lesser than 32. It is 5000000 by default.
         // -c:v libx264 (https://www.ffmpeg.org/ffmpeg.html#Main-options) Select an encoder (when used before an output file) or a decoder (when used before an input file) for one or more streams. codec is the name of a decoder/encoder or a special value copy (output only) to indicate that the stream is not to be re-encoded.
 
         // open pipe to ffmpeg's stdin in binary write mode
-        rec_ffmpeg = ifdef(win32, _popen, popen)(cmd, "wb");
+        rec_ffmpeg = ifdef(win32, _popen(cmd, "wb"), popen(cmd, "w"));
     }
 
     // fallback: built-in mpeg1 encoder
@@ -14866,6 +15156,8 @@ glDebugEnable();
 
     glfwPollEvents();
 
+    // camera inits for fwk_pre_init_subsystems() -> ddraw_flush() -> get_active_camera()
+    // static camera_t cam = {0}; id44(cam.view); id44(cam.proj); extern camera_t *last_camera; last_camera = &cam;
     fwk_pre_init_subsystems();
 
     // display a progress bar meanwhile cooker is working in the background
@@ -15823,7 +16115,8 @@ int gizmo(vec3 *pos, vec3 *rot, vec3 *sca) {
 
     ddraw_ontop(1);
 
-    vec3 mouse = ui_active() ? vec3(0,0,0) : vec3(input(MOUSE_X),input(MOUSE_Y),input_down(MOUSE_L)); // x,y,l
+    int enabled = !ui_active() && !ui_hover();
+    vec3 mouse = enabled ? vec3(input(MOUSE_X),input(MOUSE_Y),input_down(MOUSE_L)) : vec3(0,0,0); // x,y,l
     vec3 from = camera_get_active()->position;
     vec3 to = editor_pick(mouse.x, mouse.y);
     ray r = ray(from, to);
@@ -15869,7 +16162,7 @@ int gizmo(vec3 *pos, vec3 *rot, vec3 *sca) {
             else if( !gizmo__active ) { ddraw_color(WHITE); ddraw_circle(*pos, vec3(X,Y,Z), 1); } \
             if( !gizmo__active && hit_arrow && mouse.z ) src2 = vec2(mouse.x,mouse.y), gizmo__active = hover; \
             if( (!gizmo__active && hover == (X*4+Y*2+Z)) || gizmo__active == (X*4+Y*2+Z) ) { ddraw_color( COLOR ); ( 1 ? ddraw_line_thin : ddraw_line_dashed)(axis.a, axis.b); } \
-            if( gizmo__active && gizmo__active == (X*4+Y*2+Z) && hit_ground && !ui_hover() ) { \
+            if( gizmo__active && gizmo__active == (X*4+Y*2+Z) && hit_ground && enabled ) { \
                 int component = (Y*1+X*2+Z*3)-1; /*pitch,yaw,roll*/ \
                 float mag = len2(sub2(vec2(mouse.x, mouse.y), src2)); \
                 float magx = (mouse.x - src2.x) * (mouse.x - src2.x); \
@@ -15880,11 +16173,11 @@ int gizmo(vec3 *pos, vec3 *rot, vec3 *sca) {
                 src2 = vec2(mouse.x, mouse.y); \
                 \
             } \
-            gizmo__active *= !!input(MOUSE_L); \
+            gizmo__active *= enabled && !!input(MOUSE_L); \
         } while(0)
 
     int modified = 0;
-    if(input_down(KEY_SPACE)) gizmo__active = 0, gizmo__mode = (gizmo__mode + 1) % 3;
+    if(enabled && input_down(KEY_SPACE)) gizmo__active = 0, gizmo__mode = (gizmo__mode + 1) % 3;
     if(gizmo__mode == 0) gizmo_translate(1,0,0, RED);
     if(gizmo__mode == 0) gizmo_translate(0,1,0, GREEN);
     if(gizmo__mode == 0) gizmo_translate(0,0,1, BLUE);
@@ -15986,7 +16279,13 @@ void editor() {
     // if( input_repeat(KEY_F1, 300)) {}
     // etc...
 
-    if( ui_menu(ICON_BARS "File;New;" ICON_TEST_GLYPH "Open;-Save;-Quit") ) printf("Selected File.%d\n", ui_item());
+    if( ui_menu( ICON_BARS ";New Project;" ICON_TEST_GLYPH "Open Project;-Save Project;Settings;-Quit") ) printf("Selected File.%d\n", ui_item());
+        if( ui_item() == 6 ) exit(0);
+        if( ui_menu( ICON_FOLDER_OPEN ));
+        if( ui_menu( window_has_pause() ? ICON_PLAY : ICON_PAUSE )) window_pause( window_has_pause() ^ 1 );
+        if( ui_menu( ICON_STOP )) window_pause(1);
+    if( ui_menu( va(ICON_DATABASE " %s", xstats() ))); // 012/136MB
+    if( ui_menu( va(ICON_CUBE " %d", 0 ))); // map_count(offline) )));
     if( ui_menu("Edit;Cut;Copy;Paste") ) printf("Selected Edit.%d\n", ui_item());
 
     if( editor_mode ) editor_update();
