@@ -376,5 +376,5 @@ API char *   fx_name(int pass);
 // -----------------------------------------------------------------------------
 // utils
 
-API void*    screenshot(unsigned components); // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA
-API void*    screenshot_async(unsigned components); // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA
+API void*    screenshot(int components); // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA
+API void*    screenshot_async(int components); // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA

@@ -219,6 +219,7 @@ int audio_init( int flags ) {
     // you care about. If the context cannot be initialized for any of the specified backends ma_context_init()
     // will fail.
     ma_backend backends[] = {
+#if 1
         ma_backend_wasapi, // Higest priority.
         ma_backend_dsound,
         ma_backend_winmm,
@@ -227,13 +228,33 @@ int audio_init( int flags ) {
         ma_backend_oss,
         ma_backend_jack,
         ma_backend_opensl,
+        //ma_backend_webaudio,
         //ma_backend_openal,
         //ma_backend_sdl,
         ma_backend_null    // Lowest priority.
+#else
+        // Highest priority
+        ma_backend_wasapi,      // WASAPI      |  Windows Vista+
+        ma_backend_dsound,      // DirectSound |  Windows XP+
+        ma_backend_winmm,       // WinMM       |  Windows XP+ (may work on older versions, but untested)
+        ma_backend_coreaudio,   // Core Audio  |  macOS, iOS 
+        ma_backend_pulseaudio,  // PulseAudio  |  Cross Platform (disabled on Windows, BSD and Android)
+        ma_backend_alsa,        // ALSA        |  Linux 
+        ma_backend_oss,         // OSS         |  FreeBSD 
+        ma_backend_jack,        // JACK        |  Cross Platform (disabled on BSD and Android)
+        ma_backend_opensl,      // OpenSL ES   |  Android (API level 16+)
+        ma_backend_webaudio,    // Web Audio   |  Web (via Emscripten)
+        ma_backend_sndio,       // sndio       |  OpenBSD 
+        ma_backend_audio4,      // audio(4)    |  NetBSD, OpenBSD 
+        ma_backend_aaudio,      // AAudio      |  Android 8+
+        ma_backend_custom,      // Custom      |  Cross Platform 
+        ma_backend_null,        // Null        |  Cross Platform (not used on Web)
+        // Lowest priority
+#endif
     };
 
     if (ma_context_init(backends, countof(backends), NULL, &context) != MA_SUCCESS) {
-        printf("Failed to initialize context.");
+        PRINTF("%s\n", "Failed to initialize audio context.");
         return false;
     }
 

@@ -35,6 +35,15 @@ API bool         file_move(const char *src, const char *dst);
 API FILE*        file_temp();
 API char*        file_tempname();
 
+// storage (emscripten only)
+
+// Mounts local storage folder for writing. Useful for Emscripten only. @path_folder: "/save" for example
+// Reads local storage to memory. Usually call it one time only, after mount. Useful for Emscripten only.
+// Writes memory contents to local storage. Usually call it after all fclose
+API void         storage_mount(const char* folder);
+API void         storage_read();
+API void         storage_flush();
+
 // compressed zipfiles
 
 API array(char*) zipfile_list(const char *zipname);

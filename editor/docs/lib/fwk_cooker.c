@@ -282,7 +282,7 @@ cook_script_t cook_script(const char *rules, const char *infile, const char *out
                 // tools going wrong for any reason? cant compile them maybe?
                 // small hack to use win32 pipeline tools instead
                 char *joint = strjoin(lines, " && wine " );
-                cs.script = va("wine %s", TOOLS, joint);
+                cs.script = va("wine %s", /*TOOLS,*/ joint);
             } else {
                 char *joint = strjoin(lines, " && " );
                 cs.script = va("export LD_LIBRARY_PATH=%s && %s", TOOLS, joint);
@@ -633,6 +633,7 @@ int cooker_progress() {
 
 int cooker_jobs() {
     int num_jobs = optioni("--with-jobs", ifdef(tcc, 1, cpu_cores())), max_jobs = countof(jobs);
+    ifdef(ems, num_jobs = 0);
     return clampi(num_jobs, 0, max_jobs);
 }
 
@@ -670,7 +671,7 @@ void cooker_config( const char *art_path, const char *tools_path, const char *fw
 
 #ifdef FWK_COOKER_STANDALONE
 int main(int argc, char **argv) {
-    double timer = -clock() / CLOCKS_PER_SEC;
+    clock_t timer = clock();
 
     cooker_config(NULL, NULL, NULL);
 
@@ -686,6 +687,6 @@ int main(int argc, char **argv) {
         cooker_stop();
     }
 
-    printf("Ok, %5.2fs.", timer += clock() / CLOCKS_PER_SEC);
+    printf("Ok, %5.2fs.\n", (clock() - timer) / (double)CLOCKS_PER_SEC);
 }
 #endif

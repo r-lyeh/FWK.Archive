@@ -120,7 +120,7 @@ int main() {
             skybox_push_state(&sky, cam.proj, cam.view);
             glEnable(GL_DEPTH_TEST);
             mesh_render(&sky.geometry);
-            skybox_pop_state(&sky);
+            skybox_pop_state();
         }
 
         profile("Editor") {

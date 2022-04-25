@@ -491,7 +491,7 @@ int main(void) {
                     ddraw_color(RED);
                 else ddraw_color(WHITE);
 
-                ddraw_pyramid(vec3(x,y-0.5f,z), 1/*vec3(x,y+1,z)*/, 0.8f);
+                ddraw_pyramid(vec3(x,y-0.5f,z), 1/*vec3(x,y+1,z)*/, 1/*0.8f*/);
                 ddraw_diamond(vec3(-20.5f,-0.5f,-15.5f), vec3(-20.5f,1.0f,-15.5f), 0.5f);
 
                 poly_free(&dmd);

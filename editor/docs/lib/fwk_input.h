@@ -53,7 +53,7 @@ API void        input_demo();
 API void        input_send( int vk ); // @todo
 API void*       input_save_state( int id, int *size); // @todo
 API bool        input_load_state( int id, void *ptr, int size); // @todo
-
+API char        input_keychar(unsigned code); // Converts keyboard code to its latin char (if any)
 
 // --
 

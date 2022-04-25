@@ -1,22 +1,26 @@
 // ----------------------------------------------------------------------------
 
-//static int threadlocal _thread_id;
-//#define PRINTF(...)      (printf("%03d %07.3fs|%-16s|", (((unsigned)(uintptr_t)&_thread_id)>>8) % 1000, time_ss(), __FUNCTION__), printf(__VA_ARGS__), printf("%s", 1[#__VA_ARGS__] == '!' ? callstack(+48) : "")) // verbose logger
+static void fwk_pre_init() {
+    glfwPollEvents();
 
-static void fwk_pre_init_subsystems() {
     profile_init();
     ddraw_init();
     sprite_init();
 
+    storage_mount("save/"); // for ems
+    storage_read(); // for ems
     // window_swap();
 
     script_init();
     audio_init(0);
 }
-static int fwk_unlock_pre_swap_events = 0;
-static void fwk_post_init_subsystems() {
+static void fwk_post_init(float refresh_rate) {
     // cooker cleanup
     cooker_stop();
+
+    // display window
+    glfwShowWindow(window);
+    glfwGetFramebufferSize(window, &w, &h); //glfwGetWindowSize(window, &w, &h);
 
     // mount virtual filesystems later (lower priority)
     bool mounted = 0;
@@ -26,46 +30,26 @@ static void fwk_post_init_subsystems() {
     // mount physical filesystems first (higher priority)
     if(!mounted) vfs_mount(ART);
 
+    // config nuklear ui
+    nk_config_custom_fonts();
+    nk_config_custom_style();
+    
     // unlock preswap events
-    fwk_unlock_pre_swap_events = 1;
+    unlock_preswap_events = 1;
 
     // init more subsystems
+#ifndef __EMSCRIPTEN__ // @fixme ems -> shaders
     scene_push();           // create an empty scene by default
+#endif
     input_init();
     network_init();
     boot_time = -time_ss(); // measure boot time, this is continued in window_stats()
 
     // clean any errno setup by cooking stage
     errno = 0;
-}
-static void fwk_pre_swap_subsystems() {
-    if( fwk_unlock_pre_swap_events ) {
-        // flush all batched sprites before swap
-        sprite_flush();
 
-        // queue ui drawcalls for profiler
-        // hack: skip first frame, because of conflicts with ui_menu & ui_begin auto-row order
-        static int once = 0; if(once) profile_render(); once = 1;
-
-        // flush all debugdraw calls before swap
-        dd_ontop = 0;
-        ddraw_flush();
-        glClear(GL_DEPTH_BUFFER_BIT);
-        dd_ontop = 1;
-        ddraw_flush();
-
-        font_goto(0,0);
-
-        // flush all batched ui before swap (creates single dummy if no batches are found)
-        ui_create();
-        ui_render();
-    }
-}
-
-static
-void fwk_error_callback(int error, const char *description) {
-    if( is(osx) && error == 65544 ) return; // whitelisted
-    PANIC("%s (error %x)", description, error);
+    hz = refresh_rate;
+    // t = glfwGetTime();
 }
 
 #if 0
@@ -99,6 +83,11 @@ void fwk_install_signal_handler() {
 */
 #endif
 
+static
+void fwk_quit(void) {
+    storage_flush();
+}
+
 void fwk_init() {
     do_once {
         // printf("-O%d | %s %s\n", O_FLAG, __DATE__, __TIME__); // display optimization flag
@@ -106,13 +95,11 @@ void fwk_init() {
         // signal handler
         // fwk_install_signal_handler();
 
-        // init glfw
-        glfwSetErrorCallback(fwk_error_callback);
-        glfwInit();
-        atexit(glfwTerminate);
-
         // init panic handler
         panic_oom_reserve = SYS_REALLOC(panic_oom_reserve, 1<<20); // 1MiB
+
+        // init glfw
+        glfw_init();
 
         // enable ansi console
         tty_init();
@@ -130,6 +117,8 @@ void fwk_init() {
         if( file_directory(TOOLS) && cooker_jobs() ) {
             cooker_start( "**", 0|COOKER_ASYNC );
         }
+
+        atexit(fwk_quit);
     }
 }
 

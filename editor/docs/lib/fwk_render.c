@@ -835,8 +835,31 @@ unsigned shader(const char *vs, const char *fs, const char *attribs, const char 
     //char *vs = vfs_read(file_vs); if(!vs) vs = (char*)file_vs;
     //char *fs = vfs_read(file_fs); if(!fs) fs = (char*)file_fs;
 
-    vs = vs[0] == '#' && vs[1] == 'v' ? vs : va("#version 150\n%s", vs);
-    fs = fs[0] == '#' && fs[1] == 'v' ? fs : va("#version 150\n%s", fs);
+    const char *glsl_version = ifdef(ems, "300 es", "150");
+
+    vs = vs[0] == '#' && vs[1] == 'v' ? vs : va("#version %s\n%s", glsl_version, vs ? vs : "");
+    fs = fs[0] == '#' && fs[1] == 'v' ? fs : va("#version %s\n%s", glsl_version, fs ? fs : "");
+
+#ifdef __EMSCRIPTEN__
+    {
+        char *vs_ = REALLOC( 0, strlen(vs) + 512 ); strcpy(vs_, vs);
+        char *fs_ = REALLOC( 0, strlen(fs) + 512 ); strcpy(fs_, fs);
+        //strrepl(&vs_, "\nin ", "\nattribute ");
+        //strrepl(&vs_, "\nout ", "\nvarying ");
+        strrepl(&fs_, "#version 300 es\n", "#version 300 es\nprecision mediump float;\n");
+        //strrepl(&fs_, "\nin ", "\nattribute ");
+        //strrepl(&fs_, "\nout ", "\nvarying ");
+        //strrepl(&fs_, "FRAGCOLOR", "gl_FragColor");
+        //strrepl(&fs_, "fragcolor", "gl_FragColor" );
+        //strrepl(&fs_, "fragColor", "gl_FragColor" );
+        #if 0
+        //strrepl(&fs_, "outcolor", "gl_FragColor" );
+        //strrepl(&fs_, "outColor", "gl_FragColor" );
+        #endif
+        //strrepl(&fs_, "out vec4 gl_FragColor", "//out vec4 outcolor");
+        vs = vs_; fs = fs_;
+    }
+#endif
 
     GLuint vert = shader_compile(GL_VERTEX_SHADER, vs);
     GLuint frag = shader_compile(GL_FRAGMENT_SHADER, fs);
@@ -860,8 +883,10 @@ unsigned shader(const char *vs, const char *fs, const char *attribs, const char 
             PRINTF("Shader.attribute[%d]=%s\n", i, attrib);
         }
 
+#ifndef __EMSCRIPTEN__ // @fixme
         if(fragcolor)
         glBindFragDataLocation(program, 0, fragcolor);
+#endif
 
         glLinkProgram(program);
 
@@ -1009,7 +1034,7 @@ image_t image_from_mem(const void *data, int size, int flags) {
 }
 
 image_t image(const char *pathfile, int flags) {
-    const char *fname = vfs_find(pathfile);
+    //const char *fname = vfs_find(pathfile);
     // if( !fname[0] ) fname = vfs_find(va("%s.png",pathfile)); // needed?
     // if( !fname[0] ) fname = vfs_find(va("%s.jpg",pathfile)); // needed?
     // if( !fname[0] ) fname = vfs_find(va("%s.tga",pathfile)); // needed?
@@ -1019,7 +1044,7 @@ image_t image(const char *pathfile, int flags) {
     // if( !fname[0] ) fname = vfs_find(va("%s.tga.jpg",pathfile)); // needed?
 
     int size = 0;
-    char *data = vfs_load(fname, &size);
+    char *data = vfs_load(pathfile, &size);
     return image_from_mem(data, size, flags);
 }
 
@@ -1548,10 +1573,10 @@ texture_t texture_compressed_from_mem(const void *data, int len, unsigned flags)
 }
 
 texture_t texture_compressed(const char *pathfile, unsigned flags) {
-    const char *fname = vfs_find(pathfile);
+    //const char *fname = vfs_find(pathfile);
 
     int size = 0;
-    char *data = vfs_load(fname, &size);
+    char *data = vfs_load(pathfile, &size);
     return texture_compressed_from_mem(data, size, flags);
 }
 
@@ -1581,8 +1606,14 @@ shadowmap_t shadowmap(int texture_width) { // = 1024
 
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, s.texture, 0);
 
+#if is(ems)
+    GLenum nones[] = { GL_NONE };
+    glDrawBuffers(1, nones);
+    glReadBuffer(GL_NONE);
+#else
     glDrawBuffer(GL_NONE);
     glReadBuffer(GL_NONE);
+#endif
 
     glBindFramebuffer(GL_FRAMEBUFFER, s.saved_fb);
     return s;
@@ -2075,10 +2106,10 @@ cubemap_t cubemap6( const image_t images[6], int flags ) {
         c.sh[s] = scale3(c.sh[s], 32.f / samples);
     }
 
-    if( glGenerateMipmap )
+    // if( glGenerateMipmap )
     glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, glGenerateMipmap ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, /* glGenerateMipmap ?*/ GL_LINEAR_MIPMAP_LINEAR /*: GL_LINEAR*/);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
@@ -2287,7 +2318,7 @@ void mesh_destroy(mesh_t *m) {
 // -----------------------------------------------------------------------------
 // screenshots
 
-void* screenshot( unsigned n ) { // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA
+void* screenshot( int n ) { // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA
     // sync, 10 ms -- pixel perfect
 
     int w = window_width(), h = window_height();
@@ -2303,7 +2334,10 @@ void* screenshot( unsigned n ) { // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA
     return pixels;
 }
 
-void* screenshot_async( unsigned n ) { // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA
+void* screenshot_async( int n ) { // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA
+#ifdef __EMSCRIPTEN__
+    return screenshot(n); // no glMapBuffer() on emscripten
+#else
     // async, 0 ms -- @fixme: MSAA can cause some artifacts with PBOs: either use glDisable(GL_MULTISAMPLE) when recording or do not create window with WINDOW_MSAAx options at all.
 
     int w = window_width(), h = window_height();
@@ -2339,6 +2373,7 @@ void* screenshot_async( unsigned n ) { // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA
 
     bound = (bound + 1) % NUM_PBOS;
     return pixels;
+#endif
 }
 
 // -----------------------------------------------------------------------------
@@ -2389,8 +2424,14 @@ unsigned fbo(unsigned color_texture_id, unsigned depth_texture_id, int flags) {
     }
 #endif
 
+#if is(ems)
+    GLenum nones[] = { GL_NONE };
+    if(flags) glDrawBuffers(1, nones);
+    if(flags) glReadBuffer(GL_NONE);
+#else
     if(flags) glDrawBuffer(GL_NONE);
     if(flags) glReadBuffer(GL_NONE);
+#endif
 
 #if 1
     GLenum result = glCheckFramebufferStatus(GL_FRAMEBUFFER);

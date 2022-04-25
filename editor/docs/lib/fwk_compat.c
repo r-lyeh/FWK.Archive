@@ -19,6 +19,10 @@ const struct in6_addr in6addr_loopback;   /* ::1 */
 #include <sys/ioctl.h>
 #endif
 
+#if is(ems)
+//#define unlink(x) ((void)(x), 0)
+#endif
+
 #ifdef _WIN32
 //#define alloca        _alloca
 #define atoi64        _atoi64
@@ -108,6 +112,5 @@ const char *pathfile_from_handle(FILE *fp) {
 // -----------------------------------------------------------------------------
 
 void fwk_init();
-static void fwk_pre_init_subsystems();
-static void fwk_post_init_subsystems();
-static void fwk_pre_swap_subsystems();
+static void fwk_pre_init();
+static void fwk_post_init(float refresh_rate);

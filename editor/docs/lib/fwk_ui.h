@@ -11,6 +11,7 @@ API int    ui_short(const char *label, short *value);
 API int    ui_float(const char *label, float *value);
 API int    ui_float2(const char *label, float value[2]);
 API int    ui_float3(const char *label, float value[3]);
+API int    ui_float4(const char *label, float value[4]);
 API int    ui_string(const char *label, char *buffer, int buflen);
 API int    ui_color3(const char *label, float *color3); //[0..255]
 API int    ui_color3f(const char *label, float *color3); //[0..1]

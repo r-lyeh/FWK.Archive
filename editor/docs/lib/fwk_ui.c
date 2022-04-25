@@ -4,6 +4,106 @@
 static struct nk_context *ui_ctx;
 static struct nk_glfw ui_glfw = {0};
 
+static void nk_config_custom_fonts() {
+    /* Load Fonts: if none of these are loaded a default font will be used  */
+    /* Load Cursor: if you uncomment cursor loading please hide the cursor */
+    //{struct nk_font_atlas *atlas;
+
+    #define ICON_FONTNAME "fontawesome-webfont.ttf"
+    #define ICON_FONTSIZE 15
+    #define ICON_MIN 0xF000
+    #define ICON_MAX 0xF2E0
+    #define ICON_FILE_O "\xef\x80\x96" // U+f016
+    #define ICON_BARS "\xef\x83\x89" // U+f0c9
+    #define ICON_FOLDER_OPEN "\xef\x81\xbc"  // U+f07c
+    #define ICON_PAUSE "\xef\x81\x8c"    // U+f04c
+    #define ICON_PLAY "\xef\x81\x8b" // U+f04b
+    #define ICON_STOP "\xef\x81\x8d" // U+f04d
+    #define ICON_DATABASE "\xef\x87\x80" // U+f1c0
+    #define ICON_CUBE "\xef\x86\xb2" // U+f1b2
+    #define ICON_TEST_GLYPH ICON_FILE_O
+
+    struct nk_font_atlas *atlas;
+    struct nk_font_config cfg = nk_font_config(ICON_FONTSIZE+1);
+    static const nk_rune icon_range[] = {ICON_MIN, ICON_MAX, 0};
+    cfg.range = icon_range; // nk_font_default_glyph_ranges();
+    cfg.merge_mode = 1;
+
+    cfg.spacing.x += 8.f;
+//    cfg.spacing.y += 0.f;
+//    cfg.font->ascent ++;
+//    cfg.font->height += 4;
+
+//    cfg.oversample_h = 1;
+//    cfg.oversample_v = 1;
+
+    struct nk_font *font = NULL;
+    nk_glfw3_font_stash_begin(&ui_glfw, &atlas); // nk_sdl_font_stash_begin(&atlas);
+#if 0 // is(win32)
+    struct nk_font *arial = nk_font_atlas_add_from_file(atlas, va("%s/fonts/arial.ttf",getenv("windir")), 15.f, 0); font = arial ? arial : font;
+#else
+    struct nk_font *roboto = nk_font_atlas_add_from_memory(atlas, vfs_read("Carlito-Regular.ttf"), vfs_size("Carlito-Regular.ttf"), 14.5f, 0); font = roboto ? roboto : font;
+#endif
+    //struct nk_font *droid = nk_font_atlas_add_from_file(atlas, "nuklear/extra_font/DroidSans.ttf", 14, 0); font = droid ? droid : font;
+    struct nk_font *icons = nk_font_atlas_add_from_memory(atlas, vfs_read(ICON_FONTNAME), vfs_size(ICON_FONTNAME), ICON_FONTSIZE, &cfg);
+    nk_glfw3_font_stash_end(&ui_glfw); // nk_sdl_font_stash_end();
+    /* nk_style_load_all_cursors(ctx, atlas->cursors); glfwSetInputMode(win, GLFW_CURSOR, GLFW_CURSOR_HIDDEN); */
+    if(font) nk_style_set_font(ui_ctx, &font->handle);
+}
+
+static void nk_config_custom_style() {
+    nk_style_default(ui_ctx);
+    struct nk_color blue_gray = nk_rgba(53, 88, 156, 255);
+    struct nk_color washed_cyan = nk_rgb_f(0.35,0.6,0.8);
+    struct nk_color vivid_cyan = nk_rgb_f(0.0,0.75,1.0);
+    struct nk_color main_color = blue_gray;
+    struct nk_color hover_color = washed_cyan;
+    struct nk_color lit_color = vivid_cyan;
+    struct nk_color table[NK_COLOR_COUNT] = {0};
+    table[NK_COLOR_TEXT] = nk_rgba(210, 210, 210, 255);
+    table[NK_COLOR_WINDOW] = nk_rgba(42, 42, 42, 215);
+    table[NK_COLOR_HEADER] = nk_rgba(51, 51, 56, 220);
+    table[NK_COLOR_BORDER] = nk_rgba(46, 46, 46, 255);
+    table[NK_COLOR_BUTTON] = main_color;
+    table[NK_COLOR_BUTTON_HOVER] = hover_color;
+    table[NK_COLOR_BUTTON_ACTIVE] = lit_color;
+    // ok
+    table[NK_COLOR_TOGGLE] = nk_rgba(45*1.2, 53*1.2, 56*1.2, 255); // table[NK_COLOR_WINDOW]; // nk_rgba(45/1.2, 53/1.2, 56/1.2, 255);
+    table[NK_COLOR_TOGGLE_HOVER] = vivid_cyan;
+    table[NK_COLOR_TOGGLE_CURSOR] = main_color; // vivid_blue;
+    table[NK_COLOR_SCROLLBAR] = nk_rgba(50, 58, 61, 255);
+    table[NK_COLOR_SCROLLBAR_CURSOR] = main_color;
+    table[NK_COLOR_SCROLLBAR_CURSOR_HOVER] = hover_color;
+    table[NK_COLOR_SCROLLBAR_CURSOR_ACTIVE] = lit_color;
+    table[NK_COLOR_SLIDER] = nk_rgba(50, 58, 61, 255);
+    table[NK_COLOR_SLIDER_CURSOR] = main_color;
+    table[NK_COLOR_SLIDER_CURSOR_HOVER] = hover_color;
+    table[NK_COLOR_SLIDER_CURSOR_ACTIVE] = lit_color;
+    table[NK_COLOR_EDIT] = nk_rgba(50, 58, 61, 225);
+    table[NK_COLOR_EDIT_CURSOR] = nk_rgba(210, 210, 210, 255);
+
+    // table[NK_COLOR_COMBO] = nk_rgba(50, 58, 61, 255);
+
+    // table[NK_COLOR_PROPERTY] = nk_rgba(50, 58, 61, 255);
+    // table[NK_COLOR_CHART] = nk_rgba(50, 58, 61, 255);
+    // table[NK_COLOR_CHART_COLOR] = main_color;
+    // table[NK_COLOR_CHART_COLOR_HIGHLIGHT] = nk_rgba(255, 0, 0, 255);
+    // table[NK_COLOR_TAB_HEADER] = main_color;
+    // table[NK_COLOR_SELECT] = nk_rgba(57, 67, 61, 255);
+    // table[NK_COLOR_SELECT_ACTIVE] = main_color;
+
+    nk_style_from_table(ui_ctx, table);
+
+    struct nk_style *s = &ui_ctx->style;
+    s->window.spacing = nk_vec2(4,0);
+    s->window.combo_border = 0.f;
+    s->window.scrollbar_size = nk_vec2(5,5);
+    s->property.rounding = 0;
+    s->combo.border = 0;
+    s->button.border = 1;
+    s->edit.border = 0;
+}
+
 void ui_destroy(void) {
     if(ui_ctx) {
         nk_glfw3_shutdown(&ui_glfw); // nk_sdl_shutdown();
@@ -16,101 +116,8 @@ void ui_create() {
         ui_ctx = nk_glfw3_init(&ui_glfw, window_handle(), NK_GLFW3_INSTALL_CALLBACKS); // nk_sdl_init(window_handle());
         atexit(ui_destroy);
 
-        /* Load Fonts: if none of these are loaded a default font will be used  */
-        /* Load Cursor: if you uncomment cursor loading please hide the cursor */
-        //{struct nk_font_atlas *atlas;
-
-#define ICON_FONTNAME "fontawesome-webfont.ttf"
-#define ICON_FONTSIZE 15
-#define ICON_MIN 0xF000
-#define ICON_MAX 0xF2E0
-#define ICON_FILE_O "\xef\x80\x96" // U+f016
-#define ICON_BARS "\xef\x83\x89" // U+f0c9
-#define ICON_FOLDER_OPEN "\xef\x81\xbc"  // U+f07c
-#define ICON_PAUSE "\xef\x81\x8c"    // U+f04c
-#define ICON_PLAY "\xef\x81\x8b" // U+f04b
-#define ICON_STOP "\xef\x81\x8d" // U+f04d
-#define ICON_DATABASE "\xef\x87\x80" // U+f1c0
-#define ICON_CUBE "\xef\x86\xb2" // U+f1b2
-#define ICON_TEST_GLYPH ICON_FILE_O
-
-        {struct nk_font_atlas *atlas;
-        struct nk_font_config cfg = nk_font_config(ICON_FONTSIZE+1);
-        static const nk_rune icon_range[] = {ICON_MIN, ICON_MAX, 0};
-        cfg.range = icon_range;
-        cfg.merge_mode = 1;
-
-cfg.spacing.x += 8.f;
-//    cfg.spacing.y += 0.f;
-//    cfg.font->ascent ++;
-//    cfg.font->height += 4;
-
-        struct nk_font *last = NULL;
-        nk_glfw3_font_stash_begin(&ui_glfw, &atlas); // nk_sdl_font_stash_begin(&atlas);
-#if 0 // is(win32)
-        struct nk_font *arial = nk_font_atlas_add_from_file(atlas, va("%s/fonts/arial.ttf",getenv("windir")), 15.f, 0); last = arial ? arial : last;
-#else
-        struct nk_font *roboto = nk_font_atlas_add_from_file(atlas, vfs_find("Carlito-Regular.ttf"), 14.5f, 0); last = roboto ? roboto : last;
-#endif
-        //struct nk_font *droid = nk_font_atlas_add_from_file(atlas, "nuklear/extra_font/DroidSans.ttf", 14, 0); last = droid ? droid : last;
-        struct nk_font *icons = nk_font_atlas_add_from_file(atlas, vfs_find(ICON_FONTNAME), ICON_FONTSIZE, &cfg);
-        nk_glfw3_font_stash_end(&ui_glfw); // nk_sdl_font_stash_end();
-        /* nk_style_load_all_cursors(ctx, atlas->cursors); glfwSetInputMode(win, GLFW_CURSOR, GLFW_CURSOR_HIDDEN); */
-        if(last) nk_style_set_font(ui_ctx, &last->handle);}
-
-        nk_style_default(ui_ctx);
-        struct nk_color blue_gray = nk_rgba(53, 88, 156, 255);
-        struct nk_color washed_cyan = nk_rgb_f(0.35,0.6,0.8);
-        struct nk_color vivid_cyan = nk_rgb_f(0.0,0.75,1.0);
-        struct nk_color main_color = blue_gray;
-        struct nk_color hover_color = washed_cyan;
-        struct nk_color lit_color = vivid_cyan;
-        struct nk_color table[NK_COLOR_COUNT] = {0};
-        table[NK_COLOR_TEXT] = nk_rgba(210, 210, 210, 255);
-        table[NK_COLOR_WINDOW] = nk_rgba(42, 42, 42, 215);
-        table[NK_COLOR_HEADER] = nk_rgba(51, 51, 56, 220);
-        table[NK_COLOR_BORDER] = nk_rgba(46, 46, 46, 255);
-        table[NK_COLOR_BUTTON] = main_color;
-        table[NK_COLOR_BUTTON_HOVER] = hover_color;
-        table[NK_COLOR_BUTTON_ACTIVE] = lit_color;
-        // ok
-        table[NK_COLOR_TOGGLE] = nk_rgba(45*1.2, 53*1.2, 56*1.2, 255); // table[NK_COLOR_WINDOW]; // nk_rgba(45/1.2, 53/1.2, 56/1.2, 255);
-        table[NK_COLOR_TOGGLE_HOVER] = vivid_cyan;
-        table[NK_COLOR_TOGGLE_CURSOR] = main_color; // vivid_blue;
-        table[NK_COLOR_SCROLLBAR] = nk_rgba(50, 58, 61, 255);
-        table[NK_COLOR_SCROLLBAR_CURSOR] = main_color;
-        table[NK_COLOR_SCROLLBAR_CURSOR_HOVER] = hover_color;
-        table[NK_COLOR_SCROLLBAR_CURSOR_ACTIVE] = lit_color;
-        table[NK_COLOR_SLIDER] = nk_rgba(50, 58, 61, 255);
-        table[NK_COLOR_SLIDER_CURSOR] = main_color;
-        table[NK_COLOR_SLIDER_CURSOR_HOVER] = hover_color;
-        table[NK_COLOR_SLIDER_CURSOR_ACTIVE] = lit_color;
-        table[NK_COLOR_EDIT] = nk_rgba(50, 58, 61, 225);
-        table[NK_COLOR_EDIT_CURSOR] = nk_rgba(210, 210, 210, 255);
-
-        // table[NK_COLOR_COMBO] = nk_rgba(50, 58, 61, 255);
-
-        // table[NK_COLOR_PROPERTY] = nk_rgba(50, 58, 61, 255);
-        // table[NK_COLOR_CHART] = nk_rgba(50, 58, 61, 255);
-        // table[NK_COLOR_CHART_COLOR] = main_color;
-        // table[NK_COLOR_CHART_COLOR_HIGHLIGHT] = nk_rgba(255, 0, 0, 255);
-        // table[NK_COLOR_TAB_HEADER] = main_color;
-        // table[NK_COLOR_SELECT] = nk_rgba(57, 67, 61, 255);
-        // table[NK_COLOR_SELECT_ACTIVE] = main_color;
-
-        nk_style_from_table(ui_ctx, table);
-
-        struct nk_style *s = &ui_ctx->style;
-        s->window.spacing = nk_vec2(4,0);
-        s->window.combo_border = 0.f;
-        s->window.scrollbar_size = nk_vec2(5,5);
-        s->property.rounding = 0;
-        s->combo.border = 0;
-        s->button.border = 1;
-        s->edit.border = 0;
-
-        // enum { MAX_MEMORY = 2 * 1024 * 1024 };
-        // nk_init_fixed(&ui_ctx, calloc(1, MAX_MEMORY), MAX_MEMORY, &font);
+        nk_config_custom_fonts();
+        nk_config_custom_style();
     }
 }
 
@@ -292,6 +299,8 @@ void ui_render() {
 
 
 // ----------------------------------------------------------------------------
+
+int ui_window_end();
 
 static
 int ui_begin_panel_or_window_(const char *title, int flags, bool is_window) {

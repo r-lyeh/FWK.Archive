@@ -209,9 +209,9 @@ extern "C" {
 #endif
 
 #if defined(_MSC_VER)
-#define FORCE_INLINE __forceinline 
+#define FORCE_INLINE __forceinline
 #elif defined(__GNUC__)
-#define FORCE_INLINE __attribute__((always_inline))
+#define FORCE_INLINE __attribute__((always_inline)) inline
 #else
 #define FORCE_INLINE INLINE
 #endif
@@ -1156,8 +1156,8 @@ static __thread unsigned array_c_;
 #define set_init(m, cmpfn, hashfn) ( \
     (m) = set_cast(m) REALLOC(0, sizeof(*m)), \
     set_init(&(m)->base), \
-    (m)->base.cmp = (int(*)(void*,void*))( (m)->typed_cmp = cmpfn), \
-    (m)->base.hash = (uint64_t(*)(void*))( (m)->typed_hash = hashfn ) \
+    (m)->base.cmp = (int(*)(void*,void*))( (m)->typed_cmp = set_cast(cmpfn) cmpfn ), \
+    (m)->base.hash = (uint64_t(*)(void*))( (m)->typed_hash = set_cast(hashfn) hashfn ) \
     )
 
 #define set_free(m) ( \
@@ -1454,6 +1454,15 @@ API bool         file_move(const char *src, const char *dst);
 API FILE*        file_temp();
 API char*        file_tempname();
 
+// storage (emscripten only)
+
+// Mounts local storage folder for writing. Useful for Emscripten only. @path_folder: "/save" for example
+// Reads local storage to memory. Usually call it one time only, after mount. Useful for Emscripten only.
+// Writes memory contents to local storage. Usually call it after all fclose
+API void         storage_mount(const char* folder);
+API void         storage_read();
+API void         storage_flush();
+
 // compressed zipfiles
 
 API array(char*) zipfile_list(const char *zipname);
@@ -1628,7 +1637,7 @@ API void        input_demo();
 API void        input_send( int vk ); // @todo
 API void*       input_save_state( int id, int *size); // @todo
 API bool        input_load_state( int id, void *ptr, int size); // @todo
-
+API char        input_keychar(unsigned code); // Converts keyboard code to its latin char (if any)
 
 // --
 
@@ -2307,8 +2316,8 @@ API char *   fx_name(int pass);
 // -----------------------------------------------------------------------------
 // utils
 
-API void*    screenshot(unsigned components); // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA
-API void*    screenshot_async(unsigned components); // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA
+API void*    screenshot(int components); // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA
+API void*    screenshot_async(int components); // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA
 #line 0
 
 #line 1 "fwk_renderdd.h"
@@ -2654,6 +2663,7 @@ API int    ui_short(const char *label, short *value);
 API int    ui_float(const char *label, float *value);
 API int    ui_float2(const char *label, float value[2]);
 API int    ui_float3(const char *label, float value[3]);
+API int    ui_float4(const char *label, float value[4]);
 API int    ui_string(const char *label, char *buffer, int buflen);
 API int    ui_color3(const char *label, float *color3); //[0..255]
 API int    ui_color3f(const char *label, float *color3); //[0..1]
@@ -2746,18 +2756,26 @@ enum WINDOW_FLAGS {
     WINDOW_SQUARE = 0x20,
     WINDOW_PORTRAIT = 0x40,
     WINDOW_LANDSCAPE = 0x80,
-    WINDOW_FIXED = 0x100,
+    WINDOW_ASPECT = 0x100, // keep aspect
+    WINDOW_FIXED = 0x200, // disable resizing
 
     WINDOW_VSYNC = 0,
     WINDOW_VSYNC_ADAPTIVE = 0x1000,
     WINDOW_VSYNC_DISABLED = 0x2000,
 };
 
-API void     window_create(float zoom, int flags);
+API bool     window_create(float scale, unsigned flags);
+API bool     window_create_from_handle(void *handle, float scale, unsigned flags);
+API int      window_swap();
+
+// run main loop function continuously (emscripten only)
+// exit from main loop function (emscripten only)
+API void     window_loop(void (*function)(void* loopArg), void* loopArg );
+API void     window_loop_exit();
+
 API void     window_title(const char *title);
 API void     window_icon(const char *file_icon);
-API void     window_flush();
-API int      window_swap();
+API vec2     window_canvas();
 API void*    window_handle();
 
 API uint64_t window_frame();
@@ -2777,7 +2795,7 @@ API void     window_fullscreen(int enabled);
 API int      window_has_fullscreen();
 API void     window_cursor(int visible);
 API int      window_has_cursor();
-API void     window_pause();
+API void     window_pause(int paused);
 API int      window_has_pause();
 API void     window_visible(int visible);
 API int      window_has_visible();
@@ -2796,10 +2814,18 @@ API void     window_screenshot(const char* filename_png);
 } // extern "C"
 #endif
 
-// for glad
-#ifdef _WIN32
-//#define GLAD_API_CALL API
+// expose glfw/glad apis
+#ifdef __EMSCRIPTEN__ // emscripten is dumb
+    #include <GL/glew.h>
+    #include <GLFW/glfw3.h>
+    #include <emscripten.h>
+    #include <emscripten/html5.h>
+    #define gladLoadGL(func) (glewExperimental = true, glewInit() == GLEW_OK)
+#else
+    #ifdef _WIN32
+    //#define GLAD_API_CALL API
+    #endif
+    #include "fwk"
 #endif
-#include "fwk"
 
 #endif // FWK_H

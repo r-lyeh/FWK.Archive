@@ -53,6 +53,7 @@ if [ "$(uname)" != "Darwin" ]; then
     chmod +x editor/tools/ffmpeg.linux
     chmod +x editor/tools/cuttlefish.linux
     chmod +x editor/tools/PVRTexToolCLI.linux
+    chmod +x editor/tools/cook.linux
 
     # framework (as dynamic library)
     if [ "$1" = "dll" ]; then
@@ -104,6 +105,7 @@ if [ "$(uname)" = "Darwin" ]; then
     chmod +x editor/tools/ffmpeg.osx
     chmod +x editor/tools/cuttlefish.osx
     chmod +x editor/tools/PVRTexToolCLI.osx
+    chmod +x editor/tools/cook.osx
 
     # framework (as dynamic library)
     if [ "$1" = "dll" ]; then

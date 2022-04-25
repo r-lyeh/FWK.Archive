@@ -243,6 +243,38 @@ FILE *file_temp(void) {
 }
 
 // -----------------------------------------------------------------------------
+// storage (emscripten only)
+
+void storage_mount(const char* folder) {
+    #ifdef __EMSCRIPTEN__
+        emscripten_run_script(va("FS.mkdir('%s'); FS.mount(IDBFS, {}, '%s');", folder, folder));
+    #else
+        (void)folder;
+    #endif
+}
+
+void storage_read() {
+    #ifdef __EMSCRIPTEN__
+    EM_ASM(
+        /* sync from persisted state into memory */
+        FS.syncfs(true, function (err) {
+          assert(!err);
+        });
+    );
+    #endif
+}
+
+void storage_flush() {
+    #ifdef __EMSCRIPTEN__
+    EM_ASM(
+        FS.syncfs(false, function (err) {
+          assert(!err);
+        });
+    );
+    #endif
+}
+
+// -----------------------------------------------------------------------------
 // compressed archives
 
 // return list of files inside zipfile
@@ -433,7 +465,7 @@ char *vfs_unpack(const char *pathfile, int *size) { // must free() after use
             while (cleanup[0] == '/') ++cleanup;
 #else
             const char *cleanup = pathfile;
-#endif          
+#endif
 
             int index = fn_find[dir->type](dir->archive, cleanup);
             data = fn_unpack[dir->type](dir->archive, index);
@@ -456,13 +488,13 @@ const char *vfs_resolve(const char *pathfile) {
             return vfs_entries[i].name;
         }
     }
-
     return pathfile;
 }
 
 char* vfs_load(const char *pathfile, int *size_out) { // @todo: fix leaks
+    // @fixme: handle \\?\ absolute path (win)
     if (!pathfile[0]) return file_load(pathfile, size_out);
-    if (pathfile[0] == '/' || pathfile[1] == ':') return file_load(pathfile, size_out);
+    // if (pathfile[0] == '/' || pathfile[1] == ':') return file_load(pathfile, size_out); // @fixme: handle current cooked /home/FWK or C:/FWK path cases within zipfiles
 
     //{
     // exclude garbage from material names
@@ -564,9 +596,9 @@ const char *vfs_find(const char *pathfile) {
     enum { MAX_TEMP_FILES = 16 };
     static threadlocal char temps[MAX_TEMP_FILES][DIR_MAX] = {0};
     static threadlocal int i = 0;
-    if( temps[i]) unlink(temps[i]);
+    if( temps[i][0] ) unlink(temps[i]);
     i = (i + 1) % MAX_TEMP_FILES;
-    if(!temps[i][0]) snprintf(temps[i], DIR_MAX, "%s", tmpnam(0));
+    if(!temps[i][0] ) snprintf(temps[i], DIR_MAX, "%s", tmpnam(0));
     char *name = temps[i];
 
     FILE *tmp = fopen(name, "wb"); //unlink(name);

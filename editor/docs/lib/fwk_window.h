@@ -14,18 +14,26 @@ enum WINDOW_FLAGS {
     WINDOW_SQUARE = 0x20,
     WINDOW_PORTRAIT = 0x40,
     WINDOW_LANDSCAPE = 0x80,
-    WINDOW_FIXED = 0x100,
+    WINDOW_ASPECT = 0x100, // keep aspect
+    WINDOW_FIXED = 0x200, // disable resizing
 
     WINDOW_VSYNC = 0,
     WINDOW_VSYNC_ADAPTIVE = 0x1000,
     WINDOW_VSYNC_DISABLED = 0x2000,
 };
 
-API void     window_create(float zoom, int flags);
+API bool     window_create(float scale, unsigned flags);
+API bool     window_create_from_handle(void *handle, float scale, unsigned flags);
+API int      window_swap();
+
+// run main loop function continuously (emscripten only)
+// exit from main loop function (emscripten only)
+API void     window_loop(void (*function)(void* loopArg), void* loopArg );
+API void     window_loop_exit();
+
 API void     window_title(const char *title);
 API void     window_icon(const char *file_icon);
-API void     window_flush();
-API int      window_swap();
+API vec2     window_canvas();
 API void*    window_handle();
 
 API uint64_t window_frame();
@@ -45,7 +53,7 @@ API void     window_fullscreen(int enabled);
 API int      window_has_fullscreen();
 API void     window_cursor(int visible);
 API int      window_has_cursor();
-API void     window_pause();
+API void     window_pause(int paused);
 API int      window_has_pause();
 API void     window_visible(int visible);
 API int      window_has_visible();

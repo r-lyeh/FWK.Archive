@@ -167,8 +167,8 @@ static __thread unsigned array_c_;
 #define set_init(m, cmpfn, hashfn) ( \
     (m) = set_cast(m) REALLOC(0, sizeof(*m)), \
     set_init(&(m)->base), \
-    (m)->base.cmp = (int(*)(void*,void*))( (m)->typed_cmp = cmpfn), \
-    (m)->base.hash = (uint64_t(*)(void*))( (m)->typed_hash = hashfn ) \
+    (m)->base.cmp = (int(*)(void*,void*))( (m)->typed_cmp = set_cast(cmpfn) cmpfn ), \
+    (m)->base.hash = (uint64_t(*)(void*))( (m)->typed_hash = set_cast(hashfn) hashfn ) \
     )
 
 #define set_free(m) ( \

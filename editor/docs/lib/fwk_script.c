@@ -130,7 +130,7 @@ int window_swap_lua(lua *L) {
 #define BIND_ALL4(rc,func,a1,a2)     script_bind_function(#func, func##_lua)
 
 #define XMACRO(X) /* @fixme: add all remaining FWK functions */ \
-    X(void, window_create, float, int ) \
+    X(bool, window_create, float, int ) \
     X(bool, window_swap ) \
     X(void, ddraw_grid, float ) \
     X(bool, ui_begin, string, int ) \

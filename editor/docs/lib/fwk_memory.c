@@ -8,10 +8,9 @@ size_t dlmalloc_usable_size(void*); // __ANDROID_API__
 
 #ifndef SYS_REALLOC
 #define SYS_REALLOC realloc
-#define SYS_MSIZE /* bsd/osx, then win32, then ems/__ANDROID_API__, then __GLIBC__ */ \
+#define SYS_MSIZE /* bsd/osx, then win32, then ems/__GLIBC__, then __ANDROID_API__ */ \
     ifdef(osx, malloc_size, ifdef(bsd, malloc_size, \
-        ifdef(win32, _msize, \
-            ifdef(ems, dlmalloc_usable_size, malloc_usable_size))))
+        ifdef(win32, _msize, malloc_usable_size)))
 #endif
 
 // xrealloc --------------------------------------------------------------------

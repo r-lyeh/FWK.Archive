@@ -219,7 +219,7 @@ char *callstack( int traces ) {
             free( dmgbuf );
         }
 #endif
-        strcatf(&output, "%03d: %#016p %s\n", ++L, stacks[i], symbols[i]);
+        strcatf(&output, "%03d: %#016llx %s\n", ++L, (unsigned long long)(uintptr_t)stacks[i], symbols[i]); // format gymnastics because %p is not standard when printing pointers
     }
 
 #if is(linux) || is(osx)
@@ -380,7 +380,7 @@ int battery() {
     return charging ? +level : -level;
 }
 
-#else // if is(osx)
+#elif is(osx)
 #import <Foundation/Foundation.h>
 #include <CoreFoundation/CoreFoundation.h>
 #import <IOKit/ps/IOPowerSources.h>
@@ -410,6 +410,12 @@ int battery() {
     int level = (int)(cur_cap * 100.f / max_cap);
     int charging = CFDictionaryGetValue(psrc, CFSTR(kIOPSIsChargingKey)) == kCFBooleanTrue;
     return charging ? +level : -level;
+}
+
+#else
+
+int battery() {
+    return 0;
 }
 
 #endif
@@ -756,6 +762,8 @@ static void debugbreak(void) { // break if debugger present
 void alert(const char *message) { // @todo: move to app_, besides die()
 #if is(win32)
     MessageBoxA(0, message, 0,0);
+#elif is(ems)
+    emscripten_run_script(va("alert('%s')", message));
 #elif is(linux)
     for(FILE *fp = fopen("/tmp/fwk.warning","wb");fp;fp=0)
     fputs(message,fp), fclose(fp), system("xmessage -center -file /tmp/fwk.warning");
@@ -798,6 +806,9 @@ unsigned determine_color_from_text(const char *text) {
     else if( strstri(text, "warn") || strstri(text, "not found") ) return YELLOW;
     return 0;
 }
+
+//static int threadlocal _thread_id;
+//#define PRINTF(...)      (printf("%03d %07.3fs|%-16s|", (((unsigned)(uintptr_t)&_thread_id)>>8) % 1000, time_ss(), __FUNCTION__), printf(__VA_ARGS__), printf("%s", 1[#__VA_ARGS__] == '!' ? callstack(+48) : "")) // verbose logger
 
 int (PRINTF)(const char *text, const char *stack, const char *file, int line, const char *function) {
     double secs = time_ss();

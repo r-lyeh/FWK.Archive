@@ -211,7 +211,7 @@ extern "C" {
 #if defined(_MSC_VER)
 #define FORCE_INLINE __forceinline
 #elif defined(__GNUC__)
-#define FORCE_INLINE __attribute__((always_inline))
+#define FORCE_INLINE __attribute__((always_inline)) inline
 #else
 #define FORCE_INLINE INLINE
 #endif
@@ -277,10 +277,18 @@ extern "C" {
 } // extern "C"
 #endif
 
-// for glad
-#ifdef _WIN32
-//#define GLAD_API_CALL API
+// expose glfw/glad apis
+#ifdef __EMSCRIPTEN__ // emscripten is dumb
+    #include <GL/glew.h>
+    #include <GLFW/glfw3.h>
+    #include <emscripten.h>
+    #include <emscripten/html5.h>
+    #define gladLoadGL(func) (glewExperimental = true, glewInit() == GLEW_OK)
+#else
+    #ifdef _WIN32
+    //#define GLAD_API_CALL API
+    #endif
+    #include "fwk"
 #endif
-#include "fwk"
 
 #endif // FWK_H

@@ -1,5 +1,4 @@
-static const char *dd_vs =
-//    "#version 130\n"
+static const char *dd_vs = "//" FILELINE "\n"
     "in vec3 att_position;\n"
     "uniform mat4 u_MVP;\n"
     "uniform vec3 u_color;\n"
@@ -10,9 +9,8 @@ static const char *dd_vs =
     "    out_color = u_color;\n"
     "}";
 
-static const char *dd_fs =
-//    "#version 130\n"
-    "precision mediump float;\n"
+static const char *dd_fs = "//" FILELINE "\n"
+    // "precision mediump float;\n"
     "in vec3 out_color;\n"
     "out vec4 fragcolor;\n"
     "void main() {\n"

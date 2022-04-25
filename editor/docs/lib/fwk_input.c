@@ -173,8 +173,10 @@ static struct controller_t *input_logger(int position, int advance) {
 }
 
 void input_mappings() {
+#if !is(ems) // emscripten: no glfwUpdateGamepadMappings() available
     char* mappings = vfs_read("gamecontrollerdb.txt");
     if( mappings ) { glfwUpdateGamepadMappings(mappings); /*REALLOC(mappings, 0);*/ }
+#endif
 }
 
 void input_init() {
@@ -189,8 +191,8 @@ void input_update() {
     struct controller_t *c = &controller[0]; // @fixme
 
     char *bits = &c->bits[0];
-    float *floats = &c->floats[-GAMEPAD_LPADX];
-    const char **strings = &c->strings[-GAMEPAD_GUID];
+    float *floats = c->floats; floats -= GAMEPAD_LPADX;
+    const char **strings = c->strings; strings -= GAMEPAD_GUID;
     float mouse_wheel_old = floats[MOUSE_W];
 
     struct controller_t clear = {0};
@@ -209,7 +211,6 @@ void input_update() {
     bits[MOUSE_M] = (glfwGetMouseButton(win, GLFW_MOUSE_BUTTON_MIDDLE) == GLFW_PRESS);
     bits[MOUSE_R] = (glfwGetMouseButton(win, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS);
 
-#if !is(ems) // error: use of undeclared identifier '_GLFWwindow', 'GLFW_GAMEPAD_BUTTON_A' [etc.]
     #define k2(VK,GLFW) [KEY_##VK] = GLFW_KEY_##GLFW
     #define k(VK) k2(VK,VK)
     int table[] = {
@@ -224,12 +225,16 @@ void input_update() {
         k2(INS,INSERT),k(HOME),k2(PGUP,PAGE_UP), k2(DEL,DELETE),k(END), k2(PGDN,PAGE_DOWN),
     };
     for(int i = 0; i < countof(table); ++i) {
-        //if( table[i] ) bits[i] = glfwGetKey(win, table[i] ) == GLFW_PRESS;
+#if is(ems)
+        if( table[i] ) bits[i] = glfwGetKey(win, table[i] ) == GLFW_PRESS;
+#else
         bits[i] = glfwGetKeys(win)[ table[i] ];
+#endif
     }
     #undef k
     #undef k2
 
+#if !is(ems) // error: use of undeclared identifier 'glfwGetGamepadName', 'GLFW_GAMEPAD_BUTTON_A' [etc.]
     int jid = GLFW_JOYSTICK_1 + 0; // @fixme
     if( glfwGetGamepadName(jid) ) { // glfwJoystickPresent(jid) && glfwJoystickIsGamepad(jid) ) {
         bits[GAMEPAD_CONNECTED] = 1;
@@ -375,6 +380,53 @@ vec2 input_filter_deadzone_4way( vec2 v, float deadzone ) {
     float v0 = v.x*v.x < deadzone*deadzone ? 0 : v.x;
     float v1 = v.y*v.y < deadzone*deadzone ? 0 : v.y;
     return vec2(v0, v1);
+}
+
+// converts keyboard code to its latin char (if any)
+char input_keychar(unsigned code) {
+    #define k2(VK,GLFW) [KEY_##VK] = GLFW_KEY_##GLFW
+    #define k(VK) k2(VK,VK)
+    int table[256] = {
+        k2(ESC,ESCAPE),
+        k2(TICK,GRAVE_ACCENT), k(1),k(2),k(3),k(4),k(5),k(6),k(7),k(8),k(9),k(0), k2(BS,BACKSPACE),
+        k(TAB),                k(Q),k(W),k(E),k(R),k(T),k(Y),k(U),k(I),k(O),k(P),
+        k2(CAPS,CAPS_LOCK),      k(A),k(S),k(D),k(F),k(G),k(H),k(J),k(K),k(L), k(ENTER),
+        k2(LSHIFT,LEFT_SHIFT),       k(Z),k(X),k(C),k(V),k(B),k(N),k(M),  k2(RSHIFT,RIGHT_SHIFT),                k(UP),
+        k2(LCTRL,LEFT_CONTROL),k2(LALT,LEFT_ALT), k(SPACE), k2(RALT,RIGHT_ALT),k2(RCTRL,RIGHT_CONTROL), k(LEFT),k(DOWN),k(RIGHT),
+
+        k(F1),k(F2),k(F3),k(F4),k(F5),k(F6),k(F7),k(F8),k(F9),k(F10),k(F11),k(F12), k2(PRINT,PRINT_SCREEN),k(PAUSE),
+        k2(INS,INSERT),k(HOME),k2(PGUP,PAGE_UP), k2(DEL,DELETE),k(END), k2(PGDN,PAGE_DOWN),
+    };
+    #undef k
+    #undef k2
+
+    code = table[ code & 255 ];
+
+    const char* name = glfwGetKeyName(code, 0);
+    if( name && strlen(name) == 1 ) {
+        return *name >= 'A' && *name <= 'Z' ? name[0] - 'A' + 'a' : name[0];
+    }
+
+    if( code >= GLFW_KEY_0 && code <= GLFW_KEY_9 ) return code - GLFW_KEY_0 + '0';
+    if( code >= GLFW_KEY_A && code <= GLFW_KEY_Z ) return code - GLFW_KEY_A + 'a';
+    switch(code) {
+        default: break;
+        case GLFW_KEY_APOSTROPHE:    return '\'';
+        case GLFW_KEY_BACKSLASH:     return '\\';
+        case GLFW_KEY_COMMA:         return ',';
+        case GLFW_KEY_EQUAL:         return '=';
+        case GLFW_KEY_GRAVE_ACCENT:  return '`';
+        case GLFW_KEY_LEFT_BRACKET:  return '[';
+        case GLFW_KEY_MINUS:         return '-';
+        case GLFW_KEY_PERIOD:        return '.';
+        case GLFW_KEY_RIGHT_BRACKET: return ']';
+        case GLFW_KEY_SEMICOLON:     return ';';
+        case GLFW_KEY_SLASH:         return '/';
+        //case GLFW_KEY_WORLD_1:     return non-US #1;
+        //case GLFW_KEY_WORLD_2:     return non-US #2;
+    }
+
+    return '\0';
 }
 
 // ----------------------------------------------------------------------------

@@ -16,8 +16,8 @@
 ## Features ᕦ(ᐛ)ᕤ
 - [x] Pipeline: configurable and integrated [asset pipeline](fwk.ini).
 - [x] Embedded: single-file, all dependencies included.
-- [x] Compiler: MSVC, MINGW64, TCC, GCC and clang.
-- [x] Platform: Windows, Linux and OSX.
+- [x] Compiler: MSVC, MINGW64, TCC, GCC, clang and emscripten.
+- [x] Platform: Windows, Linux and OSX. Partial HTML5/Web support.
 - [x] DS: hash, sort, array/vector, map, set.
 - [x] Math: rand, noise, ease, vec2/3/4, mat33/34/44, quat.
 - [x] Geometry: ray, line, plane, aabb, sphere, capsule, triangle, poly and frustum.
@@ -31,7 +31,7 @@
 - [x] Texture: KTX/2, PVR, DDS, ASTC, BASIS, HDR, TGA.
 - [x] Texel: Depth, R, RG, RGB, RGBA, BC1/2/3/4/5/6/7, PVRI/II, ETC1/2, ASTC.
 - [x] Audio: WAV/FLAC, OGG/MP1/MP3, MOD/XM/S3M/IT, SFXR and MID.
-- [x] Video: MP4, MPG, OGV, MKV, WMV and AVI.
+- [x] Video: MP4, MPG, OGV, MKV, WMV and AVI. Also, MP4 recording with MPEG-1 fallback.
 - [x] Model: IQM/E, GLTF/2, GLB, FBX, OBJ, DAE, BLEND, MD3/5, MS3D, SMD, X, 3DS, BVH, DXF, LWO.
 - [x] Render: PBR (metallic-roughness) workflow. <!-- @todo: merge demo_pbr.c rendering code into fwk_render.c -->
 - [x] Render: Cubemaps, panoramas and spherical harmonics. Rayleigh/Mie scattering.
@@ -64,7 +64,7 @@
 - [ ] Maybe: AI/Logic pass.
 - [ ] Maybe: Animation pass.
 - [ ] Maybe: VM/Replication pass.
-- [ ] Maybe: Mobile/WASM pass. 
+- [ ] Maybe: Mobile/WASM/HTML5✱ pass. 
 - [ ] Maybe: Lighting pass.
 - [ ] Maybe: Node/Graph editor. <!-- reused into materials, animgraphs and blueprints -->
 - [ ] Maybe: Tiled maps and 2D spines. Sprite parallaxs.
@@ -185,10 +185,10 @@ R. Documentation pass: API, functions, samples, examples, pipeline. #5
 //    proj matrix: float b = (-znear * zfar) / (zfar - znear); -> float b = (znear * zfar) / (zfar - znear);
 //    }
 
-	char* os_exec(...) -> int rc = popen(...); [...] return va("%8d,%s", rc, output);
-	char *result = os_exec("dir *.f")
-	int rc = atoi(result);
-	char *log = result+9;
+    char* os_exec(...) -> int rc = popen(...); [...] return va("%8d,%s", rc, output);
+    char *result = os_exec("dir *.f")
+    int rc = atoi(result);
+    char *log = result+9;
 
 -->
 
@@ -211,10 +211,10 @@ R. Documentation pass: API, functions, samples, examples, pipeline. #5
 ## Hello FWK
 ```C
 #include "fwk.h" // Minimal C sample
-int main(int argc, char **argv) {
+int main() {
     window_create(75.0, 0); // 75% size, no extra flags
     while( window_swap() && !input(KEY_ESC) ) { // game loop
-        puts("hello fwk");
+        puts("hello fwk! from C");
     }
 }
 ```
@@ -223,8 +223,21 @@ int main(int argc, char **argv) {
 local fwk = require("fwk") -- Minimal Lua sample
 fwk.window_create(75.0,0) -- 75% size, no extra flags
 while fwk.window_swap() and fwk.input(fwk.KEY_ESC) == 0 do -- game loop
-    print("hello fwk")
+    print("hello fwk! from Lua")
 end
+```
+
+```C
+#include "fwk.h" // Minimal HTML5 sample
+void render(void *arg) {
+    if( window_swap() && !input(KEY_ESC) ) {
+        puts("hello fwk! from HTML5");
+    }
+}
+int main() {
+    window_create(75.0, 0); // 75% size, no extra flags
+    window_loop(render, NULL); // game loop
+}
 ```
 
 ## Build (as static library)
@@ -299,6 +312,7 @@ Any contribution to this repository is implicitly subjected to the same release 
 - [Imagination](https://developer.imaginationtech.com/pvrtextool/), for pvrtextoolcli (ITL).
 - [Krzysztof Gabis](https://github.com/kgabis/ape), for split.py/join.py (MIT).
 - [Lee Salzman](https://github.com/lsalzman/iqm/tree/5882b8c32fa622eba3861a621bb715d693573420/demo), for iqm.cpp (PD).
+- [Martín Lucas Golini](https://github.com/SpartanJ/eepp/commit/8552941da19380d7a629c4da80a976aec5d39e5c), for emscripten-fs.html (CC0).
 - [Mattias Gustavsson](https://github.com/mattiasgustavsson/libs), for mid.h (PD).
 - [Michael Schmoock](http://github.com/willsteel/lcpp), for lcpp (MIT).
 - [Morgan McGuire](https://casual-effects.com/markdeep/), for markdeep (BSD2).
@@ -326,7 +340,7 @@ Any contribution to this repository is implicitly subjected to the same release 
 - [Libtomcrypt](https://github.com/libtom/libtomcrypt), for libtomcrypt (Unlicense).
 - [Lua authors](https://www.lua.org/), for Lua language (MIT).
 - [Mattias Gustavsson](https://github.com/mattiasgustavsson/libs), for thread.h and https.h (PD).
-- [Micha Mettke](https://github.com/vurtun/nuklear), for nuklear (PD).
+- [Micha Mettke, Chris Willcocks, Dmitry Hrabrov](https://github.com/vurtun/nuklear), for nuklear (PD).
 - [Omar Cornut, vaiorabbit](https://github.com/ocornut/imgui/pull/3627), for tables of unicode ranges (MIT-0).
 - [Rich Geldreich](https://github.com/richgel999/miniz), for miniz (PD).
 - [Ross Williams](http://ross.net/compression/lzrw3a.html) for lzrw3a (PD).
