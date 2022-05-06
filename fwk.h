@@ -169,14 +169,17 @@ extern "C" {
 
 #define countof(x)       (int)(sizeof (x) / sizeof 0[x])
 
-#define macro(name)      concat(name, __LINE__)
 #define concat(a,b)      conc4t(a,b)
 #define conc4t(a,b)      a##b
 
-#define benchmark        for(double macro(t) = -time_ss(); macro(t) < 0; printf("%.2fs\n", macro(t)+=time_ss()))
-#define do_once          static int macro(once) = 0; for(;!macro(once);macro(once)=1)
+#define macro(name)      concat(name, __LINE__)
 #define defer(begin,end) for(int macro(i) = ((begin), 0); !macro(i); macro(i) = ((end), 1))
 #define scope(end)       defer((void)0, end)
+#define benchmark        for(double macro(t) = -time_ss(); macro(t) < 0; printf("%.2fs (" FILELINE ")\n", macro(t)+=time_ss()))
+#define do_once          static int macro(once) = 0; for(;!macro(once);macro(once)=1)
+
+// usage: bool static(audio_is_init) = audio_init();
+//#define static(var)    static var; do_once var
 
 //-----------------------------------------------------------------------------
 // new C macros
@@ -285,6 +288,13 @@ extern "C" {
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE   // for linux
+#endif
+
+#if defined(_MSC_VER) && defined(_WIN32) // for VC IDE
+#define _CRT_SECURE_NO_WARNINGS
+#define _CRT_NONSTDC_NO_DEPRECATE
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#define _WIN32_WINNT 0x0502 // GetInfoAddrW/FreeAddrInfoW for X86
 #endif
 
 #ifdef _MSC_VER
@@ -934,13 +944,16 @@ API poly    diamond(vec3 from, vec3 to, float size); // poly_free() required
 enum COOKER_FLAGS {
     COOKER_SYNC = 0,
     COOKER_ASYNC = 1,
+    COOKER_CANCELABLE = 2,
 };
 
 API void cooker_config( const char *art_path, const char *tools_path, const char *fwk_ini ); // "art/", "art/tools/", "fwk.ini"
 API bool cooker_start( const char *masks, int flags ); // "**"
 API void cooker_stop();
+API void cooker_cancel();
 API int  cooker_progress(); // [0..100]
 API int  cooker_jobs();     // [1..N]
+
 #line 0
 
 #line 1 "fwk_data.h"
@@ -1409,11 +1422,32 @@ API void  editor();
 API bool  editor_active();
 API vec3  editor_pick(float mouse_x, float mouse_y);
 
+// open file dialog
+
 API char* dialog_load();
 API char* dialog_save();
 
+// transform gizmos
+
 API int   gizmo(vec3 *pos, vec3 *rot, vec3 *sca);
 API bool  gizmo_active();
+
+// localization kit (I18N, L10N)
+
+API void  kit_locale( const char *langcode_iso639_1 ); // set context language: enUS, ptBR, esES, ...
+API void  kit_set( const char *variable, const char *value ); // set context variable
+API void  kit_reset(); // reset all variables in context
+
+API void  kit_insert( const char *id, const char *translation ); // insert single translation
+API bool  kit_load( const char *filename ); // load translations file (xlsx)
+API bool  kit_merge( const char *filename ); // merge translations file into existing context
+API void  kit_clear(); // delete all translations
+
+API char* kit_translate( const char *id ); // perform a translation, given current locale
+API char* kit_translate2( const char *id, const char *langcode_iso639_1 ); // perform a translation given explicit locale
+
+API void  kit_dump_state( FILE *fp );
+
 #line 0
 
 #line 1 "fwk_file.h"
@@ -1586,7 +1620,7 @@ API vec2  font_highlight(const char *text, const void *colors);
 // input framework
 // - rlyeh, public domain
 //
-// @todo: touch, window
+// @todo: window
 // @todo: for extra savings (168->72 bytes), promote bits to real bits (/8 %8) & normalized floats [-1,+1] to shorts or chars
 // @todo: GAMEPAD_A|2, MOUSE_L|1, KEY_C|3
 // @todo: load/save
@@ -1600,8 +1634,8 @@ API int         input_use( int controller_id ); // [0..3]
 
 API float       input( int vk );
 API vec2        input2( int vk );
-API float       input_diff( int vk );
-API vec2        input_diff2( int vk );
+API float       input_diff( int vk ); // @todo: rename diff->delta
+API vec2        input_diff2( int vk ); // @todo: rename diff2->delta2
 
 // -- extended polling api (read input at Nth frame ago)
 
@@ -1628,8 +1662,21 @@ API int         input_chord4( int vk1, int vk2, int vk3, int vk4 ); // all vk1 &
 
 API float       input_filter_positive( float v ); // [-1..1] -> [0..1]
 API vec2        input_filter_positive2( vec2 v ); // [-1..1] -> [0..1]
-API vec2        input_filter_deadzone( vec2 v, float deadzone );
-API vec2        input_filter_deadzone_4way( vec2 v, float deadzone );
+API vec2        input_filter_deadzone( vec2 v, float deadzone_treshold );
+API vec2        input_filter_deadzone_4way( vec2 v, float deadzone_treshold );
+
+// -- multi-touch 
+
+enum TOUCH_BUTTONS {
+	TOUCH_0,    // defaults to left screen area. input_touch_area() to override
+	TOUCH_1,    // defaults to right screen area. input_touch_area() to override
+};
+
+API void        input_touch_area(unsigned button, vec2 begin_coord_ndc, vec2 end_coord_ndc);
+API vec2        input_touch(unsigned button, float sensitivity);                   // absolute position in 2d coords
+API vec2        input_touch_delta(unsigned button, float sensitivity);             // delta from previous position
+API vec2        input_touch_delta_from_origin(unsigned button, float sensitivity); // relative position from initial touch
+API bool        input_touch_active();
 
 // -- utils
 
@@ -1916,14 +1963,14 @@ static threadlocal void *obj_tmpalloc;
         if(!found) found = map_insert(profiler, name, (struct profile_t){0}); \
         found->stat += accum; \
         } } while(0) ///+
-#   define profile_render() if(profiler && profiler_enabled) do { \
+#   define profile_render() do { if(profiler && profiler_enabled) { \
         for(float _i = ui_begin("Profiler",0), _r; _i ; ui_end(), _i = 0) { \
             for each_map_ptr(profiler, const char *, key, struct profile_t, val ) \
                 if( !isnan(val->stat) ) ui_slider2(va("Stat: %s", *key), (_r = val->stat, &_r), va("%.2f", val->stat)), val->stat = 0; \
             ui_separator(); \
             for each_map_ptr(profiler, const char *, key, struct profile_t, val ) \
                 if( isnan(val->stat) ) ui_slider2(*key, (_r = val->avg/1000.0, &_r), va("%.2f ms", val->avg/1000.0)); \
-        } } while(0)
+        } } } while(0)
 struct profile_t { double stat; int32_t cost, avg; }; ///-
 typedef map(char *, struct profile_t) profiler_t; ///-
 extern API profiler_t profiler; ///-
@@ -2068,7 +2115,7 @@ API void      texture_destroy(texture_t *t);
 // void texture_add_loader( int(*loader)(const char *filename, int *w, int *h, int *bpp, int reqbpp, int flags) );
 API unsigned  texture_update(texture_t *t, unsigned w, unsigned h, unsigned n, void *pixels, int flags);
 
-API bool      texture_rec_begin(texture_t *t); // texture_rec
+API bool      texture_rec_begin(texture_t *t, unsigned w, unsigned h); // texture_rec
 API void      texture_rec_end(texture_t *t); // texture_rec
 
 // -----------------------------------------------------------------------------
@@ -2374,7 +2421,7 @@ API void ddraw_cylinder(vec3 center, float height, int segments);
 API void ddraw_sphere(vec3 pos, float radius);
 API void ddraw_square(vec3 pos, float radius);
 API void ddraw_text(vec3 pos, float scale, const char *text);
-API void ddraw_text2d(vec2 pos, float scale, const char *text);
+API void ddraw_text2d(vec2 pos, const char *text);
 API void ddraw_triangle(vec3 p1, vec3 p2, vec3 p3);
 //
 API void ddraw_prism(vec3 center, float radius, float height, vec3 normal, int segments);
@@ -2535,8 +2582,6 @@ API char *       strrepl(char **copy, const char *target, const char *replace); 
 API char *       strswap(char *copy, const char *target, const char *replace);  // replaced inline only if repl is shorter than target. no allocations.
 API char *       strcut(char *copy, const char *target);                        // remove any 'target' in 'copy'. returns 'copy'
 
-API char *       str16to8(const wchar_t *str); // convert from wchar16(win) to utf8/ascii
-
 API const char * strlerp(unsigned numpairs, const char **pairs, const char *str); // using key-value pairs, null-terminated
 
 #ifndef __APPLE__ // BSD provides these
@@ -2555,8 +2600,8 @@ API array(char*) strsplit(const char *string, const char *delimiters);
 /// > char *joint = strjoin(tokens, "+"); // joint="hello+world"
 API char*        strjoin(array(char*) list, const char *separator);
 
-
-API array(uint32_t) strutf32( const char *utf8 );
+API char *          string8(const wchar_t *str);  /// convert from wchar16(win) to utf8/ascii
+API array(uint32_t) string32( const char *utf8 ); /// convert from utf8 to utf32
 #line 0
 
 #line 1 "fwk_system.h"
@@ -2656,6 +2701,7 @@ API int (PANIC)(const char *error, const char *file, int line);
 //
 // @todo: logger/console
 
+API int ui_window(const char *title, int *enabled);
 API int  ui_begin(const char *title, int flags);
 API int    ui_int(const char *label, int *value);
 API int    ui_bool(const char *label, bool *value);
@@ -2670,6 +2716,8 @@ API int    ui_color3f(const char *label, float *color3); //[0..1]
 API int    ui_color4(const char *label, float *color4); //[0..255]
 API int    ui_color4f(const char *label, float *color4); //[0..1]
 API int    ui_button(const char *label);
+API int    ui_toolbar(const char *icons); // int clicked_icon = ui_toolbar( ICON_1 ";" ICON_2 ";" ICON_3 ";" ICON_4 );
+API int    ui_browse(const char **outfile, bool *inlined);
 API int    ui_toggle(const char *label, bool *value);
 API int    ui_dialog(const char *title, const char *text, int choices, bool *show); // @fixme: return
 API int    ui_list(const char *label, const char **items, int num_items, int *selector);
@@ -2681,15 +2729,14 @@ API int    ui_bits8(const char *label, uint8_t *bits);
 API int    ui_bits16(const char *label, uint16_t *bits);
 API int    ui_clampf(const char *label, float *value, float minf, float maxf);
 API int    ui_label(const char *label);
-#define    ui_labelf(...) ui_label(va(__VA_ARGS__))
 API int    ui_label2(const char *label, const char *caption);
 API int    ui_slider(const char *label, float *value);
 API int    ui_slider2(const char *label, float *value, const char *caption);
 API int    ui_const_bool(const char *label, const double value);
 API int    ui_const_float(const char *label, const double value);
 API int    ui_const_string(const char *label, const char *value);
-#define    ui_const_stringf(label, ...) ui_const_string(label, va(__VA_ARGS__))
-API void ui_end();
+API void  ui_end();
+API void ui_window_end();
 
 API int  ui_menu(const char *items); // semicolon- or comma-separated items
 API int  ui_item();
@@ -2766,17 +2813,20 @@ enum WINDOW_FLAGS {
 
 API bool     window_create(float scale, unsigned flags);
 API bool     window_create_from_handle(void *handle, float scale, unsigned flags);
-API int      window_swap();
 
-// run main loop function continuously (emscripten only)
-// exit from main loop function (emscripten only)
-API void     window_loop(void (*function)(void* loopArg), void* loopArg );
-API void     window_loop_exit();
+API int      window_frame_begin();
+API void     window_frame_end();
+API void     window_frame_swap();
+API int      window_swap(); // single function that combines above functions (desktop only)
+
+API void     window_loop(void (*function)(void* loopArg), void* loopArg ); // run main loop function continuously (emscripten only)
+API void     window_loop_exit(); // exit from main loop function (emscripten only)
 
 API void     window_title(const char *title);
 API void     window_icon(const char *file_icon);
 API vec2     window_canvas();
 API void*    window_handle();
+API char*    window_stats();
 
 API uint64_t window_frame();
 API int      window_width();
@@ -2786,8 +2836,8 @@ API double   window_time();
 API double   window_delta();
 API double   window_fps();
 
-API bool     window_hook(void (*func)(), void* userdata);
-API void     window_unhook(void (*func)());
+// API bool  window_hook(void (*func)(), void* userdata); // deprecated
+// API void  window_unhook(void (*func)()); // deprecated
 
 API void     window_focus(); // window attribute api using haz catz language for now
 API int      window_has_focus();
@@ -2825,7 +2875,9 @@ API void     window_screenshot(const char* filename_png);
     #ifdef _WIN32
     //#define GLAD_API_CALL API
     #endif
+    #ifndef GLAD_GL_H_
     #include "fwk"
+    #endif
 #endif
 
 #endif // FWK_H

@@ -4,7 +4,7 @@
 cd `dirname $0`
 
 # copy demos to root folder. local changes are preserved
-cp -n demos/*.c .
+cp -n art/demos/*.c .
 
 # tidy environment
 if [ "$1" = "tidy" ]; then
@@ -12,7 +12,8 @@ if [ "$1" = "tidy" ]; then
     rm demo 2> /dev/null
     rm fwk.o 2> /dev/null
     rm .art*.zip 2> /dev/null
-    rm demos/lua/.art*.zip 2> /dev/null
+    rm art/demos/lua/.art*.zip 2> /dev/null
+    rm art/demos/html5/.art*.zip 2> /dev/null
     rm fwk_*.* 2> /dev/null
     rm 3rd_*.* 2> /dev/null
     rm libfwk* 2> /dev/null
@@ -21,11 +22,11 @@ if [ "$1" = "tidy" ]; then
 fi
 # shortcuts for split & join amalgamation scripts
 if [ "$1" = "split" ]; then
-    sh editor/tools/split.bat
+    sh tools/bin/split.bat
     exit
 fi
 if [ "$1" = "join" ]; then
-    sh editor/tools/join.bat
+    sh tools/bin/join.bat
     exit
 fi
 
@@ -39,28 +40,30 @@ if [ "$(uname)" != "Darwin" ]; then
     #sudo apt-get -y install gcc ffmpeg xorg-dev libglfw3-dev libassimp-dev clang                          # initial revision
 
     # pipeline
-    #cc editor/tools/ass2iqe.c   -o editor/tools/ass2iqe.linux  -lm -ldl -lpthread -w -g -lassimp
-    #cc editor/tools/iqe2iqm.cpp -o editor/tools/iqe2iqm.linux  -lm -ldl -lpthread -w -g -lstdc++
-    #cc editor/tools/mid2wav.c   -o editor/tools/mid2wav.linux  -lm -ldl -lpthread -w -g
-    #cc editor/tools/xml2json.c  -o editor/tools/xml2json.linux -lm -ldl -lpthread -w -g
+    #cc tools/bin/ass2iqe.c   -o tools/bin/ass2iqe.linux  -lm -ldl -lpthread -w -g -lassimp
+    #cc tools/bin/iqe2iqm.cpp -o tools/bin/iqe2iqm.linux  -lm -ldl -lpthread -w -g -lstdc++
+    #cc tools/bin/mid2wav.c   -o tools/bin/mid2wav.linux  -lm -ldl -lpthread -w -g
+    #cc tools/bin/xml2json.c  -o tools/bin/xml2json.linux -lm -ldl -lpthread -w -g
 
     # change permissions of precompiled tools binaries because of 'Permission denied' runtime error (@procedural)
-    chmod +x editor/tools/ass2iqe.linux
-    chmod +x editor/tools/iqe2iqm.linux
-    chmod +x editor/tools/mid2wav.linux
-    chmod +x editor/tools/xml2json.linux
-    chmod +x editor/tools/sfxr2wav.linux
-    chmod +x editor/tools/ffmpeg.linux
-    chmod +x editor/tools/cuttlefish.linux
-    chmod +x editor/tools/PVRTexToolCLI.linux
-    chmod +x editor/tools/cook.linux
+    chmod +x tools/bin/ass2iqe.linux
+    chmod +x tools/bin/iqe2iqm.linux
+    chmod +x tools/bin/mid2wav.linux
+    chmod +x tools/bin/xml2json.linux
+    chmod +x tools/bin/sfxr2wav.linux
+    chmod +x tools/bin/ffmpeg.linux
+    chmod +x tools/bin/cuttlefish.linux
+    chmod +x tools/bin/PVRTexToolCLI.linux
+    chmod +x tools/bin/cook.linux
+    chmod +x tools/bin/xlsx2ini.linux
+    chmod +x art/demos/lua/luajit.linux
 
     # framework (as dynamic library)
     if [ "$1" = "dll" ]; then
         cc -o libfwk.so fwk.c -shared -fPIC -w -g -lX11
-        cp libfwk.so demos/lua/
-        echo generated demos/lua/libfwk.so 
-        echo '[test] cd demos/lua && LD_LIBRARY_PATH=$(PWD)/libfwk.so:$LD_LIBRARY_PATH luajit demo_luajit_model.lua'
+        cp libfwk.so art/demos/lua/
+        echo generated art/demos/lua/libfwk.so 
+        echo '[test] cd art/demos/lua && LD_LIBRARY_PATH=$(PWD)/libfwk.so:$LD_LIBRARY_PATH ./luajit.linux demo_luajit_model.lua'
         exit
     fi
 
@@ -82,7 +85,8 @@ if [ "$(uname)" != "Darwin" ]; then
     echo demo_font      && cc -o demo_font      demo_font.c      fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
     echo demo_material  && cc -o demo_material  demo_material.c  fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
     echo demo_pbr       && cc -o demo_pbr       demo_pbr.c       fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
-    echo demo_instanced && cc -o demo_instanced demo_instanced.c fwk.o -lm -ldl -lpthread -lX11 -w -g $*
+    echo demo_instanced && cc -o demo_instanced demo_instanced.c fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
+    echo demo_audio     && cc -o demo_audio     demo_audio.c     fwk.o -lm -ldl -lpthread -lX11 -w -g $*
 fi
 
 if [ "$(uname)" = "Darwin" ]; then
@@ -91,28 +95,30 @@ if [ "$(uname)" = "Darwin" ]; then
     # brew install glfw
 
     # pipeline
-    #cc editor/tools/ass2iqe.c   -o editor/tools/ass2iqe.osx  -w -g -lassimp
-    #cc editor/tools/iqe2iqm.cpp -o editor/tools/iqe2iqm.osx  -w -g -lstdc++
-    #cc editor/tools/mid2wav.c   -o editor/tools/mid2wav.osx  -w -g
-    #cc editor/tools/xml2json.c  -o editor/tools/xml2json.osx -w -g
+    #cc tools/bin/ass2iqe.c   -o tools/bin/ass2iqe.osx  -w -g -lassimp
+    #cc tools/bin/iqe2iqm.cpp -o tools/bin/iqe2iqm.osx  -w -g -lstdc++
+    #cc tools/bin/mid2wav.c   -o tools/bin/mid2wav.osx  -w -g
+    #cc tools/bin/xml2json.c  -o tools/bin/xml2json.osx -w -g
 
     # change permissions of precompiled tools binaries because of 'Permission denied' runtime error (@procedural)
-    chmod +x editor/tools/ass2iqe.osx
-    chmod +x editor/tools/iqe2iqm.osx
-    chmod +x editor/tools/mid2wav.osx
-    chmod +x editor/tools/xml2json.osx
-    chmod +x editor/tools/sfxr2wav.osx
-    chmod +x editor/tools/ffmpeg.osx
-    chmod +x editor/tools/cuttlefish.osx
-    chmod +x editor/tools/PVRTexToolCLI.osx
-    chmod +x editor/tools/cook.osx
+    chmod +x tools/bin/ass2iqe.osx
+    chmod +x tools/bin/iqe2iqm.osx
+    chmod +x tools/bin/mid2wav.osx
+    chmod +x tools/bin/xml2json.osx
+    chmod +x tools/bin/sfxr2wav.osx
+    chmod +x tools/bin/ffmpeg.osx
+    chmod +x tools/bin/cuttlefish.osx
+    chmod +x tools/bin/PVRTexToolCLI.osx
+    chmod +x tools/bin/cook.osx
+    chmod +x tools/bin/xlsx2ini.osx
+    chmod +x art/demos/lua/luajit.osx
 
     # framework (as dynamic library)
     if [ "$1" = "dll" ]; then
         cc -ObjC -dynamiclib -o libfwk.dylib fwk.c -framework cocoa -framework iokit -w -g
-        cp libfwk.dylib demos/lua
-        echo generated demos/lua/libfwk.dylib 
-        echo '[test] cd demos/lua && luajit demo_luajit_model.lua'
+        cp libfwk.dylib art/demos/lua
+        echo generated art/demos/lua/libfwk.dylib 
+        echo '[test] cd art/demos/lua && ./luajit.osx demo_luajit_model.lua'
         exit
     fi
 
@@ -134,7 +140,8 @@ if [ "$(uname)" = "Darwin" ]; then
     echo demo_font      && cc -o demo_font      demo_font.c      fwk.o -framework cocoa -framework iokit -w -g $* &
     echo demo_material  && cc -o demo_material  demo_material.c  fwk.o -framework cocoa -framework iokit -w -g $* &
     echo demo_pbr       && cc -o demo_pbr       demo_pbr.c       fwk.o -framework cocoa -framework iokit -w -g $* &
-    echo demo_instanced && cc -o demo_instanced demo_instanced.c fwk.o -framework cocoa -framework iokit -w -g $*
+    echo demo_instanced && cc -o demo_instanced demo_instanced.c fwk.o -framework cocoa -framework iokit -w -g $* &
+    echo demo_audio     && cc -o demo_audio     demo_audio.c     fwk.o -framework cocoa -framework iokit -w -g $*
 fi
 
 exit
@@ -172,11 +179,11 @@ if "%cc%"=="" (
 )
 
 cd "%~dp0"
-echo @%~dp0\editor\tools\tcc-win\tcc -I %~dp0\editor\tools\tcc-win\include_mingw\winapi -I %~dp0\editor\tools\tcc-win\include_mingw\ %%* > tcc.bat
+echo @%~dp0\tools\bin\tcc-win\tcc -I %~dp0\tools\bin\tcc-win\include_mingw\winapi -I %~dp0\tools\bin\tcc-win\include_mingw\ %%* > tcc.bat
 
 rem generate cooker and cook
 if "%1"=="cook" (
-    cl editor\tools\cook.c -I.
+    cl tools\bin\cook.c -I.
     cook
 
     exit /b
@@ -186,15 +193,15 @@ if "%1"=="dll" (
     rem cl fwk.c /LD /DAPI=EXPORT                         && rem 6.6MiB
     rem cl fwk.c /LD /DAPI=EXPORT /O2                     && rem 5.3MiB
     cl fwk.c /LD /DAPI=EXPORT /Os /Ox /O2 /Oy /GL /GF /MT && rem 4.7MiB
-    move /y fwk.dll demos\lua
+    move /y fwk.dll art\demos\lua
 
     exit /b
 )
 rem generate bindings
 if "%1"=="bindings" (
     rem luajit
-    editor\tools\luajit editor\tools\luajit_make_bindings.lua > fwk.lua
-    move /y fwk.lua demos\lua
+    tools\bin\luajit tools\bin\luajit_make_bindings.lua > fwk.lua
+    move /y fwk.lua art\demos\lua
 
     exit /b
 )
@@ -213,9 +220,9 @@ if "%1"=="docs" (
     set /p LAST_MODIFIED=<info.obj
 
     rem ...and generate docs
-    cl editor\docs\docs.c fwk.c -I. %2
+    cl tools\docs\docs.c fwk.c -I. %2
     docs fwk.h --excluded=3rd_glad.h,fwk.h,fwk_compat.h, > fwk.html
-    move /y fwk.html editor\docs\docs.html
+    move /y fwk.html tools\docs\docs.html
 
     exit /b
 )
@@ -226,12 +233,14 @@ if "%1"=="github" (
     call make.bat bindings
 
     call make.bat split
-    rd /q /s editor\docs\lib
-    md editor\docs\lib
-    move /y 3rd_*.? editor\docs\lib
-    move /y fwk_*.? editor\docs\lib
-    echo.> "editor\docs\lib\; for browsing purposes. do not compile these"
-    echo.> "editor\docs\lib\; required sources are at root folder"
+    del /q tools\depot\*
+    rd /q /s tools\depot\3rd
+    md tools\depot
+    md tools\depot\3rd
+    move /y 3rd_*.? tools\depot\3rd\
+    move /y fwk_*.? tools\depot\
+    echo.> "tools\depot\; for browsing purposes. do not compile these"
+    echo.> "tools\depot\; required sources can be found at root folder"
 
     call make.bat tidy
 
@@ -245,22 +254,22 @@ if "%1"=="demo" (
     if exist "demo_%2.c" (
         set "FILENAME=demo_%2"
     )
-    copy /y !FILENAME!.c demos\!FILENAME!.c
+    copy /y !FILENAME!.c art\demos\!FILENAME!.c
     cl !FILENAME!.c /nologo /openmp /Zi fwk.c %~3%
     if %ERRORLEVEL%==0 (call !FILENAME!.exe %~4%) else (echo Compilation error: !FILENAME!)
     exit /b
 )
 
 rem copy demos to root folder. local changes are preserved
-echo n | copy /-y demos\*.c 1> nul 2> nul
+echo n | copy /-y art\demos\*.c 1> nul 2> nul
 
 rem shortcuts for split & join amalgamation scripts
 if "%1"=="split" (
-    call editor\tools\split
+    call tools\bin\split
     exit /b
 )
 if "%1"=="join" (
-    call editor\tools\join
+    call tools\bin\join
     exit /b
 )
 
@@ -276,8 +285,8 @@ if "%1"=="checkmem" (
 
 rem tidy environment
 if "%1"=="tidy" (
-    move /y demo_*.png demos
-    move /y demo_*.c demos
+    move /y demo_*.png art\demos
+    move /y demo_*.c art\demos
     del .temp*.*
     del *.zip
     del *.mem
@@ -301,17 +310,17 @@ if "%1"=="tidy" (
 )
 
 if exist "fwk_*" (
-    call editor\tools\join
+    call tools\bin\join
 )
 
 echo [%cc%]
 
 if "%cc%"=="cl" (
     rem pipeline
-    rem cl editor/tools/ass2iqe.c   /Feeditor/tools/ass2iqe.exe  /nologo /openmp /O2 /Oy /MT /DNDEBUG /DFINAL assimp.lib
-    rem cl editor/tools/iqe2iqm.cpp /Feeditor/tools/iqe2iqm.exe  /nologo /openmp /O2 /Oy /MT /DNDEBUG /DFINAL
-    rem cl editor/tools/mid2wav.c   /Feeditor/tools/mid2wav.exe  /nologo /openmp /O2 /Oy /MT /DNDEBUG /DFINAL
-    rem cl editor/tools/xml2json.c  /Feeditor/tools/xml2json.exe /nologo /openmp /O2 /Oy /MT /DNDEBUG /DFINAL
+    rem cl tools/bin/ass2iqe.c   /Fetools/bin/ass2iqe.exe  /nologo /openmp /O2 /Oy /MT /DNDEBUG /DFINAL assimp.lib
+    rem cl tools/bin/iqe2iqm.cpp /Fetools/bin/iqe2iqm.exe  /nologo /openmp /O2 /Oy /MT /DNDEBUG /DFINAL
+    rem cl tools/bin/mid2wav.c   /Fetools/bin/mid2wav.exe  /nologo /openmp /O2 /Oy /MT /DNDEBUG /DFINAL
+    rem cl tools/bin/xml2json.c  /Fetools/bin/xml2json.exe /nologo /openmp /O2 /Oy /MT /DNDEBUG /DFINAL
 
     rem [HINT] static linking vs dll
     rem SLL: cl fwk.c && cl demo.c fwk.obj
@@ -345,13 +354,14 @@ if "%cc%"=="cl" (
     cl demo_material.c  /nologo /openmp /Zi /MT fwk.obj %*
     cl demo_pbr.c       /nologo /openmp /Zi /MT fwk.obj %*
     cl demo_instanced.c /nologo /openmp /Zi /MT fwk.obj %*
+    cl demo_audio.c     /nologo /openmp /Zi /MT fwk.obj %*
 
 ) else if "%cc%"=="tcc" (
     rem pipeline
-    rem gcc editor/tools/ass2iqe.c   -o editor/tools/ass2iqe.exe  -w -lassimp
-    rem gcc editor/tools/iqe2iqm.cpp -o editor/tools/iqe2iqm.exe  -w -lstdc++
-    rem gcc editor/tools/mid2wav.c   -o editor/tools/mid2wav.exe  -w
-    rem gcc editor/tools/xml2json.c  -o editor/tools/xml2json.exe -w
+    rem gcc tools/bin/ass2iqe.c   -o tools/bin/ass2iqe.exe  -w -lassimp
+    rem gcc tools/bin/iqe2iqm.cpp -o tools/bin/iqe2iqm.exe  -w -lstdc++
+    rem gcc tools/bin/mid2wav.c   -o tools/bin/mid2wav.exe  -w
+    rem gcc tools/bin/xml2json.c  -o tools/bin/xml2json.exe -w
 
     rem framework
     echo fwk            && tcc -c fwk.c -w %*
@@ -372,13 +382,14 @@ if "%cc%"=="cl" (
     echo demo_material  && tcc demo_material.c  fwk.o %*
     echo demo_pbr       && tcc demo_pbr.c       fwk.o %*
     echo demo_instanced && tcc demo_instanced.c fwk.o %*
+    echo demo_audio     && tcc demo_audio.c     fwk.o %*
 
 ) else ( rem if "%cc%"=="gcc" or "clang"
     rem pipeline
-    rem %cc% editor/tools/ass2iqe.c   -o editor/tools/ass2iqe.exe  -w -lassimp
-    rem %cc% editor/tools/iqe2iqm.cpp -o editor/tools/iqe2iqm.exe  -w -lstdc++
-    rem %cc% editor/tools/mid2wav.c   -o editor/tools/mid2wav.exe  -w
-    rem %cc% editor/tools/xml2json.c  -o editor/tools/xml2json.exe -w
+    rem %cc% tools/bin/ass2iqe.c   -o tools/bin/ass2iqe.exe  -w -lassimp
+    rem %cc% tools/bin/iqe2iqm.cpp -o tools/bin/iqe2iqm.exe  -w -lstdc++
+    rem %cc% tools/bin/mid2wav.c   -o tools/bin/mid2wav.exe  -w
+    rem %cc% tools/bin/xml2json.c  -o tools/bin/xml2json.exe -w
 
     rem framework
     echo fwk            && %cc% -c fwk.c -w -g %*
@@ -399,6 +410,7 @@ if "%cc%"=="cl" (
     echo demo_material  && %cc% -o demo_material  demo_material.c  fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
     echo demo_pbr       && %cc% -o demo_pbr       demo_pbr.c       fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
     echo demo_instanced && %cc% -o demo_instanced demo_instanced.c fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
+    echo demo_audio     && %cc% -o demo_audio     demo_audio.c     fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
 )
 
 rem PAUSE only if double-clicked from Windows explorer

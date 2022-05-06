@@ -84,9 +84,14 @@
 * ------------------------------------------------------------------------------
 */
 
+#ifndef FWK_H
 #include "fwk.h"
+#endif
+
+#ifndef FWK_3RD
 #define FWK_3RD
 #include "fwk"
+#endif
 
 //-----------------------------------------------------------------------------
 // C files
@@ -614,7 +619,7 @@ size_t strlcpy(char *dst, const char *src, size_t dstcap) {
 }
 #endif
 
-char *str16to8(const wchar_t *str) { // from wchar16(win) to utf8/ascii
+char *string8(const wchar_t *str) { // from wchar16(win) to utf8/ascii
     int i = 0, n = wcslen(str) * 6 - 1;
     static __thread char buffer[2048]; assert( n < 2048 );
     while( *str ) {
@@ -785,7 +790,7 @@ uint32_t extract_utf32(const char **p) {
     }
     return 0;
 }
-array(uint32_t) strutf32( const char *utf8 ) {
+array(uint32_t) string32( const char *utf8 ) {
     static __thread int slot = 0;
     static __thread char *buf[16] = {0};
     static __thread array(uint32_t) list[16] = {0};
@@ -919,7 +924,7 @@ const char *pathfile_from_handle(FILE *fp) {
 
 void fwk_init();
 static void fwk_pre_init();
-static void fwk_post_init(float refresh_rate);
+static void fwk_post_init(float);
 #line 0
 
 #line 1 "fwk_profile.c"
@@ -2327,7 +2332,7 @@ int frustum_test_aabb(frustum f, aabb a) {
 // -----------------------------------------------------------------------------
 
 const char *ART = "art/";
-const char *TOOLS = ifdef(win32, "editor/tools/", "editor//tools/");
+const char *TOOLS = ifdef(win32, "tools/bin/", "tools//bin/");
 const char *FWK_INI = "fwk.ini";
 
 typedef struct cook_script_t {
@@ -2714,6 +2719,7 @@ typedef struct cook_worker {
 } cook_worker;
 
 static cook_worker jobs[100] = {0};
+static volatile bool cooker_cancelable = false, cooker_cancelling = false;
 
 static
 int cook(void *userdata) {
@@ -2731,7 +2737,7 @@ int cook(void *userdata) {
     char COOKER_TMPFILE[64]; snprintf(COOKER_TMPFILE, 64, "temp_%02d", job->threadid);
 
     // prepare zip
-    char zipfile[64]; snprintf(zipfile, 64, ".art[%d].zip", job->threadid);
+    char zipfile[64]; snprintf(zipfile, 64, ".art[%02x].zip", job->threadid);
     if( file_size(zipfile) == 0 ) unlink(zipfile);
 
     // populate added/deleted/changed arrays by examining current disk vs last cache
@@ -2763,7 +2769,7 @@ int cook(void *userdata) {
         fclose(in);
     }
     // added or changed files
-    for( int i = 0, end = array_count(uncooked); i < end; ++i ) {
+    for( int i = 0, end = array_count(uncooked); i < end && !cooker_cancelling; ++i ) {
         *progress = ((i+1) == end ? 90 : (i * 90) / end); // (i+i>0) * 100.f / end;
 
         // start cook
@@ -2839,6 +2845,8 @@ int cook_async( void *userptr ) {
 bool cooker_start( const char *masks, int flags ) {
     const char *rules = file_read(FWK_INI);
     if(rules[0] == 0) return false;
+
+    cooker_cancelable = !!( flags & COOKER_CANCELABLE );
 
     if( strstr(rules, "ART=") ) {
         ART = va( "%s", strstr(rules, "ART=") + 4 );
@@ -2948,8 +2956,12 @@ int cooker_progress() {
     return cooker_jobs() ? sum / (count+!count) : 100;
 }
 
+void cooker_cancel() {
+    if( cooker_cancelable ) cooker_cancelling = true;
+}
+
 int cooker_jobs() {
-    int num_jobs = optioni("--with-jobs", ifdef(tcc, 1, cpu_cores())), max_jobs = countof(jobs);
+    int num_jobs = optioni("--with-cook-jobs", ifdef(tcc, 1, cpu_cores()*2)), max_jobs = countof(jobs);
     ifdef(ems, num_jobs = 0);
     return clampi(num_jobs, 0, max_jobs);
 }
@@ -3000,7 +3012,7 @@ int main(int argc, char **argv) {
     }
 
     if( file_directory(TOOLS) && cooker_jobs() ) {
-        cooker_start( "**", 0|COOKER_ASYNC );
+        cooker_start( "**", 0|COOKER_ASYNC/*|COOKER_CANCELABLE*/ );
         cooker_stop();
     }
 
@@ -3301,7 +3313,7 @@ char *ext = strrchr(base, '.'); //if (ext) ext[0] = '\0'; // remove all extensio
     return va("%s", buffer);
 }
 const char** file_list(const char *cwd, const char *masks) {
-    ASSERT(strendi(cwd, "/"), "Error: dirs like '%s' must end with slash", cwd);
+    ASSERT(strend(cwd, "/"), "Error: dirs like '%s' must end with slash", cwd);
 
     static threadlocal array(char*) list = 0;
     const char *arg0 = cwd; // app_path();
@@ -3310,14 +3322,14 @@ const char** file_list(const char *cwd, const char *masks) {
     for( int i = 0; i < array_count(list); ++i ) {
         FREE(list[i]);
     }
-    array_free(list);
+    array_resize(list, 0);//array_free(list);
 
     for each_substring(masks,";",it) {
         int recurse = !!strstr(it, "**");
         #if is(win32)
         char *glob = va("dir %s/b/o:n \"%s\\%s\" 2> NUL", recurse ? "/s":"", cwd, it);
         #else // linux, osx
-        char *glob = va("find %s -type f -iname \"%s\" | sort", cwd, it); // @fixme: add non-recursive support
+        char *glob = va("find %s %s -name \"%s\" | sort", cwd, !recurse ? "-maxdepth 1":"-type f", it);
         #endif
         for( FILE *in = popen(glob, "r"); in; pclose(in), in = 0) {
             char buf[1024], *line = buf;
@@ -3374,7 +3386,7 @@ FILE *file_temp(void) {
 // storage (emscripten only)
 
 void storage_mount(const char* folder) {
-    #ifdef __EMSCRIPTEN__
+    #if is(ems)
         emscripten_run_script(va("FS.mkdir('%s'); FS.mount(IDBFS, {}, '%s');", folder, folder));
     #else
         (void)folder;
@@ -3382,21 +3394,21 @@ void storage_mount(const char* folder) {
 }
 
 void storage_read() {
-    #ifdef __EMSCRIPTEN__
+    #if is(ems)
     EM_ASM(
         /* sync from persisted state into memory */
         FS.syncfs(true, function (err) {
-          assert(!err);
+            assert(!err);
         });
     );
     #endif
 }
 
 void storage_flush() {
-    #ifdef __EMSCRIPTEN__
+    #if is(ems)
     EM_ASM(
         FS.syncfs(false, function (err) {
-          assert(!err);
+            assert(!err);
         });
     );
     #endif
@@ -5796,7 +5808,7 @@ vec2 font_draw_ex(const char *text, vec2 offset, const char *col, void (*draw_cm
     offset.y = -offset.y; // invert y polarity
 
     // utf8 to utf32
-    array(uint32_t) unicode = strutf32(text);
+    array(uint32_t) unicode = string32(text);
 
     // parse string
     float *t = text_glyph_data;
@@ -6135,6 +6147,11 @@ vec2 font_rect(const char *str) {
 #line 0
 
 #line 1 "fwk_input.c"
+// input framework
+// - rlyeh, public domain
+//
+// multi-touch(emscripten) port based on code by @procedural (MIT-0 licensed)
+
 // gotta love linux
 #ifdef __linux
 #undef KEY_ESC
@@ -6320,8 +6337,10 @@ void input_init() {
     do_once {
         input_mappings();
     }
+    #if 0 // deprecated
     void input_update();
     window_hook(input_update, NULL);
+    #endif
 }
 
 void input_update() {
@@ -6343,7 +6362,8 @@ void input_update() {
     floats[MOUSE_X] = mx;
     floats[MOUSE_Y] = my;
     struct nk_glfw* glfw = glfwGetWindowUserPointer(win); // from nuklear, because it is overriding glfwSetScrollCallback()
-    floats[MOUSE_W] = !glfw ? 0 : mouse_wheel_old + (float)glfw->scroll.x + (float)glfw->scroll.y;
+    floats[MOUSE_W] = !glfw ? 0 : mouse_wheel_old + (float)glfw->scroll_bak.x + (float)glfw->scroll_bak.y;
+    glfw->scroll_bak.x = glfw->scroll_bak.y = 0;
     bits[MOUSE_L] = (glfwGetMouseButton(win, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS);
     bits[MOUSE_M] = (glfwGetMouseButton(win, GLFW_MOUSE_BUTTON_MIDDLE) == GLFW_PRESS);
     bits[MOUSE_R] = (glfwGetMouseButton(win, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS);
@@ -6371,7 +6391,64 @@ void input_update() {
     #undef k
     #undef k2
 
-#if !is(ems) // error: use of undeclared identifier 'glfwGetGamepadName', 'GLFW_GAMEPAD_BUTTON_A' [etc.]
+#if is(ems)
+    {
+        int jid = 0; // @fixme
+        EmscriptenGamepadEvent state = {0};
+
+        if( emscripten_sample_gamepad_data() == EMSCRIPTEN_RESULT_SUCCESS ) {
+            if( emscripten_get_gamepad_status(jid, &state) == EMSCRIPTEN_RESULT_SUCCESS ) {
+                // hardcoded for Xbox controller
+                if( state.numAxes >= 4 && state.numButtons >= 16 ) {
+
+                    bits[GAMEPAD_CONNECTED] = 1; // !!state.connected
+                    strings[GAMEPAD_GUID] = va("%s", state.id);
+                    strings[GAMEPAD_NAME] = va("emscripten %s", state.mapping);
+                    floats[GAMEPAD_BATTERY] = 100;
+
+                    // e.digitalButton[i], e.analogButton[i]
+
+                    bits[GAMEPAD_A] = state.analogButton[0]; // cross
+                    bits[GAMEPAD_B] = state.analogButton[1]; // circle
+                    bits[GAMEPAD_X] = state.analogButton[2]; // square
+                    bits[GAMEPAD_Y] = state.analogButton[3]; // triangle
+
+                    bits[GAMEPAD_UP] = state.analogButton[12];
+                    bits[GAMEPAD_DOWN] = state.analogButton[13];
+                    bits[GAMEPAD_LEFT] = state.analogButton[14];
+                    bits[GAMEPAD_RIGHT] = state.analogButton[15];
+
+                    bits[GAMEPAD_LB] = state.analogButton[4];
+                    bits[GAMEPAD_RB] = state.analogButton[5];
+                    bits[GAMEPAD_MENU] = state.analogButton[8];
+                    bits[GAMEPAD_START] = state.analogButton[9];
+
+                    bits[GAMEPAD_LTHUMB] = state.analogButton[10];
+                    bits[GAMEPAD_RTHUMB] = state.analogButton[11];
+
+                    floats[GAMEPAD_LT] = state.analogButton[6];
+                    floats[GAMEPAD_RT] = state.analogButton[7];
+
+                    floats[GAMEPAD_LPADX] = state.axis[0];
+                    floats[GAMEPAD_LPADY] = -state.axis[1];
+
+                    floats[GAMEPAD_RPADX] = state.axis[2];
+                    floats[GAMEPAD_RPADY] = -state.axis[3];
+                }
+            }
+        }
+
+        if( 0 && ui_begin("emspad", 0)) {
+            for(int i = 0; i <= 5; ++i )
+            ui_label(va("axis #%d: %5.2f", i, (float)state.axis[i]));
+
+            for(int i = 0; i <= 15; ++i )
+            ui_label(va("button #%d: %d %5.2f", i, state.digitalButton[i], (float)state.analogButton[i]));
+
+            ui_end();
+        }
+    }
+#else
     int jid = GLFW_JOYSTICK_1 + 0; // @fixme
     if( glfwGetGamepadName(jid) ) { // glfwJoystickPresent(jid) && glfwJoystickIsGamepad(jid) ) {
         bits[GAMEPAD_CONNECTED] = 1;
@@ -6496,10 +6573,10 @@ int input_click2( int vk, int ms ) {
 
 // --- filters
 
-float input_filter_positive( float v ) {
+float input_filter_positive( float v ) { // [-1..1] -> [0..1]
     return ( v + 1 ) * 0.5f;
 }
-vec2  input_filter_positive2( vec2 v ) {
+vec2  input_filter_positive2( vec2 v ) { // [-1..1] -> [0..1]
     return scale2(inc2(v,1), 0.5f);
 }
 
@@ -6565,6 +6642,120 @@ char input_keychar(unsigned code) {
 
     return '\0';
 }
+
+// -- multi-touch input
+// multi-touch(emscripten) port based on code by @procedural (MIT-0 licensed)
+
+#if !is(ems)
+
+void touch_init() {}
+void touch_flush() {}
+void input_touch_area(unsigned button, vec2 from, vec2 to)  {}
+vec2 input_touch(unsigned button, float sensitivity) { return vec2(0,0); }
+vec2 input_touch_delta_from_origin(unsigned button, float sensitivity) { return vec2(0,0); }
+vec2 input_touch_delta(unsigned button, float sensitivity) { return vec2(0,0); }
+bool input_touch_active() { return false; }
+
+#else
+
+static struct touch {
+    bool init;
+    vec2 move, cached, origin, prev;
+    vec4 area;
+} touch[2] = {0};
+
+static EM_BOOL touch_move(int eventType, const EmscriptenTouchEvent *e, void *userData) {
+    for( int i = 0; i < (int)e->numTouches; ++i) {
+        if( !e->touches[i].isChanged ) continue;
+        int j = e->touches[i].identifier;
+        if( j >= countof(touch) ) continue;
+
+        touch[j].cached = vec2(e->touches[i].clientX, e->touches[i].clientY);
+        if (!touch[j].init) touch[j].init = 1, touch[j].origin = touch[j].prev = touch[j].move = touch[j].cached;
+    }
+
+    return EM_TRUE;
+}
+
+static EM_BOOL touch_end(int eventType, const EmscriptenTouchEvent *e, void *userData) {
+    for( int i = 0; i < (int)e->numTouches; ++i) {
+        if( !e->touches[i].isChanged ) continue;
+        int j = e->touches[i].identifier;
+        if( j >= countof(touch) ) continue;
+
+        //memset(&touch[j], 0, sizeof(touch[j]));
+        touch[j].init = false;
+        touch[j].move = touch[j].cached = touch[j].origin = touch[j].prev = vec2(0,0);
+    }
+
+    return EM_TRUE;
+}
+
+void input_touch_area(unsigned button, vec2 from_ndc, vec2 to_ndc) {
+    if( button >= countof(touch) ) return;
+    touch[button].area = vec4( from_ndc.x, from_ndc.y, to_ndc.x, to_ndc.y );
+}
+
+void touch_init() {
+    memset(touch, 0, sizeof(touch));
+
+    // default areas: left screen (button #0) and right_screen (button #1)
+    input_touch_area(0, vec2(0.0,0.0), vec2(0.5,1.0));
+    input_touch_area(1, vec2(0.5,0.0), vec2(1.0,1.0));
+
+    emscripten_set_touchstart_callback("#canvas", 0, EM_FALSE, &touch_move);
+    emscripten_set_touchmove_callback("#canvas", 0, EM_FALSE, &touch_move);
+    emscripten_set_touchend_callback("#canvas", 0, EM_FALSE, &touch_end);
+}
+
+void touch_flush() {
+    for( int j = 0; j < countof(touch); ++j) {
+        touch[j].prev = touch[j].move;
+        touch[j].move = touch[j].cached;
+    }
+}
+
+static
+unsigned input_locate_button(unsigned button) {
+    // locate button in user-defined areas
+    vec2 c = window_canvas();
+    for( int j = 0; j < countof(touch); ++j ) {
+        if( touch[j].init )
+        if( touch[j].origin.x >= (touch[button].area.x * c.x) )
+        if( touch[j].origin.y >= (touch[button].area.y * c.y) )
+        if( touch[j].origin.x <= (touch[button].area.z * c.x) )
+        if( touch[j].origin.y <= (touch[button].area.w * c.y) )
+            return j;
+    }
+    return ~0u;
+}
+
+vec2 input_touch(unsigned button, float sensitivity) {
+    button = input_locate_button(button);
+    if( button >= countof(touch) ) return vec2(0,0);
+    return touch[button].init ? touch[button].move : vec2(0,0);
+}
+
+vec2 input_touch_delta(unsigned button, float sensitivity) {
+    button = input_locate_button(button);
+    if( button >= countof(touch) ) return vec2(0,0);
+    return touch[button].init ? scale2( sub2(touch[button].move, touch[button].prev), sensitivity ) : vec2(0,0);
+}
+
+vec2 input_touch_delta_from_origin(unsigned button, float sensitivity) {
+    button = input_locate_button(button);
+    if( button >= countof(touch) ) return vec2(0,0);
+    return touch[button].init ? scale2( sub2(touch[button].move, touch[button].origin), sensitivity ) : vec2(0,0);
+}
+
+bool input_touch_active() {
+    for( int j = 0; j < countof(touch); ++j ) {
+        if( touch[j].init ) return true;
+    }
+    return false;
+}
+
+#endif // !is(ems)
 
 // ----------------------------------------------------------------------------
 
@@ -7913,31 +8104,6 @@ void glCopyBackbufferToTexture( texture_t *tex ) { // unused
     glCopyTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, 0, 0, window_width(), window_height(), 0 );
 }
 
-void glNewFrame() {
-    glViewport(0, 0, window_width(), window_height());
-    //glClearColor(0,0,0,1);
-    //glClearColor( clearColor.r, clearColor.g, clearColor.b, clearColor.a );
-    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT );
-
-    // blending defaults
-    glEnable(GL_BLEND);
-
-    // culling defaults
-//  glEnable(GL_CULL_FACE);
-//  glCullFace(GL_BACK);
-//  glFrontFace(GL_CCW);
-
-    // depth-testing defaults
-    glEnable(GL_DEPTH_TEST);
-//  glDepthFunc(GL_LESS);
-
-    // depth-writing defaults
-//  glDepthMask(GL_TRUE);
-
-    // seamless cubemaps
-//  glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
-}
-
 // ----------------------------------------------------------------------------
 // embedded shaders (@fixme: promote to files?)
 
@@ -8703,7 +8869,7 @@ unsigned shader(const char *vs, const char *fs, const char *attribs, const char 
     vs = vs[0] == '#' && vs[1] == 'v' ? vs : va("#version %s\n%s", glsl_version, vs ? vs : "");
     fs = fs[0] == '#' && fs[1] == 'v' ? fs : va("#version %s\n%s", glsl_version, fs ? fs : "");
 
-#ifdef __EMSCRIPTEN__
+#if is(ems)
     {
         char *vs_ = REALLOC( 0, strlen(vs) + 512 ); strcpy(vs_, vs);
         char *fs_ = REALLOC( 0, strlen(fs) + 512 ); strcpy(fs_, fs);
@@ -9100,8 +9266,8 @@ void texture_destroy( texture_t *t ) {
     *t = (texture_t){0};
 }
 
-bool texture_rec_begin(texture_t *t) {
-    for( unsigned w = window_width(), h = window_height(); w*h ; ) {
+bool texture_rec_begin(texture_t *t, unsigned tw, unsigned th) {
+    for( unsigned w = tw ? tw : window_width(), h = th ? th : window_height(); w*h ; ) {
         // resize if needed
         if( t->w != w || t->h != h ) {
             // re-create texture, set texture parameters and content
@@ -10198,7 +10364,7 @@ void* screenshot( int n ) { // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA
 }
 
 void* screenshot_async( int n ) { // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA
-#ifdef __EMSCRIPTEN__
+#if is(ems)
     return screenshot(n); // no glMapBuffer() on emscripten
 #else
     // async, 0 ms -- @fixme: MSAA can cause some artifacts with PBOs: either use glDisable(GL_MULTISAMPLE) when recording or do not create window with WINDOW_MSAAx options at all.
@@ -11763,12 +11929,20 @@ X(0xBE1250),X(0xFF6C24),X(0xA8E72E),X(0x00B543),X(0x065AB5),X(0x754665),X(0xFF6E
 };
 #undef X
 
-static uint32_t    dd_color = ~0u;
-static GLuint      dd_program = -1;
-static int         dd_u_color = -1;
+typedef struct text2d_cmd {
+    const char *str;
+    uint32_t col;
+    vec3 pos;
+    float sca;
+} text2d_cmd;
+
+static uint32_t                  dd_color = ~0u;
+static GLuint                    dd_program = -1;
+static int                       dd_u_color = -1;
 static map(unsigned,array(vec3)) dd_lists[2][3] = {0}; // [0/1 ontop][0/1/2 thin lines/thick lines/points]
-static bool        dd_use_line = 0;
-static bool        dd_ontop = 0;
+static bool                      dd_use_line = 0;
+static bool                      dd_ontop = 0;
+static array(text2d_cmd)         dd_text2d;
 
 void ddraw_flush() {
     ddraw_flush_projview(camera_get_active()->proj, camera_get_active()->view);
@@ -11814,19 +11988,18 @@ void ddraw_flush_projview(mat44 proj, mat44 view) {
         }
     }
 
-    if(0)
-    {
-        // ddraw_text2d(vec3(0,0,1), "hello world\n123");
+    if(1) { // text 2d
+        // queue
+        for(int i = 0; i < array_count(dd_text2d); ++i) {
+            ddraw_color(dd_text2d[i].col);
+            ddraw_text(dd_text2d[i].pos, dd_text2d[i].sca, dd_text2d[i].str); 
+        }
+
+        // flush
         float mvp[16]; float zdepth_max = 1;
         ortho44(mvp, -window_width()/2, window_width()/2, -window_height()/2, window_height()/2, -1, 1);
         translate44(mvp, -window_width()/2, window_height()/2, 0);
         glUniformMatrix4fv(glGetUniformLocation(dd_program, "u_MVP"), 1, GL_FALSE, mvp);
-        ddraw_color(BLACK);
-        for(int i = 0; i < 10; ++i)
-        ddraw_text(vec3(window_width()/2,-(i * 12),0), 0.5, "\nhello world"); // scale 0.5 is like 12units each
-        ddraw_color(WHITE);
-        for(int i = 0; i < 10; ++i)
-        ddraw_text(vec3(window_width()/2+1,-(i * 12)-1,0), 0.5, "\nhello world"); // scale 0.5 is like 12units each
         for( int i = 0; i < 3; ++i ) { // [0] thin, [1] thick, [2] points
             GLenum mode = i < 2 ? GL_LINES : GL_POINTS;
             glLineWidth(i == 1 ? 1 : 0.3); // 0.625);
@@ -11846,8 +12019,11 @@ void ddraw_flush_projview(mat44 proj, mat44 view) {
                 array_clear(list);
             }
         }
-    }
 
+        // clear
+        array_resize(dd_text2d, 0);
+    }
+    
     glDisable(GL_LINE_SMOOTH);
     glDisable(GL_PROGRAM_POINT_SIZE);
 
@@ -11957,6 +12133,14 @@ void ddraw_grid(float scale) {
     ddraw_axis(scale ? scale : 100);
 }
 
+void ddraw_text2d(vec2 pos, const char *text) {
+    struct text2d_cmd t = {0};
+    t.sca = 0.5f; // 0.5 is like vertical 12units each
+    t.pos = vec3(pos.x, 0 - pos.y - 12, 0);
+    t.str = text;
+    t.col = YELLOW;
+    array_push(dd_text2d, t);
+}
 
 void (ddraw_text)(vec3 pos, float scale, const char *text) {
     // [ref] http://paulbourke.net/dataformats/hershey/ (PD)
@@ -12576,10 +12760,10 @@ void camera_move(camera_t *cam, float x, float y, float z) {
     if( smoothing ) {
         float move_friction = 0.99f;
         cam->last_move = scale3(cam->last_move, move_friction);
-        float move_filtering = 0.025f;
-        x = cam->last_move.x = x * move_filtering + cam->last_move.x * (1 - move_filtering);
-        y = cam->last_move.y = y * move_filtering + cam->last_move.y * (1 - move_filtering);
-        z = cam->last_move.z = z * move_filtering + cam->last_move.z * (1 - move_filtering);
+        float move_filtering = 0.975f;
+        x = cam->last_move.x = x * (1 - move_filtering) + cam->last_move.x * move_filtering;
+        y = cam->last_move.y = y * (1 - move_filtering) + cam->last_move.y * move_filtering;
+        z = cam->last_move.z = z * (1 - move_filtering) + cam->last_move.z * move_filtering;
     }
 
     vec3 dir = norm3(cross3(cam->look, cam->up));
@@ -13118,7 +13302,7 @@ const char *app_path() { // should return absolute path always
     char *b = strrchr(buffer, '\\'); if(!b) b = buffer + strlen(buffer);
     char slash = (a < b ? *a : b < a ? *b : '/');
     snprintf(buffer, 1024, "%.*s%c", length - (int)(a < b ? b - a : a - b), buffer, slash), buffer;
-    if( strendi(buffer, "editor\\tools\\tcc-win\\") ) { // fix tcc -g -run case. @fixme: fix on non art-tools custom pipeline folder
+    if( strendi(buffer, "tools\\bin\\tcc-win\\") ) { // fix tcc -g -run case. @fixme: fix on non art-tools custom pipeline folder
         strcat(buffer, "..\\..\\..\\");
     }
 #else // #elif is(linux)
@@ -13140,7 +13324,7 @@ const char *app_temp() {
 }
 
 #ifndef APP_NAME
-#define APP_NAME __argv[0]
+#define APP_NAME ifdef(ems, "", __argv[0])
 #endif
 
 const char *app_name() {
@@ -13151,7 +13335,7 @@ const char *app_name() {
         char *a = strrchr(s, '/');
         char *b = strrchr(s, '\\');
         strncpy(buffer, a > b ? a+1 : b > a ? b+1 : s, 256);
-        a = (char*)strendi(buffer, ".exe"); if(a) *a = 0;
+        if(strendi(buffer, ".exe")) buffer[strlen(buffer) - 4] = 0;
     }
     return buffer;
 }
@@ -13962,13 +14146,9 @@ int (PANIC)(const char *error, const char *file, int line) {
 #define MAX_ELEMENT_MEMORY 128 * 1024
 
 static struct nk_context *ui_ctx;
-static struct nk_glfw ui_glfw = {0};
+static struct nk_glfw nk_glfw = {0};
 
 static void nk_config_custom_fonts() {
-    /* Load Fonts: if none of these are loaded a default font will be used  */
-    /* Load Cursor: if you uncomment cursor loading please hide the cursor */
-    //{struct nk_font_atlas *atlas;
-
     #define ICON_FONTNAME "fontawesome-webfont.ttf"
     #define ICON_FONTSIZE 15
     #define ICON_MIN 0xF000
@@ -13983,32 +14163,51 @@ static void nk_config_custom_fonts() {
     #define ICON_CUBE "\xef\x86\xb2" // U+f1b2
     #define ICON_TEST_GLYPH ICON_FILE_O
 
-    struct nk_font_atlas *atlas;
-    struct nk_font_config cfg = nk_font_config(ICON_FONTSIZE+1);
-    static const nk_rune icon_range[] = {ICON_MIN, ICON_MAX, 0};
-    cfg.range = icon_range; // nk_font_default_glyph_ranges();
-    cfg.merge_mode = 1;
-
-    cfg.spacing.x += 8.f;
-//    cfg.spacing.y += 0.f;
-//    cfg.font->ascent ++;
-//    cfg.font->height += 4;
-
-//    cfg.oversample_h = 1;
-//    cfg.oversample_v = 1;
-
     struct nk_font *font = NULL;
-    nk_glfw3_font_stash_begin(&ui_glfw, &atlas); // nk_sdl_font_stash_begin(&atlas);
-#if 0 // is(win32)
-    struct nk_font *arial = nk_font_atlas_add_from_file(atlas, va("%s/fonts/arial.ttf",getenv("windir")), 15.f, 0); font = arial ? arial : font;
-#else
-    struct nk_font *roboto = nk_font_atlas_add_from_memory(atlas, vfs_read("Carlito-Regular.ttf"), vfs_size("Carlito-Regular.ttf"), 14.5f, 0); font = roboto ? roboto : font;
-#endif
-    //struct nk_font *droid = nk_font_atlas_add_from_file(atlas, "nuklear/extra_font/DroidSans.ttf", 14, 0); font = droid ? droid : font;
-    struct nk_font *icons = nk_font_atlas_add_from_memory(atlas, vfs_read(ICON_FONTNAME), vfs_size(ICON_FONTNAME), ICON_FONTSIZE, &cfg);
-    nk_glfw3_font_stash_end(&ui_glfw); // nk_sdl_font_stash_end();
-    /* nk_style_load_all_cursors(ctx, atlas->cursors); glfwSetInputMode(win, GLFW_CURSOR, GLFW_CURSOR_HIDDEN); */
+    struct nk_font_atlas *atlas = NULL;
+    nk_glfw3_font_stash_begin(&nk_glfw, &atlas); // nk_sdl_font_stash_begin(&atlas);
+
+        // Default font...
+
+        if( vfs_read("Carlito-Regular.ttf") ) {
+            // win32: struct nk_font *arial = nk_font_atlas_add_from_file(atlas, va("%s/fonts/arial.ttf",getenv("windir")), 15.f, 0); font = arial ? arial : font;
+            // struct nk_font *droid = nk_font_atlas_add_from_file(atlas, "nuklear/extra_font/DroidSans.ttf", 14, 0); font = droid ? droid : font;
+            struct nk_font *regular = nk_font_atlas_add_from_memory(atlas, vfs_read("Carlito-Regular.ttf"), vfs_size("Carlito-Regular.ttf"), 14.5f, 0); font = regular ? regular : font;
+        } else {
+            // fallback font
+            struct nk_font *proggy = nk_font_atlas_add_default(atlas, 13.f, NULL); font = proggy ? proggy : font;        
+        }
+
+        // ...with icons embedded on it.
+
+        if( vfs_read(ICON_FONTNAME) ) {
+            struct nk_font_config cfg = nk_font_config(ICON_FONTSIZE+1);
+            static const nk_rune icon_range[] = {ICON_MIN, ICON_MAX, 0};
+            cfg.range = icon_range; // nk_font_default_glyph_ranges();
+            cfg.merge_mode = 1;
+
+            cfg.spacing.x += 8.f;
+         // cfg.spacing.y += 0.f;
+         // cfg.font->ascent ++;
+         // cfg.font->height += 4;
+
+         // cfg.oversample_h = 1;
+         // cfg.oversample_v = 1;
+
+            struct nk_font *icons = nk_font_atlas_add_from_memory(atlas, vfs_read(ICON_FONTNAME), vfs_size(ICON_FONTNAME), ICON_FONTSIZE, &cfg);
+        }
+
+        // Secondary fonts from here...
+
+        if( vfs_read("Carlito-BoldItalic.ttf") ) {
+            struct nk_font *bold = nk_font_atlas_add_from_memory(atlas, vfs_read("Carlito-BoldItalic.ttf"), vfs_size("Carlito-BoldItalic.ttf"), 16.f, 0); // font = bold ? bold : font;
+        }
+
+    nk_glfw3_font_stash_end(&nk_glfw); // nk_sdl_font_stash_end();
     if(font) nk_style_set_font(ui_ctx, &font->handle);
+
+    // Load Cursor: if you uncomment cursor loading please hide the cursor
+    // nk_style_load_all_cursors(ctx, atlas->cursors); glfwSetInputMode(win, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 }
 
 static void nk_config_custom_style() {
@@ -14064,23 +14263,6 @@ static void nk_config_custom_style() {
     s->edit.border = 0;
 }
 
-void ui_destroy(void) {
-    if(ui_ctx) {
-        nk_glfw3_shutdown(&ui_glfw); // nk_sdl_shutdown();
-        ui_ctx = 0;
-    }
-}
-
-void ui_create() {
-    if(!ui_ctx) {
-        ui_ctx = nk_glfw3_init(&ui_glfw, window_handle(), NK_GLFW3_INSTALL_CALLBACKS); // nk_sdl_init(window_handle());
-        atexit(ui_destroy);
-
-        nk_config_custom_fonts();
-        nk_config_custom_style();
-    }
-}
-
 // -----------------------------------------------------------------------------
 // ui menu
 
@@ -14134,84 +14316,149 @@ nk_menu_begin_text_styled(struct nk_context *ctx, const char *title, int len,
     return nk_menu_begin(ctx, win, title, is_clicked, header, size);
 }
 
+
+static
+vec2 ui_toolbar_(array(char*) ui_items, vec2 ui_results, float min_width) {
+//    nk_layout_row_dynamic(ui_ctx, 0, 1);
+
+#if 0
+    nk_layout_row_dynamic(ui_ctx, 25/*h*/, array_count(ui_items));
+#else
+    // adjust size for all the next UI elements
+    {
+        const struct nk_style *style = &ui_ctx->style;
+        const struct nk_user_font *f = style->font;
+
+        nk_layout_row_template_begin(ui_ctx, 25/*h*/);
+        for(int i = 0; i < array_count(ui_items); ++i) {
+            char first_token[64];
+            sscanf(ui_items[i], "%[^,;|]", first_token);
+
+            float pixels_width = f->width(f->userdata, f->height, first_token, strlen(first_token));
+            if( min_width ) pixels_width += ( style->window.header.label_padding.x + style->window.header.padding.x ) * 2;
+            if( pixels_width < min_width ) pixels_width = min_width;
+            nk_layout_row_template_push_static(ui_ctx, pixels_width);
+        }
+        nk_layout_row_template_end(ui_ctx);
+    }
+#endif
+
+    // display the UI elements
+    for( int i = 0, end = array_count(ui_items); i < end; ++i ) {
+        array(char*) ids = strsplit(ui_items[i], ",;|");
+
+        // transparent style
+        static struct nk_style_button transparent_style;
+        do_once transparent_style = ui_ctx->style.button;
+        do_once transparent_style.normal.data.color = nk_rgba(0,0,0,0);
+        do_once transparent_style.border_color = nk_rgba(0,0,0,0);
+        do_once transparent_style.active = transparent_style.normal;
+        do_once transparent_style.hover = transparent_style.normal;
+        do_once transparent_style.hover.data.color = nk_rgba(0,0,0,127);
+        transparent_style.text_alignment = NK_TEXT_ALIGN_CENTERED|NK_TEXT_ALIGN_MIDDLE; // array_count(ids) > 1 ? NK_TEXT_ALIGN_LEFT : NK_TEXT_ALIGN_CENTERED;
+
+        // single button
+        if( array_count(ids) == 1 ) {
+            if( nk_button_label_styled(ui_ctx, &transparent_style, ids[0]) )
+                ui_results = vec2(i+1, 0+1);
+        }
+
+        // dropdown menu
+        if( array_count(ids) > 1 )
+        if( nk_menu_begin_text_styled(ui_ctx, ids[0], strlen(ids[0]), NK_TEXT_ALIGN_CENTERED|NK_TEXT_ALIGN_MIDDLE, nk_vec2(120, array_count(ids)* 32), &transparent_style) ) { // nk_menu_begin_label(ui_ctx, ids[0], NK_TEXT_LEFT, nk_vec2(120, array_count(ids)* 32)) ) {
+            nk_layout_row_dynamic(ui_ctx, 32, 1);
+
+            for( int j = 1; j < array_count(ids); ++j ) {
+                char *item = ids[j];
+                if( *item == '-' ) {
+                    while(*item == '-') ++item;
+                    //nk_menu_item_label(ui_ctx, "---", NK_TEXT_LEFT);
+                    ui_separator_line();
+                }
+
+                if( nk_menu_item_label(ui_ctx, item, NK_TEXT_LEFT) ) {
+                    ui_results = vec2(i+1, j+1);
+                }
+            }                    
+
+            nk_menu_end(ui_ctx);
+        }
+    }
+
+    return ui_results;
+}
+
+int ui_toolbar(const char *icons) { // usage: int clicked_icon = ui_toolbar( ICON_1 ";" ICON_2 ";" ICON_3 ";" ICON_4 );
+    vec2 results = {0};
+    array(char*) items = strsplit(icons, ",;|");
+    return ui_toolbar_(items, results, 5).x;
+}
+
+
+// UI Windows handlers. These are not OS Windows but UI Windows instead. For OS Windows check window_*() API.
+static map(char*,unsigned) ui_windows = 0;
+static int ui_window_register(const char *title) {
+    if(!ui_windows) map_init(ui_windows, less_str, hash_str);
+    *map_find_or_add(ui_windows, (char*)title, 0) |= 2;
+    return 1;
+}
+static int ui_window_visible(const char *title) {
+    if(!ui_windows) map_init(ui_windows, less_str, hash_str);
+    return *map_find_or_add(ui_windows, (char*)title, 0) & 1;
+}
+static int ui_window_show(const char *title, int enabled) {
+    if(!ui_windows) map_init(ui_windows, less_str, hash_str);
+    unsigned *found = map_find_or_add(ui_windows, (char*)title, 0);
+    if( enabled ) {
+        *found |= 1;
+        nk_window_collapse(ui_ctx, title, NK_MAXIMIZED); // in case windows was previously collapsed
+    } else {
+        *found &= ~1;
+    }
+    return !!enabled;
+}
+static char *ui_build_window_list() {
+    if(!ui_windows) map_init(ui_windows, less_str, hash_str);
+    char *build_windows_menu = 0;
+    strcatf(&build_windows_menu, "%s;", "Windows");
+    for each_map_sorted_ptr(ui_windows, char*, k, unsigned, v) {
+        strcatf(&build_windows_menu, "%s;", *k);
+    }
+    return build_windows_menu; // @leak if discarded
+}
+
+
 static
 void ui_menu_render() {
     // clean up from past frame
     ui_results = vec2(0,0);
     if( !ui_items ) return;
 
+// add last Windows menu
+array_push(ui_items, ui_build_window_list());
+
     // process menus
     if( nk_begin(ui_ctx, "Menu", nk_rect(0, 0, window_width(), 32), NK_WINDOW_NO_SCROLLBAR/*|NK_WINDOW_BACKGROUND*/)) {
-        nk_menubar_begin(ui_ctx);
+        if( ui_ctx->current ) {
+            nk_menubar_begin(ui_ctx);
 
-#if 0
-        nk_layout_row_dynamic(ui_ctx, 25/*h*/, array_count(ui_items));
-#else
-        // adjust size for all the next UI elements
-        {
-            const struct nk_style *style = &ui_ctx->style;
-            const struct nk_user_font *f = style->font;
+            ui_results = ui_toolbar_(ui_items, ui_results, 40);
 
-            nk_layout_row_template_begin(ui_ctx, 25/*h*/);
-            for(int i = 0; i < array_count(ui_items); ++i) {
-                char first_token[64];
-                sscanf(ui_items[i], "%[^,;|]", first_token);
-
-                float pixels_width = f->width(f->userdata, f->height, first_token, strlen(first_token));
-                pixels_width += ( style->window.header.label_padding.x + style->window.header.padding.x ) * 2;
-                if( pixels_width < 40 ) pixels_width = 40; // @fixme: hardcoded min-value 40w for a single icon glyph
-                nk_layout_row_template_push_static(ui_ctx, pixels_width);
-            }
-            nk_layout_row_template_end(ui_ctx);
+            //nk_layout_row_end(ui_ctx);
+            nk_menubar_end(ui_ctx);
         }
-#endif
-
-        // display the UI elements
-        for( int i = 0, end = array_count(ui_items); i < end; ++i ) {
-            array(char*) ids = strsplit(ui_items[i], ",;|");
-
-            // transparent style
-            static struct nk_style_button transparent_style;
-            do_once transparent_style = ui_ctx->style.button;
-            do_once transparent_style.normal.data.color = nk_rgba(0,0,0,0);
-            do_once transparent_style.border_color = nk_rgba(0,0,0,0);
-            do_once transparent_style.active = transparent_style.normal;
-            do_once transparent_style.hover = transparent_style.normal;
-            do_once transparent_style.hover.data.color = nk_rgba(0,0,0,127);
-            transparent_style.text_alignment = NK_TEXT_ALIGN_CENTERED|NK_TEXT_ALIGN_MIDDLE; // array_count(ids) > 1 ? NK_TEXT_ALIGN_LEFT : NK_TEXT_ALIGN_CENTERED;
-
-            // single button
-            if( array_count(ids) == 1 ) {
-                if( nk_button_label_styled(ui_ctx, &transparent_style, ids[0]) )
-                    ui_results = vec2(i+1, 0+1);
-            }
-
-            // dropdown menu
-            if( array_count(ids) > 1 )
-            if( nk_menu_begin_text_styled(ui_ctx, ids[0], strlen(ids[0]), NK_TEXT_ALIGN_CENTERED|NK_TEXT_ALIGN_MIDDLE, nk_vec2(120, array_count(ids)* 32), &transparent_style) ) { // nk_menu_begin_label(ui_ctx, ids[0], NK_TEXT_LEFT, nk_vec2(120, array_count(ids)* 32)) ) {
-                nk_layout_row_dynamic(ui_ctx, 32, 1);
-
-                for( int j = 1; j < array_count(ids); ++j ) {
-                    char *item = ids[j];
-                    if( *item == '-' ) {
-                        while(*item == '-') ++item;
-                        //nk_menu_item_label(ui_ctx, "---", NK_TEXT_LEFT);
-                        ui_separator_line();
-                    }
-
-                    if( nk_menu_item_label(ui_ctx, item, NK_TEXT_LEFT) ) {
-                        ui_results = vec2(i+1, j+1);
-                    }
-                }                    
-
-                nk_menu_end(ui_ctx);
-            }
-        }
-
-        //nk_layout_row_end(ui_ctx);
-        nk_menubar_end(ui_ctx);
     }
     nk_end(ui_ctx);
+
+// if clicked on Windows menu
+if( ui_results.x == array_count(ui_items) ) {
+    array(char*) split = strsplit(*array_back(ui_items), ";");
+    const char *title = split[(int)ui_results.y - 1]; title += title[0] == '-';
+    // show window
+    ui_window_show(title, true);
+    // reset click so developer don't catch this one
+    ui_results = vec2(0,0);
+}
 
     // clean up for next frame
     for( int i = 0; i < array_count(ui_items); ++i ) {
@@ -14235,6 +14482,21 @@ int ui_active() {
     return ui_actived; //window_has_cursor() && nk_window_is_any_hovered(ui_ctx) && nk_item_is_any_active(ui_ctx);
 }
 
+void ui_destroy(void) {
+    if(ui_ctx) {
+        nk_glfw3_shutdown(&nk_glfw); // nk_sdl_shutdown();
+        ui_ctx = 0;
+    }
+}
+void ui_create() {
+    do_once atexit(ui_destroy);
+
+    if( ui_dirty ) {
+        nk_glfw3_new_frame(&nk_glfw); //g->nk_glfw);
+        ui_dirty = 0;
+    }
+}
+
 void ui_render() {
     // draw queued menus
     ui_menu_render();
@@ -14245,7 +14507,10 @@ void ui_render() {
      * Make sure to either a.) save and restore or b.) reset your own state after
      * rendering the UI. */
     //nk_sdl_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_MEMORY, MAX_ELEMENT_MEMORY);
-    nk_glfw3_render(&ui_glfw, NK_ANTI_ALIASING_ON, MAX_VERTEX_MEMORY, MAX_ELEMENT_MEMORY);
+    nk_glfw3_render(&nk_glfw, NK_ANTI_ALIASING_ON, MAX_VERTEX_MEMORY, MAX_ELEMENT_MEMORY);
+#if is(ems)
+    glFinish();
+#endif
     ui_dirty = 1;
     ui_hue = 0;
 
@@ -14260,18 +14525,9 @@ void ui_render() {
 
 // ----------------------------------------------------------------------------
 
-int ui_window_end();
-
 static
 int ui_begin_panel_or_window_(const char *title, int flags, bool is_window) {
-    if( window_width() <= 0 ) return 0;
-    if( window_height() <= 0 ) return 0;
-
     ui_create();
-    if(ui_dirty) {
-        nk_glfw3_new_frame(&ui_glfw);
-        ui_dirty = 0;
-    }
 
     uint64_t hash = 14695981039346656037ULL, mult = 0x100000001b3ULL;
     for(int i = 0; title[i]; ++i) hash = (hash ^ title[i]) * mult;
@@ -14327,19 +14583,40 @@ else ui_window_end();
     }
 }
 
+static const char *ui_last_window = 0;
+static int *ui_last_enabled = 0;
 static int ui_has_window = 0;
 static int ui_has_menubar = 0;
-int ui_window(const char *title, int flags) {
+int ui_window(const char *title, int *enabled) {
+    if( window_width() <= 0 ) return 0;
+    if( window_height() <= 0 ) return 0;
+
+    ui_window_register(title);
+    if(!ui_window_visible(title)) {
+        bool forced_creation = ( enabled && *enabled );
+        if( !forced_creation ) return 0;
+    }
+
+    ui_last_enabled = enabled;
+    ui_last_window = title;
     ui_has_window = 1;
-    return ui_begin_panel_or_window_(title, flags, true);
+    return ui_begin_panel_or_window_(title, /*flags*/0, true);
 }
-int ui_window_end() {
+void ui_window_end() {
     if(ui_has_menubar) nk_menubar_end(ui_ctx), ui_has_menubar = 0;
     nk_end(ui_ctx), ui_has_window = 0;
-    return 0;
+
+    if( nk_window_is_hidden(ui_ctx, ui_last_window) ) {
+        nk_window_close(ui_ctx, ui_last_window);
+        ui_window_show(ui_last_window, false);
+        if( ui_last_enabled ) *ui_last_enabled = 0; // clear developers' flag
+    }
 }
 
 int ui_begin(const char *title, int flags) {
+    if( window_width() <= 0 ) return 0;
+    if( window_height() <= 0 ) return 0;
+
     if( ui_has_window ) {
         // transparent style
         static struct nk_style_button transparent_style;
@@ -14403,7 +14680,15 @@ int ui_label_(const char *label, int alignment) {
 
         const char *split = strchr(label, '@'), *tooltip = split + 1;
             char buffer[128]; if( split ) label = (snprintf(buffer, 128, "%.*s", (int)(split-label), label), buffer);
+
+bool emphasis = label[0] == '*'; label += emphasis;
+struct nk_font *font = emphasis ? nk_glfw.atlas.fonts->next : NULL; // list
+if( font && nk_style_push_font(ui_ctx, &font->handle) ) {} else font = 0;
+
             nk_label(ui_ctx, label, alignment);
+    
+if( font )  nk_style_pop_font(ui_ctx);
+
             if (split && is_hovering && !ui_popups_active) {
                 nk_tooltip(ui_ctx, split ? tooltip : label);
             }
@@ -14796,6 +15081,87 @@ ui_bits_template(8);
 ui_bits_template(16);
 //ui_bits_template(32);
 
+
+int ui_browse(const char **output, bool *inlined) {
+    static struct browser_media media = {0};
+    static struct browser browser = {0};
+    do_once {
+        const int W = 96, H = 96; // 2048x481 px, 21x5 cells
+        texture_t i = texture("icons/suru.png", TEXTURE_RGBA|TEXTURE_MIPMAPS);
+        browser_config_dir(icon_load_rect(i.id, i.w, i.h, W, H, 16, 3), BROWSER_FOLDER); // default group
+        browser_config_dir(icon_load_rect(i.id, i.w, i.h, W, H,  2, 4), BROWSER_HOME); 
+        browser_config_dir(icon_load_rect(i.id, i.w, i.h, W, H, 17, 3), BROWSER_COMPUTER);
+        browser_config_dir(icon_load_rect(i.id, i.w, i.h, W, H,  1, 4), BROWSER_PROJECT);
+        browser_config_dir(icon_load_rect(i.id, i.w, i.h, W, H,  0, 4), BROWSER_DESKTOP);
+
+        browser_config_type(icon_load_rect(i.id, i.w, i.h, W, H,  8, 0), "");
+        browser_config_type(icon_load_rect(i.id, i.w, i.h, W, H, 10, 2), ".txt.md.license" ".");
+        browser_config_type(icon_load_rect(i.id, i.w, i.h, W, H,  8, 1), ".ini" ".");
+        browser_config_type(icon_load_rect(i.id, i.w, i.h, W, H,  8, 3), ".xlsx" ".");
+        browser_config_type(icon_load_rect(i.id, i.w, i.h, W, H,  9, 0), ".c" ".");
+        browser_config_type(icon_load_rect(i.id, i.w, i.h, W, H,  4, 1), ".h.hpp.hh" ".");
+        browser_config_type(icon_load_rect(i.id, i.w, i.h, W, H,  4, 2), ".fs.vs.gs.fx.glsl.shader" ".");
+        browser_config_type(icon_load_rect(i.id, i.w, i.h, W, H, 12, 0), ".cpp.cc" ".");
+        browser_config_type(icon_load_rect(i.id, i.w, i.h, W, H, 15, 0), ".json" ".");
+        browser_config_type(icon_load_rect(i.id, i.w, i.h, W, H, 15, 2), ".bat.sh" ".");
+        browser_config_type(icon_load_rect(i.id, i.w, i.h, W, H,  6, 1), ".htm.html" ".");
+        browser_config_type(icon_load_rect(i.id, i.w, i.h, W, H, 20, 1), ".xml" ".");
+        browser_config_type(icon_load_rect(i.id, i.w, i.h, W, H, 12, 1), ".js" ".");
+        browser_config_type(icon_load_rect(i.id, i.w, i.h, W, H,  0, 3), ".ts" ".");
+        browser_config_type(icon_load_rect(i.id, i.w, i.h, W, H,  6, 2), ".py" ".");
+        browser_config_type(icon_load_rect(i.id, i.w, i.h, W, H, 16, 1), ".lua" ".");
+        browser_config_type(icon_load_rect(i.id, i.w, i.h, W, H, 10, 0), ".css.doc" ".");
+        browser_config_type(icon_load_rect(i.id, i.w, i.h, W, H,  6, 0), ".wav.flac.ogg.mp1.mp3.mod.xm.s3m.it.sfxr.mid" ".");
+        browser_config_type(icon_load_rect(i.id, i.w, i.h, W, H,  1, 3), ".ttf.ttc" ".");
+        browser_config_type(icon_load_rect(i.id, i.w, i.h, W, H,  7, 1), ".jpg.jpeg.png.bmp.psd.pic.pnm.ico.ktx.pvr.dds.astc.basis.hdr.tga.gif" ".");
+        browser_config_type(icon_load_rect(i.id, i.w, i.h, W, H,  4, 3), ".mp4.mpg.ogv.mkv.wmv.avi" ".");
+        browser_config_type(icon_load_rect(i.id, i.w, i.h, W, H,  2, 1), ".iqm.iqe.gltf.gltf2.glb.fbx.obj.dae.blend.md3.md5.ms3d.smd.x.3ds.bvh.dxf.lwo" ".");
+        browser_config_type(icon_load_rect(i.id, i.w, i.h, W, H,  7, 0), ".exe.bin.dSYM.pdb.o.lib.dll" ".");
+        browser_config_type(icon_load_rect(i.id, i.w, i.h, W, H, 15, 3), ".zip.rar.7z.pak" ".");
+
+        browser_init(&browser);
+    }
+    // at_exit: browser_free(&browser);
+
+    int clicked = 0;
+    bool windowed = !inlined;
+    if( windowed || (!windowed && *inlined) ) {
+
+//        struct nk_rect bounds; nk_layout_peek(&bounds, ui_ctx); bounds.w -= 10; // bounds.w *= 0.95f;
+//        printf("%f %f %f %f\n", bounds.x, bounds.y, bounds.w, bounds.h);
+        struct nk_rect bounds = {0,0,400,300};
+        if( windowed ) bounds = nk_window_get_content_region(ui_ctx);
+
+        clicked = browser_run(ui_ctx, &browser, 0, bounds);
+        if( clicked ) {
+            static char *ui_browse_result = 0;
+            strcatf(&ui_browse_result, "%d", 0);
+            ui_browse_result[0] = '\0';
+            strcatf(&ui_browse_result, "%s", browser.file);
+            if( inlined ) *inlined = 0;
+
+            if( output ) *output = ui_browse_result;
+        }
+    }
+
+    return clicked;
+}
+
+/*
+//  demo:
+    static const char *file;
+    if( ui_begin("inlined", 0)) {
+        static bool show_browser = 0;
+        if( ui_button("my button") ) { show_browser = true; }
+        if( ui_browse(&file, &show_browser) ) puts(file);
+        ui_end();
+    }
+    if( ui_window("windowed", 0) ) {
+        if( ui_browse(&file, NULL) ) puts(file);
+        ui_window_end();
+    }
+*/
+
 // ----------------------------------------------------------------------------
 
 void ui_demo() {
@@ -14813,9 +15179,14 @@ void ui_demo() {
     static char string[64] = "hello world 123";
     static int item = 0; const char *list[] = {"one","two","three"};
     static bool show_dialog = false;
+    static bool show_browser = false;
+    static const char* browsed_file = "";
     static uint8_t bitmask = 0x55;
 
     if( ui_begin("UI", 0)) {
+        if( ui_toolbar("Test1;Test2;Test3") == 3 ) show_browser = true;
+        if( ui_browse(&browsed_file, &show_browser) ) puts(browsed_file);
+
         if( ui_label("my label")) {}
         if( ui_label("my label with tooltip@built on " __DATE__ " " __TIME__)) {}
         if( ui_separator() ) {}
@@ -14876,13 +15247,18 @@ void ui_demo() {
         ui_end();
     }
 
-#if 0
-    if( ui_window("Window #3", 0) ) {
-        ui_label("label #3");
+    if( ui_window("File Browser", 0) ) {
+        const char *browsed_file = 0;
+        if( ui_browse(&browsed_file, NULL) ) puts(browsed_file);
         ui_window_end();
     }
 
-    if( ui_window("Window #2", 0) ) {
+    if( ui_window("Window #1 demo", 0) ) {
+        ui_label("label #1");
+        ui_window_end();
+    }
+
+    if( ui_window("Window #2 demo", 0) ) {
         if( ui_begin("panel #2", 0) ) {
             ui_label("label #2");
             ui_end();
@@ -14890,8 +15266,8 @@ void ui_demo() {
         ui_window_end();
     }
 
-    if( ui_window("Window #1", 0) ) {
-        if( ui_begin("panel #1a", 0) ) {
+    if( ui_window("Window #3 demo", 0) ) {
+        if( ui_begin("panel #3a", 0) ) {
             if( ui_bool("my bool", &boolean) ) puts("bool changed");
             if( ui_int("my int", &integer) ) puts("int changed");
             if( ui_float("my float", &floating) ) puts("float changed");
@@ -14901,7 +15277,7 @@ void ui_demo() {
             if( ui_slider2("my slider 2", &slider2, va("%.2f", slider2))) puts("slider2 changed");
             ui_end();
         }
-        if( ui_begin("panel #1b", 0) ) {
+        if( ui_begin("panel #3b", 0) ) {
             if( ui_bool("my bool", &boolean) ) puts("bool changed");
             if( ui_int("my int", &integer) ) puts("int changed");
             if( ui_float("my float", &floating) ) puts("float changed");
@@ -14912,31 +15288,37 @@ void ui_demo() {
             ui_end();
         }
 
-        const char *title = "Window #1";
+        const char *title = "Window #3 demo";
         struct nk_window *win = nk_window_find(ui_ctx, title);
         if( win ) {
             struct nk_rect bounds = win->bounds; bounds.y += 65; bounds.h -= 65; // exclude title bar (~32) + menu bounds (~25)
 
+            ddraw_flush();
+
             static texture_t tx = {0};
             if( texture_rec_begin(&tx, bounds.w, bounds.h )) {
-                    glClearColor(1, 0, 1, 1);
-                    glClear(GL_COLOR_BUFFER_BIT);
+                glClearColor(0.15,0.15,0.15,1);
+                glClear(GL_COLOR_BUFFER_BIT);
+                ddraw_grid(10);
+                ddraw_flush();
                 texture_rec_end(&tx);
             }
 
             struct nk_image image = nk_image_id((int)tx.id); //(int)4);
             struct nk_command_buffer* buffer = nk_window_get_canvas(ui_ctx);
-            nk_draw_image(buffer, bounds, &image, nk_white);
+            nk_draw_image_flipped(buffer, bounds, &image, nk_white);
         }
 
         ui_window_end();
     }
-#endif
 
 }
 #line 0
 
 #line 1 "fwk_video.c"
+// tip: convert video to x265/mp4. note: higher crf to increase compression (default crf is 28)
+// ffmpeg -i {{infile}} -c:v libx265 -crf 24 -c:a copy {{outfile}}
+
 struct video_t {
     // mpeg player
     plm_t *plm;
@@ -15235,6 +15617,7 @@ void window_vsync(float hz) {
 
 //-----------------------------------------------------------------------------
 
+#if 0 // deprecated
 static void (*hooks[64])() = {0};
 static void *userdatas[64] = {0};
 
@@ -15257,6 +15640,7 @@ void window_unhook(void (*func)()) {
         }
     }
 }
+#endif
 
 static GLFWwindow *window;
 static int w, h, xpos, ypos, paused;
@@ -15275,7 +15659,7 @@ struct app {
     int width, height, keep_running;
 
     struct nk_context *ctx;
-    struct nk_glfw *glfw;
+    struct nk_glfw *nk_glfw;
 } appHandle = {0}, *g;
 
 static void glfw_error_callback(int error, const char *description) {
@@ -15285,7 +15669,6 @@ static void glfw_error_callback(int error, const char *description) {
 
 void glfw_quit(void) {
     do_once {
-        if(g->glfw) nk_glfw3_shutdown(g->glfw);
         glfwTerminate();
     }
 }
@@ -15365,25 +15748,50 @@ void window_hints(unsigned flags) {
     if(flags & WINDOW_MSAA8) glfwWindowHint(GLFW_SAMPLES, 8); // x8 AA
 }
 
-enum app_window_mode {
-    APP_WIN_NORMAL = 'w', // normal window mode, user can resize/maximize
-    APP_WIN_MAXIMIZED = 'm', // like normal, but starts maximized
-    APP_WIN_FIXED = 'x', // fixed size mode. User can't resize/maximize
-    APP_WIN_FULLSCREEN = 'f', // real fullscreen. In almost all frontends changes the screen's resolution
-    APP_WIN_FULLSCREEN_DESKTOP = 'd' // "virtual" fullscreen. Removes windows decoration. expands window to full size, changes window size
-};
-
-struct nk_glfw *window_handle_glfw() {
-    return g->glfw;
+struct nk_glfw *window_handle_nkglfw() {
+    return g->nk_glfw;
 }
 
-bool window_poll() {
-    glfwPollEvents();
-    nk_glfw3_new_frame(g->glfw);
-    if( glfwWindowShouldClose(g->window) ) {
-        return 0;
-    }
-    return 1;
+void glNewFrame() {
+
+#if 0 // is(ems)
+    int canvasWidth, canvasHeight;
+    emscripten_get_canvas_element_size("#canvas", &canvasWidth, &canvasHeight);
+    w = canvasWidth;
+    h = canvasHeight;
+    //printf("%dx%d\n", w, h);
+#else
+    //glfwGetWindowSize(window, &w, &h);
+    glfwGetFramebufferSize(window, &w, &h);
+    //printf("%dx%d\n", w, h);
+#endif
+
+    g->width = w;
+    g->height = h;
+
+    // blending defaults
+    glEnable(GL_BLEND);
+
+    // culling defaults
+//  glEnable(GL_CULL_FACE);
+//  glCullFace(GL_BACK);
+//  glFrontFace(GL_CCW);
+
+    // depth-testing defaults
+    glEnable(GL_DEPTH_TEST);
+//  glDepthFunc(GL_LESS);
+
+    // depth-writing defaults
+//  glDepthMask(GL_TRUE);
+
+    // seamless cubemaps
+//  glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+
+    glViewport(0, 0, window_width(), window_height());
+
+    //glClearColor(0.15,0.15,0.15,1);
+    //glClearColor( clearColor.r, clearColor.g, clearColor.b, clearColor.a );
+    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT );
 }
 
 bool window_create_from_handle(void *handle, float scale, unsigned flags) {
@@ -15391,7 +15799,7 @@ bool window_create_from_handle(void *handle, float scale, unsigned flags) {
     fwk_init();
     if(!t) t = glfwGetTime();
 
-    #ifdef __EMSCRIPTEN__
+    #if is(ems)
     scale = 100.f;
     #endif
 
@@ -15458,7 +15866,7 @@ bool window_create_from_handle(void *handle, float scale, unsigned flags) {
 
     glfwMakeContextCurrent(window);
 
-    #ifdef __EMSCRIPTEN__
+    #if is(ems)
     if( FLAGS_FULLSCREEN ) window_fullscreen(1);
     #else
     gladLoadGL(glfwGetProcAddress);
@@ -15466,8 +15874,9 @@ bool window_create_from_handle(void *handle, float scale, unsigned flags) {
 
     glDebugEnable();
     
-    ui_ctx = nk_glfw3_init(&ui_glfw, window, NK_GLFW3_INSTALL_CALLBACKS);
-    
+    // setup nuklear ui
+    ui_ctx = nk_glfw3_init(&nk_glfw, window, NK_GLFW3_INSTALL_CALLBACKS);
+   
     //glEnable(GL_TEXTURE_2D);
 
     // 0:disable vsync, 1:enable vsync, <0:adaptive (allow vsync when framerate is higher than syncrate and disable vsync when framerate drops below syncrate)
@@ -15484,7 +15893,7 @@ bool window_create_from_handle(void *handle, float scale, unsigned flags) {
     PRINTF("GPU driver: %s\n", glGetString(GL_VERSION));
 
     g->ctx = ui_ctx;
-    g->glfw = &ui_glfw;
+    g->nk_glfw = &nk_glfw;
     g->window = window;
     g->width = window_width();
     g->height = window_height();
@@ -15501,14 +15910,14 @@ bool window_create_from_handle(void *handle, float scale, unsigned flags) {
         if( file_directory(TOOLS) && cooker_jobs() )
         while( cooker_progress() < 100 ) {
             for( int frames = 0; frames < 10 && window_swap(); frames += cooker_progress() >= 100 ) {
-                window_title(va("Cooking assets %.2d%%", cooker_progress()));
+                window_title(va("%s %.2d%%", cooker_cancelling ? "Aborting" : "Cooking assets", cooker_progress()));
+                if( input(KEY_ESC) ) cooker_cancel();
 
-                glfwGetFramebufferSize(window, &w, &h);
                 glNewFrame();
 
                 static float previous[100] = {0};
 
-                #define draw_cooker_progress_bar(JOB_ID, JOB_MAX, PERCENT) do { \
+                #define ddraw_progress_bar(JOB_ID, JOB_MAX, PERCENT) do { \
                    /* NDC coordinates (2d): bottom-left(-1,-1), center(0,0), top-right(+1,+1) */ \
                    float progress = (PERCENT+1) / 100.f; if(progress > 1) progress = 1; \
                    float speed = progress < 1 ? 0.2f : 0.5f; \
@@ -15522,15 +15931,14 @@ bool window_create_from_handle(void *handle, float scale, unsigned flags) {
                    if(JOB_ID==JOB_MAX-1)ddraw_line(vec3(-1,y+pixel*2,0), vec3(1,   y+pixel*2,0)); /* full line */ \
                 } while(0)
 
-                for(int i = 0; i < cooker_jobs(); ++i) draw_cooker_progress_bar(i, cooker_jobs(), jobs[i].progress);
-                // draw_cooker_progress_bar(0, 1, cooker_progress());
+                for(int i = 0; i < cooker_jobs(); ++i) ddraw_progress_bar(i, cooker_jobs(), jobs[i].progress);
+                // ddraw_progress_bar(0, 1, cooker_progress());
 
                 ddraw_flush();
 
                 do_once window_visible(1);
             }
             // set black screen
-            glfwGetFramebufferSize(window, &w, &h);
             glNewFrame();
             window_swap();
             window_title("");
@@ -15544,9 +15952,15 @@ bool window_create(float scale, unsigned flags) {
     return window_create_from_handle(NULL, scale, flags);
 }
 
+void window_lock_fps(float fps) {
+    hz = fps;
+}
+void window_unlock_fps() {
+    hz = 0;
+}
+
 static double boot_time = 0;
 
-static
 char* window_stats() {
     static double num_frames = 0, begin = FLT_MAX, prev_frame = 0;
 
@@ -15575,97 +15989,108 @@ char* window_stats() {
     return buf + 3 * (buf[0] == ' ');
 }
 
-static int window_needs_flush = 1;
-static int unlock_preswap_events = 0;
-void window_flush() {
+int window_frame_begin() {
+    glfwPollEvents();
 
-#ifdef __EMSCRIPTEN__
-    vec3 background = vec3(0,0,0);
-    // glClear(GL_COLOR_BUFFER_BIT);
-    // glClearColor(background.x / 255, background.y / 255, background.z / 255, 1 );
-
-    /* IMPORTANT: `nk_glfw_render` modifies some global OpenGL state
-     * with blending, scissor, face culling, depth test and viewport and
-     * defaults everything back into a default state.
-     * Make sure to either a.) save and restore or b.) reset your own state after
-     * rendering the UI. */
-    nk_glfw3_render(g->glfw, NK_ANTI_ALIASING_ON, MAX_VERTEX_MEMORY, MAX_ELEMENT_MEMORY);
-    glfwSwapBuffers(g->window);
-
-    return;
-#endif
-
-    // flush batching systems that need to be rendered before frame swapping. order matters.
-    if( window_needs_flush ) {
-        window_needs_flush = 0;
-
-        if( unlock_preswap_events ) {
-            // flush all batched sprites before swap
-            sprite_flush();
-
-            // queue ui drawcalls for profiler
-            // hack: skip first frame, because of conflicts with ui_menu & ui_begin auto-row order
-            static int once = 0; if(once) profile_render(); once = 1;
-
-            // flush all debugdraw calls before swap
-            dd_ontop = 0;
-            ddraw_flush();
-            glClear(GL_DEPTH_BUFFER_BIT);
-            dd_ontop = 1;
-            ddraw_flush();
-
-            font_goto(0,0);
-
-            // flush all batched ui before swap (creates single dummy if no batches are found)
-            ui_create();
-            ui_render();
-        }
-    }
-}
-void window_lock_fps(float fps) {
-    hz = fps;
-}
-void window_unlock_fps() {
-    hz = 0;
-}
-int window_swap() {
-
-#ifdef __EMSCRIPTEN__ // @fixme, add all missing features below
-
-    static bool first_frame = 1;
-    if( first_frame ) {
-        first_frame = 0;
-    } else {
-        window_flush();
+    // we cannot simply terminate threads on some OSes. also, aborted cook jobs could leave temporary files on disc.
+    // so let's try to be polite: we will be disabling any window closing briefly until all cook is either done or canceled.
+    static bool has_cook; do_once has_cook = file_directory(TOOLS) && cooker_jobs();
+    if( has_cook ) {
+        has_cook = cooker_progress() < 100;
+        if( glfwWindowShouldClose(g->window) ) cooker_cancel();
+        glfwSetWindowShouldClose(g->window, GLFW_FALSE);
     }
 
-    if( !window_poll() ) {
-        window_loop_exit();
+    if( glfwWindowShouldClose(g->window) ) {
         return 0;
     }
-    return 1;
 
-    {
-        int ready = !glfwWindowShouldClose(window);
-        if( ready ) {
-            window_flush();
-            glfwPollEvents();
-            glfwSwapBuffers(window);
-        } else {
-            window_loop_exit(); // finish emscripten loop automatically
-        }
-        return ready;
+    glNewFrame();
+
+    ui_create();
+
+#if 0 // deprecated
+    // run user-defined hooks
+    for(int i = 0; i < 64; ++i) {
+        if( hooks[i] ) hooks[i]( userdatas[i] );
     }
-
 #endif
 
-    int ready = !glfwWindowShouldClose(window);
-    if( !ready ) {
+    double now = paused ? t : glfwGetTime();
+    dt = now - t;
+    t = now;
 
+    char *st = window_stats();
+    static double timer = 0;
+    timer += window_delta();
+    if( timer >= 0.25 ) {
+        glfwSetWindowTitle(window, st);
+        timer = 0;
+    }
+
+    void input_update();
+    input_update();
+
+    return 1;
+}
+
+void window_frame_end() {
+    // flush batching systems that need to be rendered before frame swapping. order matters.
+    {
+        font_goto(0,0);        
+        touch_flush();
+        sprite_flush();
+
+        // render profiler except during cooking stage 
+        // also, we defer profile rendering to 10th frame at least, so the user may have chance to actually call any UI call before us
+        // (given the UI policy nature, first-called first-served, we dont want profile tab to be on top of all other tabs)
+        // if( cooker_progress() >= 100 ) { static int once = 0; if(once) profile_render(); once = 1; }
+        static unsigned frames = 0; if(frames > 10) profile_render(); else frames += cooker_progress() >= 100;
+ 
+        // flush all debugdraw calls before swap
+        dd_ontop = 0;
+        ddraw_flush();
+        glClear(GL_DEPTH_BUFFER_BIT);
+        dd_ontop = 1;
+        ddraw_flush();
+
+        ui_render();
+    }
+
+#if !is(ems)
+    // save screenshot if queued
+    if( screenshot_file[0] ) {
+        int n = 3;
+        void *rgb = screenshot(n);
+        stbi_flip_vertically_on_write(true);
+        if(!stbi_write_png(screenshot_file, w, h, n, rgb, n * w) ) {
+            PANIC("!could not write screenshot file `%s`\n", screenshot_file);
+        }
+        screenshot_file[0] = 0;
+    }
+    if( videorec_active() ) {
+        void videorec_frame();
+        videorec_frame();
+    }
+#endif
+}
+
+void window_frame_swap() {
+    // glFinish();
+#if !is(ems)
+    window_vsync(hz);
+#endif
+    glfwSwapBuffers(window);
+    // emscripten_webgl_commit_frame();
+}
+
+static
+void window_shutdown() {
+    do_once {
         #if OFLAG < 3
         #if WITH_SELFIES
 
-//            static int frame = 100;
+    //      static int frame = 100;
             bool do_it = cooker_progress() >= 100; // && ( frame > 0 && !--frame ); // || input_down(KEY_F12)
             if(do_it) {
                snprintf(screenshot_file, 512, "%s.png", app_name());
@@ -15682,91 +16107,56 @@ int window_swap() {
         #endif
         #endif
 
-        window_loop_exit(); // finish emscripten loop automatically
-
+        window_loop_exit(); // finish emscripten loop automatically        
     }
-    else {
-        static int first = 1;
-
-        window_flush();
-
-        glfwPollEvents();
-
-        // input_update(); // already hooked!
-
-        double now = paused ? t : glfwGetTime();
-        dt = now - t;
-        t = now;
-
-#if 0
-        static unsigned frames = 0;
-        static double t = 0;
-        t += window_delta();
-        if( t >= 1.0 ) {
-            fps = frames / t;
-            glfwSetWindowTitle(window, va("%s | %5.2f fps (%.2fms)", title, fps, (t*1000.0) / fps));
-            frames = 0;
-            t = 0;
-        }
-        ++frames;
-#else
-        char *st = window_stats();
-        static double t = 0;
-        t += window_delta();
-        if( t >= 0.25 ) {
-            glfwSetWindowTitle(window, st);
-            t = 0;
-        }
-#endif
-
-        // save screenshot if queued
-        if( screenshot_file[0] ) {
-            int n = 3;
-            void *rgb = screenshot(n);
-            stbi_flip_vertically_on_write(true);
-            if(!stbi_write_png(screenshot_file, w, h, n, rgb, n * w) ) {
-                PANIC("!could not write screenshot file `%s`\n", screenshot_file);
-            }
-            screenshot_file[0] = 0;
-        }
-        if( videorec_active() ) {
-            void videorec_frame();
-            videorec_frame();
-        }
-
-        if( !first ) {
-            // glFinish();
-            window_vsync(hz);
-            glfwSwapBuffers(window);
-            ++frame_count;
-        }
-
-        glfwGetFramebufferSize(window, &w, &h); //glfwGetWindowSize(window, &w, &h);
-        glNewFrame();
-        window_needs_flush = 1;
-
-        // run user-defined hooks
-        for(int i = 0; i < 64; ++i) {
-            if( hooks[i] ) hooks[i]( userdatas[i] );
-        }
-
-        first = 0;
-    }
-    return ready;
 }
 
-void window_loop(void (*function)(void* loopArg), void* loopArg ) {
-#ifdef __EMSCRIPTEN__
-    emscripten_set_main_loop_arg(function, loopArg, 0, 1);
+int window_swap() {
+
+    // end frame
+    if( frame_count > 0 ) {
+        window_frame_end();
+        window_frame_swap();
+    }
+
+    ++frame_count;
+
+    // begin frame
+    int ready = window_frame_begin();
+    if( !ready ) {
+        window_shutdown();
+        return 0;
+    }
+    return 1;
+}
+
+static
+void (*window_render_callback)(void* loopArg);
+
+static
+void window_loop_wrapper( void *loopArg ) {
+    if( window_frame_begin() ) {
+        window_render_callback(loopArg);
+        window_frame_end();
+        window_frame_swap();
+    } else {
+        do_once window_shutdown();
+    }
+}
+
+void window_loop(void (*user_function)(void* loopArg), void* loopArg ) {
+#if is(ems)
+    window_render_callback = user_function;
+    emscripten_set_main_loop_arg(window_loop_wrapper, loopArg, 0, 1);
 #else
     g->keep_running = true;
     while (g->keep_running)
-        function(loopArg);
+        user_function(loopArg);
 #endif /* __EMSCRIPTEN__ */
 }
 
 void window_loop_exit() {
-#ifdef __EMSCRIPTEN__
+#if is(ems)
     emscripten_cancel_main_loop();
 #else
     g->keep_running = false;
@@ -15774,7 +16164,7 @@ void window_loop_exit() {
 }
 
 vec2 window_canvas() {
-#ifdef __EMSCRIPTEN__
+#if is(ems)
     int width = EM_ASM_INT_V(return window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth);
     int height = EM_ASM_INT_V(return window.innerHeight|| document.documentElement.clientHeight|| document.body.clientHeight);
     return vec2(width, height);
@@ -15846,8 +16236,6 @@ void* window_handle() {
 // -----------------------------------------------------------------------------
 // fullscreen
 
-#if 0 // to deprecate
-
 static
 GLFWmonitor *window_find_monitor(int wx, int wy) {
     GLFWmonitor *monitor = glfwGetPrimaryMonitor();
@@ -15855,7 +16243,7 @@ GLFWmonitor *window_find_monitor(int wx, int wy) {
     // find best monitor given current window coordinates. @todo: select by ocuppied window area inside each monitor instead.
     int num_monitors = 0;
     GLFWmonitor** monitors = glfwGetMonitors(&num_monitors);
-#ifdef __EMSCRIPTEN__
+#if is(ems)
     return *monitors;
 #else
     for( int i = 0; i < num_monitors; ++i) {
@@ -15866,6 +16254,9 @@ GLFWmonitor *window_find_monitor(int wx, int wy) {
     return monitor;
 #endif
 }
+
+#if 0 // to deprecate
+
 void window_fullscreen(int enabled) {
     fullscreen = !!enabled;
 #ifndef __EMSCRIPTEN__
@@ -15891,7 +16282,7 @@ int window_has_fullscreen() {
 #else
 
 int window_has_fullscreen() {
-#ifdef __EMSCRIPTEN__
+#if is(ems)
     EmscriptenFullscreenChangeEvent fsce;
     emscripten_get_fullscreen_status(&fsce);
     return !!fsce.isFullscreen;
@@ -15903,7 +16294,9 @@ int window_has_fullscreen() {
 void window_fullscreen(int enabled) {
     if( window_has_fullscreen() == !!enabled ) return;
 
-#ifdef __EMSCRIPTEN__
+#if is(ems)
+
+#if 0 // deprecated: crash
     if( enabled ) {
         emscripten_exit_soft_fullscreen();
 
@@ -15911,19 +16304,26 @@ void window_fullscreen(int enabled) {
         EM_ASM(JSEvents.inEventHandler = true);
         EM_ASM(JSEvents.currentEventHandler = {allowsDeferredCalls:true});
 
-        EmscriptenFullscreenStrategy strategy = {
-            .scaleMode = EMSCRIPTEN_FULLSCREEN_SCALE_STRETCH,
-            .canvasResolutionScaleMode = EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_NONE,
-            .filteringMode = EMSCRIPTEN_FULLSCREEN_FILTERING_DEFAULT,
-            .canvasResizedCallback = NULL,
-            .canvasResizedCallbackUserData = NULL
-        };
-        /*emscripten_request_fullscreen_strategy(NULL, EM_TRUE, &strategy);*/
-        emscripten_enter_soft_fullscreen(NULL, &strategy);
-    } else {            
+        EmscriptenFullscreenStrategy strategy = {0};
+        strategy.scaleMode = EMSCRIPTEN_FULLSCREEN_SCALE_STRETCH; // _ASPECT
+        strategy.canvasResolutionScaleMode = EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_STDDEF; // _NONE _HIDEF
+        strategy.filteringMode = EMSCRIPTEN_FULLSCREEN_FILTERING_DEFAULT; // _NEAREST
+
+        emscripten_request_fullscreen_strategy(NULL, EM_FALSE/*EM_TRUE*/, &strategy);
+        //emscripten_enter_soft_fullscreen(NULL, &strategy);
+    } else {
         emscripten_exit_fullscreen();
     }
 #else
+    if( enabled )
+    EM_ASM(Module.requestFullscreen(1, 1)); 
+    else
+    EM_ASM(Module.exitFullscreen()); 
+#endif
+
+#else
+
+#if 0
     if( enabled ) {
         /*glfwGetWindowPos(g->window, &g->window_xpos, &g->window_ypos);*/
         glfwGetWindowSize(g->window, &g->width, &g->height);
@@ -15931,6 +16331,22 @@ void window_fullscreen(int enabled) {
     } else {            
         glfwSetWindowMonitor(g->window, NULL, 0, 0, g->width, g->height, GLFW_DONT_CARE);
     }
+#else
+    if( enabled ) {
+        int wx = 0, wy = 0; glfwGetWindowPos(window, &wx, &wy);
+        GLFWmonitor *monitor = window_find_monitor(wx, wy);
+
+        wprev = w, hprev = h, xprev = wx, yprev = wy; // save window context for further restoring
+
+        int width, height;
+        glfwGetMonitorWorkarea(monitor, NULL, NULL, &width, &height);
+        glfwSetWindowMonitor(window, monitor, 0, 0, width, height, GLFW_DONT_CARE);
+    } else {
+        glfwSetWindowMonitor(window, NULL, xpos, ypos, wprev, hprev, GLFW_DONT_CARE);
+        glfwSetWindowPos(window, xprev, yprev);
+    }
+#endif
+
 #endif
 }
 
@@ -16698,11 +17114,11 @@ void editor() {
 
     if( ui_menu( ICON_BARS ";New Project;" ICON_TEST_GLYPH "Open Project;-Save Project;Settings;-Quit") ) printf("Selected File.%d\n", ui_item());
         if( ui_item() == 6 ) exit(0);
-        if( ui_menu( ICON_FOLDER_OPEN ));
+        if( ui_menu( ICON_FOLDER_OPEN )) {}
         if( ui_menu( window_has_pause() ? ICON_PLAY : ICON_PAUSE )) window_pause( window_has_pause() ^ 1 );
         if( ui_menu( ICON_STOP )) window_pause(1);
-    if( ui_menu( va(ICON_DATABASE " %s", xstats() ))); // 012/136MB
-    if( ui_menu( va(ICON_CUBE " %d", 0 ))); // map_count(offline) )));
+    if( ui_menu( va(ICON_DATABASE " %s", xstats() ))) {} // 012/136MB
+    if( ui_menu( va(ICON_CUBE " %d", 0 ))) {} // map_count(offline) )));
     if( ui_menu("Edit;Cut;Copy;Paste") ) printf("Selected Edit.%d\n", ui_item());
 
     if( editor_mode ) editor_update();
@@ -16727,6 +17143,152 @@ char* dialog_save() {
     tinyfd_assumeGraphicDisplay = 1;
     return tinyfd_saveFileDialog( windowTitle, defaultPathFile, countof(filters), filters, filterHints );
 }
+
+// -- localization kit
+
+static const char *kit_my_lang = "enUS", *kit_all_langs = 
+    "enUS,enGB,"
+    "frFR,"
+    "esES,esAR,esMX,"
+    "deDE,deCH,deAT,"
+    "itIT,itCH,"
+    "ptBR,ptPT,"
+    "zhCN,zhSG,zhTW,zhHK,zhMO,"
+    "ruRU,elGR,trTR,daDK,noNB,svSE,nlNL,plPL,fiFI,jaJP,"
+    "koKR,csCZ,huHU,roRO,thTH,bgBG,heIL"
+;
+
+static map(char*,char*) kit_ids;
+static map(char*,char*) kit_vars;
+
+#ifndef KIT_MAKE_ID2
+#define KIT_MAKE_ID2(lang, id) va("%s.%s", lang, id)
+#endif
+
+void kit_init() {
+    do_once map_init(kit_ids, less_str, hash_str);
+    do_once map_init(kit_vars, less_str, hash_str);
+}
+
+void kit_insert( const char *id, const char *translation) {
+    char *id2 = KIT_MAKE_ID2(kit_my_lang, id);
+
+    map_find_or_add(kit_ids, STRDUP(id2), STRDUP(translation)); // x2 STRDUPs needed?
+}
+
+bool kit_merge( const char *filename ) {
+    // @todo: xlsx2ini
+    return false;
+}
+
+void kit_clear() {
+    map_clear(kit_ids);
+}
+
+bool kit_load( const char *filename ) {
+    return kit_clear(), kit_merge( filename );
+}
+
+void kit_set( const char *key, const char *value ) {
+    value = value && value[0] ? value : "";
+
+    char **found = map_find_or_add(kit_vars, STRDUP(key), NULL ); // x2 STRDUPs needed?
+    *found = STRDUP(value);
+}
+
+void kit_reset() {
+    map_clear(kit_vars);
+}
+
+char *kit_translate2( const char *id, const char *lang ) {
+    char *id2 = KIT_MAKE_ID2(lang, id);
+
+    char **found = map_find(kit_ids, id2);
+
+    // return original [[ID]] if no translation is found
+    if( !found ) return va("[[%s]]", id);
+
+    // return translation if no {{moustaches}} are found
+    if( !strstr(*found, "{{") ) return *found;
+
+    // else replace all found {{moustaches}} with context vars
+    {
+        // make room
+        static threadlocal char *results[16] = {0};
+        static threadlocal unsigned counter = 0; counter = (counter+1) % 16;
+
+        char *buffer = results[ counter ];
+        if( buffer ) FREE(buffer), buffer = 0;
+
+        // iterate moustaches
+        const char *begin, *end, *text = *found;
+        while( NULL != (begin = strstr(text, "{{")) ) {
+            end = strstr(begin+2, "}}");
+            if( end ) {
+                char *var = va("%.*s", (int)(end - (begin+2)), begin+2);
+                char **found_var = map_find(kit_vars, var);
+
+                if( found_var && 0[*found_var] ) {
+                    strcatf(&buffer, "%.*s%s", (int)(begin - text), text, *found_var);
+                } else {
+                    strcatf(&buffer, "%.*s{{%s}}", (int)(begin - text), text, var);
+                }
+
+                text = end+2;
+            } else {
+                strcatf(&buffer, "%.*s", (int)(begin - text), text);
+
+                text = begin+2;
+            }
+        }
+
+        strcatf(&buffer, "%s", text);
+        return buffer;
+    }
+}
+
+char *kit_translate( const char *id ) {
+    return kit_translate2( id, kit_my_lang );
+}
+
+void kit_locale( const char *lang ) {
+    kit_my_lang = STRDUP(lang); // @leak
+}
+
+void kit_dump_state( FILE *fp ) {
+    for each_map(kit_ids, char *, k, char *, v) {
+        fprintf(fp, "[ID ] %s=%s\n", k, v);
+    }
+    for each_map(kit_vars, char *, k, char *, v) {
+        fprintf(fp, "[VAR] %s=%s\n", k, v);
+    }
+}
+
+/*
+int main() {
+    kit_init();
+
+    kit_locale("enUS");
+    kit_insert("HELLO_PLAYERS", "Hi {{PLAYER1}} and {{PLAYER2}}!");
+    kit_insert("GREET_PLAYERS", "Nice to meet you.");
+
+    kit_locale("esES");
+    kit_insert("HELLO_PLAYERS", "Hola {{PLAYER1}} y {{PLAYER2}}!");
+    kit_insert("GREET_PLAYERS", "Un placer conoceros.");
+
+    kit_locale("enUS");
+    printf("%s %s\n", kit_translate("HELLO_PLAYERS"), kit_translate("GREET_PLAYERS")); // Hi {{PLAYER1}} and {{PLAYER2}}! Nice to meet you.
+
+    kit_locale("esES");
+    kit_set("PLAYER1", "John");
+    kit_set("PLAYER2", "Karl");
+    printf("%s %s\n", kit_translate("HELLO_PLAYERS"), kit_translate("GREET_PLAYERS")); // Hola John y Karl! Un placer conoceros.
+
+    assert( 0 == strcmp(kit_translate("NON_EXISTING"), "[[NON_EXISTING]]")); // [[NON_EXISTING]]
+    assert(~puts("Ok"));
+}
+*/
+
 #line 0
 
 // editor is last in place, so it can use all internals from above headers
@@ -16740,15 +17302,22 @@ static void fwk_pre_init() {
     profile_init();
     ddraw_init();
     sprite_init();
+    kit_init();
 
     storage_mount("save/"); // for ems
     storage_read(); // for ems
+    touch_init(); // for ems
     // window_swap();
 
     script_init();
     audio_init(0);
+
+    window_icon(va("%s.png", app_name()));
+    window_icon(va("%s.ico", app_name()));
 }
 static void fwk_post_init(float refresh_rate) {
+    const char *app = app_name();
+
     // cooker cleanup
     cooker_stop();
 
@@ -16759,21 +17328,25 @@ static void fwk_post_init(float refresh_rate) {
     // mount virtual filesystems later (lower priority)
     bool mounted = 0;
     for( int i = 0; i < 16; ++i) {
-        mounted |= !!vfs_mount(va(".art[%d].zip", i));
+        mounted |= !!vfs_mount(va(".art[%02x].zip", i));
+        mounted |= !!vfs_mount(va("%s[%02x].zip", app, i));
+        mounted |= !!vfs_mount(va("%s%02x.zip", app, i));
+        mounted |= !!vfs_mount(va("%s.%02x", app, i));
     }
     // mount physical filesystems first (higher priority)
     if(!mounted) vfs_mount(ART);
 
-    // config nuklear ui
+    // config nuklear UI (after VFS mounting, as UI needs cooked fonts here)
     nk_config_custom_fonts();
     nk_config_custom_style();
-    
-    // unlock preswap events
-    unlock_preswap_events = 1;
+
+    // @todo
+    // window_icon(vfs_file(va("%s.png", app)));
+    // window_icon(vfs_file(va("%s.ico", app)));
 
     // init more subsystems
 #ifndef __EMSCRIPTEN__ // @fixme ems -> shaders
-    scene_push();           // create an empty scene by default
+    scene_push();      // create an empty scene by default
 #endif
     input_init();
     network_init();
@@ -16849,7 +17422,7 @@ void fwk_init() {
         // create or update cook.zip file
         cooker_config(NULL, NULL, NULL);
         if( file_directory(TOOLS) && cooker_jobs() ) {
-            cooker_start( "**", 0|COOKER_ASYNC );
+            cooker_start( "**", 0|COOKER_ASYNC|COOKER_CANCELABLE );
         }
 
         atexit(fwk_quit);

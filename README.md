@@ -1,4 +1,4 @@
-<h1 align="center"><a href="https://bit.ly/F-W-K">F·W·K</a></h1>
+<h1 align="center"><a href="https://bit.ly/-FWK-">F·W·K</a></h1>
 <p align="center">3D game framework in C, with Luajit bindings now.</p>
 
 <p align="center">
@@ -26,7 +26,8 @@
 - [x] Script: Lua scripting, Luajit bindings.
 - [x] Network: downloads (HTTPS) and sockets (TCP/UDP). <!-- [*] Object, GameObject, W/ECS -->
 - [x] UI: color3/4, button, list, slider, toggle, checkbox, editbox, dialog, image, menus.
-- [x] Font: TTF and TTC. Basic syntax highlighter. Unicode ranges, atlasing, I18N.
+- [x] Font: TTF and TTC. Basic syntax highlighter. Glyph ranges. Atlasing.
+- [x] Localization: XLSX, INI, Unicode and L10/I18N.
 - [x] Image: JPG, PNG, BMP, PSD, PIC, PNM, ICO.
 - [x] Texture: KTX/2, PVR, DDS, ASTC, BASIS, HDR, TGA.
 - [x] Texel: Depth, R, RG, RGB, RGBA, BC1/2/3/4/5/6/7, PVRI/II, ETC1/2, ASTC.
@@ -45,7 +46,7 @@
 - [x] Disk cache.
 - [x] Scene handling.
 - [x] Profiler, stats and leaks finder.
-- [x] [Documentation (wip)](https://bit.ly/F-W-K).
+- [x] [Documentation (wip)](https://bit.ly/-FWK-).
 
 ## Roadmap ᕕ(ᐛ)ᕗ (in order of arrival; ✱: partial support)
 - [ ] Editor: gizmos✱, scene tree, property editor, load/save, undo/redo, copy/paste. <!-- editor = tree of nodes. levels and objects are nodes, and widgets are also nodes --><!-- you can perform actions on nodes, with or without descendants, top-bottom or bottom-top --><!-- operations include load/save, reset, undo/redo, play/render vis on/off/alpha logic on/off/other ddraw on/off log on/off, etc --> 
@@ -194,17 +195,17 @@ R. Documentation pass: API, functions, samples, examples, pipeline. #5
 
 ## Gallery
 <p align="center">
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_script.png"    width="204px" title="Script."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_font.png"      width="204px" title="Fonts."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_collide.png"   width="204px" title="Collision."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_model.png"     width="204px" title="Model."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_scene.png"     width="204px" title="Scene."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_sprite.png"    width="204px" title="Sprite."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_shadertoy.png" width="204px" title="Shadertoy."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_cubemap.png"   width="204px" title="Cubemaps and SH."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_video.png"     width="204px" title="Video."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_pbr.png"       width="204px" title="PBR."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_instanced.png" width="204px" title="Instancing."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/art/demos/demo_script.png"    width="204px" title="Script."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/art/demos/demo_font.png"      width="204px" title="Fonts."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/art/demos/demo_collide.png"   width="204px" title="Collision."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/art/demos/demo_model.png"     width="204px" title="Model."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/art/demos/demo_scene.png"     width="204px" title="Scene."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/art/demos/demo_sprite.png"    width="204px" title="Sprite."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/art/demos/demo_shadertoy.png" width="204px" title="Shadertoy."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/art/demos/demo_cubemap.png"   width="204px" title="Cubemaps and SH."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/art/demos/demo_video.png"     width="204px" title="Video."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/art/demos/demo_pbr.png"       width="204px" title="PBR."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/art/demos/demo_instanced.png" width="204px" title="Instancing."/>
 <br/>
 </p>
 
@@ -214,7 +215,7 @@ R. Documentation pass: API, functions, samples, examples, pipeline. #5
 int main() {
     window_create(75.0, 0); // 75% size, no extra flags
     while( window_swap() && !input(KEY_ESC) ) { // game loop
-        puts("hello fwk! from C");
+        puts("hello FWK from C!");
     }
 }
 ```
@@ -223,15 +224,15 @@ int main() {
 local fwk = require("fwk") -- Minimal Lua sample
 fwk.window_create(75.0,0) -- 75% size, no extra flags
 while fwk.window_swap() and fwk.input(fwk.KEY_ESC) == 0 do -- game loop
-    print("hello fwk! from Lua")
+    print("hello FWK from Lua!")
 end
 ```
 
 ```C
 #include "fwk.h" // Minimal HTML5 sample
 void render(void *arg) {
-    if( window_swap() && !input(KEY_ESC) ) {
-        puts("hello fwk! from HTML5");
+    if( !input(KEY_ESC) ) { 
+        puts("hello FWK from HTML5!");
     }
 }
 int main() {
@@ -262,38 +263,48 @@ echo OSX     && cc -ObjC -dynamiclib -o libfwk.dylib fwk.c -framework cocoa -fra
 ```
 
 - Quick test on Windows: `cl demo.c fwk.lib /DAPI=IMPORT`
-- Or also, copy the dynamic library into `demos/lua` and then run `luajit demo_luajit_model.lua` from there.
+- Or also, copy the dynamic library into `art/demos/lua` and then run `luajit demo_luajit_model.lua` from there.
+
+## Cook
+- Most asset types need to be cooked before being used in your application. Other assets like `.png` do not.
+- Cooker is already embedded into you application and will scan for new contents & cook assets automatically.
+- In order to achieve this, your binary needs to keep both [`fwk.ini` file](fwk.ini) and [`tools/` folder](tools/) close together.
+- Cooked assets will be written into .zipfiles close to your executable, and mounted before entering game loop.
+- When distributing your game, only your binary and these .zipfiles are required.
 
 ## Amalgamation
+- Depending on your IDE, you might need to [split all amalgamated](#Amalgamation) files when debugging FWK.
 - Split FWK into separate files by running `MAKE.bat split` (or `sh MAKE.bat split` in Linux/OSX).
 - Merge those files back into FWK by running `MAKE.bat join` (or `sh MAKE.bat join` in Linux/OSX).
 - Optionally, generate a single-header distribution by executing following script:
 
 ```lua
-echo // This C file is a header that you can #include. Do #define FWK_C  > fwk-single-header.c
-echo // early in **one** compilation unit to unroll the implementation. >> fwk-single-header.c
-type fwk.h           >> fwk-single-header.c
-echo #ifdef FWK_C    >> fwk-single-header.c
-echo #pragma once    >> fwk-single-header.c
-type fwk.c           >> fwk-single-header.c
-echo #endif // FWK_C >> fwk-single-header.c
+echo // This C file is a header that you can #include.  Do #define FWK_C  > fwk-single-header.h
+echo // early in **one** C compilation unit to unroll the implementation >> fwk-single-header.h
+echo // The FWK_C symbol **must be defined in a C file**; C++ wont work. >> fwk-single-header.h
+type tools\depot\3rd\3rd_glad.h >> fwk-single-header.h
+type fwk.h                      >> fwk-single-header.h
+echo #ifdef FWK_C               >> fwk-single-header.h
+echo #pragma once               >> fwk-single-header.h
+echo #define FWK_3RD            >> fwk-single-header.h
+type fwk                        >> fwk-single-header.h
+type fwk.c                      >> fwk-single-header.h
+echo #endif // FWK_C            >> fwk-single-header.h
 ```
 
 ## Extra tips
-- Dropped files into game window will be imported & saved into [`editor/import`](editor/import) folder.
-- Linux/OSX users can optionally install wine to use the Windows pipeline as an alternate asset pipeline (use `--with-wine` flag).
-- Although not recommended, you can remove the cooking stage by invoking `--with-jobs=0` or by removing the [`editor/tools`](editor/tools) folder.
-- Depending on your IDE, you might need to [split all amalgamated](#Amalgamation) files when debugging FWK.
-<!-- - On windows + vc, you can use `make bindings` or `make docs` to generate everything prior to a release --><!-- gamecontrollerdb.txt -->
+- Any ico/png file matching the executable name will be automatically used as app icon.
+- Dropped files into game window will be imported & saved into [`art/import`](art/import) folder.
+- Update the gamepad controller database by upgrading the [`gamecontrollerdb.txt`](tools/editor/assets/input) file.
+- Cancel entire cooking stage by pressing `ESC key` (not recommended).
+- Disable automatic cooking by invoking `--with-cook-jobs=0` flag (not recommended).
+- Cook from command-line by running [`tools/bin/cook.*` binaries](tools/bin/). 
+- Linux/OSX users can optionally install wine to use the Windows pipeline as an alternate asset pipeline (by using `--with-wine` flag).
+<!-- - On windows + vc, you can use `make bindings` or `make docs` to generate everything prior to a release --><!-- smaller exes (4.5MiB): cl demo.c fwk.c /Os /Ox /O2 /Oy /GL /GF /MT /DNDEBUG /Gw /link /OPT:ICF /LTCG -->
 
 ## Bindings
-- Luajit: Luajit bindings are provided in the [fwk.lua](demos/lua/fwk.lua) auto-generated file.
+- Luajit: Luajit bindings are provided in the [auto-generated fwk.lua file](art/demos/lua/fwk.lua).
 - Nelua: [Nelua bindings](https://github.com/Rabios/nelua-fun/tree/main/fwk) provided by Rabia Alhaffar.
-
-## License
-This software is released into the [public domain](https://unlicense.org/).<br/>
-Also dual-licensed as [0-BSD](https://opensource.org/licenses/FPL-1.0.0) or [MIT (No Attribution)](https://github.com/aws/mit-0) for those countries where public domain is a concern (sigh).<br/>
-Any contribution to this repository is implicitly subjected to the same release conditions aforementioned.
 
 ## Credits (Artwork + demos)
 - [DavidLam](https://en.wikipedia.org/wiki/Tokamak_(software)), for tokamak physics engine (ZLIB). 
@@ -306,6 +317,7 @@ Any contribution to this repository is implicitly subjected to the same release 
 
 ## Credits (Tools)
 - [Aaron Barany](https://github.com/akb825/Cuttlefish), for cuttlefish (APACHE2).
+- [Arseny Kapoulkine](https://github.com/zeux/pugixml/), for pugixml (MIT).
 - [Assimp authors](https://github.com/assimp/assimp), for assimp (BSD3).
 - [Bernhard Schelling](https://github.com/schellingb/TinySoundFont), for tml.h (Zlib) and tsf.h (MIT).
 - [ffmpeg authors](https://www.ffmpeg.org/), for ffmpeg (LGPL21).
@@ -316,6 +328,7 @@ Any contribution to this repository is implicitly subjected to the same release 
 - [Mattias Gustavsson](https://github.com/mattiasgustavsson/libs), for mid.h (PD).
 - [Michael Schmoock](http://github.com/willsteel/lcpp), for lcpp (MIT).
 - [Morgan McGuire](https://casual-effects.com/markdeep/), for markdeep (BSD2).
+- [Polyglot Team](https://docs.google.com/spreadsheets/d/17f0dQawb-s_Fd7DHgmVvJoEGDMH_yoSd8EYigrb0zmM/edit), for polyglot gamedev (CC0).
 - [Tomas Pettersson](http://www.drpetter.se/), for sfxr (PD).
 - [Tor Andersson](https://github.com/ccxvii/asstools), for assiqe.c (BSD).
 
@@ -351,41 +364,14 @@ Any contribution to this repository is implicitly subjected to the same release 
 - [Vassvik](https://github.com/vassvik/mv_easy_font), for mv_easy_font (Unlicense).
 - Special thanks to [@ands](https://github.com/ands) (PD), [@barerose](https://github.com/barerose) (CC0), [@datenwolf](https://github.com/datenwolf) (WTFPL2), [@evanw](https://github.com/evanw) (CC0), [@glampert](https://github.com/glampert) (PD), [@krig](https://github.com/krig) (CC0), [@sgorsten](https://github.com/sgorsten) (Unlicense) and [@vurtun](https://github.com/vurtun) (PD) for their math libraries.
 
+## Unlicense
+This software is released into the [public domain](https://unlicense.org/). Also dual-licensed as [0-BSD](https://opensource.org/licenses/FPL-1.0.0) or [MIT (No Attribution)](https://github.com/aws/mit-0) for those countries where public domain is a concern (sigh). Any contribution to this repository is implicitly subjected to the same release conditions aforementioned.
+
 ## Links
+<p>
 <a href="https://github.com/r-lyeh/FWK/issues"><img alt="Issues" src="https://img.shields.io/github/issues-raw/r-lyeh/FWK.svg"/></a>
 <a href="https://discord.gg/vu6Vt9d"><img alt="Discord" src="https://img.shields.io/discord/270565488365535232?color=5865F2&label=chat&logo=discord&logoColor=white"/></a><br/>
 
 Still looking for alternatives?
-[amulet](https://github.com/ianmaclarty/amulet),
-[aroma](https://github.com/leafo/aroma/),
-[astera](https://github.com/tek256/astera),
-[blendelf](https://github.com/jesterKing/BlendELF),
-[bullordengine](https://github.com/MarilynDafa/Bulllord-Engine),
-[candle](https://github.com/EvilPudding/candle),
-[cave](https://github.com/kieselsteini/cave),
-[chickpea](https://github.com/ivansafrin/chickpea),
-[corange](https://github.com/orangeduck/Corange),
-[cute](https://github.com/RandyGaul/cute_framework),
-[dos-like](https://github.com/mattiasgustavsson/dos-like),
-[ejoy2d](https://github.com/ejoy/ejoy2d),
-[exengine](https://github.com/exezin/exengine),
-[gunslinger](https://github.com/MrFrenik/gunslinger),
-[hate](https://github.com/excessive/hate),
-[island](https://github.com/island-org/island),
-[juno](https://github.com/rxi/juno),
-[l](https://github.com/Lyatus/L),
-[lgf](https://github.com/Planimeter/lgf),
-[limbus](https://github.com/redien/limbus),
-[love](https://github.com/love2d/love/),
-[lovr](https://github.com/bjornbytes/lovr),
-[mini3d](https://github.com/mini3d/mini3d),
-[mintaro](https://github.com/mackron/mintaro),
-[mio](https://github.com/ccxvii/mio),
-[opensource](https://github.com/w23/OpenSource),
-[ouzel](https://github.com/elnormous/ouzel/),
-[pez](https://github.com/prideout/pez),
-[pixie](https://github.com/mattiasgustavsson/pixie),
-[punity](https://github.com/martincohen/Punity),
-[ricotech](https://github.com/dbechrd/RicoTech),
-[rizz](https://github.com/septag/rizz),
-[tigr](https://github.com/erkkah/tigr),
+[amulet](https://github.com/ianmaclarty/amulet), [aroma](https://github.com/leafo/aroma/), [astera](https://github.com/tek256/astera), [blendelf](https://github.com/jesterKing/BlendELF), [bullordengine](https://github.com/MarilynDafa/Bulllord-Engine), [candle](https://github.com/EvilPudding/candle), [cave](https://github.com/kieselsteini/cave), [chickpea](https://github.com/ivansafrin/chickpea), [corange](https://github.com/orangeduck/Corange), [cute](https://github.com/RandyGaul/cute_framework), [dos-like](https://github.com/mattiasgustavsson/dos-like), [ejoy2d](https://github.com/ejoy/ejoy2d), [exengine](https://github.com/exezin/exengine), [gunslinger](https://github.com/MrFrenik/gunslinger), [hate](https://github.com/excessive/hate), [island](https://github.com/island-org/island), [juno](https://github.com/rxi/juno), [l](https://github.com/Lyatus/L), [lgf](https://github.com/Planimeter/lgf), [limbus](https://github.com/redien/limbus), [love](https://github.com/love2d/love/), [lovr](https://github.com/bjornbytes/lovr), [mini3d](https://github.com/mini3d/mini3d), [mintaro](https://github.com/mackron/mintaro), [mio](https://github.com/ccxvii/mio), [opensource](https://github.com/w23/OpenSource), [ouzel](https://github.com/elnormous/ouzel/), [pez](https://github.com/prideout/pez), [pixie](https://github.com/mattiasgustavsson/pixie), [punity](https://github.com/martincohen/Punity), [ricotech](https://github.com/dbechrd/RicoTech), [rizz](https://github.com/septag/rizz), [tigr](https://github.com/erkkah/tigr),
+</p>
