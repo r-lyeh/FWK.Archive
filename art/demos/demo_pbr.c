@@ -587,7 +587,7 @@ int main( int argc, const char *argv[] ) {
         // ---------------------------------------------------------------------
         // UI
 
-        if( ui_begin( "Viewer", 0 ) ) {
+        if( ui_panel( "Viewer", 0 ) ) {
             ui_bool( "Wireframe", &do_wireframe );
             ui_separator();
 
@@ -617,10 +617,10 @@ int main( int argc, const char *argv[] ) {
             ui_float( "SunLight Yaw", &lightYaw );
             ui_float( "SunLight Pitch", &lightPitch );
 
-            ui_end();
+            ui_panel_end();
         }
 
-        if( ui_begin( "Model", 0 ) ) {
+        if( ui_panel( "Model", 0 ) ) {
             ui_label(va("Material count: %d", array_count(gModel.materials)));
             ui_label(va("Mesh count: %d", array_count(gModel.meshes)));
             int triCount = 0; for( int i = 0, end = array_count(gModel.meshes); i < end; ++i ) triCount += gModel.meshes[i].num_tris;
@@ -650,19 +650,19 @@ int main( int argc, const char *argv[] ) {
                 ui_separator(); if(ui_colormap( "Specular",  &it->specular  )) colormap(&it->specular , dialog_load(), 0);
             }
 
-            ui_end();
+            ui_panel_end();
         }
 
-        if( ui_begin("FX", 0) ) {
+        if( ui_panel("FX", 0) ) {
             for( int i = 0; i < 64; ++i ) {
                 char *name = fx_name(i); if( !name ) break;
                 bool b = fx_enabled(i);
                 if( ui_bool(name, &b) ) fx_enable(i, fx_enabled(i) ^ 1);
             }
-            ui_end();
+            ui_panel_end();
         }
 
-        if( ui_begin("Help", 0)) {
+        if( ui_panel("Help", 0)) {
             if( fps_mode ) {
             ui_label("TAB: switch to Orbit camera mode");
             ui_label("WASD,QEC: move camera");
@@ -674,7 +674,7 @@ int main( int argc, const char *argv[] ) {
             ui_label("Mouse wheel: camera distance");
             }
             ui_label("F: center view");
-            ui_end();
+            ui_panel_end();
         }
     }
 }

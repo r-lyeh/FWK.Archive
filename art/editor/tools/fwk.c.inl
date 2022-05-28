@@ -106,8 +106,6 @@
 
 {{FILE:fwk_compat.c}}
 
-{{FILE:fwk_profile.c}}
-
 {{FILE:fwk_audio.c}}
 
 {{FILE:fwk_collide.c}}
@@ -141,6 +139,8 @@
 {{FILE:fwk_system.c}}
 
 {{FILE:fwk_ui.c}}
+
+{{FILE:fwk_profile.c}}
 
 {{FILE:fwk_video.c}}
 

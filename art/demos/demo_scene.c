@@ -130,27 +130,27 @@ int main() {
         fx_end();
 
         // queue ui
-        if( ui_begin("Camera", 0)) {
+        if( ui_panel("Camera", 0)) {
             if( ui_float("Speed", &cam.speed) ) {}
             if( ui_float3("Position", &cam.position.x) ) {}
-            ui_end();
+            ui_panel_end();
         }
-        if( ui_begin("Scene", 0)) {
+        if( ui_panel("Scene", 0)) {
             if(ui_toggle("Billboard X", &do_billboard_x)) {}
             if(ui_toggle("Billboard Y", &do_billboard_y)) {}
             if(ui_toggle("Billboard Z", &do_billboard_z)) {}
             if(ui_separator()) {}
             if(ui_bool("Wireframe", &do_wireframe)) {}
             if(ui_bool("Two sided", &do_twosided)) {}
-            ui_end();
+            ui_panel_end();
         }
-        if( ui_begin("FX", 0) ) {
+        if( ui_panel("FX", 0) ) {
             for( int i = 0; i < 64; ++i ) {
                 char *name = fx_name(i); if( !name ) break;
                 bool b = fx_enabled(i);
                 if( ui_bool(name, &b) ) fx_enable(i, fx_enabled(i) ^ 1);
             }
-            ui_end();
+            ui_panel_end();
         }
     }
 }

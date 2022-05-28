@@ -77,7 +77,7 @@ int main(int argc, char** argv) {
             skybox_pop_state(&sky);
         }
 
-        if( ui_begin("Scene", 0)) {
+        if( ui_panel("Scene", 0)) {
             if( ui_list("Skybox", SKY_DIRS, countof(SKY_DIRS), &SKY_DIR) ) {
                 must_reload = 1;
             }
@@ -90,7 +90,7 @@ int main(int argc, char** argv) {
                 ui_color3(va("SH Coefficient [%d]", i), &remap.x);
                 sky.cubemap.sh[i] = sub3(scale3(remap, 1/127.5f), vec3(1,1,1));
             }
-            ui_end();
+            ui_panel_end();
         }
     }
 }

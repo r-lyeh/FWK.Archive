@@ -91,134 +91,6 @@
 extern "C" {
 #endif
 
-// -----------------------------------------------------------------------------
-// if/n/def hell
-
-#define ifdef(macro, yes, /*no*/...)   ifdef_##macro(yes, __VA_ARGS__)
-#define ifndef(macro, yes, /*no*/...)  ifdef_##macro(__VA_ARGS__, yes)
-#define is(macro)                      ifdef_##macro(1,0)
-#define isnt(macro)                    ifdef_##macro(0,1)
-#define ifdef_true(yes, /*no*/...)     yes
-#define ifdef_false(yes, /*no*/...)    __VA_ARGS__
-
-#ifdef _MSC_VER
-#define ifdef_gcc                      ifdef_false
-#define ifdef_mingw                    ifdef_false
-#define ifdef_tcc                      ifdef_false
-#define ifdef_cl                       ifdef_true
-#elif defined __TINYC__
-#define ifdef_gcc                      ifdef_false
-#define ifdef_mingw                    ifdef_false
-#define ifdef_tcc                      ifdef_true
-#define ifdef_cl                       ifdef_false
-#elif defined __MINGW64__ // __MINGW__ ?
-#define ifdef_gcc                      ifdef_true
-#define ifdef_mingw                    ifdef_true
-#define ifdef_tcc                      ifdef_false
-#define ifdef_cl                       ifdef_false
-#else // also __clang__
-#define ifdef_gcc                      ifdef_true
-#define ifdef_mingw                    ifdef_false
-#define ifdef_tcc                      ifdef_false
-#define ifdef_cl                       ifdef_false
-#endif
-
-#ifdef __cplusplus
-#define ifdef_cpp                      ifdef_true
-#define ifdef_c                        ifdef_false
-#else
-#define ifdef_c                        ifdef_true
-#define ifdef_cpp                      ifdef_false
-#endif
-
-#if defined _WIN32
-#define ifdef_win32                    ifdef_true
-#define ifdef_linux                    ifdef_false
-#define ifdef_osx                      ifdef_false
-#define ifdef_bsd                      ifdef_false
-#define ifdef_ems                      ifdef_false
-#elif defined __linux__
-#define ifdef_win32                    ifdef_false
-#define ifdef_linux                    ifdef_true
-#define ifdef_osx                      ifdef_false
-#define ifdef_bsd                      ifdef_false
-#define ifdef_ems                      ifdef_false
-#elif defined __APPLE__
-#define ifdef_win32                    ifdef_false
-#define ifdef_linux                    ifdef_false
-#define ifdef_osx                      ifdef_true
-#define ifdef_bsd                      ifdef_false
-#define ifdef_ems                      ifdef_false
-#elif defined __EMSCRIPTEN__
-#define ifdef_win32                    ifdef_false
-#define ifdef_linux                    ifdef_false
-#define ifdef_osx                      ifdef_false
-#define ifdef_bsd                      ifdef_false
-#define ifdef_ems                      ifdef_true
-#else // __FreeBSD__ || @todo: __ANDROID_API__
-#define ifdef_win32                    ifdef_false
-#define ifdef_linux                    ifdef_false
-#define ifdef_osx                      ifdef_false
-#define ifdef_bsd                      ifdef_true
-#define ifdef_ems                      ifdef_false
-#endif
-
-// -----------------------------------------------------------------------------
-// new C keywords
-// @todo: autorun (needed?)
-
-#define countof(x)       (int)(sizeof (x) / sizeof 0[x])
-
-#define concat(a,b)      conc4t(a,b)
-#define conc4t(a,b)      a##b
-
-#define macro(name)      concat(name, __LINE__)
-#define defer(begin,end) for(int macro(i) = ((begin), 0); !macro(i); macro(i) = ((end), 1))
-#define scope(end)       defer((void)0, end)
-#define benchmark        for(double macro(t) = -time_ss(); macro(t) < 0; printf("%.2fs (" FILELINE ")\n", macro(t)+=time_ss()))
-#define do_once          static int macro(once) = 0; for(;!macro(once);macro(once)=1)
-
-// usage: bool static(audio_is_init) = audio_init();
-//#define static(var)    static var; do_once var
-
-//-----------------------------------------------------------------------------
-// new C macros
-
-#define ASSERT(expr, ...)   do { int fool_msvc[] = {0,}; if(!(expr)) { fool_msvc[0]++; breakpoint(va("!Expression failed: " #expr " " FILELINE "\n" __VA_ARGS__)); } } while(0)
-#define PRINTF(...)         PRINTF(va(__VA_ARGS__), 1[#__VA_ARGS__] == '!' ? callstack(+48) : "", __FILE__, __LINE__, __FUNCTION__)
-
-#define FILELINE                   __FILE__ ":" STRINGIZE(__LINE__)
-#define STRINGIZE(x)               STRINGIZ3(x)
-#define STRINGIZ3(x)               #x
-
-#define EXPAND(name, ...)          EXPAND_QUOTE(EXPAND_JOIN(name, EXPAND_COUNT_ARGS(__VA_ARGS__)), (__VA_ARGS__))
-#define EXPAND_QUOTE(x, y)         x y
-#define EXPAND_JOIN(name, count)   EXPAND_J0IN(name, count)
-#define EXPAND_J0IN(name, count)   EXPAND_J01N(name, count)
-#define EXPAND_J01N(name, count)   name##count
-#define EXPAND_COUNT_ARGS(...)     EXPAND_ARGS((__VA_ARGS__, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0))
-#define EXPAND_ARGS(args)          EXPAND_RETURN_COUNT args
-#define EXPAND_RETURN_COUNT(_1_, _2_, _3_, _4_, _5_, _6_, _7_, _8_, _9_, count, ...) count
-
-//#define STATIC_ASSERT(EXPR)      typedef char UNIQUE_NAME(_static_assert_on_line)[(EXPR)?1:-1]
-#define STATIC_ASSERT(EXPR)        STATIC_ASSER7(EXPR, __LINE__)
-#define STATIC_ASSER7(EXPR, LINE)  STATIC_ASS3R7(EXPR, LINE)
-#define STATIC_ASS3R7(EXPR, LINE)  typedef struct { unsigned static_assert_on_line_##LINE : !!(EXPR); } static_assert_on_line_##LINE // typedef int static_assert_on_line_##LINE[ !!(EXPR) ]
-
-#if defined(_MSC_VER) && !defined(__cplusplus)
-#define INLINE __inline
-#else
-#define INLINE inline
-#endif
-
-#if defined(_MSC_VER)
-#define FORCE_INLINE __forceinline
-#elif defined(__GNUC__)
-#define FORCE_INLINE __attribute__((always_inline)) inline
-#else
-#define FORCE_INLINE INLINE
-#endif
-
 //-----------------------------------------------------------------------------
 // Headers
 
@@ -281,14 +153,14 @@ extern "C" {
 #endif
 
 // expose glfw/glad apis
-#ifdef __EMSCRIPTEN__ // emscripten is dumb
+#ifdef __EMSCRIPTEN__
     #include <GL/glew.h>
     #include <GLFW/glfw3.h>
     #include <emscripten.h>
     #include <emscripten/html5.h>
     #define gladLoadGL(func) (glewExperimental = true, glewInit() == GLEW_OK)
 #else
-    #if is(win32) && is(tcc) && WITH_DLL
+    #if is(win32) && /*is(tcc) &&*/ WITH_DLL
     #define GLAD_API_CALL API
     #endif
     #ifndef GLAD_GL_H_

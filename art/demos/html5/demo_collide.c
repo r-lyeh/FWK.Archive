@@ -577,7 +577,7 @@ void game_loop(void *userdata) {
     //ddraw_flush();
     //fx_end();
 
-    if( ui_begin("Audio", 0) ) {
+    if( ui_panel("Audio", 0) ) {
         if( ui_button("test audio") ) {
             // audio (both clips & streams)
             static audio_t voice; voice = audio_clip("coin.wav"); // "pew.sfxr"
@@ -585,16 +585,16 @@ void game_loop(void *userdata) {
             audio_play(voice, 0);
             audio_play(stream, 0);
         }
-        ui_end();
+        ui_panel_end();
     }
 
-    if( ui_begin("FX", 0) ) {
+    if( ui_panel("FX", 0) ) {
         for( int i = 0; i < 64; ++i ) {
             char *name = fx_name(i); if( !name ) break;
             bool b = fx_enabled(i);
             if( ui_bool(name, &b) ) fx_enable(i, fx_enabled(i) ^ 1);
         }
-        ui_end();
+        ui_panel_end();
     }
 }
 

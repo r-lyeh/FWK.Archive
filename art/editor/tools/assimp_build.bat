@@ -3,7 +3,7 @@
 # linux + osx -----------------------------------------------------------------
 cd `dirname $0`
 
-git clone https://github.com/assimp/assimp && cd assimp
+git clone https://github.com/assimp/assimp && cd assimp && git checkout 05115b07
 cmake -DCMAKE_BUILD_TYPE=Release -DASSIMP_BUILD_TESTS=OFF .
 make -j 8
 cp bin/libassimp.so ../libassimp.so

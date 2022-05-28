@@ -144,7 +144,7 @@ int main() {
         custom.curframe = model_animate_clip(custom, custom.curframe, anim.min, anim.max, strstri(a.anim_names[a.anim_selector], "loop"));
 
         // UI
-        if( ui_begin("Animation", 0)) {
+        if( ui_panel("Animation", 0)) {
             ui_label(va("Anim %d/%d) %s@UP/DOWN keys", a.anim_selector, array_count(a.anims)-1, a.anim_names[ a.anim_selector ] ));
             ui_label(va("Frame: [%.0f..%.1f..%.0f]@LEFT/RIGHT keys", anim.min, custom.curframe, anim.max));
             ui_label(va("Speed: x%.2f@N,M keys", a.anim_speed));
@@ -154,15 +154,15 @@ int main() {
             if( ui_bool("Show marker", &do_showmarker) );
             if( ui_button("Restart anim@ENTER key") ) custom.curframe = 0;
             if( ui_button("Pause anim@SPACE key") ) a.anim_speed = !a.anim_speed;
-            ui_end();
+            ui_panel_end();
         }
-        if( ui_begin("FX", 0) ) {
+        if( ui_panel("FX", 0) ) {
             for( int i = 0; i < 64; ++i ) {
                 char *name = fx_name(i); if( !name ) break;
                 bool b = fx_enabled(i);
                 if( ui_bool(name, &b) ) fx_enable(i, fx_enabled(i) ^ 1);
             }
-            ui_end();
+            ui_panel_end();
         }
     }
 }

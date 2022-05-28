@@ -43,13 +43,13 @@ int main() {
     while(window_swap()) {
         static float timer = 0;
         if( (timer += 1/60.f) > 2 ) timer = 0; // loops every 2s
-        if(ui_begin("ease",0)) {
+        if(ui_panel("ease",0)) {
             float linear_delta = timer / 2.f; // delta is [0..1]
             for( int i = 0; i < countof(easings); ++i) {
                 float nonlinear_delta = easings[i].ease(linear_delta);
                 ui_slider(easings[i].name, &nonlinear_delta );
             }
-            ui_end();
+            ui_panel_end();
         }
     }
 }

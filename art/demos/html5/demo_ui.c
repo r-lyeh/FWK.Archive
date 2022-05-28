@@ -17,7 +17,7 @@ void render(void *arg) {
     static bool show_dialog = false;
     static uint8_t bitmask = 0x55;
 
-    if( ui_begin("UI", 0)) {
+    if( ui_panel("UI", 0)) {
         if( ui_label("my label")) {}
         if( ui_label("my label with tooltip@built on " __DATE__ " " __TIME__)) {}
         if( ui_separator() ) {}
@@ -45,7 +45,7 @@ void render(void *arg) {
         if( ui_button("my button") ) { puts("button clicked"); show_dialog = true; }
         if( ui_dialog("my dialog", __FILE__ "\n" __DATE__ "\n" "Public Domain.", 2/*two buttons*/, &show_dialog) ) {}
 
-        ui_end();
+        ui_panel_end();
     }
 
     input_demo();

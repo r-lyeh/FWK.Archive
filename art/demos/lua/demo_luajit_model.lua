@@ -47,7 +47,7 @@ while fwk.window_swap() == 1 do
    fwk.window_title("hello luajit")
 
    -- showcase ui
-   if fwk.ui_begin("luajit", 0) == 1 then
-      fwk.ui_end()
+   if fwk.ui_panel("luajit", 0) == 1 then
+      fwk.ui_panel_end()
    end
 end

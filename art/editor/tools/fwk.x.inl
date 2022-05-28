@@ -7,6 +7,7 @@
 #endif
 
 {{FILE:3rd_glad.h}}
+{{FILE:3rd_font_md.h}}
 
 #ifdef FWK_3RD
 
@@ -34,7 +35,7 @@
 #define NK_INCLUDE_STANDARD_IO                // nuklear
 #define NK_INCLUDE_STANDARD_VARARGS           // nuklear
 #define NK_INCLUDE_VERTEX_BUFFER_OUTPUT       // nuklear
-#define NK_MAX_LAYOUT_ROW_TEMPLATE_COLUMNS 32 // nuklear
+#define NK_MAX_LAYOUT_ROW_TEMPLATE_COLUMNS 64 // nuklear
 #define NK_KEYSTATE_BASED_INPUT               // nuklear
 #define PL_MPEG_IMPLEMENTATION                // pl_mpeg
 #define STB_IMAGE_IMPLEMENTATION              // stbi
@@ -134,7 +135,6 @@ int execv(const char *path, char *const argv[]);
 {{FILE:3rd_stb_image.h}}
 {{FILE:3rd_stb_image_write.h}}
 //---
-{{FILE:3rd_font_md.h}}
 #undef freelist
 #define STBTT_malloc(x,u)  ((void)(u),MALLOC(x))
 #define STBTT_free(x,u)    ((void)(u),FREE(x))

@@ -20,8 +20,8 @@ int main() {
         window_create(75.0,0);
         while window_swap() do
             ddraw_grid(10);
-            if ui_begin("Hello from Lua!", 0) then
-                ui_end();
+            if ui_panel("Hello from Lua!", 0) then
+                ui_panel_end();
             end;
         end;
     ));

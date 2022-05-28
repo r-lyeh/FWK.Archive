@@ -4,7 +4,7 @@
 cd `dirname $0`
 
 # copy demos to root folder. local changes are preserved
-cp -n art/demos/*.c .
+# cp -n art/demos/*.c .
 
 # rem tests
 # clang art/editor/tools/editor.c -I. -lm -lX11 -g -fsanitize=address,undefined && ./a.out
@@ -18,12 +18,14 @@ if [ "$1" = "tidy" ]; then
     rm .art*.zip 2> /dev/null
     rm art/demos/lua/.art*.zip 2> /dev/null
     rm art/demos/html5/.art*.zip 2> /dev/null
+    rm art/demos/lua/libfwk* 2> /dev/null
     rm fwk_*.* 2> /dev/null
     rm 3rd_*.* 2> /dev/null
     rm libfwk* 2> /dev/null
     rm -rf *.dSYM 2> /dev/null
     rm *.png 2> /dev/null
     rm *.mp4 2> /dev/null
+    rm editor 2> /dev/null
     exit
 fi
 # shortcuts for split & join amalgamation scripts
@@ -35,15 +37,69 @@ if [ "$1" = "join" ]; then
     sh art/editor/tools/join.bat
     exit
 fi
+# cook
+if [ "$1" = "cook" ]; then
+    cc -o cook art/editor/tools/cook.c -I.
+    ./cook
+    exit
+fi
+
+export dll=dll
+export build=dbg
+export args=
+export cc=cc
+
+while [ $# -ge 1 ]; do
+    if [ "$1" = "help" ]; then 
+        echo sh MAKE.bat
+        echo sh MAKE.bat [gcc,clang,tcc] [dbg,dev,rel] [dll,static]
+        echo sh MAKE.bat [tidy]
+        echo sh MAKE.bat [split,join]
+        exit
+    fi
+    if [ "$1" = "dll" ]; then 
+        export dll=dll
+    fi
+    if [ "$1" = "static" ]; then 
+        export dll=static
+    fi
+    if [ "$1" = "dbg" ]; then 
+        export build=dbg
+    fi
+    if [ "$1" = "dev" ]; then 
+        export build=dev
+    fi
+    if [ "$1" = "rel" ]; then 
+        export build=rel
+    fi
+    if [ "$1" = "gcc" ]; then 
+        export cc=gcc
+    fi
+    if [ "$1" = "clang" ]; then 
+        export cc=clang
+    fi
+    if [ "$1" = "tcc" ]; then 
+        export cc="tcc -D__STDC_NO_VLA__"
+    fi
+    if [ "$1" = "--" ]; then 
+        shift
+        export args=$*
+        shift $#
+    fi
+    if [ $# -ge 1 ]; then
+        shift
+    fi
+done
 
 if [ "$(uname)" != "Darwin" ]; then
     # setup (ArchLinux)
-     sudo pacman -S --noconfirm gcc ffmpeg # -Syu
+     sudo pacman -S --noconfirm tcc # gcc ffmpeg # -Syu
     # setup (Debian, Ubuntu, etc)
      sudo apt-get -y update
-     sudo apt-get -y install gcc ffmpeg libx11-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev  # absolute minimum
-    #sudo apt-get -y install gcc ffmpeg xorg-dev                                                           # memorable, around 100 mib
-    #sudo apt-get -y install gcc ffmpeg xorg-dev libglfw3-dev libassimp-dev clang                          # initial revision
+    #sudo apt-get -y install ffmpeg || (sudo apt-get install snapd && sudo snap install ffmpeg)
+     sudo apt-get -y install tcc libx11-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev        # absolute minimum
+    #sudo apt-get -y install clang xorg-dev                                                               # memorable, around 100 mib
+    #sudo apt-get -y install clang xorg-dev libglfw3-dev libassimp-dev gcc                                # initial revision
 
     # pipeline
     #cc art/editor/tools/ass2iqe.c   -o art/editor/tools/ass2iqe.linux  -lm -ldl -lpthread -w -g -lassimp
@@ -55,6 +111,7 @@ if [ "$(uname)" != "Darwin" ]; then
     chmod +x art/editor/tools/ass2iqe.linux
     chmod +x art/editor/tools/iqe2iqm.linux
     chmod +x art/editor/tools/mid2wav.linux
+    chmod +x art/editor/tools/mod2wav.linux
     chmod +x art/editor/tools/xml2json.linux
     chmod +x art/editor/tools/sfxr2wav.linux
     chmod +x art/editor/tools/ffmpeg.linux
@@ -64,38 +121,39 @@ if [ "$(uname)" != "Darwin" ]; then
     chmod +x art/editor/tools/xlsx2ini.linux
     chmod +x art/demos/lua/luajit.linux
 
+    echo build=$build, type=$dll, cc=$cc, args=$args
+
     # framework (as dynamic library)
-    if [ "$1" = "dll" ]; then
-        cc -o libfwk.so fwk.c -shared -fPIC -w -g -lX11
+    if [ "$dll" = "dll" ]; then
+        echo libfwk.so  && $cc -o libfwk.so fwk.c -shared -fPIC -w -g -lX11 $args
         cp libfwk.so art/demos/lua/
-        echo generated art/demos/lua/libfwk.so 
-        echo '[test] cd art/demos/lua && LD_LIBRARY_PATH=$(PWD)/libfwk.so:$LD_LIBRARY_PATH ./luajit.linux demo_luajit_model.lua'
-        exit
+        export import="libfwk.so -Wl,-rpath,./"
+    else
+    # framework (static)
+        echo fwk        && $cc -c fwk.c -w -g    $args
+        export import=fwk.o
     fi
 
-    # framework
-    echo fwk            && cc -c fwk.c -w -g $*
+    # editor
+    echo editor         && $cc -o editor         editor.c                   -lm -ldl -lpthread -lX11 -w -g     $args $import &
 
     # demos
-    echo demo           && cc -o demo           demo.c           fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
-    echo demo_cubemap   && cc -o demo_cubemap   demo_cubemap.c   fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
-    echo demo_collide   && cc -o demo_collide   demo_collide.c   fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
-    echo demo_model     && cc -o demo_model     demo_model.c     fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
-    echo demo_scene     && cc -o demo_scene     demo_scene.c     fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
-    echo demo_shadertoy && cc -o demo_shadertoy demo_shadertoy.c fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
-    echo demo_sprite    && cc -o demo_sprite    demo_sprite.c    fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
-    echo demo_video     && cc -o demo_video     demo_video.c     fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
-    echo demo_script    && cc -o demo_script    demo_script.c    fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
-    echo demo_socket    && cc -o demo_socket    demo_socket.c    fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
-    echo demo_easing    && cc -o demo_easing    demo_easing.c    fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
-    echo demo_font      && cc -o demo_font      demo_font.c      fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
-    echo demo_material  && cc -o demo_material  demo_material.c  fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
-    echo demo_pbr       && cc -o demo_pbr       demo_pbr.c       fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
-    echo demo_instanced && cc -o demo_instanced demo_instanced.c fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
-    echo demo_audio     && cc -o demo_audio     demo_audio.c     fwk.o -lm -ldl -lpthread -lX11 -w -g $* &
-
-    #editor
-    echo editor         && cc -o editor         editor.c               -lm -ldl -lpthread -lX11 -w -g $*
+    echo demo           && $cc -o demo           demo.c                     -lm -ldl -lpthread -lX11 -w -g     $args $import &
+    echo demo_cubemap   && $cc -o demo_cubemap   art/demos/demo_cubemap.c   -lm -ldl -lpthread -lX11 -w -g -I. $args $import &
+    echo demo_collide   && $cc -o demo_collide   art/demos/demo_collide.c   -lm -ldl -lpthread -lX11 -w -g -I. $args $import &
+    echo demo_model     && $cc -o demo_model     art/demos/demo_model.c     -lm -ldl -lpthread -lX11 -w -g -I. $args $import &
+    echo demo_scene     && $cc -o demo_scene     art/demos/demo_scene.c     -lm -ldl -lpthread -lX11 -w -g -I. $args $import &
+    echo demo_shadertoy && $cc -o demo_shadertoy art/demos/demo_shadertoy.c -lm -ldl -lpthread -lX11 -w -g -I. $args $import &
+    echo demo_sprite    && $cc -o demo_sprite    art/demos/demo_sprite.c    -lm -ldl -lpthread -lX11 -w -g -I. $args $import &
+    echo demo_video     && $cc -o demo_video     art/demos/demo_video.c     -lm -ldl -lpthread -lX11 -w -g -I. $args $import &
+    echo demo_script    && $cc -o demo_script    art/demos/demo_script.c    -lm -ldl -lpthread -lX11 -w -g -I. $args $import &
+    echo demo_socket    && $cc -o demo_socket    art/demos/demo_socket.c    -lm -ldl -lpthread -lX11 -w -g -I. $args $import &
+    echo demo_easing    && $cc -o demo_easing    art/demos/demo_easing.c    -lm -ldl -lpthread -lX11 -w -g -I. $args $import &
+    echo demo_font      && $cc -o demo_font      art/demos/demo_font.c      -lm -ldl -lpthread -lX11 -w -g -I. $args $import &
+    echo demo_material  && $cc -o demo_material  art/demos/demo_material.c  -lm -ldl -lpthread -lX11 -w -g -I. $args $import &
+    echo demo_pbr       && $cc -o demo_pbr       art/demos/demo_pbr.c       -lm -ldl -lpthread -lX11 -w -g -I. $args $import &
+    echo demo_instanced && $cc -o demo_instanced art/demos/demo_instanced.c -lm -ldl -lpthread -lX11 -w -g -I. $args $import &
+    echo demo_audio     && $cc -o demo_audio     art/demos/demo_audio.c     -lm -ldl -lpthread -lX11 -w -g -I. $args $import
 fi
 
 if [ "$(uname)" = "Darwin" ]; then
@@ -113,6 +171,7 @@ if [ "$(uname)" = "Darwin" ]; then
     chmod +x art/editor/tools/ass2iqe.osx
     chmod +x art/editor/tools/iqe2iqm.osx
     chmod +x art/editor/tools/mid2wav.osx
+    chmod +x art/editor/tools/mod2wav.osx
     chmod +x art/editor/tools/xml2json.osx
     chmod +x art/editor/tools/sfxr2wav.osx
     chmod +x art/editor/tools/ffmpeg.osx
@@ -122,38 +181,39 @@ if [ "$(uname)" = "Darwin" ]; then
     chmod +x art/editor/tools/xlsx2ini.osx
     chmod +x art/demos/lua/luajit.osx
 
+    echo build=$build, type=$dll, cc=$cc, args=$args
+
     # framework (as dynamic library)
-    if [ "$1" = "dll" ]; then
-        cc -ObjC -dynamiclib -o libfwk.dylib fwk.c -framework cocoa -framework iokit -w -g
+    if [ "$dll" = "dll" ]; then
+        echo libfwk     && cc -ObjC -dynamiclib -o libfwk.dylib fwk.c -framework cocoa -framework iokit -w -g $args
         cp libfwk.dylib art/demos/lua
-        echo generated art/demos/lua/libfwk.dylib 
-        echo '[test] cd art/demos/lua && ./luajit.osx demo_luajit_model.lua'
-        exit
+        export import=libfwk.dylib
+    else
+    # framework
+        echo fwk        && cc -c -ObjC fwk.c -w -g $args
+        export import=fwk.o
     fi
 
-    # framework
-    echo fwk            && cc -c -ObjC fwk.c -w -g $*
+    # editor
+    echo editor         && cc -o editor -ObjC   editor.c                   -framework cocoa -framework iokit -w -g     $import $args &
 
     # demos
-    echo demo           && cc -o demo           demo.c           fwk.o -framework cocoa -framework iokit -w -g $* &
-    echo demo_cubemap   && cc -o demo_cubemap   demo_cubemap.c   fwk.o -framework cocoa -framework iokit -w -g $* &
-    echo demo_collide   && cc -o demo_collide   demo_collide.c   fwk.o -framework cocoa -framework iokit -w -g $* &
-    echo demo_model     && cc -o demo_model     demo_model.c     fwk.o -framework cocoa -framework iokit -w -g $* &
-    echo demo_scene     && cc -o demo_scene     demo_scene.c     fwk.o -framework cocoa -framework iokit -w -g $* &
-    echo demo_shadertoy && cc -o demo_shadertoy demo_shadertoy.c fwk.o -framework cocoa -framework iokit -w -g $* &
-    echo demo_sprite    && cc -o demo_sprite    demo_sprite.c    fwk.o -framework cocoa -framework iokit -w -g $* &
-    echo demo_video     && cc -o demo_video     demo_video.c     fwk.o -framework cocoa -framework iokit -w -g $* &
-    echo demo_script    && cc -o demo_script    demo_script.c    fwk.o -framework cocoa -framework iokit -w -g $* &
-    echo demo_socket    && cc -o demo_socket    demo_socket.c    fwk.o -framework cocoa -framework iokit -w -g $* &
-    echo demo_easing    && cc -o demo_easing    demo_easing.c    fwk.o -framework cocoa -framework iokit -w -g $* &
-    echo demo_font      && cc -o demo_font      demo_font.c      fwk.o -framework cocoa -framework iokit -w -g $* &
-    echo demo_material  && cc -o demo_material  demo_material.c  fwk.o -framework cocoa -framework iokit -w -g $* &
-    echo demo_pbr       && cc -o demo_pbr       demo_pbr.c       fwk.o -framework cocoa -framework iokit -w -g $* &
-    echo demo_instanced && cc -o demo_instanced demo_instanced.c fwk.o -framework cocoa -framework iokit -w -g $* &
-    echo demo_audio     && cc -o demo_audio     demo_audio.c     fwk.o -framework cocoa -framework iokit -w -g $* &
-
-    # editor
-    echo editor         && cc -o editor         editor.c               -framework cocoa -framework iokit -w -g $*
+    echo demo           && cc -o demo           demo.c                     -framework cocoa -framework iokit -w -g     $import $args &
+    echo demo_cubemap   && cc -o demo_cubemap   art/demos/demo_cubemap.c   -framework cocoa -framework iokit -w -g -I. $import $args &
+    echo demo_collide   && cc -o demo_collide   art/demos/demo_collide.c   -framework cocoa -framework iokit -w -g -I. $import $args &
+    echo demo_model     && cc -o demo_model     art/demos/demo_model.c     -framework cocoa -framework iokit -w -g -I. $import $args &
+    echo demo_scene     && cc -o demo_scene     art/demos/demo_scene.c     -framework cocoa -framework iokit -w -g -I. $import $args &
+    echo demo_shadertoy && cc -o demo_shadertoy art/demos/demo_shadertoy.c -framework cocoa -framework iokit -w -g -I. $import $args &
+    echo demo_sprite    && cc -o demo_sprite    art/demos/demo_sprite.c    -framework cocoa -framework iokit -w -g -I. $import $args &
+    echo demo_video     && cc -o demo_video     art/demos/demo_video.c     -framework cocoa -framework iokit -w -g -I. $import $args &
+    echo demo_script    && cc -o demo_script    art/demos/demo_script.c    -framework cocoa -framework iokit -w -g -I. $import $args &
+    echo demo_socket    && cc -o demo_socket    art/demos/demo_socket.c    -framework cocoa -framework iokit -w -g -I. $import $args &
+    echo demo_easing    && cc -o demo_easing    art/demos/demo_easing.c    -framework cocoa -framework iokit -w -g -I. $import $args &
+    echo demo_font      && cc -o demo_font      art/demos/demo_font.c      -framework cocoa -framework iokit -w -g -I. $import $args &
+    echo demo_material  && cc -o demo_material  art/demos/demo_material.c  -framework cocoa -framework iokit -w -g -I. $import $args &
+    echo demo_pbr       && cc -o demo_pbr       art/demos/demo_pbr.c       -framework cocoa -framework iokit -w -g -I. $import $args &
+    echo demo_instanced && cc -o demo_instanced art/demos/demo_instanced.c -framework cocoa -framework iokit -w -g -I. $import $args &
+    echo demo_audio     && cc -o demo_audio     art/demos/demo_audio.c     -framework cocoa -framework iokit -w -g -I. $import $args
 fi
 
 exit
@@ -161,44 +221,33 @@ exit
 
 :: -----------------------------------------------------------------------------
 :windows
-@echo off
 
-rem setup
-if "%cc%"=="" (
-    echo Warning: Trying VS 2022/2019/2017/2015/2013 x64 ...
-    set cc=cl
-           if exist "%VS190COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat" (
-              @call "%VS190COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat"
-    ) else if exist "%VS160COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat" (
-              @call "%VS160COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat"
-    ) else if exist "%VS150COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat" (
-              @call "%VS150COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat"
-    ) else if exist "%VS140COMNTOOLS%/../../VC/bin/x86_amd64/vcvarsx86_amd64.bat" (
-              @call "%VS140COMNTOOLS%/../../VC/bin/x86_amd64/vcvarsx86_amd64.bat"
-    ) else if exist "%VS120COMNTOOLS%/../../VC/bin/x86_amd64/vcvarsx86_amd64.bat" (
-              @call "%VS120COMNTOOLS%/../../VC/bin/x86_amd64/vcvarsx86_amd64.bat"
-    ) else if exist "%ProgramFiles%/microsoft visual studio/2022/community/VC/Auxiliary/Build/vcvarsx86_amd64.bat" (
-              @call "%ProgramFiles%/microsoft visual studio/2022/community/VC/Auxiliary/Build/vcvarsx86_amd64.bat"
-    ) else if exist "%ProgramFiles(x86)%/microsoft visual studio/2019/community/VC/Auxiliary/Build/vcvarsx86_amd64.bat" (
-              @call "%ProgramFiles(x86)%/microsoft visual studio/2019/community/VC/Auxiliary/Build/vcvarsx86_amd64.bat"
-    ) else if exist "%ProgramFiles(x86)%/microsoft visual studio/2017/community/VC/Auxiliary/Build/vcvarsx86_amd64.bat" (
-              @call "%ProgramFiles(x86)%/microsoft visual studio/2017/community/VC/Auxiliary/Build/vcvarsx86_amd64.bat"
-    ) else (
-        echo Warning: Trying Mingw64 ...
-        set cc=gcc
-        where /q gcc.exe || ( set cc=tcc&&echo Warning: Trying TCC ... )
-    )
+@echo off
+setlocal enableDelayedExpansion
+
+rem show help
+if "%1"=="help" (
+    echo %0
+    echo %0 [tidy]
+    echo %0 [docs]
+    echo %0 [cook]
+    echo %0 [bindings]
+    echo %0 [memcheck]
+    echo %0 [split^|join]
+    echo %0 [demo name "compiler args" "program args"]
+    echo %0 [dll^|static] [dbg^|dev^|rel] [cl^|tcc^|cc^|gcc^|clang] [-- compiler args]
+    exit /b
 )
 
-cd "%~dp0"
+rem generate tcc.bat
+cd /d "%~dp0"
 echo @if     "%%1"=="-impdef" @%~dp0\art\editor\tools\tcc-win\tcc %%* > tcc.bat
 echo @if not "%%1"=="-impdef" @%~dp0\art\editor\tools\tcc-win\tcc -I %~dp0\art\editor\tools\tcc-win\include_mingw\winapi -I %~dp0\art\editor\tools\tcc-win\include_mingw\ %%* >> tcc.bat
 
-echo @call %%* > sh.bat
-
-rem generate cooker and cook
+rem generate cooker twice: use multi-threaded version if available (cl). then cook.
 if "%1"=="cook" (
-    cl art\editor\tools\cook.c -I.
+    call art\editor\tools\tcc art\editor\tools\cook.c -I.
+                           cl art\editor\tools\cook.c -I.
     cook
 
     exit /b
@@ -226,7 +275,7 @@ if "%1"=="docs" (
     set /p LAST_MODIFIED=<info.obj
 
     rem ...and generate docs
-    cl art\docs\docs.c fwk.c -I. %2
+    call art\editor\tools\tcc art\docs\docs.c fwk.c -I. %2
     docs fwk.h --excluded=3rd_glad.h,fwk.h,fwk_compat.h, > fwk.html
     move /y fwk.html art\docs\docs.html
 
@@ -239,14 +288,13 @@ if "%1"=="github" (
     call make.bat bindings
 
     call make.bat split
-    rd /q /s art\editor\tools\3rd\*
-    rd /q /s art\editor\tools\src\*
-    md art\editor\tools\3rd
-    md art\editor\tools\src
-    move /y 3rd_*.? art\editor\tools\3rd\
-    move /y fwk_*.? art\editor\tools\src\
-    echo.> "art\editor\tools\src\; for browsing purposes. do not compile these"
-    echo.> "art\editor\tools\src\; required sources can be found at root folder"
+    rd /q /s art\editor\tools\fwk
+    md art\editor\tools\fwk
+    md art\editor\tools\fwk\3rd
+    move /y fwk_*.? art\editor\tools\fwk\
+    move /y 3rd_*.? art\editor\tools\fwk\3rd\
+    echo.> "art\editor\tools\fwk\;. for browsing purposes only. do not compile these"
+    echo.> "art\editor\tools\fwk\3rd\;. for browsing purposes only. do not compile these"
 
     call make.bat tidy
 
@@ -265,9 +313,6 @@ if "%1"=="demo" (
     if %ERRORLEVEL%==0 (call !FILENAME!.exe %~4%) else (echo Compilation error: !FILENAME!)
     exit /b
 )
-
-rem copy demos to root folder. local changes are preserved
-echo n | copy /-y art\demos\*.c 1> nul 2> nul
 
 rem shortcuts for split & join amalgamation scripts
 if "%1"=="split" (
@@ -289,10 +334,14 @@ if "%1"=="checkmem" (
     exit /b
 )
 
+rem copy demos to root folder. local changes are preserved
+rem echo n | copy /-y art\demos\*.c 1> nul 2> nul
+
 rem tidy environment
 if "%1"=="tidy" (
     move /y demo_*.png art\demos
     move /y demo_*.c art\demos
+    del art\demos\lua\fwk.dll
     del .temp*.*
     del *.zip
     del *.mem
@@ -301,6 +350,7 @@ if "%1"=="tidy" (
     del *.exe
     del *.obj
     del *.o
+    del *.a
     del *.pdb
     del *.ilk
     del *.png
@@ -317,138 +367,219 @@ if "%1"=="tidy" (
     exit /b
 )
 
-if exist "fwk_*" (
-    call art\editor\tools\join
+set dll=dll
+set build=dbg
+set cc=%cc%
+set args=
+
+:parse_args
+    if "%1"=="--"     shift && goto parse_compiler_args
+
+    if "%1"=="dll"    set dll=%1
+    if "%1"=="static" set dll=%1
+
+    if "%1"=="dbg"    set build=%1
+    if "%1"=="dev"    set build=%1
+    if "%1"=="rel"    set build=%1
+
+    if "%1"=="tcc"    set cc=%1
+    if "%1"=="cl"     set cc=%1
+    if "%1"=="cc"     set cc=%1
+    if "%1"=="gcc"    set cc=%1
+    if "%1"=="clang"  set cc=%1
+
+    if not "%1"==""   shift && goto parse_args
+
+:parse_compiler_args
+    if not "%1"==""   set "args=!args! %1" && shift && goto parse_compiler_args
+
+rem setup
+if "!cc!"=="" (
+    echo Detecting VS 2022/2019/2017/2015/2013 x64 ...
+    set cc=cl
+           if exist "%VS190COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat" (
+              @call "%VS190COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat" > nul
+    ) else if exist "%VS160COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat" (
+              @call "%VS160COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat" > nul
+    ) else if exist "%VS150COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat" (
+              @call "%VS150COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat" > nul
+    ) else if exist "%VS140COMNTOOLS%/../../VC/bin/x86_amd64/vcvarsx86_amd64.bat" (
+              @call "%VS140COMNTOOLS%/../../VC/bin/x86_amd64/vcvarsx86_amd64.bat" > nul
+    ) else if exist "%VS120COMNTOOLS%/../../VC/bin/x86_amd64/vcvarsx86_amd64.bat" (
+              @call "%VS120COMNTOOLS%/../../VC/bin/x86_amd64/vcvarsx86_amd64.bat" > nul
+    ) else if exist "%ProgramFiles%/microsoft visual studio/2022/community/VC/Auxiliary/Build/vcvarsx86_amd64.bat" (
+              @call "%ProgramFiles%/microsoft visual studio/2022/community/VC/Auxiliary/Build/vcvarsx86_amd64.bat" > nul
+    ) else if exist "%ProgramFiles(x86)%/microsoft visual studio/2019/community/VC/Auxiliary/Build/vcvarsx86_amd64.bat" (
+              @call "%ProgramFiles(x86)%/microsoft visual studio/2019/community/VC/Auxiliary/Build/vcvarsx86_amd64.bat" > nul
+    ) else if exist "%ProgramFiles(x86)%/microsoft visual studio/2017/community/VC/Auxiliary/Build/vcvarsx86_amd64.bat" (
+              @call "%ProgramFiles(x86)%/microsoft visual studio/2017/community/VC/Auxiliary/Build/vcvarsx86_amd64.bat" > nul
+    ) else (
+        echo Detecting Mingw64 ...
+        set cc=gcc
+        where /q gcc.exe || ( set cc=tcc&&echo Detecting TCC ... )
+    )
 )
 
-echo [%cc%]
-prompt [%cc%] $p$g
+echo build=!build!, type=!dll!, cc=!cc!, args=!args!
 
-if "%cc%"=="cl" (
-    rem pipeline
-    rem cl art/editor/tools/ass2iqe.c   /Feart/editor/tools/ass2iqe.exe  /nologo /openmp /O2 /Oy /MT /DNDEBUG /DFINAL assimp.lib
-    rem cl art/editor/tools/iqe2iqm.cpp /Feart/editor/tools/iqe2iqm.exe  /nologo /openmp /O2 /Oy /MT /DNDEBUG /DFINAL
-    rem cl art/editor/tools/mid2wav.c   /Feart/editor/tools/mid2wav.exe  /nologo /openmp /O2 /Oy /MT /DNDEBUG /DFINAL
-    rem cl art/editor/tools/xml2json.c  /Feart/editor/tools/xml2json.exe /nologo /openmp /O2 /Oy /MT /DNDEBUG /DFINAL
+rem --- pipeline
+rem cl art/editor/tools/ass2iqe.c   /Feart/editor/tools/ass2iqe.exe  /nologo /openmp /O2 /Oy /MT /DNDEBUG /DFINAL assimp.lib
+rem cl art/editor/tools/iqe2iqm.cpp /Feart/editor/tools/iqe2iqm.exe  /nologo /openmp /O2 /Oy /MT /DNDEBUG /DFINAL
+rem cl art/editor/tools/mid2wav.c   /Feart/editor/tools/mid2wav.exe  /nologo /openmp /O2 /Oy /MT /DNDEBUG /DFINAL
+rem cl art/editor/tools/xml2json.c  /Feart/editor/tools/xml2json.exe /nologo /openmp /O2 /Oy /MT /DNDEBUG /DFINAL
+rem --- pipeline
+rem gcc art/editor/tools/ass2iqe.c   -o art/editor/tools/ass2iqe.exe  -w -lassimp
+rem gcc art/editor/tools/iqe2iqm.cpp -o art/editor/tools/iqe2iqm.exe  -w -lstdc++
+rem gcc art/editor/tools/mid2wav.c   -o art/editor/tools/mid2wav.exe  -w
+rem gcc art/editor/tools/xml2json.c  -o art/editor/tools/xml2json.exe -w
+rem --- different strategies for release builds
+rem 4.61s 6.9MiB (default)
+rem 33.7s 6.6MiB             /Ox     /Oy /MT /DNDEBUG /DFINAL
+rem 35.8s 5.3MiB                 /O2 /Oy /MT /DNDEBUG /DFINAL
+rem 17.9s 4.6MiB                 /O1     /MT /DNDEBUG /DFINAL /GL /GF     /arch:AVX2
+rem 17.8s 4.6MiB         /Os /Ox /O2 /Oy /MT /DNDEBUG /DFINAL /GL /GF     /arch:AVX2
+rem 18.8s 4.6MiB         /Os /Ox /O2 /Oy /MT /DNDEBUG         /GL /GF /Gw            /link /OPT:ICF /LTCG
+rem 18.0s 4.6MiB /openmp /Os /Ox /O2 /Oy /MT /DNDEBUG /DFINAL /GL /GF /Gw /arch:AVX2 /link /OPT:ICF /LTCG
 
-    rem [HINT] static linking vs dll
-    rem SLL: cl fwk.c && cl demo.c fwk.obj
-    rem DLL: cl fwk.c /LD /DAPI=EXPORT && cl demo.c fwk.lib /DAPI=IMPORT
+if "!cc!"=="cl" (
 
-    rem [HINT] optimization flags for release builds
-    rem method 1:         /Ox /Oy /MT /DNDEBUG /DFINAL
-    rem method 2:         /O2 /Oy /MT /DNDEBUG /DFINAL
-    rem method 3:             /O1 /MT /DNDEBUG /DFINAL /GL /GF /arch:AVX2
-    rem method 3: /Os /Ox /O2 /Oy /MT /DNDEBUG /DFINAL /GL /GF /arch:AVX2 > small binaries!
-
-    rem framework dynamic
-    rem cl fwk.c        /nologo /openmp /Zi /DAPI=EXPORT /LD %*
-
-    rem generate dll
-    if "%1"=="dll" (
-        rem cl fwk.c /LD /DAPI=EXPORT                         && rem 6.6MiB
-        rem cl fwk.c /LD /DAPI=EXPORT /O2                     && rem 5.3MiB
-        cl fwk.c /LD /DAPI=EXPORT /Os /Ox /O2 /Oy /GL /GF /MT && rem 4.7MiB
-        copy /y fwk.dll art\demos\lua
-
-        exit /b
+    if "!dll!"=="static" (
+        set export=/c
+        set import=fwk.obj
+    ) else (
+        set export=/DAPI=EXPORT /LD
+        set import=/DAPI=IMPORT fwk.lib
     )
 
-    rem framework static
-    cl fwk.c            /nologo /openmp /Zi /MT /c %*
-
-    rem demos
-    cl demo.c           /nologo /openmp /Zi /MT fwk.obj %*
-    cl demo_cubemap.c   /nologo /openmp /Zi /MT fwk.obj %*
-    cl demo_collide.c   /nologo /openmp /Zi /MT fwk.obj %*
-    cl demo_model.c     /nologo /openmp /Zi /MT fwk.obj %*
-    cl demo_scene.c     /nologo /openmp /Zi /MT fwk.obj %*
-    cl demo_shadertoy.c /nologo /openmp /Zi /MT fwk.obj %*
-    cl demo_sprite.c    /nologo /openmp /Zi /MT fwk.obj %*
-    cl demo_video.c     /nologo /openmp /Zi /MT fwk.obj %*
-    cl demo_script.c    /nologo /openmp /Zi /MT fwk.obj %*
-    cl demo_socket.c    /nologo /openmp /Zi /MT fwk.obj %*
-    cl demo_easing.c    /nologo /openmp /Zi /MT fwk.obj %*
-    cl demo_font.c      /nologo /openmp /Zi /MT fwk.obj %*
-    cl demo_material.c  /nologo /openmp /Zi /MT fwk.obj %*
-    cl demo_pbr.c       /nologo /openmp /Zi /MT fwk.obj %*
-    cl demo_instanced.c /nologo /openmp /Zi /MT fwk.obj %*
-    cl demo_audio.c     /nologo /openmp /Zi /MT fwk.obj %*
-
-    rem editor
-    cl editor.c         /nologo /openmp /Zi /MT         %*
-
-) else if "%cc%"=="tcc" (
-    rem pipeline
-    rem gcc art/editor/tools/ass2iqe.c   -o art/editor/tools/ass2iqe.exe  -w -lassimp
-    rem gcc art/editor/tools/iqe2iqm.cpp -o art/editor/tools/iqe2iqm.exe  -w -lstdc++
-    rem gcc art/editor/tools/mid2wav.c   -o art/editor/tools/mid2wav.exe  -w
-    rem gcc art/editor/tools/xml2json.c  -o art/editor/tools/xml2json.exe -w
-
-    rem generate dll
-    if "%1"=="dll" (
-        call tcc fwk.c -shared -DAPI=EXPORT
-
-        exit /b
+    if "!build!"=="rel" (
+        set args=/nologo /Zi /MT /DNDEBUG /DFINAL /openmp /Os /Ox /O2 /Oy /GL /GF /Gw /arch:AVX2 !args! /link /OPT:ICF /LTCG
+    )
+    if "!build!"=="dev" (
+        set args=/nologo /Zi /MT                  /openmp /Os /Ox /O2 /Oy /GL /GF /Gw /arch:AVX2 !args!
+    )
+    if "!build!"=="dbg" (
+        set args=/nologo /Zi /MT                          /Od                                    !args!
     )
 
     rem framework
-    echo fwk            && tcc -c fwk.c -w %*
-
-    rem demos
-    echo demo           && tcc demo.c           fwk.o %*
-    echo demo_cubemap   && tcc demo_cubemap.c   fwk.o %*
-    echo demo_collide   && tcc demo_collide.c   fwk.o %*
-    echo demo_model     && tcc demo_model.c     fwk.o %*
-    echo demo_scene     && tcc demo_scene.c     fwk.o %*
-    echo demo_shadertoy && tcc demo_shadertoy.c fwk.o %*
-    echo demo_sprite    && tcc demo_sprite.c    fwk.o %*
-    echo demo_video     && tcc demo_video.c     fwk.o %*
-    echo demo_script    && tcc demo_script.c    fwk.o %*
-    echo demo_socket    && tcc demo_socket.c    fwk.o %*
-    echo demo_easing    && tcc demo_easing.c    fwk.o %*
-    echo demo_font      && tcc demo_font.c      fwk.o %*
-    echo demo_material  && tcc demo_material.c  fwk.o %*
-    echo demo_pbr       && tcc demo_pbr.c       fwk.o %*
-    echo demo_instanced && tcc demo_instanced.c fwk.o %*
-    echo demo_audio     && tcc demo_audio.c     fwk.o %*
+    cl fwk.c                          !export! !args!
+    if "!dll!"=="dll"                 copy /y fwk.dll art\demos\lua > nul
 
     rem editor
-    echo editor         && tcc editor.c               %*
+    cl editor.c                       !import! !args!
 
-) else ( rem if "%cc%"=="gcc" or "clang"
-    rem pipeline
-    rem %cc% art/editor/tools/ass2iqe.c   -o art/editor/tools/ass2iqe.exe  -w -lassimp
-    rem %cc% art/editor/tools/iqe2iqm.cpp -o art/editor/tools/iqe2iqm.exe  -w -lstdc++
-    rem %cc% art/editor/tools/mid2wav.c   -o art/editor/tools/mid2wav.exe  -w
-    rem %cc% art/editor/tools/xml2json.c  -o art/editor/tools/xml2json.exe -w
+    rem demos
+    cl demo.c                         !import! !args!
+    cl art\demos\demo_cubemap.c   -I. !import! !args!
+    cl art\demos\demo_collide.c   -I. !import! !args!
+    cl art\demos\demo_model.c     -I. !import! !args!
+    cl art\demos\demo_scene.c     -I. !import! !args!
+    cl art\demos\demo_shadertoy.c -I. !import! !args!
+    cl art\demos\demo_sprite.c    -I. !import! !args!
+    cl art\demos\demo_video.c     -I. !import! !args!
+    cl art\demos\demo_script.c    -I. !import! !args!
+    cl art\demos\demo_socket.c    -I. !import! !args!
+    cl art\demos\demo_easing.c    -I. !import! !args!
+    cl art\demos\demo_font.c      -I. !import! !args!
+    cl art\demos\demo_material.c  -I. !import! !args!
+    cl art\demos\demo_pbr.c       -I. !import! !args!
+    cl art\demos\demo_instanced.c -I. !import! !args!
+    cl art\demos\demo_audio.c     -I. !import! !args!
+
+) else if "!cc!"=="tcc" (
+
+    if "!dll!"=="static" (
+        set export=-c
+        set import=fwk.o
+    ) else (
+        set export=-DAPI=EXPORT -shared
+        set import=-DAPI=IMPORT fwk.def
+    )
+
+    if "!build!"=="rel" (
+        set args=-DFINAL -DNDEBUG !args!
+    )
+    if "!build!"=="dev" (
+        set args=-g !args!
+    )
+    if "!build!"=="dbg" (
+        set args=-g !args!
+    )
 
     rem framework
-    echo fwk            && %cc% -c fwk.c -w -g %*
-
-    rem demos
-    echo demo           && %cc% -o demo           demo.c           fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
-    echo demo_cubemap   && %cc% -o demo_cubemap   demo_cubemap.c   fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
-    echo demo_collide   && %cc% -o demo_collide   demo_collide.c   fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
-    echo demo_model     && %cc% -o demo_model     demo_model.c     fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
-    echo demo_scene     && %cc% -o demo_scene     demo_scene.c     fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
-    echo demo_shadertoy && %cc% -o demo_shadertoy demo_shadertoy.c fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
-    echo demo_sprite    && %cc% -o demo_sprite    demo_sprite.c    fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
-    echo demo_video     && %cc% -o demo_video     demo_video.c     fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
-    echo demo_script    && %cc% -o demo_script    demo_script.c    fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
-    echo demo_socket    && %cc% -o demo_socket    demo_socket.c    fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
-    echo demo_easing    && %cc% -o demo_easing    demo_easing.c    fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
-    echo demo_font      && %cc% -o demo_font      demo_font.c      fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
-    echo demo_material  && %cc% -o demo_material  demo_material.c  fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
-    echo demo_pbr       && %cc% -o demo_pbr       demo_pbr.c       fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
-    echo demo_instanced && %cc% -o demo_instanced demo_instanced.c fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
-    echo demo_audio     && %cc% -o demo_audio     demo_audio.c     fwk.o -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
+    echo fwk            && call tcc fwk.c                          !export! !args!
+    if "!dll!"=="dll"   copy /y fwk.dll art\demos\lua > nul
 
     rem editor
-    echo editor         && %cc% -o editor         editor.c               -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -w -g %*
+    echo editor         && call tcc editor.c                       !import! !args!
+
+    rem demos
+    echo demo           && call tcc demo.c                         !import! !args!
+    echo demo_cubemap   && call tcc art\demos\demo_cubemap.c   -I. !import! !args!
+    echo demo_collide   && call tcc art\demos\demo_collide.c   -I. !import! !args!
+    echo demo_model     && call tcc art\demos\demo_model.c     -I. !import! !args!
+    echo demo_scene     && call tcc art\demos\demo_scene.c     -I. !import! !args!
+    echo demo_shadertoy && call tcc art\demos\demo_shadertoy.c -I. !import! !args!
+    echo demo_sprite    && call tcc art\demos\demo_sprite.c    -I. !import! !args!
+    echo demo_video     && call tcc art\demos\demo_video.c     -I. !import! !args!
+    echo demo_script    && call tcc art\demos\demo_script.c    -I. !import! !args!
+    echo demo_socket    && call tcc art\demos\demo_socket.c    -I. !import! !args!
+    echo demo_easing    && call tcc art\demos\demo_easing.c    -I. !import! !args!
+    echo demo_font      && call tcc art\demos\demo_font.c      -I. !import! !args!
+    echo demo_material  && call tcc art\demos\demo_material.c  -I. !import! !args!
+    echo demo_pbr       && call tcc art\demos\demo_pbr.c       -I. !import! !args!
+    echo demo_instanced && call tcc art\demos\demo_instanced.c -I. !import! !args!
+    echo demo_audio     && call tcc art\demos\demo_audio.c     -I. !import! !args!
+
+) else ( rem if "!cc!"=="gcc" or "clang"
+
+    set libs=-lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32
+
+    if "!dll!"=="static" (
+        set export=-c
+        set import=fwk.o !libs! -Wl,--allow-multiple-definition
+    ) else (
+        set export=-DAPI=EXPORT -shared -o fwk.dll !libs! -Wl,--out-implib,fwk.a
+        set import=-DAPI=IMPORT fwk.a
+    )
+
+    if "!build!"=="rel" (
+        set args=-g -O3 -DFINAL -DNDEBUG !args!
+    )
+    if "!build!"=="dev" (
+        set args=-g -O2 !args!
+    )
+    if "!build!"=="dbg" (
+        set args=-g -O0 !args!
+    )
+
+    rem framework
+    echo fwk            && !cc! fwk.c -w !export! !args!
+    if "!dll!"=="dll"   copy /y fwk.dll art\demos\lua > nul
+
+    rem editor
+    echo editor         && !cc! -o editor         editor.c                       !import! !args!
+
+    rem demos
+    echo demo           && !cc! -o demo           demo.c                         !import! !args!
+    echo demo_cubemap   && !cc! -o demo_cubemap   art\demos\demo_cubemap.c   -I. !import! !args!
+    echo demo_collide   && !cc! -o demo_collide   art\demos\demo_collide.c   -I. !import! !args!
+    echo demo_model     && !cc! -o demo_model     art\demos\demo_model.c     -I. !import! !args!
+    echo demo_scene     && !cc! -o demo_scene     art\demos\demo_scene.c     -I. !import! !args!
+    echo demo_shadertoy && !cc! -o demo_shadertoy art\demos\demo_shadertoy.c -I. !import! !args!
+    echo demo_sprite    && !cc! -o demo_sprite    art\demos\demo_sprite.c    -I. !import! !args!
+    echo demo_video     && !cc! -o demo_video     art\demos\demo_video.c     -I. !import! !args!
+    echo demo_script    && !cc! -o demo_script    art\demos\demo_script.c    -I. !import! !args!
+    echo demo_socket    && !cc! -o demo_socket    art\demos\demo_socket.c    -I. !import! !args!
+    echo demo_easing    && !cc! -o demo_easing    art\demos\demo_easing.c    -I. !import! !args!
+    echo demo_font      && !cc! -o demo_font      art\demos\demo_font.c      -I. !import! !args!
+    echo demo_material  && !cc! -o demo_material  art\demos\demo_material.c  -I. !import! !args!
+    echo demo_pbr       && !cc! -o demo_pbr       art\demos\demo_pbr.c       -I. !import! !args!
+    echo demo_instanced && !cc! -o demo_instanced art\demos\demo_instanced.c -I. !import! !args!
+    echo demo_audio     && !cc! -o demo_audio     art\demos\demo_audio.c     -I. !import! !args!
 )
 
 rem PAUSE only if double-clicked from Windows explorer
-(((echo.%cmdcmdline%)|%WINDIR%\system32\find.exe /I "%~0")>nul)&&pause
+rem (((echo.%cmdcmdline%)|%WINDIR%\system32\find.exe /I "%~0")>nul)&&pause
 
 exit /b

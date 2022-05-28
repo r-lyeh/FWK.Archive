@@ -201,7 +201,7 @@ int main(int argc, char **argv) {
             camera_get_active()->position = vec3(window_width()/2,window_height()/2,1);
 
             float zindex = window_height(); // large number, on top
-            float spritesheet[3] = {17,34,24}, offset[2] = {0, - 2*absf(sinf(window_time()*5))}; // sprite cell and animation
+            float spritesheet[3] = {17,34,24}, offset[2] = {0, - 2*absf(sin(window_time()*5))}; // sprite cell and animation
             float scale[2] = {3, 3}, tile_w = 16 * scale[0], tile_h = 16 * scale[1]; // scaling
             float position[3] = {window_width() - tile_w, window_height() - tile_h, zindex }; // position in screen-coordinates
             sprite(inputs, position, 0/*rotation*/, offset, scale, false/*is_additive*/, WHITE/*color*/, spritesheet);
@@ -210,20 +210,20 @@ int main(int argc, char **argv) {
             camera_get_active()->position = old_pos;
         }
 
-        if( ui_begin("Sprite", 0) ) {
+        if( ui_panel("Sprite", 0) ) {
             const char *labels[] = {"Kids","Cats"};
             if( ui_list("Sprite type", labels, countof(labels), &do_cats) ) NUM_SPRITES_CHANGED = 1;
             if( ui_int("Number of Sprites", &NUM_SPRITES) ) NUM_SPRITES_CHANGED = 1;
             if( ui_clampf("Zoom", &cam.position.z, 0.1, 10));
-            ui_end();
+            ui_panel_end();
         }
-        if( ui_begin("FX", 0) ) {
+        if( ui_panel("FX", 0) ) {
             for( int i = 0; i < 64; ++i ) {
                 char *name = fx_name(i); if( !name ) break;
                 bool b = fx_enabled(i);
                 if( ui_bool(name, &b) ) fx_enable(i, fx_enabled(i) ^ 1);
             }
-            ui_end();
+            ui_panel_end();
         }
     }
 }

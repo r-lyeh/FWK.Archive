@@ -529,6 +529,9 @@ int strmatch(const char *s, const char *wildcard) {
     if( *wildcard=='?' )  return *s && (*s != '.') && strmatch(s+1, wildcard+1);
     return (*s == *wildcard) && strmatch(s+1, wildcard+1);
 }
+int strmatchi(const char *s, const char *wildcard) {
+    return strmatch(strlower(s), strlower(wildcard));
+}
 
 int strcmp_qsort(const void *a, const void *b) {
     const char **ia = (const char **)a;
@@ -542,7 +545,7 @@ int strcmpi_qsort(const void *a, const void *b) {
 }
 
 bool strbeg(const char *a, const char *b) { // returns true if both strings match at beginning. case sensitive
-    return strncmp(a, b, strlen(b)) ? false : true;
+    return strncmp(a, b, strlen(b)) ? false : true; // strstr(a,b) == a
 }
 bool strend(const char *a, const char *b) { // returns true if both strings match at end. case sensitive
     int la = strlen(a), lb = strlen(b);
@@ -937,53 +940,6 @@ const char *pathfile_from_handle(FILE *fp) {
 void fwk_init();
 static void fwk_pre_init();
 static void fwk_post_init(float);
-#line 0
-
-#line 1 "fwk_profile.c"
-
-#if WITH_PROFILE
-profiler_t profiler;
-int profiler_enabled = 1;
-
-void (profile_init)() { map_init(profiler, less_str, hash_str); }
-void (profile_enable)(bool on) { profiler_enabled = !!(on); }
-void (profile_render)() { 
-    if(!profiler) return;
-    if(!profiler_enabled) return;
-
-    int has_menu = ui_has_menubar();
-    if( !has_menu ) {
-        // render profiler, unless we are in the cooking stage 
-        // also, we defer profile from rendering some initial frames, so the user may have chance to actually call any UI call before us
-        // (given the UI policy nature, first-called first-served, we dont want profile tab to be on top of all other tabs)
-        static unsigned frames = 0; if(frames <= 3) frames += cooker_progress() >= 100;
-        if( frames <= 3 ) return;
-    }
-
-    if( has_menu ? ui_window("Profiler", 0) : ui_begin("Profiler", 0) ) {
-
-        for each_map_ptr(profiler, const char *, key, struct profile_t, val ) {
-            if( !isnan(val->stat) ) {
-                float v = val->stat;
-                ui_slider2(va("Stat: %s", *key), &v, va("%.2f", val->stat));
-                val->stat = 0;
-            }
-        }
-
-        ui_separator();
-
-        for each_map_ptr(profiler, const char *, key, struct profile_t, val ) {
-            if( isnan(val->stat) ) {
-                float v = val->avg/1000.0;
-                ui_slider2(*key, &v, va("%.2f ms", val->avg/1000.0));
-            }
-        }
-
-        (has_menu ? ui_window_end : ui_end)();
-    }
-}
-#endif
-
 #line 0
 
 #line 1 "fwk_audio.c"
@@ -2384,7 +2340,8 @@ int frustum_test_aabb(frustum f, aabb a) {
 // -----------------------------------------------------------------------------
 
 const char *ART = "art/";
-const char *TOOLS = ifdef(win32, "tools/bin/", "tools//bin/");
+const char *TOOLS = ifdef(win32, "art/editor/tools/bin/", "art/editor/tools//bin/");
+const char *EDITOR = ifdef(win32, "art/editor/", "art/editor//");
 const char *FWK_INI = "fwk.ini";
 
 typedef struct cook_script_t {
@@ -2424,6 +2381,7 @@ cook_script_t cook_script(const char *rules, const char *infile, const char *out
     map_find_or_add(symbols, "PRETTY", STRDUP(pretty));
     map_find_or_add(symbols, "OUTPUT", STRDUP(outfile));
     map_find_or_add(symbols, "TOOLS", STRDUP(TOOLS));
+    map_find_or_add(symbols, "EDITOR", STRDUP(EDITOR));
     map_find_or_add(symbols, "PROGRESS", STRDUP(va("%03d", cooker_progress())));
 
     // start parsing. parsing is enabled by default
@@ -2927,6 +2885,17 @@ bool cooker_start( const char *masks, int flags ) {
         TOOLS = STRDUP(t); // @leak
     }
 
+    if( strstr(rules, "EDITOR=") ) {
+        EDITOR = va( "%s", strstr(rules, "EDITOR=") + 7 );
+        char *r = strchr( EDITOR, '\r' ); if(r) *r = 0;
+        char *n = strchr( EDITOR, '\n' ); if(n) *n = 0;
+        char *s = strchr( EDITOR, ';' );  if(s) *s = 0;
+        char *w = strchr( EDITOR, ' ' );  if(w) *w = 0;
+        char *t = file_pathabs(EDITOR); for(int i = 0; t[i]; ++i) if(t[i]=='\\') t[i] = '/';
+        if( !strendi(t, "/") ) strcat(t, "/");
+        EDITOR = STRDUP(t); // @leak
+    }
+
     // scan disk
     const char **list = file_list(ART, "**");
     // inspect disk
@@ -3186,17 +3155,35 @@ void* dll(const char *filename, const char *symbol) {
 }
 
 #if 0 // demo: cl demo.c /LD && REM dll
-EXPORT int add2(int a, int b) {
-    return a + b;
-}
-int (*adder)() = dll("demo.dll", "add2");
-printf("%d\n", adder(2,3));
+EXPORT int add2(int a, int b) { return a + b; }
+int main() { int (*adder)() = dll("demo.dll", "add2"); printf("%d\n", adder(2,3)); }
 #endif
 #line 0
 
 #line 1 "fwk_file.c"
 // -----------------------------------------------------------------------------
 // file
+
+#if 0 // ifdef _WIN32
+#include <winsock2.h>
+#ifdef __TINYC__
+    #define CP_UTF8 65001
+    int WINAPI MultiByteToWideChar();
+    int WINAPI WideCharToMultiByte();
+#endif
+// widen() ? string1252() ? string16() ? stringw() ?
+wchar_t *widen(const char *utf8) { // wide strings (win only)
+    int chars = MultiByteToWideChar(CP_UTF8, 0, utf8, -1, NULL, 0);
+    char *buf = va("%.*s", (int)(chars * sizeof(wchar_t)), "");
+    return MultiByteToWideChar(CP_UTF8, 0, utf8, -1, (void*)buf, chars), (wchar_t *)buf;
+}
+#define open8(path,mode)  ifdef(win, _wopen(widen(path))               ,  open(path, mode) )
+#define fopen8(path,mode) ifdef(win, _wfopen(widen(path),widen(mode))  ,  fopen(path,mode) )
+#define remove8(path)     ifdef(win, _wremove(widen(path))             ,  remove(path)     )
+#define rename8(path)     ifdef(win, _wrename(widen(path))             ,  rename(path)     )
+#define stat8(path,st)    ifdef(win, _wstat(widen(path),st)            ,  stat(path,st)    ) // _stati64()
+#define stat8_t           ifdef(win, _stat                             ,  stat_t           ) // struct _stati64
+#endif
 
 char *file_name(const char *pathfile) {
     char *s = strrchr(pathfile, '/'), *t = strrchr(pathfile, '\\');
@@ -3236,20 +3223,19 @@ char *file_load(const char *filename, int *len) { // @todo: 32 counters/thread e
 char *file_read(const char *filename) { // @todo: fix leaks
     return file_load(filename, NULL);
 }
-bool file_move(const char *src, const char *dst) {
-    bool ok = file_exist(src) && !file_exist(dst) && 0 == rename(src, dst);
+bool file_write(const char *name, const void *ptr, int len) {
+    bool ok = 0;
+    for( FILE *fp = name && ptr && len >= 0 ? fopen(name, "wb") : NULL; fp; fclose(fp), fp = 0) {
+        ok = fwrite(ptr, len,1, fp) == 1;
+    }
     return ok;
 }
-bool file_delete(const char *pathfile) {
-    if( file_exist(pathfile) ) {
-        for( int i = 0; i < 10; ++i ) {
-            bool ok = 0 == unlink(pathfile);
-            if( ok ) return true;
-            sleep_ms(10);
-        }
-        return false;
+bool file_append(const char *name, const void *ptr, int len) {
+    bool ok = 0;
+    for( FILE *fp = name && ptr && len >= 0 ? fopen(name, "a+b") : NULL; fp; fclose(fp), fp = 0) {
+        ok = fwrite(ptr, len,1, fp) == 1;
     }
-    return true;
+    return ok;
 }
 uint64_t file_stamp(const char *fname) {
     time_t mtime = (time_t)file_stamp_epoch(fname);
@@ -3365,7 +3351,7 @@ char *ext = strrchr(base, '.'); //if (ext) ext[0] = '\0'; // remove all extensio
         len += strlen( ids[ ids_count++ ] );
     }
     // concat in inverse order: file/path1/path2/...
-    char buffer[512]; buffer[0] = 0;
+    char buffer[DIR_MAX]; buffer[0] = 0;
     for( int it = ids_count; --it >= 0; ) {
         strcat(buffer, ids[it]);
         strcat(buffer, "/");
@@ -3418,6 +3404,21 @@ const char** file_list(const char *cwd, const char *masks) {
     return (const char**)list;
 }
 
+bool file_move(const char *src, const char *dst) {
+    bool ok = file_exist(src) && !file_exist(dst) && 0 == rename(src, dst);
+    return ok;
+}
+bool file_delete(const char *pathfile) {
+    if( file_exist(pathfile) ) {
+        for( int i = 0; i < 10; ++i ) {
+            bool ok = 0 == unlink(pathfile);
+            if( ok ) return true;
+            sleep_ms(10);
+        }
+        return false;
+    }
+    return true;
+}
 bool file_copy(const char *src, const char *dst) {
     int ok = 0, BUFSIZE = 1 << 20; // 1 MiB
     static threadlocal char *buffer = 0; do_once buffer = REALLOC(0, BUFSIZE);
@@ -3436,12 +3437,30 @@ char* file_tempname() {
     static __thread int id;
     return va("%s/fwk-temp.%s.%p.%d", app_temp(), getenv(ifdef(win32, "username", "USER")), &id, rand());
 }
-
 FILE *file_temp(void) {
     const char *fname = file_tempname();
     FILE *fp = fopen(fname, "w+b");
     if( fp ) unlink(fname);
     return fp;
+}
+
+char *file_counter(const char *name) {
+    static threadlocal char outfile[DIR_MAX], init = 0;
+    static threadlocal map(char*, int) ext_counters;
+    if(!init) map_init(ext_counters, less_str, hash_str), init = '\1';
+
+    char *base = va("%s",name), *ext = file_ext(name); 
+    if(ext && ext[0]) *strstr(base, ext) = '\0';
+
+    int *counter = map_find_or_add(ext_counters, ext, 0);
+    while( *counter >= 0 ) {
+        *counter = *counter + 1;
+        sprintf(outfile, "%s(%03d)%s", base, *counter, ext);
+        if( !file_exist(outfile) ) {
+            return va("%s", outfile);
+        }
+    }
+    return 0;
 }
 
 // -----------------------------------------------------------------------------
@@ -3480,14 +3499,14 @@ void storage_flush() {
 // compressed archives
 
 // return list of files inside zipfile
-array(char*) zipfile_list(const char *zipname) {
+array(char*) file_zip_list(const char *zipfile) {
     static threadlocal array(char*) list[16] = {0};
     static threadlocal int count = 0;
 
     count = (count+1) % 16;
     array_resize(list[count], 0);
 
-    for( zip *z = zip_open(zipname, "rb"); z; zip_close(z), z = 0) {
+    for( zip *z = zip_open(zipfile, "rb"); z; zip_close(z), z = 0) {
         for( unsigned i = 0; i < zip_count(z); ++i ) {
             array_push( list[count], zip_name(z, i) );
         }
@@ -3497,14 +3516,14 @@ array(char*) zipfile_list(const char *zipname) {
 }
 
 // extract single file content from zipfile
-array(char) zipfile_extract(const char *zipname, const char *filename) {
+array(char) file_zip_extract(const char *zipfile, const char *filename) {
     static threadlocal array(char) list[16] = {0};
     static threadlocal int count = 0;
 
     array(char) out = list[count = (count+1) % 16];
     array_resize(out, 0);
 
-    for( zip *z = zip_open(zipname, "rb"); z; zip_close(z), z = 0) {
+    for( zip *z = zip_open(zipfile, "rb"); z; zip_close(z), z = 0) {
         int index = zip_find(z, filename); // convert entry to index. returns <0 if not found.
         if( index < 0 ) return zip_close(z), out;
 
@@ -3519,9 +3538,9 @@ array(char) zipfile_extract(const char *zipname, const char *filename) {
 }
 
 // append single file into zipfile. compress with DEFLATE|6. Other compressors are also supported (try LZMA|5, ULZ|9, LZ4X|3, etc.)
-bool zipfile_append(const char *zipname, const char *filename, int clevel) {
+bool file_zip_append(const char *zipfile, const char *filename, int clevel) {
     bool ok = false;
-    for( zip *z = zip_open(zipname, "a+b"); z; zip_close(z), z = 0) {
+    for( zip *z = zip_open(zipfile, "a+b"); z; zip_close(z), z = 0) {
         for( FILE *fp = fopen(filename, "rb"); fp; fclose(fp), fp = 0) {
             ok = zip_append_file(z, filename, "", fp, clevel);
         }
@@ -3531,10 +3550,10 @@ bool zipfile_append(const char *zipname, const char *filename, int clevel) {
 
 // append mem blob into zipfile. compress with DEFLATE|6. Other compressors are also supported (try LZMA|5, ULZ|9, LZ4X|3, etc.)
 // @fixme: implement zip_append_mem() and use that instead
-bool zipfile_append_mem(const char *zipname, const char *entryname, const void *ptr, unsigned len, int clevel) {
+bool file_zip_appendmem(const char *zipfile, const char *entryname, const void *ptr, unsigned len, int clevel) {
     bool ok = false;
     if( ptr )
-    for( zip *z = zip_open(zipname, "a+b"); z; zip_close(z), z = 0) {
+    for( zip *z = zip_open(zipfile, "a+b"); z; zip_close(z), z = 0) {
         ok = zip_append_mem(z, entryname, "", ptr, len, clevel);
     }
     return ok;
@@ -3653,7 +3672,7 @@ char *vfs_unpack(const char *pathfile, int *size) { // must free() after use
     for(archive_dir *dir = dir_mount; dir && !data; dir = dir->next) {
         if( dir->type == is_dir ) {
 #if 1 // sandboxed
-            char buf[512];
+            char buf[DIR_MAX];
             snprintf(buf, sizeof(buf), "%s%s", dir->path, pathfile);
             data = file_load(buf, size);
 #endif
@@ -3858,6 +3877,113 @@ void* cache_insert(const char *pathfile, void *ptr, int size) { // append key/va
     }
     return 0;
 }
+
+// ----------------------------------------------------------------------------
+// ini
+
+
+/* ini+, extended ini format
+// - rlyeh, public domain
+//
+// # spec
+//
+//   ; line comment
+//   [user]             ; map section name (optional)
+//   name=john          ; key and value (mapped here as user.name=john)
+//   +surname=doe jr.   ; sub-key and value (mapped here as user.name.surname=doe jr.)
+//   age=30             ; numbers
+//   color=240          ; key and value \
+//   color=253          ; key and value |> array: color[0], color[1] and color[2]
+//   color=255          ; key and value /
+//   color=             ; remove key/value(s)
+//   color=white        ; recreate key; color[1] and color[2] no longer exist
+//   []                 ; unmap section
+//   -note=keys may start with symbols (except plus and semicolon)
+//   -note=linefeeds are either \r, \n or \r\n.
+//   -note=utf8 everywhere.
+*/
+
+static
+char *ini_parse( const char *s ) {
+    char *map = 0;
+    int mapcap = 0, maplen = 0;
+    enum { DEL, REM, TAG, KEY, SUB, VAL } fsm = DEL;
+    const char *cut[6] = {0}, *end[6] = {0};
+    while( *s ) {
+        while( *s && (*s == ' ' || *s == '\t' || *s == '\r' || *s == '\n') ) ++s;
+        /**/ if( *s == ';' ) cut[fsm = REM] = ++s;
+        else if( *s == '[' ) cut[fsm = TAG] = ++s;
+        else if( *s == '+' ) cut[fsm = SUB] = ++s;
+        else if( *s == '=' ) cut[fsm = VAL] = ++s;
+        else if( *s > ' ' && *s <= 'z' && *s != ']' ) cut[fsm = KEY] = cut[SUB] = end[SUB] = s;
+        else { if( *s ) ++s; continue; }
+        /**/ if( fsm == REM ) { while(*s && *s != '\r'&& *s != '\n') ++s; }
+        else if( fsm == TAG ) { while(*s && *s != '\r'&& *s != '\n'&& *s != ']') ++s; end[TAG] = s; }
+        else if( fsm == KEY ) { while(*s && *s >  ' ' && *s <= 'z' && *s != '=') ++s; end[KEY] = s; }
+        else if( fsm == SUB ) { while(*s && *s >  ' ' && *s <= 'z' && *s != '=') ++s; end[SUB] = s; }
+        else if( fsm == VAL ) { while(*s && *s >= ' ' && *s <= 'z' && *s != ';') ++s; end[VAL] = s;
+            while( end[VAL][-1] <= ' ' ) { --end[VAL]; }
+            char buf[256] = {0}, *key = buf;
+            if( end[TAG] - cut[TAG] ) key += sprintf(key, "%.*s.", (int)(end[TAG] - cut[TAG]), cut[TAG] );
+            if( end[KEY] - cut[KEY] ) key += sprintf(key,  "%.*s", (int)(end[KEY] - cut[KEY]), cut[KEY] );
+            if( end[SUB] - cut[SUB] ) key += sprintf(key, ".%.*s", (int)(end[SUB] - cut[SUB]), cut[SUB] );
+            int reqlen = (key - buf) + 1 + (end[VAL] - cut[VAL]) + 1 + 1;
+            if( (reqlen + maplen) >= mapcap ) map = REALLOC( map, mapcap += reqlen + 512 );
+            sprintf( map + maplen, "%.*s%c%.*s%c%c", (int)(key - buf), buf, 0, (int)(end[VAL] - cut[VAL]), cut[VAL], 0, 0 );
+            maplen += reqlen - 1;
+        }
+    }
+    return map;
+}
+
+// @todo: evaluate alt api
+// int count = ini_count(filename);
+// char *key = ini_key(filename, id);
+// char *val = ini_val(filename, id);
+
+ini_t ini_from_mem(const char *data) {
+    if( !data || !data[0] ) return 0;
+
+    char *kv = ini_parse(data);
+    if( !kv ) return 0;
+
+        ini_t map = 0;
+        map_init(map, less_str, hash_str);
+        for( char *iter = kv; iter[0]; ) {
+            char *key = iter; while( *iter++ );
+            char *val = iter; while( *iter++ );
+
+            char **found = map_find(map, key);
+            if( !found ) map_insert(map, STRDUP(key), STRDUP(val));
+            assert( map_find(map,key) );
+        }
+
+    FREE( kv );
+
+    return map;
+}
+
+ini_t ini(const char *filename) {
+    return ini_from_mem(file_read(filename));    
+}
+
+bool ini_write(const char *filename, const char *section, const char *key, const char *value) {
+    // this is a little hacky {
+    char *data = file_read(filename);
+    if( data && data[0] ) {
+        char *begin = strrchr(data, '[');
+        char *end = strrchr(data, ']');
+        if( begin && end && begin < end ) {
+            char *last_section = va("%.*s", (int)(end - begin - 1), begin + 1);
+            if( !strcmpi(last_section, section) ) section = 0;
+        }
+    }
+    // }
+
+    char *s = va("%s%s=%s\r\n", section ? va("[%s]\r\n", section) : "", key, value);
+    return file_append(filename, s, strlen(s));
+}
+
 #line 0
 
 #line 1 "fwk_font.c"
@@ -6405,6 +6531,11 @@ void input_init() {
     #endif
 }
 
+static int any_key = 0;
+int input_anykey() {
+    return any_key;
+}
+
 void input_update() {
     struct controller_t *c = &controller[0]; // @fixme
 
@@ -6443,11 +6574,12 @@ void input_update() {
         k(F1),k(F2),k(F3),k(F4),k(F5),k(F6),k(F7),k(F8),k(F9),k(F10),k(F11),k(F12), k2(PRINT,PRINT_SCREEN),k(PAUSE),
         k2(INS,INSERT),k(HOME),k2(PGUP,PAGE_UP), k2(DEL,DELETE),k(END), k2(PGDN,PAGE_DOWN),
     };
+    any_key = 0;
     for(int i = 0; i < countof(table); ++i) {
 #if is(ems)
-        if( table[i] ) bits[i] = glfwGetKey(win, table[i] ) == GLFW_PRESS;
+        if( table[i] ) any_key |= (bits[i] = glfwGetKey(win, table[i] ) == GLFW_PRESS);
 #else
-        bits[i] = glfwGetKeys(win)[ table[i] ];
+        any_key |= (bits[i] = glfwGetKeys(win)[ table[i] ]);
 #endif
     }
     #undef k
@@ -6500,14 +6632,14 @@ void input_update() {
             }
         }
 
-        if( 0 && ui_begin("emspad", 0)) {
+        if( 0 && ui_panel("emspad", 0)) {
             for(int i = 0; i <= 5; ++i )
             ui_label(va("axis #%d: %5.2f", i, (float)state.axis[i]));
 
             for(int i = 0; i <= 15; ++i )
             ui_label(va("button #%d: %d %5.2f", i, state.digitalButton[i], (float)state.analogButton[i]));
 
-            ui_end();
+            ui_panel_end();
         }
     }
 #else
@@ -6822,7 +6954,7 @@ bool input_touch_active() {
 // ----------------------------------------------------------------------------
 
 void input_demo() {
-    if( ui_begin("Keyboard",0) ) {
+    if( ui_panel("Keyboard",0) ) {
         ui_const_bool("[Key 1]", input(KEY_1));
         ui_const_bool("[Key 2]", input(KEY_2));
         ui_const_bool("[Key 3]", input(KEY_3));
@@ -6838,9 +6970,9 @@ void input_demo() {
         ui_const_bool("[Key 5] Click event", input_click(KEY_5,500) );
         ui_const_bool("[Key 6] Click2 event", input_click2(KEY_6,1000) );
         ui_const_bool("[Key 7] Repeat event", input_repeat(KEY_7,750) );
-        ui_end();
+        ui_panel_end();
     }
-    if( ui_begin("Mouse",0) ) {
+    if( ui_panel("Mouse",0) ) {
         ui_const_float("X", input(MOUSE_X));
         ui_const_float("Y", input(MOUSE_Y));
         ui_separator();
@@ -6849,9 +6981,9 @@ void input_demo() {
         ui_const_bool("Left", input(MOUSE_L));
         ui_const_bool("Middle", input(MOUSE_M));
         ui_const_bool("Right", input(MOUSE_R));
-        ui_end();
+        ui_panel_end();
     }
-    if( ui_begin("GamePad",0) ) {
+    if( ui_panel("GamePad",0) ) {
         static int gamepad_id = 0;
         const char *list[] = {"1","2","3","4"};
         ui_list("Gamepad", list, 4, &gamepad_id);
@@ -6898,7 +7030,9 @@ void input_demo() {
         ui_const_float("Filtered pad x", w.x);
         ui_const_float("Filtered pad y", w.y);
 
-        ui_end();
+        input_use(0);
+
+        ui_panel_end();
     }
 }
 #line 0
@@ -7016,7 +7150,7 @@ float ease_inout_bounce(float t) { return t < 0.5f ? 0.5f*ease_in_bounce(t*2) : 
 
 float ease_inout_perlin(float t) { float t3=t*t*t,t4=t3*t,t5=t4*t; return 6*t5-15*t4+10*t3; }
 
-float ease_ping_pong(float t, float(*fn1)(float), float(*fn2)(float)) { return t < 0.5 ? fn1(t*2) : 1-fn2((t-0.5)*2); }
+float ease_ping_pong(float t, float(*fn1)(float), float(*fn2)(float)) { return t < 0.5 ? fn1(t*2) : fn2(1-(t-0.5)*2); }
 float ease_pong_ping(float t, float(*fn1)(float), float(*fn2)(float)) { return 1 - ease_ping_pong(t,fn1,fn2); }
 
 // ----------------------------------------------------------------------------
@@ -7062,7 +7196,7 @@ float cross2   (vec2   a, vec2   b) { return a.x * b.y - a.y * b.x; } // pseudo 
 float len2sq   (vec2   a          ) { return a.x * a.x + a.y * a.y; }
 float len2     (vec2   a          ) { return sqrtf(len2sq(a)); }
 vec2  norm2    (vec2   a          ) { return /*dot(2) == 0 ? a :*/ div2(a, len2(a)); }
-int   finite2  (vec2   a          ) { return m_finite(a.x) && m_finite(a.y); }
+int   finite2  (vec2   a          ) { return FINITE(a.x) && FINITE(a.y); }
 vec2  mix2  (vec2 a,vec2 b,float t) { return add2(scale2((a),1-(t)), scale2((b), t)); }
 vec2  clamp2(vec2 v,float a,float b){ return vec2(maxf(minf(b,v.x),a),maxf(minf(b,v.y),a)); }
 // ----------------------------------------------------------------------------
@@ -7092,7 +7226,7 @@ float len3sq   (vec3   a          ) { return dot3(a,a); }
 float len3     (vec3   a          ) { return sqrtf(len3sq(a)); }
 vec3  norm3    (vec3   a          ) { return /*dot3(a) == 0 ? a :*/ div3(a, len3(a)); }
 vec3  norm3sq  (vec3   a          ) { return /*dot3(a) == 0 ? a :*/ div3(a, len3sq(a)); }
-int   finite3  (vec3   a          ) { return finite2(vec2(a.x,a.y)) && m_finite(a.z); }
+int   finite3  (vec3   a          ) { return finite2(vec2(a.x,a.y)) && FINITE(a.z); }
 vec3  mix3  (vec3 a,vec3 b,float t) { return add3(scale3((a),1-(t)), scale3((b), t)); }
 vec3  clamp3(vec3 v,float a,float b){ return vec3(maxf(minf(b,v.x),a),maxf(minf(b,v.y),a),maxf(minf(b,v.z),a)); }
 //vec3 tricross3 (vec3 a, vec3 b, vec3 c) { return cross3(a,cross3(b,c)); } // useful?
@@ -7146,7 +7280,7 @@ float len4sq   (vec4   a          ) { return dot4(a,a); }
 float len4     (vec4   a          ) { return sqrtf(len4sq(a)); }
 vec4  norm4    (vec4   a          ) { return /*dot4(a) == 0 ? a :*/ div4(a, len4(a)); }
 vec4  norm4sq  (vec4   a          ) { return /*dot4(a) == 0 ? a :*/ div4(a, len4sq(a)); }
-int   finite4  (vec4   a          ) { return finite3(vec3(a.x,a.y,a.z)) && m_finite(a.w); }
+int   finite4  (vec4   a          ) { return finite3(vec3(a.x,a.y,a.z)) && FINITE(a.w); }
 vec4  mix4  (vec4 a,vec4 b,float t) { return add4(scale4((a),1-(t)), scale4((b), t)); }
 vec4  clamp4(vec4 v,float a,float b){ return vec4(maxf(minf(b,v.x),a),maxf(minf(b,v.y),a),maxf(minf(b,v.z),a),maxf(minf(b,v.w),a)); }
 // vec4 cross4(vec4 v0, vec4 v1) { return vec34(cross3(v0.xyz, v1.xyz), (v0.w + v1.w) * 0.5f); } // may fail
@@ -7873,16 +8007,20 @@ void* stack(int bytes) { // use negative bytes to rewind stack
 // leaks ----------------------------------------------------------------------
 
 void* watch( void *ptr, int sz ) {
-    if( ptr ) {
+    static threadlocal int open = 1;
+    if( ptr && open ) {
+        open = 0;
+
         char buf[256];
         sprintf(buf, "%p.mem", ptr);
         for( FILE *fp = fopen(buf, "a+"); fp; fclose(fp), fp = 0 ) {
             fseek(fp, 0L, SEEK_END);
-            char *callstack(int);
-            const char *cs = callstack( +48 ); // NULL; // =
+            const char *cs = callstack( +16 ); // +48
             fprintf(fp, "Built %s %s\n", __DATE__, __TIME__); // today() instead?
             fprintf(fp, "Memleak address: [%p], size: %d\n%s\n", ptr, sz, cs ? cs : "No callstack.");
         }
+
+        open = 1;
     }
     return ptr;
 }
@@ -7900,9 +8038,10 @@ void* forget( void *ptr ) {
 int download( FILE *out, const char *url ) {
     bool ok = false;
     if( out ) for( https_t *h = https_get(url, NULL); h; https_release(h), h = NULL ) {
-        while (!https_process(h)) sleep_ms(1);
+        while (https_process(h) == HTTPS_STATUS_PENDING) sleep_ms(1);
         //printf("%d %s\n\n%.*s\n", h->status_code, h->content_type, (int)h->response_size, (char*)h->response_data);
-        ok = fwrite(h->response_data, 1, h->response_size, out) == 1;
+        if(https_process(h) == HTTPS_STATUS_COMPLETED)
+        ok = fwrite(h->response_data, h->response_size, 1, out) == 1;
     }
     return ok;
 }
@@ -9870,8 +10009,8 @@ typedef map(int, batch_t) batch_group_t; // mapkey is anything that forces a flu
 typedef struct sprite_vertex { vec3 pos; vec2 uv; uint32_t rgba; } sprite_vertex;
 typedef struct sprite_index  { GLuint triangle[3]; } sprite_index;
 
-#define sprite_vertex(...) M_CAST(sprite_vertex, __VA_ARGS__)
-#define sprite_index(...)  M_CAST(sprite_index, __VA_ARGS__)
+#define sprite_vertex(...) C_CAST(sprite_vertex, __VA_ARGS__)
+#define sprite_index(...)  C_CAST(sprite_index, __VA_ARGS__)
 
 // sprite impl
 static int sprite_count = 0;
@@ -12687,7 +12826,7 @@ void ddraw_position_dir( vec3 position, vec3 direction, float radius ) {
     uint32_t bak = dd_color;
 
     vec3 ground = vec3(position.x, 0, position.z);
-    ddraw_color( position.y < 0 ? ORANGE : CYAN );
+    ddraw_color( position.y < 0 ? PINK/*ORANGE*/ : CYAN );
     ddraw_point( ground );
     ddraw_point( position );
     (position.y < 0 ? ddraw_line_dashed : ddraw_line)( ground, position );
@@ -12812,23 +12951,28 @@ camera_t *camera_get_active() {
     return last_camera;
 }
 
-void camera_move(camera_t *cam, float x, float y, float z) {
+void camera_move(camera_t *cam, float incx, float incy, float incz) {
     // enable camera smoothing
     static int smoothing = -1; if( smoothing < 0 ) smoothing = flag("--with-camera-smooth");
     if( smoothing ) {
         float move_friction = 0.99f;
         cam->last_move = scale3(cam->last_move, move_friction);
         float move_filtering = 0.975f;
-        x = cam->last_move.x = x * (1 - move_filtering) + cam->last_move.x * move_filtering;
-        y = cam->last_move.y = y * (1 - move_filtering) + cam->last_move.y * move_filtering;
-        z = cam->last_move.z = z * (1 - move_filtering) + cam->last_move.z * move_filtering;
+        incx = cam->last_move.x = incx * (1 - move_filtering) + cam->last_move.x * move_filtering;
+        incy = cam->last_move.y = incy * (1 - move_filtering) + cam->last_move.y * move_filtering;
+        incz = cam->last_move.z = incz * (1 - move_filtering) + cam->last_move.z * move_filtering;
     }
 
     vec3 dir = norm3(cross3(cam->look, cam->up));
-    cam->position = add3(cam->position, scale3(dir, x)); // right
-    cam->position = add3(cam->position, scale3(cam->up, y)); // up
-    cam->position = add3(cam->position, scale3(cam->look, z)); // front
+    cam->position = add3(cam->position, scale3(dir, incx)); // right
+    cam->position = add3(cam->position, scale3(cam->up, incy)); // up
+    cam->position = add3(cam->position, scale3(cam->look, incz)); // front
 
+    camera_fps(cam, 0, 0);
+}
+
+void camera_teleport(camera_t *cam, float px, float py, float pz) {
+    cam->position = vec3(px,py,pz);
     camera_fps(cam, 0, 0);
 }
 
@@ -13306,8 +13450,8 @@ int window_swap_lua(lua *L) {
     X(bool, window_create, float, int ) \
     X(bool, window_swap ) \
     X(void, ddraw_grid, float ) \
-    X(bool, ui_begin, string, int ) \
-    X(void, ui_end )
+    X(bool, ui_panel, string, int ) \
+    X(void, ui_panel_end )
 
 XMACRO(WRAP_ALL)
 
@@ -13381,8 +13525,14 @@ const char *app_temp() {
     return buffer;
 }
 
+/*
+    bool exporting_dll = !strcmp(STRINGIZE(API), STRINGIZE(EXPORT));
+    bool importing_dll = !strcmp(STRINGIZE(API), STRINGIZE(IMPORT));
+    else static_build
+*/
+
 #ifndef APP_NAME
-#define APP_NAME ifdef(ems, "", __argv[0])
+#define APP_NAME ifdef(ems, "", (__argv ? __argv[0] : ""))
 #endif
 
 const char *app_name() {
@@ -13422,7 +13572,9 @@ char* os_exec_output() {
     static threadlocal char os_exec__output[4096] = {0};
     return os_exec__output;
 }
-int (os_exec)( const char *cmd ) {
+int os_exec( const char *cmd ) {
+    cmd = file_normalize(cmd);
+
     int rc = -1;
     char *buf = os_exec_output(); buf[0] = 0; // memset(buf, 0, 4096);
     for( FILE *fp = popen( cmd, "r" ); fp; rc = pclose(fp), fp = 0) {
@@ -13432,11 +13584,6 @@ int (os_exec)( const char *cmd ) {
         }
     }
     return rc;
-}
-char* (os_exec_)(int *rc, const char *cmd ) {
-    int x = (os_exec)(cmd);
-    if(rc) *rc = x;
-    return os_exec_output();
 }
 
 #if is(osx)
@@ -13479,27 +13626,30 @@ static char **backtrace_symbols(void *const *list,int size) {
     IMAGEHLP_LINE l64 = { 0 };
     l64.SizeOfStruct = sizeof(IMAGEHLP_LINE);
 
-    static threadlocal array(char*) symbols = 0;
-    if( size > array_count(symbols) )
-    array_resize(symbols, size);
+    static threadlocal char **symbols = 0; //[32][64] = {0};
+    if( !symbols ) {
+        symbols = SYS_REALLOC(0, 128 * sizeof(char*));
+        for( int i = 0; i < 128; ++i) symbols[i] = SYS_REALLOC(0, 128 * sizeof(char));
+    }
 
+    if(size > 128) size = 128;
     for( int i = 0; i < size; ++i ) {
-        if (symbols[i]) {
-            symbols[i][0] = '\0';
-        }
+
+        char *ptr = symbols[i];
+        *ptr = '\0';
 
         if (SymFromAddr(process, (DWORD64)(uintptr_t)list[i], 0, &si.info)) {
             //char undecorated[1024];
             //UnDecorateSymbolName(si.info.Name, undecorated, sizeof(undecorated)-1, UNDNAME_COMPLETE);
             char* undecorated = (char*)si.info.Name;
-            strcatf(&symbols[i], "%s", undecorated);
+            ptr += snprintf(ptr, 128, "%s", undecorated);
         } else {
-            strcatf(&symbols[i], "%s", "(?""?)");
+            ptr += snprintf(ptr, 128, "%s", "(?""?)");
         }
 
         DWORD dw = 0;
         if (SymGetLineFromAddr(process, (DWORD64)(uintptr_t)list[i], &dw, &l64)) {
-            strcatf(&symbols[i], " (%s:%d)", l64.FileName, l64.LineNumber);
+            ptr += snprintf(ptr, 128 - (ptr - symbols[i]), " (%s:%d)", l64.FileName, l64.LineNumber);
         }
     }
 
@@ -13512,7 +13662,9 @@ static char **backtrace_symbols(void *const *sym,int num) { return 0; }
 
 char *callstack( int traces ) {
     static threadlocal char *output = 0;
+    if(!output ) output = SYS_REALLOC( 0, 128 * (64+2) );
     if( output ) output[0] = '\0';
+    char *ptr = output;
 
     enum { skip = 1 }; /* exclude 1 trace from stack (this function) */
     enum { maxtraces = 128 };
@@ -13557,7 +13709,7 @@ char *callstack( int traces ) {
             free( dmgbuf );
         }
 #endif
-        strcatf(&output, "%03d: %#016llx %s\n", ++L, (unsigned long long)(uintptr_t)stacks[i], symbols[i]); // format gymnastics because %p is not standard when printing pointers
+        ptr += sprintf(ptr, "%03d: %#016llx %s\n", ++L, (unsigned long long)(uintptr_t)stacks[i], symbols[i]); // format gymnastics because %p is not standard when printing pointers
     }
 
 #if is(linux) || is(osx)
@@ -13704,16 +13856,16 @@ int battery() {
         return 0;
     }
 
-    char buffer[513];
+    char buffer[512];
 
     // level
     lseek(battery_capacity_handle, 0, SEEK_SET);
-    int readlen = read(battery_capacity_handle, buffer, 512); buffer[readlen < 0 ? 0 : readlen] = '\0';
+    int readlen = read(battery_capacity_handle, buffer, 511); buffer[readlen < 0 ? 0 : readlen] = '\0';
     int level = atoi(buffer);
 
     // charging
     lseek(battery_status_handle, 0, SEEK_SET);
-    readlen = read(battery_status_handle, buffer, 512); buffer[readlen < 0 ? 0 : readlen] = '\0';
+    readlen = read(battery_status_handle, buffer, 511); buffer[readlen < 0 ? 0 : readlen] = '\0';
     int charging = strstr(buffer, "Discharging") ? 0 : 1;
     return charging ? +level : -level;
 }
@@ -14205,7 +14357,7 @@ static struct nk_glfw nk_glfw = {0};
 
 static void nk_config_custom_fonts() {
     #define ICON_FONTNAME "MaterialIconsSharp-Regular.otf" // "MaterialIconsOutlined-Regular.otf" "MaterialIcons-Regular.ttf" // 
-    #define ICON_FONTSIZE 21
+    #define ICON_FONTSIZE 20
     #define ICON_MIN ICON_MIN_MD
     #define ICON_MED ICON_MAX_16_MD
     #define ICON_MAX ICON_MAX_MD
@@ -14213,9 +14365,7 @@ static void nk_config_custom_fonts() {
     #define ICON_SPACING_Y 0
 
     #define ICON_BARS        ICON_MD_MENU
-    #define ICON_LOOP        ICON_MD_LOOP
     #define ICON_FILE        ICON_MD_INSERT_DRIVE_FILE
-    #define ICON_SD_CARD     ICON_MD_SD_CARD
     #define ICON_TRASH       ICON_MD_DELETE
 
     struct nk_font *font = NULL;
@@ -14224,19 +14374,19 @@ static void nk_config_custom_fonts() {
 
         // Default font(#1)...
 
-        if( vfs_read("Carlito-Regular.ttf") ) {
+        for( char *data = vfs_read("Carlito-Regular.ttf"); data; data = 0 ) {
             float font_size = 14.5f;
                 struct nk_font_config cfg = nk_font_config(font_size);
                 cfg.oversample_v = 2;
                 cfg.pixel_snap = 0;
             // win32: struct nk_font *arial = nk_font_atlas_add_from_file(atlas, va("%s/fonts/arial.ttf",getenv("windir")), font_size, &cfg); font = arial ? arial : font;
             // struct nk_font *droid = nk_font_atlas_add_from_file(atlas, "nuklear/extra_font/DroidSans.ttf", font_size, &cfg); font = droid ? droid : font;
-            struct nk_font *regular = nk_font_atlas_add_from_memory(atlas, vfs_read("Carlito-Regular.ttf"), vfs_size("Carlito-Regular.ttf"), font_size, &cfg); font = regular ? regular : font;
+            struct nk_font *regular = nk_font_atlas_add_from_memory(atlas, data, vfs_size("Carlito-Regular.ttf"), font_size, &cfg); font = regular ? regular : font;
         }
 
         // ...with icons embedded on it.
 
-        if( vfs_read(ICON_FONTNAME) ) {
+        for( char *data = vfs_read(ICON_FONTNAME); data; data = 0 ) {
             static const nk_rune icon_range[] = {ICON_MIN, ICON_MED /*MAX*/, 0};
 
             struct nk_font_config cfg = nk_font_config(ICON_FONTSIZE);
@@ -14252,13 +14402,13 @@ static void nk_config_custom_fonts() {
             cfg.oversample_v = 1;
             cfg.pixel_snap = 1;
 
-            struct nk_font *icons = nk_font_atlas_add_from_memory(atlas, vfs_read(ICON_FONTNAME), vfs_size(ICON_FONTNAME), ICON_FONTSIZE, &cfg);
+            struct nk_font *icons = nk_font_atlas_add_from_memory(atlas, data, vfs_size(ICON_FONTNAME), ICON_FONTSIZE, &cfg);
         }
 
         // Monospaced font. Used in terminals or consoles.
 
-        if( vfs_read("Inconsolata-Regular.ttf") ) {
-            const float fontsize = 18.f;
+        for( char *data = vfs_read("Inconsolata-Regular.ttf"); data; data = 0 ) {
+            const float fontsize = 14.f; // 18.f;
             static const nk_rune icon_range[] = {32, 127, 0};
 
             struct nk_font_config cfg = nk_font_config(fontsize);
@@ -14269,17 +14419,17 @@ static void nk_config_custom_fonts() {
             cfg.pixel_snap = 1;
 
             // struct nk_font *proggy = nk_font_atlas_add_default(atlas, fontsize, &cfg);
-            struct nk_font *bold = nk_font_atlas_add_from_memory(atlas, vfs_read("Inconsolata-Regular.ttf"), vfs_size("Inconsolata-Regular.ttf"), fontsize, &cfg);
+            struct nk_font *bold = nk_font_atlas_add_from_memory(atlas, data, vfs_size("Inconsolata-Regular.ttf"), fontsize, &cfg);
         }
 
         // Extra optional fonts from here...
 
-        if( vfs_read("Carlito-BoldItalic.ttf") ) {
-            struct nk_font *bold = nk_font_atlas_add_from_memory(atlas, vfs_read("Carlito-BoldItalic.ttf"), vfs_size("Carlito-BoldItalic.ttf"), 16.f, 0); // font = bold ? bold : font;
+        for( char *data = vfs_read("Carlito-BoldItalic.ttf"); data; data = 0 ) {
+            struct nk_font *bold = nk_font_atlas_add_from_memory(atlas, data, vfs_size("Carlito-BoldItalic.ttf"), 16.f, 0); // font = bold ? bold : font;
         }
 
     nk_glfw3_font_stash_end(&nk_glfw); // nk_sdl_font_stash_end();
-    ASSERT(font);
+//  ASSERT(font);
     if(font) nk_style_set_font(ui_ctx, &font->handle);
 
     // Load Cursor: if you uncomment cursor loading please hide the cursor
@@ -14429,8 +14579,8 @@ vec2 ui_toolbar_(array(char*) ui_items, vec2 ui_results, float min_width) {
 
         nk_layout_row_template_begin(ui_ctx, 25/*h*/);
         for(int i = 0; i < array_count(ui_items); ++i) {
-            char first_token[64];
-            sscanf(ui_items[i], "%[^,;|]", first_token);
+            char first_token[512];
+            sscanf(ui_items[i], "%[^,;|]", first_token); // @fixme: vsnscanf
 
             char *tooltip = strchr(first_token, '@');
             int len = tooltip ? (int)(tooltip - first_token /*- 1*/) : strlen(first_token);
@@ -14467,7 +14617,7 @@ vec2 ui_toolbar_(array(char*) ui_items, vec2 ui_results, float min_width) {
             // tooltip
             if( tooltip && !has_popups ) {
                 struct nk_rect bounds = nk_widget_bounds(ui_ctx);
-                if (nk_input_is_mouse_hovering_rect(&ui_ctx->input, bounds)) {
+                if (nk_input_is_mouse_hovering_rect(&ui_ctx->input, bounds) && nk_window_has_focus(ui_ctx)) {
                     nk_tooltip(ui_ctx, tooltip+1);
                 }
             }
@@ -14522,22 +14672,38 @@ int ui_toolbar(const char *icons) { // usage: int clicked_icon = ui_toolbar( ICO
 
 
 // UI Windows handlers. These are not OS Windows but UI Windows instead. For OS Windows check window_*() API.
+
+#ifndef WINDOWS_INI
+#define WINDOWS_INI editor_path("windows.ini")
+#endif
+
 static map(char*,unsigned) ui_windows = 0;
-static int ui_window_register(const char *title) {
+static int ui_window_register(const char *panel_or_window_title) {
     if(!ui_windows) map_init(ui_windows, less_str, hash_str);
-    *map_find_or_add_allocated_key(ui_windows, STRDUP(title), 0) |= 2;
-    return 1;
+    unsigned *state = map_find_or_add_allocated_key(ui_windows, STRDUP(panel_or_window_title), 0);
+
+    // check for visibility flag on first call
+    int visible = 0;
+    if( *state == 0 ) {
+        static ini_t i = 0;
+        do_once i = ini(WINDOWS_INI); // @leak
+        char **found = i ? map_find(i, va("%s.visible", panel_or_window_title)) : NULL;
+        if( found ) visible = (*found)[0] == '1';
+    }
+
+    *state |= 2;
+    return visible;
 }
-static int ui_window_visible(const char *title) {
+int ui_visible(const char *panel_or_window_title) {
     if(!ui_windows) map_init(ui_windows, less_str, hash_str);
-    return *map_find_or_add_allocated_key(ui_windows, STRDUP(title), 0) & 1;
+    return *map_find_or_add_allocated_key(ui_windows, STRDUP(panel_or_window_title), 0) & 1;
 }
-static int ui_window_show(const char *title, int enabled) {
+int ui_show(const char *panel_or_window_title, int enabled) {
     if(!ui_windows) map_init(ui_windows, less_str, hash_str);
-    unsigned *found = map_find_or_add_allocated_key(ui_windows, STRDUP(title), 0);
+    unsigned *found = map_find_or_add_allocated_key(ui_windows, STRDUP(panel_or_window_title), 0);
     if( enabled ) {
         *found |= 1;
-        nk_window_collapse(ui_ctx, title, NK_MAXIMIZED); // in case windows was previously collapsed
+        nk_window_collapse(ui_ctx, panel_or_window_title, NK_MAXIMIZED); // in case windows was previously collapsed
     } else {
         *found &= ~1;
     }
@@ -14548,12 +14714,14 @@ static char *ui_build_window_list() {
     char *build_windows_menu = 0;
     strcatf(&build_windows_menu, "%s;", ICON_MD_VIEW_QUILT); // "Windows");
     for each_map_sorted_ptr(ui_windows, char*, k, unsigned, v) {
-        strcatf(&build_windows_menu, "%s%s;", ui_window_visible(*k) ? ICON_MD_TOGGLE_ON : ICON_MD_TOGGLE_OFF, *k);
+        strcatf(&build_windows_menu, "%s%s;", ui_visible(*k) ? ICON_MD_TOGGLE_ON : ICON_MD_TOGGLE_OFF, *k);
     }
     strcatf(&build_windows_menu, "-%s;%s", ICON_MD_RECYCLING "Reset layout", ICON_MD_SAVE_AS "Save layout");
     return build_windows_menu; // @leak if discarded
 }
-static int ui_layout_reset();
+static int ui_layout_all_reset(const char *mask);
+static int ui_layout_all_save_disk(const char *mask);
+static int ui_layout_all_load_disk(const char *mask);
 
 
 static
@@ -14588,9 +14756,11 @@ if( show_window_menu ) {
         array(char*) split = strsplit(ui_items[0],";"); // *array_back(ui_items), ";");
         const char *title = split[(int)ui_results.y]; title += title[0] == '-'; title += 3 * (title[0] == '\xee'); title += title[0] == ' '; /*skip separator+emoji+space*/
         // toggle window unless clicked on lasts items {"reset layout", "save layout"}
-        bool clicked_reset = ui_results.y == array_count(split) - 2;
-        if( clicked_reset ) ui_layout_reset();
-        else ui_window_show(title, ui_window_visible(title) ^ true);
+        bool clicked_reset_layout = ui_results.y == array_count(split) - 2;
+        bool clicked_save_layout = ui_results.y == array_count(split) - 1;
+        /**/ if( clicked_reset_layout ) ui_layout_all_reset("*");
+        else if( clicked_save_layout ) file_delete(WINDOWS_INI), ui_layout_all_save_disk("*");
+        else ui_show(title, ui_visible(title) ^ true);
         // reset value so developers don't catch this click
         ui_results = vec2(0,0);
     }
@@ -14625,12 +14795,14 @@ int ui_active() {
     return ui_is_active; //window_has_cursor() && nk_window_is_any_hovered(ui_ctx) && nk_item_is_any_active(ui_ctx);
 }
 
+static
 void ui_destroy(void) {
     if(ui_ctx) {
         nk_glfw3_shutdown(&nk_glfw); // nk_sdl_shutdown();
         ui_ctx = 0;
     }
 }
+static
 void ui_create() {
     do_once atexit(ui_destroy);
 
@@ -14668,10 +14840,10 @@ void ui_notify_render() {
             if( timeout < (n->timeout + 1) ) { // N secs display + 1s fadeout
                 if(n->used++ < 3) nk_window_set_focus(ui_ctx, "!notify");
 
-                if( ui_begin( "!notify", UI_NOTIFICATION ) ) {
+                if( ui_panel( "!notify", UI_NOTIFICATION ) ) {
                     if(n->title) ui_label(n->title);
                     if(n->body)  ui_label(n->body);
-                    ui_end();
+                    ui_panel_end();
                 }
             }
 
@@ -14687,6 +14859,7 @@ void ui_notify_render() {
     }
 }
 
+static
 void ui_render() {
 
     // draw queued menus
@@ -14754,7 +14927,7 @@ int ui_layout_find(const char *title, bool is_panel) {
 }
 
 static
-void ui_layout_save(int idx, vec2 desktop, float workarea_h, struct nk_rect xywh, bool is_panel) {
+void ui_layout_save_mem(int idx, vec2 desktop, float workarea_h, struct nk_rect xywh, bool is_panel) {
     ui_layout *s = &ui_layouts[is_panel][idx];
 
     s->desktop = desktop;
@@ -14788,7 +14961,7 @@ if( win && (win->flags & NK_WINDOW_MINIMIZED)) {
 }
 
 static
-struct nk_rect ui_layout_restore(int idx, vec2 desktop, bool is_panel) {
+struct nk_rect ui_layout_load_mem(int idx, vec2 desktop, bool is_panel) {
     ui_layout *s = &ui_layouts[is_panel][idx];
 
     // extract reconstruction coords from bottom-right corner
@@ -14801,7 +14974,7 @@ struct nk_rect ui_layout_restore(int idx, vec2 desktop, bool is_panel) {
 static int ui_layout_reset_num_frames;
 
 static
-int ui_layout_reset() {
+int ui_layout_all_reset(const char *mask) {
     ui_layout z = {0};
 
     vec2 desktop = vec2(window_width(), window_height());
@@ -14824,13 +14997,75 @@ int ui_layout_reset() {
                 }
                 nk_window_set_focus(ui_ctx, ui_layouts[is_panel][j].title );
                 nk_window_collapse(ui_ctx, ui_layouts[is_panel][j].title, is_panel ? 0 : 1);
-                ui_layout_save(j, desktop, workarea_h, xywh, is_panel);
+                ui_layout_save_mem(j, desktop, workarea_h, xywh, is_panel);
             }
         }
     }
 
     ui_layout_reset_num_frames = maxf(desktop.w, desktop.h);
+    return 1;
+}
+
+static
+int ui_layout_all_save_disk(const char *mask) {
+    float w = window_width(), h = window_height();
+    for each_map_sorted_ptr(ui_windows, char*, k, unsigned, v) {
+        struct nk_window *win = nk_window_find(ui_ctx, *k);
+        if( win && strmatchi(*k, mask) ) {
+            ini_write(WINDOWS_INI, *k, "x", va("%f", win->bounds.x / w ));
+            ini_write(WINDOWS_INI, *k, "y", va("%f", win->bounds.y / h ));
+            ini_write(WINDOWS_INI, *k, "w", va("%f", win->bounds.w / w ));
+            ini_write(WINDOWS_INI, *k, "h", va("%f", win->bounds.h / h ));
+            ini_write(WINDOWS_INI, *k, "visible", ui_visible(*k) ? "1":"0");
+        }
+    }
+    return 1;
+}
+
+static
+const char *ui_layout_load_disk(const char *title, const char *mask, ini_t i, struct nk_rect *r) {
+    if(!i) return 0;
+
+    const char *dot = strrchr(title, '.');
+    if( dot ) title = va("%.*s", (int)(dot - title), title);
+    if( !strmatchi(title, mask) ) return 0;
+
+    char **x = map_find(i, va("%s.x", title));
+    char **y = map_find(i, va("%s.y", title));
+    char **w = map_find(i, va("%s.w", title));
+    char **h = map_find(i, va("%s.h", title));
+    if( x && y && w && h ) {
+        float ww = window_width(), wh = window_height();
+        r->x = atof(*x) * ww;
+        r->y = atof(*y) * wh;
+        r->w = atof(*w) * ww;
+        r->h = atof(*h) * wh;
+
+        char **on = map_find(i, va("%s.visible", title));
+
+        return title;
+    }
     return 0;
+}
+
+static
+int ui_layout_all_load_disk(const char *mask) {
+    ini_t i = ini(WINDOWS_INI); // @leak
+    if( !i ) return 0;
+    for each_map(i, char*, k, char*, v) {
+        struct nk_rect out = {0};
+        const char *title = ui_layout_load_disk(k, mask, i, &out);
+        if( title ) {
+            struct nk_window *win = nk_window_find(ui_ctx, title);
+            if( win ) {            
+                win->bounds.x = out.x;
+                win->bounds.y = out.y;
+                win->bounds.w = out.w;
+                win->bounds.h = out.h;
+            }
+        }
+    }
+    return 1;
 }
 
 
@@ -14840,13 +15075,29 @@ int ui_layout_reset() {
 static
 int ui_begin_panel_or_window_(const char *title, int flags, bool is_window) {
 
+struct nk_window *win = nk_window_find(ui_ctx, title);
+
+int is_panel = !is_window;
+bool starts_minimized = is_panel;
+bool is_closable = is_window;
+bool is_scalable = true;
+bool is_movable = true;
+bool is_auto_minimizes = false;
+bool is_pinned = win && (win->flags & NK_WINDOW_PINNED);
+
+if( is_pinned ) {
+//    is_closable = false;
+    is_auto_minimizes = false;
+//    is_scalable = false;
+    is_movable = false;
+}
+
     ui_create();
 
     uint64_t hash = 14695981039346656037ULL, mult = 0x100000001b3ULL;
     for(int i = 0; title[i]; ++i) hash = (hash ^ title[i]) * mult;
     ui_hue = (hash & 0x3F) / (float)0x3F; ui_hue += !ui_hue;
 
-    int is_panel = !is_window;
     int idx = ui_layout_find(title, is_panel);
     ui_layout *s = &ui_layouts[is_panel][idx];
 
@@ -14858,12 +15109,20 @@ float workarea_h = ui_has_menubar()*32;
     float w = desktop.w / 3.33, h = flags & UI_NOTIFICATION ? 64 : desktop.h - offset.y * 2 - 1; // h = desktop.h * 0.66; // 
     struct nk_rect start_coords = {offset.x, offset.y, offset.x+w, offset.y+h};
 
+if(is_window) {
+    w = desktop.w / 1.5;
+    h = desktop.h / 1.5;
+    start_coords.x = (desktop.w-w)/2;
+    start_coords.y = (desktop.h-h)/2 + workarea_h/2;
+    start_coords.w = w;
+    start_coords.h = h;
+}
+
     static vec2 edge = {0}; static int edge_type = 0; // [off],L,R,U,D
     do_once edge = vec2(desktop.w * 0.33, desktop.h * 0.66);
 
 // do not snap windows and/or save windows when using may be interacting with UI
 int is_active = 0;
-struct nk_window *win = nk_window_find(ui_ctx, title);
 int mouse_pressed = !!input(MOUSE_L) && ui_ctx->active == win;
 if( win ) {
     // update global window activity bitmask
@@ -14880,9 +15139,26 @@ if( win ) {
     bool group2_not_resizing    =  is_active && !win->is_window_resizing;
     bool group2_interacting     =  is_active && input(MOUSE_L);
 
+#if 0
     if( group1_any ) {
-        float distance_x = absf(input(MOUSE_X) - win->bounds.x) / window_width();
-        float distance_y = absf(input(MOUSE_Y) - win->bounds.y) / window_height();
+        // cancel self-adjust if this window is not overlapping the active one that is being resized at the moment
+        struct nk_window *parent = ui_ctx->active;
+
+        struct nk_rect a = win->bounds, b = parent->bounds;
+        bool overlap = a.x <= (b.x+b.w) && b.x <= (a.x+a.w) && a.y <= (b.y+b.h) && b.y <= (a.y+a.h);
+
+        group1_any = overlap;
+    }
+#else
+    if( group1_any )
+        group1_any = !(win->flags & NK_WINDOW_PINNED);
+#endif
+
+    if( group1_any ) {
+        float mouse_x = clampf(input(MOUSE_X), 0, desktop.w);
+        float mouse_y = clampf(input(MOUSE_Y), 0, desktop.h);
+        float distance_x = absf(mouse_x - win->bounds.x) / desktop.w;
+        float distance_y = absf(mouse_y - win->bounds.y) / desktop.h;
         float alpha_x = sqrt(sqrt(distance_x)); // amplify signals a little bit: 0.1->0.56,0.5->0.84,0.98->0.99,etc
         float alpha_y = sqrt(sqrt(distance_y));
 
@@ -14900,7 +15176,7 @@ if( win ) {
     }
 
     if( group1_any || !group2_interacting || (ui_layout_reset_num_frames > 0)) {
-        struct nk_rect target = ui_layout_restore(idx, desktop, is_panel);
+        struct nk_rect target = ui_layout_load_mem(idx, desktop, is_panel);
         float alpha = len2sq(sub2(s->desktop, desktop)) ? 0 : UI_ANIM_ALPHA; // smooth unless we're restoring a desktop change 
         win->bounds = (struct nk_rect){ 
             win->bounds.x * alpha + target.x * (1 - alpha),
@@ -14912,28 +15188,43 @@ if( win ) {
     int skip_save = ui_layout_reset_num_frames > 0;
     if( ui_layout_reset_num_frames > 0 ) ui_layout_reset_num_frames--;
     if( !skip_save ) { // group1_any || group2_interacting ) {
-        ui_layout_save(idx, desktop, workarea_h, win->bounds, is_panel);
+        ui_layout_save_mem(idx, desktop, workarea_h, win->bounds, is_panel);
     }
 } else {
-    ui_layout_save(idx, desktop, workarea_h, start_coords, is_panel);    
+    ui_layout_save_mem(idx, desktop, workarea_h, start_coords, is_panel);    
 }
 
 
-    int window_flags = 0;
-    if( is_panel ) window_flags |= NK_WINDOW_MINIMIZABLE | (win ? 0 : NK_WINDOW_MINIMIZED); // is_active ? 0 : NK_WINDOW_MINIMIZED;
-    else window_flags |= NK_WINDOW_CLOSABLE | NK_WINDOW_MINIMIZABLE;
-    window_flags |= NK_WINDOW_BORDER;
-    window_flags |= NK_WINDOW_MOVABLE;
-    window_flags |= NK_WINDOW_SCALABLE;
-    window_flags |= is_panel ? NK_WINDOW_NO_SCROLLBAR_X : NK_WINDOW_NO_SCROLLBAR;
-if(win) //    if(!is_panel && win)
-    window_flags |= input(MOUSE_X) < (win->bounds.x + win->bounds.w/2) ? NK_WINDOW_SCALE_LEFT : 0;
-if(win) //    if(!is_panel && win)
-    window_flags |= input(MOUSE_Y) < (win->bounds.y + win->bounds.h/2) ? NK_WINDOW_SCALE_TOP : 0;
-    window_flags |= NK_WINDOW_MINIMIZABLE;
-// if( is_window ) window_flags &= ~(NK_WINDOW_MINIMIZED | NK_WINDOW_MINIMIZABLE); // modal
+    int window_flags = NK_WINDOW_PINNABLE | NK_WINDOW_MINIMIZABLE | NK_WINDOW_NO_SCROLLBAR_X;
+    if( starts_minimized ) window_flags |= (win ? 0 : NK_WINDOW_MINIMIZED);
+    if( is_auto_minimizes ) window_flags |= is_active ? 0 : NK_WINDOW_MINIMIZED;
+    if( is_movable )  window_flags |= NK_WINDOW_MOVABLE;
+    if( is_closable ) window_flags |= NK_WINDOW_CLOSABLE;
+    if( is_scalable ) {
+        window_flags |= NK_WINDOW_SCALABLE;
+        if(win) window_flags |= input(MOUSE_X) < (win->bounds.x + win->bounds.w/2) ? NK_WINDOW_SCALE_LEFT : 0;
+        if(win) window_flags |= input(MOUSE_Y) < (win->bounds.y + win->bounds.h/2) ? NK_WINDOW_SCALE_TOP : 0;
+    }
+
+//    if( is_pinned )
+        window_flags |= NK_WINDOW_BORDER;
+
+if( is_panel && win && !is_active ) {
+    if( !is_pinned ) {
+        window_flags |= NK_WINDOW_MINIMIZED;
+    }
+}
+
+// if( is_modal ) window_flags &= ~(NK_WINDOW_MINIMIZED | NK_WINDOW_MINIMIZABLE);
 if( is_panel && win ) {
 //    if( win->bounds.x > 0 && (win->bounds.x+win->bounds.w) < desktop.w-1 ) window_flags &= ~NK_WINDOW_MINIMIZED;
+}
+
+if(!win) { // if newly created window (!win)
+    // first time, try to restore from WINDOWS_INI file
+    static ini_t i; do_once i = ini(WINDOWS_INI); // @leak
+    ui_layout_load_disk(title, "*", i, &start_coords);
+    ui_layout_save_mem(idx, desktop, workarea_h, start_coords, is_panel);
 }
 
 bool is_notify = flags & UI_NOTIFICATION;
@@ -14941,7 +15232,6 @@ if( is_notify ) {
     window_flags = NK_WINDOW_MOVABLE | NK_WINDOW_NOT_INTERACTIVE | NK_WINDOW_NO_SCROLLBAR;
     start_coords = (struct nk_rect){desktop.w / 2 - w / 2, -h, w, h};
 }
-
 
     if( nk_begin(ui_ctx, title, start_coords, window_flags) ) {
 
@@ -14962,17 +15252,13 @@ if( mouse_pressed && win && win->is_window_resizing ) {
     // @fixme
     // - if window is in a corner (sharing 2 edges), do not allow for multi edges. either vert or horiz depending on the clicked scaler
     // - or maybe, only propagate edge changes to the other windows that overlapping our window.
-
-    if( edge_type ) {
-        uint64_t ones = popcnt64(edge_type);
-    }
 }
 
         return 1;
     } else {
 
 if(is_panel) {
-   ui_end(); 
+   ui_panel_end(); 
 } else ui_window_end();
 
         return 0;
@@ -14988,11 +15274,11 @@ int ui_window(const char *title, int *enabled) {
     if( window_height() <= 0 ) return 0;
     if( !ui_ctx || !ui_ctx->style.font ) return 0;
 
-    ui_window_register(title);
-    if(!ui_window_visible(title)) {
-        bool forced_creation = ( enabled && *enabled );
+    bool forced_creation = ( enabled && *enabled );
+    forced_creation |= ui_window_register(title);
+    if(!ui_visible(title)) {
         if( !forced_creation ) return 0;
-        ui_window_show(title, forced_creation);
+        ui_show(title, forced_creation);
     }
 
     ui_last_enabled = enabled;
@@ -15000,18 +15286,19 @@ int ui_window(const char *title, int *enabled) {
     ui_has_window = 1;
     return ui_begin_panel_or_window_(title, /*flags*/0, true);
 }
-void ui_window_end() {
+int ui_window_end() {
     if(ui_window_has_menubar) nk_menubar_end(ui_ctx), ui_window_has_menubar = 0;
     nk_end(ui_ctx), ui_has_window = 0;
 
     if( nk_window_is_hidden(ui_ctx, ui_last_title) ) {
         nk_window_close(ui_ctx, ui_last_title);
-        ui_window_show(ui_last_title, false);
+        ui_show(ui_last_title, false);
         if( ui_last_enabled ) *ui_last_enabled = 0; // clear developers' flag
     }
+    return 0;
 }
 
-int ui_begin(const char *title, int flags) {
+int ui_panel(const char *title, int flags) {
     if( window_width() <= 0 ) return 0;
     if( window_height() <= 0 ) return 0;
     if( !ui_ctx || !ui_ctx->style.font ) return 0;
@@ -15037,13 +15324,53 @@ int ui_begin(const char *title, int flags) {
 
     return ui_begin_panel_or_window_(title, flags, false);
 }
-void ui_end() {
+int ui_panel_end() {
     if( ui_has_window ) {
         nk_menu_end(ui_ctx);
-        return;
+        return 0;
     }
     nk_end(ui_ctx);
 //  nk_style_pop_color(ui_ctx);
+    return 0;
+}
+
+static unsigned ui_collapse_state = 0;
+int ui_collapse(const char *label, const char *id) { // mask: 0(closed),1(open),2(created)
+
+    uint64_t hash = 14695981039346656037ULL, mult = 0x100000001b3ULL;
+    for(int i = 0; id[i]; ++i) hash = (hash ^ id[i]) * mult;
+    ui_hue = (hash & 0x3F) / (float)0x3F; ui_hue += !ui_hue;
+
+    ui_collapse_state = nk_tree_base_(ui_ctx, NK_TREE_NODE, 0, label, NK_MINIMIZED, id, strlen(id), 0);
+    return ui_collapse_state & 1; // |1 open, |2 clicked, |4 toggled
+}
+int ui_collapse_clicked() {
+    return ui_collapse_state >> 1; // |1 clicked, |2 toggled
+}
+int ui_collapse_end() {
+    return nk_tree_pop(ui_ctx), 1;
+}
+
+
+int ui_context() {
+    struct nk_rect bounds = nk_widget_bounds(ui_ctx);
+    bounds.y -= 25;
+    return ui_popups() ? 0 : nk_contextual_begin(ui_ctx, 0, nk_vec2(150, 300), bounds);
+}
+int ui_context_end() {
+    nk_contextual_end(ui_ctx);
+    return 1;
+}
+int ui_submenu(const char *options) {
+    int choice = 0;
+    if( ui_context() ) {
+        array(char*) tokens = strsplit(options, ";");
+        for( int i = 0; i < array_count(tokens) ; ++i ) {
+            if( ui_button_transparent(tokens[i]) ) choice = i + 1;
+        }
+        ui_context_end();
+    }
+    return choice;
 }
 
 // -----------------------------------------------------------------------------
@@ -15066,19 +15393,28 @@ int nk_button_transparent(struct nk_context *ctx, const char *text) {
 static
 int ui_label_(const char *label, int alignment) {
     struct nk_rect bounds = nk_widget_bounds(ui_ctx);
-    const struct nk_input *in = &ui_ctx->input;
-    int is_hovering = nk_input_is_mouse_hovering_rect(in, bounds);
+    const struct nk_input *input = &ui_ctx->input;
+    int is_hovering = nk_input_is_mouse_hovering_rect(input, bounds) && !ui_has_active_popups;
+    if( is_hovering ) {
+        struct nk_rect winbounds = nk_window_get_bounds(ui_ctx);
+        is_hovering &= nk_input_is_mouse_hovering_rect(input, winbounds);
+        is_hovering &= nk_window_has_focus(ui_ctx);
+    }
+
+    int do_color_tab = label[0] != '!';
+    if(!do_color_tab) label++;
 
     int indent = 8;
     struct nk_window *win = ui_ctx->current;
     struct nk_panel *layout = win->layout;
     layout->at_x += indent;
     layout->bounds.w -= indent;
+    if( do_color_tab ) {
         bounds.w = is_hovering ? indent*3/4 : indent/2-1;
         bounds.h -= 1;
         struct nk_command_buffer *canvas = nk_window_get_canvas(ui_ctx);
-        struct nk_input *input = &ui_ctx->input;
         nk_fill_rect(canvas, bounds, 0, nk_hsva_f(ui_hue, 0.6f, 0.8f, ui_alpha) );
+    }
 
         const char *split = strchr(label, '@');
             char buffer[128]; if( split ) label = (snprintf(buffer, 128, "%.*s", (int)(split-label), label), buffer);
@@ -15094,7 +15430,7 @@ if( font )  nk_style_push_color(ui_ctx, &style->text.color, nk_rgba(255, 255, 25
 if( font )  nk_style_pop_color(ui_ctx);
 if( font )  nk_style_pop_font(ui_ctx);
 
-            if (split && is_hovering && !ui_has_active_popups) {
+            if (split && is_hovering && !ui_has_active_popups && nk_window_has_focus(ui_ctx)) {
                 nk_tooltip(ui_ctx, split + 1);
             }
 
@@ -15108,10 +15444,16 @@ int ui_notify(const char *title, const char *body) {
     struct ui_notify n = {0};
     n.title = title ? stringf("*%s", title) : 0;
     n.body = body ? STRDUP(body) : 0;
-    n.timeout = 1; // 1s timeout + 1s fade + 1s idle = 3s
+    n.timeout = 2; // 4s = 2s timeout (+ 1s fade + 1s idle)
     n.alpha = 1;
     array_push_front(ui_notifications, n);
     return 1;
+}
+
+int ui_button_transparent(const char *text) {
+    nk_layout_row_dynamic(ui_ctx, 0, 1);
+    int align = text[0] == '>' ? (text++, NK_TEXT_RIGHT) : text[0] == '=' ? (text++, NK_TEXT_CENTERED) : text[0] == '<' ? (text++, NK_TEXT_LEFT) : NK_TEXT_CENTERED;
+    return !!nk_contextual_item_label(ui_ctx, text, align);
 }
 
 int ui_button(const char *s) {
@@ -15123,7 +15465,7 @@ int ui_button(const char *s) {
     int ret = split ? nk_button_text(ui_ctx, s, (int)(split - s)) : nk_button_label(ui_ctx, s);
 
     const struct nk_input *in = &ui_ctx->input;
-    if (split && nk_input_is_mouse_hovering_rect(in, bounds) && !ui_has_active_popups) {
+    if (split && nk_input_is_mouse_hovering_rect(in, bounds) && !ui_has_active_popups && nk_window_has_focus(ui_ctx)) {
         nk_tooltip(ui_ctx, tooltip);
     }
     return ret;
@@ -15143,13 +15485,17 @@ int ui_buttons(int buttons, ...) {
     return rc;
 }
 
-int ui_label(const char *label) {
+int ui_label(const char *text) {
+    int align = text[0] == '>' ? (text++, NK_TEXT_RIGHT) : text[0] == '=' ? (text++, NK_TEXT_CENTERED) : text[0] == '<' ? (text++, NK_TEXT_LEFT) : NK_TEXT_LEFT;
     nk_layout_row_dynamic(ui_ctx, 0, 1);
-    return ui_label_(label, NK_TEXT_LEFT);
+    return ui_label_(text, align);
 }
-int ui_label2(const char *label, const char *caption) {
-    char buffer[2048]; snprintf(buffer, 2048, "%s@%s", label, caption);
-    return ui_label(buffer);
+int ui_label2(const char *head, const char *text) {
+    int align1 = head[0] == '>' ? (head++, NK_TEXT_RIGHT) : head[0] == '=' ? (head++, NK_TEXT_CENTERED) : head[0] == '<' ? (head++, NK_TEXT_LEFT) : NK_TEXT_LEFT;
+    int align2 = text[0] == '>' ? (text++, NK_TEXT_RIGHT) : text[0] == '=' ? (text++, NK_TEXT_CENTERED) : text[0] == '<' ? (text++, NK_TEXT_LEFT) : NK_TEXT_LEFT;
+    nk_layout_row_dynamic(ui_ctx, 0, 2);
+    ui_label_(head, align1);
+    return nk_label(ui_ctx, text, align2), 0;
 }
 int ui_const_bool(const char *text, const double value) {
     bool b = !!value;
@@ -15160,9 +15506,7 @@ int ui_const_float(const char *text, const double value) {
     return ui_float(text, &f), 0;
 }
 int ui_const_string(const char *label, const char *text) {
-    nk_layout_row_dynamic(ui_ctx, 0, 2);
-    ui_label_(label, NK_TEXT_LEFT);
-    return nk_label(ui_ctx, text, NK_TEXT_LEFT), 0;
+    return ui_label2(label, text);
 }
 
 int ui_toggle(const char *label, bool *value) {
@@ -15508,7 +15852,7 @@ int ui_bits##X(const char *label, uint##X##_t *enabled) { \
             *enabled = (*enabled & ~(1 << b)) | ((!!val) << b); \
             /* tooltip */ \
             struct nk_rect bb = { offset + 10 + i * 14, bounds.y, 14, 30 }; /* 10:padding,14:width,30:height */ \
-            if (nk_input_is_mouse_hovering_rect(&ui_ctx->input, bb) && !ui_has_active_popups) { \
+            if (nk_input_is_mouse_hovering_rect(&ui_ctx->input, bb) && !ui_has_active_popups && nk_window_has_focus(ui_ctx)) { \
                 nk_tooltipf(ui_ctx, "Bit %d", b); \
             } \
         } \
@@ -15520,6 +15864,68 @@ int ui_bits##X(const char *label, uint##X##_t *enabled) { \
 ui_bits_template(8);
 ui_bits_template(16);
 //ui_bits_template(32);
+
+int ui_console() { // @fixme: buggy. also separate input from output buffer?
+    struct nk_font *font = nk_glfw.atlas.fonts->next /*2nd font*/;
+    if( font && nk_style_push_font(ui_ctx, &font->handle) ) {} else font = 0;
+
+    static int box_len = 0;
+    static char box_buffer[512] = {0};
+
+    // @fixme: better way to retrieve widget width? nk_layout_row_dynamic() seems excessive
+    nk_layout_row_dynamic(ui_ctx, 1, 1);
+    struct nk_rect bounds = nk_widget_bounds(ui_ctx);
+
+    nk_layout_row_static(ui_ctx, 360, bounds.w, 1);
+    int flags = NK_EDIT_BOX|NK_EDIT_GOTO_END_ON_ACTIVATE|NK_EDIT_CLIPBOARD; // |NK_EDIT_SIG_ENTER|NK_EDIT_AUTO_SELECT|
+    nk_edit_focus(ui_ctx, flags);
+    int active = nk_edit_string(ui_ctx, flags, box_buffer, &box_len, 512-1, nk_filter_default);
+    if (active && input_down(KEY_ENTER)) { // == 0x11) { // & NK_EDIT_COMMITED) {
+
+//              hexdump(box_buffer, box_len);
+
+        box_buffer[box_len] = '\0';
+        array(char*) lines = strsplit(box_buffer, "\n"); // @fixme: new strsplit2 should not include terminator imo?
+
+        if( array_count(lines) > 0 ) {
+            int first_line = 0;
+            char *last_line = *array_back(lines);
+#if 0
+            os_exec(last_line);
+            const char *output = os_exec_output();
+            box_len += snprintf(box_buffer + box_len, (512-1) - box_len, "%s\n", output);
+#else
+            // puts(last_line);
+            for( FILE *fp = popen(last_line, "r"); fp; pclose(fp), fp = 0) {
+                char buffer[511];
+                while( fgets(buffer, 511, fp) ) {
+                    int len = 0; while(buffer[len] != '\r' && buffer[len] != '\n') { if(buffer[len] < 0) buffer[len] = '?'; len++; }
+
+                    while( (box_len+len) >= 512-1 && array_count(lines) ) {
+                        int first_line_len = strlen(lines[0]);
+                        first_line_len += box_buffer[first_line_len] == '\n';
+                        memmove(box_buffer, box_buffer + first_line_len, box_len -= first_line_len);
+                        //box_buffer[box_len] = '\0';
+                        lines = strsplit(box_buffer, "\n");
+                    }
+
+                    if((box_len+len) > 512-1)
+                        hexdump(box_buffer, 511);
+
+                    ASSERT( (box_len+len) <= 512-1, "box_len %d+%d %d", box_len, len, array_count(lines));
+                    box_len += snprintf(box_buffer + box_len, (512-1) - box_len, "%.*s\n", len, buffer);
+                }
+            }
+#endif
+        }
+//              hexdump(box_buffer, box_len);
+    } else {
+        active = 0;
+    }
+
+    if( font )  nk_style_pop_font(ui_ctx);
+    return active;
+}
 
 int ui_browse(const char **output, bool *inlined) {
     static struct browser_media media = {0};
@@ -15568,9 +15974,9 @@ int ui_browse(const char **output, bool *inlined) {
 
         struct nk_rect bounds = {0,0,400,300}; // @fixme: how to retrieve inlined region below? (inlined)
         if( windowed ) bounds = nk_window_get_content_region(ui_ctx);
-        // else nk_layout_peek(&bounds, ui_ctx); // ???
+        else { struct nk_rect b; nk_layout_peek(&b, ui_ctx); bounds.w = b.w; }
 
-        clicked = browser_run(ui_ctx, &browser, 0, bounds);
+        clicked = browser_run(ui_ctx, &browser, windowed, bounds);
         if( clicked ) {
             static char *ui_browse_result = 0;
             strcatf(&ui_browse_result, "%d", 0);
@@ -15591,11 +15997,11 @@ int ui_browse(const char **output, bool *inlined) {
 /*
 //  demo:
     static const char *file;
-    if( ui_begin("inlined", 0)) {
+    if( ui_panel("inlined", 0)) {
         static bool show_browser = 0;
         if( ui_button("my button") ) { show_browser = true; }
         if( ui_browse(&file, &show_browser) ) puts(file);
-        ui_end();
+        ui_panel_end();
     }
     if( ui_window("windowed", 0) ) {
         if( ui_browse(&file, NULL) ) puts(file);
@@ -15605,7 +16011,7 @@ int ui_browse(const char **output, bool *inlined) {
 
 // ----------------------------------------------------------------------------
 
-void ui_demo() {
+int ui_demo() {
     static int integer = 42;
     static bool toggle = true;
     static bool boolean = true;
@@ -15625,7 +16031,7 @@ void ui_demo() {
     static uint8_t bitmask = 0x55;
     static int hits = 0;
 
-    if( ui_begin("UI", 0) ) {
+    if( ui_panel("UI", 0) ) {
 
         switch( ui_toolbar("Browser;Toast@Notify") ) {
             default: break;
@@ -15670,38 +16076,7 @@ void ui_demo() {
         if( ui_button("my button") ) { puts("button clicked"); show_dialog = true; }
         if( ui_dialog("my dialog", __FILE__ "\n" __DATE__ "\n" "Public Domain.", 2/*two buttons*/, &show_dialog) ) {}
 
-        if(0) { // @todo: ui_plot()
-            // draw fps-meter: 300 samples, [0..70] range each, 70px height plot.
-            nk_layout_row_dynamic(ui_ctx, 70, 1);
-
-            enum { COUNT = 300 };
-
-            static float values[COUNT] = {0}; static int offset = 0;
-            values[offset=(offset+1)%COUNT] = window_fps();
-
-            int index = -1;
-            if( nk_chart_begin(ui_ctx, NK_CHART_LINES, COUNT, 0.f, 70.f) ) {
-                for( int i = 0; i < COUNT; ++i ) {
-                    nk_flags res = nk_chart_push(ui_ctx, (float)values[i]);
-                    if( res & NK_CHART_HOVERING ) index = i;
-                    if( res & NK_CHART_CLICKED ) index = i;
-                }
-                nk_chart_end(ui_ctx);
-            }
-
-            //  hightlight 60fps, 36fps and 12fps
-            struct nk_rect space; nk_layout_peek(&space, ui_ctx);
-            struct nk_command_buffer *canvas = nk_window_get_canvas(ui_ctx);
-            nk_stroke_line(canvas, space.x+0,space.y-60,space.x+space.w,space.y-60, 1.0, nk_rgba(0,255,0,128));
-            nk_stroke_line(canvas, space.x+0,space.y-36,space.x+space.w,space.y-36, 1.0, nk_rgba(255,255,0,128));
-            nk_stroke_line(canvas, space.x+0,space.y-12,space.x+space.w,space.y-12, 1.0, nk_rgba(255,0,0,128));
-
-            if( index >= 0 ) {
-                nk_tooltipf(ui_ctx, "Value: %.2f", (float)values[index]);
-            }
-        }
-
-        ui_end();
+        ui_panel_end();
     }
 
     // window api showcasing
@@ -15712,15 +16087,15 @@ void ui_demo() {
     }
 
     if( ui_window("UI Demo #2", 0) ) {
-        if( ui_begin("panel #2", 0) ) {
+        if( ui_panel("panel #2", 0) ) {
             ui_label("label #2");
-            ui_end();
+            ui_panel_end();
         }
         ui_window_end();
     }
 
     if( ui_window("UI Demo #3", 0) ) {
-        if( ui_begin("panel #3a", 0) ) {
+        if( ui_panel("panel #3a", 0) ) {
             if( ui_bool("my bool", &boolean) ) puts("bool changed");
             if( ui_int("my int", &integer) ) puts("int changed");
             if( ui_float("my float", &floating) ) puts("float changed");
@@ -15728,9 +16103,9 @@ void ui_demo() {
             if( ui_separator() ) {}
             if( ui_slider("my slider", &slider)) puts("slider changed");
             if( ui_slider2("my slider 2", &slider2, va("%.2f", slider2))) puts("slider2 changed");
-            ui_end();
+            ui_panel_end();
         }
-        if( ui_begin("panel #3b", 0) ) {
+        if( ui_panel("panel #3b", 0) ) {
             if( ui_bool("my bool", &boolean) ) puts("bool changed");
             if( ui_int("my int", &integer) ) puts("int changed");
             if( ui_float("my float", &floating) ) puts("float changed");
@@ -15738,7 +16113,7 @@ void ui_demo() {
             if( ui_separator() ) {}
             if( ui_slider("my slider", &slider)) puts("slider changed");
             if( ui_slider2("my slider 2", &slider2, va("%.2f", slider2))) puts("slider2 changed");
-            ui_end();
+            ui_panel_end();
         }
 
         const char *title = "UI Demo #3";
@@ -15773,8 +16148,77 @@ void ui_demo() {
 
         ui_window_end();
     }
-
+    return 0;
 }
+#line 0
+
+#line 1 "fwk_profile.c"
+//#if WITH_PROFILE
+profiler_t profiler;
+int profiler_enabled = 1;
+
+void (profile_init)() { map_init(profiler, less_str, hash_str); profiler_enabled &= !!profiler; }
+int  (profile_enable)(bool on) { return profiler_enabled = on; }
+void (profile_render)() { 
+    if(!profiler_enabled) return;
+
+    int has_menu = ui_has_menubar();
+    if( !has_menu ) {
+        // render profiler, unless we are in the cooking stage 
+        // also, we defer profile from rendering some initial frames, so the user may have chance to actually call any UI call before us
+        // (given the UI policy nature, first-called first-served, we dont want profile tab to be on top of all other tabs)
+        static unsigned frames = 0; if(frames <= 3) frames += cooker_progress() >= 100;
+        if( frames <= 3 ) return;
+    }
+
+    if( has_menu ? ui_window("Profiler", 0) : ui_panel("Profiler", 0) ) {
+
+        if(1) { // @todo: ui_plot()
+            // draw fps-meter: 300 samples, [0..70] range each, 70px height plot.
+            nk_layout_row_dynamic(ui_ctx, 70, 1);
+
+            enum { COUNT = 300 };
+
+            static float values[COUNT] = {0}; static int offset = 0;
+            values[offset=(offset+1)%COUNT] = window_fps();
+
+            int index = -1;
+            if( nk_chart_begin(ui_ctx, NK_CHART_LINES, COUNT, 0.f, 70.f) ) {
+                for( int i = 0; i < COUNT; ++i ) {
+                    nk_flags res = nk_chart_push(ui_ctx, (float)values[i]);
+                    if( res & NK_CHART_HOVERING ) index = i;
+                    if( res & NK_CHART_CLICKED ) index = i;
+                }
+                nk_chart_end(ui_ctx);
+            }
+
+            //  hightlight 60fps, 36fps and 12fps
+            struct nk_rect space; nk_layout_peek(&space, ui_ctx);
+            struct nk_command_buffer *canvas = nk_window_get_canvas(ui_ctx);
+            nk_stroke_line(canvas, space.x+0,space.y-60,space.x+space.w,space.y-60, 1.0, nk_rgba(0,255,0,128));
+            nk_stroke_line(canvas, space.x+0,space.y-36,space.x+space.w,space.y-36, 1.0, nk_rgba(255,255,0,128));
+            nk_stroke_line(canvas, space.x+0,space.y-12,space.x+space.w,space.y-12, 1.0, nk_rgba(255,0,0,128));
+
+            if( index >= 0 ) {
+                nk_tooltipf(ui_ctx, "%.2f fps", (float)values[index]);
+            }
+        }
+
+        for each_map_sorted_ptr(profiler, const char *, key, struct profile_t, val ) {
+            if( isnan(val->stat) ) {
+                float v = val->avg/1000.0;
+                ui_slider2(*key, &v, va("%.2f ms", val->avg/1000.0));
+            } else {
+                float v = val->stat;
+                ui_slider2(*key, &v, va("%.2f", val->stat));
+                val->stat = 0;
+            }
+        }
+
+        (has_menu ? ui_window_end : ui_panel_end)();
+    }
+}
+//#endif
 #line 0
 
 #line 1 "fwk_video.c"
@@ -15936,7 +16380,7 @@ texture_t* video_textures( video_t *v ) {
 static FILE* rec_ffmpeg;
 static FILE* rec_mpeg1;
 
-void videorec_stop(void) {
+void record_stop(void) {
     if(rec_ffmpeg) ifdef(win32, _pclose, pclose)(rec_ffmpeg);
     rec_ffmpeg = 0;
 
@@ -15944,10 +16388,14 @@ void videorec_stop(void) {
     rec_mpeg1 = 0;
 }
 
-void videorec_start(const char *outfile_mp4) {
-    do_once atexit(videorec_stop);
+bool record_active() {
+    return rec_ffmpeg || rec_mpeg1;
+}
 
-    videorec_stop();
+bool record_start(const char *outfile_mp4) {
+    do_once atexit(record_stop);
+
+    record_stop();
 
     // first choice: external ffmpeg encoder
     if( !rec_ffmpeg ) {
@@ -15984,14 +16432,12 @@ void videorec_start(const char *outfile_mp4) {
     if( !rec_ffmpeg ) {
         rec_mpeg1 = fopen(outfile_mp4, "wb"); // "a+b"
     }
+
+    return record_active();
 }
 
-bool videorec_active() {
-    return rec_ffmpeg || rec_mpeg1;
-}
-
-void videorec_frame() {
-    if( videorec_active() ) {
+void record_frame() {
+    if( record_active() ) {
         void* pixels = screenshot_async(-3); // 3 RGB, 4 RGBA, -3 BGR, -4 BGRA. ps: BGR is fastest on my intel discrete gpu
 
         if( rec_ffmpeg ) {
@@ -16112,7 +16558,7 @@ static int fullscreen, xprev, yprev, wprev, hprev;
 static uint64_t frame_count;
 static double t, dt, fps, hz = 0.00;
 static char title[128] = {0};
-static char screenshot_file[512];
+static char screenshot_file[DIR_MAX];
 static int locked_aspect_ratio = 0;
 
 // -----------------------------------------------------------------------------
@@ -16151,9 +16597,8 @@ void glfw_init() {
 
 void window_drop_callback(GLFWwindow* window, int count, const char** paths) {
     // @fixme: win: convert from utf8 to window16 before processing
-    // @fixme: wait until any active import (launch) is done
 
-    char pathdir[512]; snprintf(pathdir, 512, "%s/import/%llu_%s/", ART, (unsigned long long)date(), ifdef(linux, getlogin(), getenv("USERNAME")));
+    char pathdir[DIR_MAX]; snprintf(pathdir, DIR_MAX, "%s/import/%llu_%s/", ART, (unsigned long long)date(), ifdef(linux, getlogin(), getenv("USERNAME")));
     mkdir( pathdir, 0777 );
 
     int errors = 0;
@@ -16309,7 +16754,7 @@ bool window_create_from_handle(void *handle, float scale, unsigned flags) {
         glfwSetWindowSizeLimits(window, w, h, w, h);
     }
     if( flags & (WINDOW_SQUARE | WINDOW_PORTRAIT | WINDOW_LANDSCAPE | WINDOW_ASPECT) ) { // keep aspect ratio
-        window_lock_aspect(w, h);
+        window_aspect_lock(w, h);
     }
 
     #ifndef __EMSCRIPTEN__
@@ -16414,13 +16859,6 @@ bool window_create_from_handle(void *handle, float scale, unsigned flags) {
 
 bool window_create(float scale, unsigned flags) {
     return window_create_from_handle(NULL, scale, flags);
-}
-
-void window_lock_fps(float fps) {
-    hz = fps;
-}
-void window_unlock_fps() {
-    hz = 0;
 }
 
 static double boot_time = 0;
@@ -16528,9 +16966,9 @@ void window_frame_end() {
         }
         screenshot_file[0] = 0;
     }
-    if( videorec_active() ) {
-        void videorec_frame();
-        videorec_frame();
+    if( record_active() ) {
+        void record_frame();
+        record_frame();
     }
 #endif
 }
@@ -16553,7 +16991,7 @@ void window_shutdown() {
     //      static int frame = 100;
             bool do_it = cooker_progress() >= 100; // && ( frame > 0 && !--frame ); // || input_down(KEY_F12)
             if(do_it) {
-               snprintf(screenshot_file, 512, "%s.png", app_name());
+               snprintf(screenshot_file, DIR_MAX, "%s.png", app_name());
 
                int n = 3;
                void *rgb = screenshot(n);
@@ -16642,18 +17080,26 @@ int window_width() {
 int window_height() {
     return h;
 }
-double window_aspect() {
-    return (double)w / (h + !h);
-}
 double window_time() {
     return t;
 }
 double window_delta() {
     return dt;
 }
+
 double window_fps() {
     return fps;
 }
+void window_fps_lock(float fps) {
+    hz = fps;
+}
+void window_fps_unlock() {
+    hz = 0;
+}
+double window_fps_target() {
+    return hz;
+}
+
 uint64_t window_frame() {
     return frame_count;
 }
@@ -16702,8 +17148,8 @@ void window_reload() {
 }
 
 int window_record(const char *outfile_mp4) {
-    videorec_start(outfile_mp4);
-    return videorec_active();
+    record_start(outfile_mp4);
+    return record_active();
 }
 
 
@@ -16858,10 +17304,13 @@ int window_has_visible() {
 }
 
 void window_screenshot(const char* outfile_png) {
-    snprintf(screenshot_file, 512, "%s", outfile_png ? outfile_png : "");
+    snprintf(screenshot_file, DIR_MAX, "%s", outfile_png ? outfile_png : "");
 }
 
-void window_lock_aspect(unsigned numer, unsigned denom) {
+double window_aspect() {
+    return (double)w / (h + !h);
+}
+void window_aspect_lock(unsigned numer, unsigned denom) {
     if(!window) return;
     if( numer * denom ) {
         glfwSetWindowAspectRatio(window, numer, denom);
@@ -16869,9 +17318,9 @@ void window_lock_aspect(unsigned numer, unsigned denom) {
         glfwSetWindowAspectRatio(window, GLFW_DONT_CARE, GLFW_DONT_CARE);
     }
 }
-void window_unlock_aspect() {
+void window_aspect_unlock() {
     if(!window) return;
-    window_lock_aspect(0, 0);
+    window_aspect_lock(0, 0);
 }
 #line 0
 
@@ -17386,6 +17835,10 @@ int main() {
 // editing:
 // nope > functions: add/rem property
 
+char *editor_path(const char *path) {
+    return va("%s/%s", EDITOR, path);
+}
+
 vec3 editor_pick(float mouse_x, float mouse_y) {
     // unproject 2d coord as 3d coord
     camera_t *camera = camera_get_active();
@@ -17395,10 +17848,48 @@ vec3 editor_pick(float mouse_x, float mouse_y) {
     return out;
 }
 
+int editor_ui_bits8(const char *label, uint8_t *enabled) { // @to deprecate
+    int clicked = 0;
+    uint8_t copy = *enabled;
+
+    // @fixme: better way to retrieve widget width? nk_layout_row_dynamic() seems excessive
+    nk_layout_row_dynamic(ui_ctx, 1, 1);
+    struct nk_rect bounds = nk_widget_bounds(ui_ctx);
+
+    // actual widget: label + 8 checkboxes
+    enum { HEIGHT = 18, BITS = 8, SPAN = 118 }; // bits widget below needs at least 118px wide
+    nk_layout_row_begin(ui_ctx, NK_STATIC, HEIGHT, 1+BITS);
+
+        int offset = bounds.w > SPAN ? bounds.w - SPAN : 0;
+        nk_layout_row_push(ui_ctx, offset);
+        if( ui_label_(label, NK_TEXT_LEFT) ) clicked = 1<<31;
+
+        for( int i = 0; i < BITS; ++i ) {
+            nk_layout_row_push(ui_ctx, 10);
+            // bit
+            int val = (*enabled >> i) & 1;
+            int chg = nk_checkbox_label(ui_ctx, "", &val);
+            *enabled = (*enabled & ~(1 << i)) | ((!!val) << i);
+            // tooltip
+            struct nk_rect bb = { offset + 10 + i * 14, bounds.y, 14, HEIGHT }; // 10:padding,14:width
+            if (nk_input_is_mouse_hovering_rect(&ui_ctx->input, bb) && !ui_popups()) {
+                const char *tips[BITS] = {"Init","Tick","Draw","Quit","","","",""};
+                if(tips[i][0]) nk_tooltipf(ui_ctx, "%s", tips[i]);
+            }
+        }
+
+    nk_layout_row_end(ui_ctx);
+    return clicked | (copy ^ *enabled);
+}
+
 static int gizmo__mode;
 static int gizmo__active;
+static int gizmo__hover;
 bool gizmo_active() {
     return gizmo__active;
+}
+bool gizmo_hover() {
+    return gizmo__hover;
 }
 int gizmo(vec3 *pos, vec3 *rot, vec3 *sca) {
 #if 0
@@ -17430,10 +17921,10 @@ int gizmo(vec3 *pos, vec3 *rot, vec3 *sca) {
         vec3 unit = vec3(X+(1.0-X)*0.3,Y+(1.0-Y)*0.3,Z+(1.0-Z)*0.3); \
         aabb arrow = { sub3(*pos,unit), add3(*pos,unit) }; \
         hit *hit_arrow = ray_hit_aabb(r, arrow), *hit_ground = ray_hit_plane(r, ground); \
-        ddraw_color( hit_arrow || gizmo__active == (X*4+Y*2+Z) ? YELLOW : COLOR ); \
+        ddraw_color( hit_arrow || gizmo__active == (X*4+Y*2+Z) ? gizmo__hover = 1, YELLOW : COLOR ); \
         DRAWCMD; \
         if( !gizmo__active && hit_arrow && mouse.z ) src2 = vec2(mouse.x,mouse.y), src3 = *pos, hit3 = hit_ground->p, off3 = mul3(sub3(src3,hit3),vec3(X,Y,Z)), gizmo__active = X*4+Y*2+Z; \
-        if( (gizmo_active && gizmo__active==(X*4+Y*2+Z)) || (!gizmo__active && hit_arrow) ) { ddraw_color( COLOR ); ( 1 ? ddraw_line : ddraw_line_dashed)(axis.a, axis.b); } \
+        if( (gizmo__active && gizmo__active==(X*4+Y*2+Z)) || (!gizmo__active && hit_arrow) ) { ddraw_color( COLOR ); ( 1 ? ddraw_line : ddraw_line_dashed)(axis.a, axis.b); } \
         if( gizmo__active == (X*4+Y*2+Z) && hit_ground ) {{ __VA_ARGS__ }; modified = 1; gizmo__active *= !!input(MOUSE_L); } \
     } while(0)
     #define gizmo_translate(X,Y,Z,COLOR) \
@@ -17457,12 +17948,12 @@ int gizmo(vec3 *pos, vec3 *rot, vec3 *sca) {
                 vec3 unit = vec3(X+(1.0-X)*0.3,Y+(1.0-Y)*0.3,Z+(1.0-Z)*0.3); \
                 aabb arrow = { sub3(*pos,unit), add3(*pos,unit) }; \
                 hit *hit_arrow = ray_hit_aabb(r, arrow), *hit_ground = ray_hit_plane(r, ground); \
-                int hover = hit_arrow ? (X*4+Y*2+Z) : 0; \
-            if( gizmo__active == (X*4+Y*2+Z) ) { ddraw_color(gizmo__active ? YELLOW : WHITE); ddraw_circle(*pos, vec3(X,Y,Z), 1); } \
-            else if( !gizmo__active && hover == (X*4+Y*2+Z) ) { ddraw_color(COLOR); ddraw_circle(*pos, vec3(X,Y,Z), 1); } \
+                int hover = (hit_arrow ? (X*4+Y*2+Z) : 0); \
+            if( gizmo__active == (X*4+Y*2+Z) ) { ddraw_color(gizmo__active ? gizmo__hover = 1, YELLOW : WHITE); ddraw_circle(*pos, vec3(X,Y,Z), 1); } \
+            else if( !gizmo__active && hover == (X*4+Y*2+Z) ) { gizmo__hover = 1; ddraw_color(COLOR); ddraw_circle(*pos, vec3(X,Y,Z), 1); } \
             else if( !gizmo__active ) { ddraw_color(WHITE); ddraw_circle(*pos, vec3(X,Y,Z), 1); } \
             if( !gizmo__active && hit_arrow && mouse.z ) src2 = vec2(mouse.x,mouse.y), gizmo__active = hover; \
-            if( (!gizmo__active && hover == (X*4+Y*2+Z)) || gizmo__active == (X*4+Y*2+Z) ) { ddraw_color( COLOR ); ( 1 ? ddraw_line_thin : ddraw_line_dashed)(axis.a, axis.b); } \
+            if( (!gizmo__active && hover == (X*4+Y*2+Z)) || gizmo__active == (X*4+Y*2+Z) ) { gizmo__hover = 1; ddraw_color( COLOR ); ( 1 ? ddraw_line_thin : ddraw_line_dashed)(axis.a, axis.b); } \
             if( gizmo__active && gizmo__active == (X*4+Y*2+Z) && hit_ground && enabled ) { \
                 int component = (Y*1+X*2+Z*3)-1; /*pitch,yaw,roll*/ \
                 float mag = len2(sub2(vec2(mouse.x, mouse.y), src2)); \
@@ -17476,6 +17967,8 @@ int gizmo(vec3 *pos, vec3 *rot, vec3 *sca) {
             } \
             gizmo__active *= enabled && !!input(MOUSE_L); \
         } while(0)
+
+    gizmo__hover = 0;
 
     int modified = 0;
     if(enabled && input_down(KEY_SPACE)) gizmo__active = 0, gizmo__mode = (gizmo__mode + 1) % 3;
@@ -17522,7 +18015,7 @@ char* dialog_save() {
 
 // -- localization kit
 
-static const char *kit_my_lang = "enUS", *kit_all_langs = 
+static const char *kit_lang = "enUS", *kit_langs = 
     "enUS,enGB,"
     "frFR,"
     "esES,esAR,esMX,"
@@ -17537,8 +18030,8 @@ static const char *kit_my_lang = "enUS", *kit_all_langs =
 static map(char*,char*) kit_ids;
 static map(char*,char*) kit_vars;
 
-#ifndef KIT_MAKE_ID2
-#define KIT_MAKE_ID2(lang, id) va("%s.%s", lang, id)
+#ifndef KIT_FMT_ID2 
+#define KIT_FMT_ID2 "%s.%s"
 #endif
 
 void kit_init() {
@@ -17547,7 +18040,7 @@ void kit_init() {
 }
 
 void kit_insert( const char *id, const char *translation) {
-    char *id2 = KIT_MAKE_ID2(kit_my_lang, id);
+    char *id2 = va(KIT_FMT_ID2, kit_lang, id);
 
     char **found = map_find_or_add_allocated_key(kit_ids, STRDUP(id2), NULL);
     if(*found) FREE(*found);
@@ -17580,7 +18073,7 @@ void kit_reset() {
 }
 
 char *kit_translate2( const char *id, const char *lang ) {
-    char *id2 = KIT_MAKE_ID2(lang, id);
+    char *id2 = va(KIT_FMT_ID2, lang, id);
 
     char **found = map_find(kit_ids, id2);
 
@@ -17627,11 +18120,11 @@ char *kit_translate2( const char *id, const char *lang ) {
 }
 
 char *kit_translate( const char *id ) {
-    return kit_translate2( id, kit_my_lang );
+    return kit_translate2( id, kit_lang );
 }
 
 void kit_locale( const char *lang ) {
-    kit_my_lang = STRDUP(lang); // @leak
+    kit_lang = STRDUP(lang); // @leak
 }
 
 void kit_dump_state( FILE *fp ) {
@@ -17667,7 +18160,6 @@ int main() {
     assert(~puts("Ok"));
 }
 */
-
 #line 0
 
 // editor is last in place, so it can use all internals from above headers
@@ -17705,15 +18197,18 @@ static void fwk_post_init(float refresh_rate) {
     glfwGetFramebufferSize(window, &w, &h); //glfwGetWindowSize(window, &w, &h);
 
     // mount virtual filesystems later (lower priority)
-    bool mounted = 0;
-    for( int i = 0; i < 16; ++i) {
+    bool any_mounted = 0;
+    for( int i = 0; i < 256; ++i) {
+        bool mounted = false; 
         mounted |= !!vfs_mount(va(".art[%02x].zip", i));
         mounted |= !!vfs_mount(va("%s[%02x].zip", app, i));
         mounted |= !!vfs_mount(va("%s%02x.zip", app, i));
         mounted |= !!vfs_mount(va("%s.%02x", app, i));
+        any_mounted |= mounted;
+        if(!mounted) break;
     }
     // mount physical filesystems first (higher priority)
-    if(!mounted) vfs_mount(ART);
+    if(!any_mounted) vfs_mount(ART);
 
     // config nuklear UI (after VFS mounting, as UI needs cooked fonts here)
     nk_config_custom_fonts();
@@ -17738,7 +18233,7 @@ static void fwk_post_init(float refresh_rate) {
     // t = glfwGetTime();
 }
 
-#if 0
+#if 0 // @todo: WINDOW_SIGTRAP
 #include <signal.h>
 void fwk_on_signal(int sn) {
     PRINTF("!Signal caught: %d (SIGFPE=%d SIGBUS=%d SIGSEGV=%d SIGILL=%d SIGABRT=%d)\n", sn, SIGFPE, SIGBUS, SIGSEGV, SIGILL, SIGABRT );
@@ -17794,8 +18289,7 @@ void fwk_init() {
         chdir(app_path());
         // skip tcc argvs (if invoked as tcc file.c fwk.c -g -run)
         if( __argc > 1 ) if( strstr(__argv[0], "/tcc") || strstr(__argv[0], "\\tcc") ) {
-            // __argc = 1; __argv[0] = __argv[1]; char *found = strstr(__argv[1], ".c"); if(found) *found = 0;
-            // __argc = 1;
+            __argc = 0;
         }
 
         // create or update cook.zip file

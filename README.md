@@ -5,6 +5,12 @@
 <img src="https://i.imgur.com/sInbRoA.gif"/><br/>
 </p>
 
+<!--
+editor1 | editor2
+:-: | :-:
+<video src='https://user-images.githubusercontent.com/35402248/174457347-f787a6a2-aac8-404c-a5da-f44310c3d432.mp4' width=180></video> | <video src='https://user-images.githubusercontent.com/35402248/174457144-40098726-e78f-4284-be68-783ff12f350f.mp4' width=180></video>
+-->
+
 ## Goals
 - [x] ~~C++~~. C.
 - [x] ~~Fast~~. Naive.
@@ -26,9 +32,9 @@
 - [x] Input: keyboard, mouse and gamepads.
 - [x] Script: Lua scripting, Luajit bindings.
 - [x] Network: downloads (HTTPS) and sockets (TCP/UDP). <!-- [*] Object, GameObject, W/ECS -->
-- [x] UI: color3/4, button, list, slider, toggle, checkbox, editbox, dialog, image, menus.
+- [x] UI: color3/4, button, list, slider, toggle, checkbox, editbox, dialog, image, menus, windows
 - [x] Font: TTF, OTF and TTC. Basic syntax highlighter. Glyph ranges. Atlasing.
-- [x] Localization: XLSX, INI, Unicode and L10/I18N.
+- [x] Localization/I18N: XLSX and INI. Unicode.
 - [x] Image: JPG, PNG, BMP, PSD, PIC, PNM, ICO.
 - [x] Texture: KTX/2, PVR, DDS, ASTC, BASIS, HDR, TGA.
 - [x] Texel: Depth, R, RG, RGB, RGBA, BC1/2/3/4/5/6/7, PVRI/II, ETC1/2, ASTC.
@@ -43,7 +49,7 @@
 - [x] Render: 2D Sprites, spritesheets, AA zooming and batching.
 - [x] Compression: DEFLATE, LZMA, LZ4, ULZ, BALZ, BCM, CRUSH, LZW3, LZSS and PPP.
 - [x] Virtual filesystem: ZIP, PAK, TAR and DIR.
-- [x] Level data: JSON, JSON5, SJSON, XML.
+- [x] Level data: JSON, JSON5, SJSON, XML, INI.
 - [x] Disk cache.
 - [x] Scene handling.
 - [x] Profiler, stats and leaks finder.
@@ -122,16 +128,6 @@ R. Documentation pass: API, functions, samples, examples, pipeline. #5
 // plan:
 //[ ] Script: Refl/meta binding tool (during cook stage).
 //    fwk_cook (*.c, *.h) as .proto/.pbc maybe, free reflection+automatic bindings
-// 4) editor (json level): load/save jsons, property editor for anything (remote osc server/client)
-//    gizmo: proportional, arcball XY (+shift for Z/tilt)
-//    scene: scenegraph, obj naming, ~~obj picking, obj bounds,~~ obj collisions, obj/scene streaming
-//    placeholders google
-//    vcs
-//[ ] Level objects: ~~volumes, triggers, platforms, streaming~~.
-//    level: emitters: particles, lights, lightmaps, sound sources, triggers, etc
-//    level: box triggers, start/end, spawn, streaming, checkpoints,
-//    level: jump, shoots, platforms, collisions
-//    level: 60s, 70s, 80s, 90s
 //[ ] cam: friction, projections (dimetric, isometric, ...)
 //[ ] Render: Materials (textures, matcaps, videos, shadertoys).
 //    material: fixed color, texture or script that returns color
@@ -154,13 +150,6 @@ R. Documentation pass: API, functions, samples, examples, pipeline. #5
 //    vm: ram, workqueues, threading, priorities, load/save
 //    service protocols: websocket bqqbarbhg/bq_websocket, https, handshake
 //    databases, services, quotas, black/whitelists, etc
-//[ ] Core: wecs+replication
-//    modules: script or dll + ram load/save/diff/patch + play/stop/init/ + attach/detach
-//    logic tree/ << [] |> || >>
-//    - scene |>
-//       - enemies
-//    ecs: sys are modules, ecs: messaging, ecs: filesystem (e/dir,c/files,s/dll)
-//    world: streaming, migration
 // 7) network replication & messaging
 //    network: replication, dead reckoning, interpolation, extrapolation, bandwidth
 //    network: messaging: un/reliable, fragmentation, priority, etc
@@ -207,6 +196,7 @@ R. Documentation pass: API, functions, samples, examples, pipeline. #5
 <img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/art/demos/demo_video.png"     width="204px" title="Video."/>
 <img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/art/demos/demo_pbr.png"       width="204px" title="PBR."/>
 <img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/art/demos/demo_instanced.png" width="204px" title="Instancing."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/art/demos/editor.png" width="204px" title="Editor."/>
 <br/>
 </p>
 
@@ -243,31 +233,28 @@ int main() {
 ```
 
 ## Build (as static library)
-Type `MAKE.bat` (Win) or `sh MAKE.bat` (Linux/OSX) to build everything. Alternatively,
+Type `MAKE.bat static` (Win) or `sh MAKE.bat static` (Linux/OSX) to build everything dynamically. Alternatively,
 
 ```lua
-echo Windows (vc)          && cl  demo.c       fwk.c
-echo Windows (tcc)         && tcc demo.c       fwk.c
-echo Windows (mingw64)     && gcc demo.c       fwk.c -o demo -lws2_32 -lgdi32 -lwinmm -ldbghelp
-echo Linux (gcc+clang+tcc) && cc  demo.c       fwk.c -o demo -lm -ldl -lpthread -lX11
-echo OSX (gcc+clang)       && cc  demo.c -ObjC fwk.c -o demo -framework cocoa -framework iokit
+echo Win(vc)              && cl  demo.c       fwk.c
+echo Win(tcc)             && tcc demo.c       fwk.c
+echo Win(gcc)             && gcc demo.c       fwk.c -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lcomdlg32
+echo Linux(gcc+clang+tcc) && cc  demo.c       fwk.c -lm -ldl -lpthread -lX11
+echo OSX(gcc+clang)       && cc  demo.c -ObjC fwk.c -framework cocoa -framework iokit
 ```
 <!-- - Note: Windows: Assimp.dll may need [this package installed](https://www.microsoft.com/en-us/download/confirmation.aspx?id=30679).-->
 - Note: TCC is partially supported on Windows+Linux. Beware, no threading.
 
 ## Build (as dynamic library)
-Type `MAKE.bat dll` (Win) or `sh MAKE.bat dll` (Linux/OSX) to build FWK as a dynamic library. Alternatively,
+Type `MAKE.bat dll` (Win) or `sh MAKE.bat dll` (Linux/OSX) to build everything staticly. Alternatively,
 
 ```lua
-echo Windows(vc)  && cl fwk.c /LD /DAPI=EXPORT
-echo Windows(tcc) && tcc fwk.c -shared -DAPI=EXPORT && tcc -impdef fwk.dll
-echo Linux        && cc -fPIC fwk.c -shared -o libfwk.so -lX11
-echo OSX          && cc -ObjC -dynamiclib -o libfwk.dylib fwk.c -framework cocoa -framework iokit
+echo Win(vc)  && cl  fwk.c /LD     /DAPI=EXPORT && cl  demo.c fwk.lib /DAPI=IMPORT
+echo Win(tcc) && tcc fwk.c -shared -DAPI=EXPORT && tcc demo.c fwk.def -DAPI=IMPORT
+echo Win(gcc) && gcc fwk.c -shared -DAPI=EXPORT -o fwk.dll -lws2_32 -lwinmm -ldbghelp -lole32 -lgdi32 -lcomdlg32 -Wl,--out-implib,fwk.a && gcc demo.c fwk.a -DAPI=IMPORT
+echo Linux    && cc -fPIC -shared     -o libfwk.so    fwk.c -lX11 && cc demo.c libfwk.so -DAPI=IMPORT -Wl,-rpath,./
+echo OSX      && cc -ObjC -dynamiclib -o libfwk.dylib fwk.c -framework cocoa -framework iokit && cc demo.c libfwk.dylib -DAPI=IMPORT
 ```
-
-- Quick test on Windows (vc): `cl fwk.c /LD /DAPI=EXPORT && cl demo.c fwk.lib /DAPI=IMPORT`
-- Quick test on Windows (tcc): `tcc fwk.c -shared -DAPI=EXPORT && tcc demo.c fwk.def -DAPI=IMPORT`
-- Or also, copy the dynamic library into `art/demos/lua` and then run `luajit demo_luajit_model.lua` from there.
 
 ## Cook
 - Most asset types need to be cooked before being used in your application. Other assets like `.png` do not.
@@ -304,6 +291,8 @@ echo #endif // FWK_C                 >> fwk-single-header.h
 - Disable automatic cooking by using `--with-cook-jobs=0` flag (not recommended).
 - Cook from command-line by running [`cook.*` binaries](art/editor/tools/). 
 - Linux/OSX users can optionally install wine and use the Windows pipeline instead (by using `--with-wine` flag).
+- Generate a Visual Studio solution by dropping `fwk.h, fwk.c and fwk` files into it.
+- Faster builds by typing `MAKE.bat tcc` (Win/Linux).
 - Get smaller .exes by compiling with `/Os /Ox /O2 /Oy /GL /GF /MT /DNDEBUG /Gw /link /OPT:ICF /LTCG` (vc).
 <!-- - On windows + vc, you can use `make bindings` or `make docs` to generate everything prior to a release -->
 
@@ -333,6 +322,7 @@ echo #endif // FWK_C                 >> fwk-single-header.h
 - [Mattias Gustavsson](https://github.com/mattiasgustavsson/libs), for mid.h (PD).
 - [Michael Schmoock](http://github.com/willsteel/lcpp), for lcpp (MIT).
 - [Morgan McGuire](https://casual-effects.com/markdeep/), for markdeep (BSD2).
+- [Olivier Lapicque, Konstanty Bialkowski](https://github.com/Konstanty/libmodplug), for libmodplug (PD).
 - [Polyglot Team](https://docs.google.com/spreadsheets/d/17f0dQawb-s_Fd7DHgmVvJoEGDMH_yoSd8EYigrb0zmM/edit), for polyglot gamedev (CC0).
 - [Tomas Pettersson](http://www.drpetter.se/), for sfxr (PD).
 - [Tor Andersson](https://github.com/ccxvii/asstools), for assiqe.c (BSD).
@@ -355,12 +345,13 @@ echo #endif // FWK_C                 >> fwk-single-header.h
 - [Joonas Pihlajamaa](https://github.com/jokkebk/JUnzip), for JUnzip library (PD).
 - [Juliette Focault](https://github.com/juliettef/IconFontCppHeaders/blob/main/IconsMaterialDesign.h), for the generated MD header (ZLIB).
 - [Lee Salzman](https://github.com/lsalzman/iqm/tree/5882b8c32fa622eba3861a621bb715d693573420/demo), for IQM spec & player (PD).
-- [Lee Salzman, V.Hrytsenko and D.Madarász](https://github.com/zpl-c/enet/), for enet (MIT).
+- [Lee Salzman, V.Hrytsenko, D.Madarász](https://github.com/zpl-c/enet/), for enet (MIT).
 - [Libtomcrypt](https://github.com/libtom/libtomcrypt), for libtomcrypt (Unlicense).
 - [Lua authors](https://www.lua.org/), for Lua language (MIT).
 - [Mattias Gustavsson](https://github.com/mattiasgustavsson/libs), for thread.h and https.h (PD).
 - [Micha Mettke, Chris Willcocks, Dmitry Hrabrov](https://github.com/vurtun/nuklear), for nuklear (PD).
 - [Omar Cornut, vaiorabbit](https://github.com/ocornut/imgui/pull/3627), for tables of unicode ranges (MIT-0).
+- [Rabia Alhaffar](https://github.com/Rabios/ice_libs), for ice_batt.h (PD).
 - [Rich Geldreich](https://github.com/richgel999/miniz), for miniz (PD).
 - [Ross Williams](http://ross.net/compression/lzrw3a.html) for lzrw3a (PD).
 - [Samuli Raivio](https://github.com/bqqbarbhg/bq_websocket), for bq_websocket (PD).
@@ -368,7 +359,7 @@ echo #endif // FWK_C                 >> fwk-single-header.h
 - [Sebastian Steinhauer](https://github.com/kieselsteini), for sts_mixer (PD).
 - [Stefan Gustavson](https://github.com/stegu/perlin-noise), for simplex noise (PD).
 - [Vassvik](https://github.com/vassvik/mv_easy_font), for mv_easy_font (Unlicense).
-- Special thanks to [@ands](https://github.com/ands) (PD), [@barerose](https://github.com/barerose) (CC0), [@datenwolf](https://github.com/datenwolf) (WTFPL2), [@evanw](https://github.com/evanw) (CC0), [@glampert](https://github.com/glampert) (PD), [@krig](https://github.com/krig) (CC0), [@sgorsten](https://github.com/sgorsten) (Unlicense) and [@vurtun](https://github.com/vurtun) (PD) for their math libraries.
+- Special thanks to [@ands](https://github.com/ands), [@barerose](https://github.com/barerose), [@datenwolf](https://github.com/datenwolf), [@evanw](https://github.com/evanw), [@glampert](https://github.com/glampert), [@krig](https://github.com/krig), [@sgorsten](https://github.com/sgorsten) and [@vurtun](https://github.com/vurtun) for their math libraries (PD,CC0,WTFPL2,CC0,PD,CC0,Unlicense,PD).
 
 ## Unlicense
 This software is released into the [public domain](https://unlicense.org/). Also dual-licensed as [0-BSD](https://opensource.org/licenses/FPL-1.0.0) or [MIT (No Attribution)](https://github.com/aws/mit-0) for those countries where public domain is a concern (sigh). Any contribution to this repository is implicitly subjected to the same release conditions aforementioned.
@@ -379,5 +370,5 @@ This software is released into the [public domain](https://unlicense.org/). Also
 <a href="https://discord.gg/vu6Vt9d"><img alt="Discord" src="https://img.shields.io/discord/270565488365535232?color=5865F2&label=chat&logo=discord&logoColor=white"/></a><br/>
 
 Still looking for alternatives?
-[amulet](https://github.com/ianmaclarty/amulet), [aroma](https://github.com/leafo/aroma/), [astera](https://github.com/tek256/astera), [blendelf](https://github.com/jesterKing/BlendELF), [bullordengine](https://github.com/MarilynDafa/Bulllord-Engine), [candle](https://github.com/EvilPudding/candle), [cave](https://github.com/kieselsteini/cave), [chickpea](https://github.com/ivansafrin/chickpea), [corange](https://github.com/orangeduck/Corange), [cute](https://github.com/RandyGaul/cute_framework), [dos-like](https://github.com/mattiasgustavsson/dos-like), [ejoy2d](https://github.com/ejoy/ejoy2d), [exengine](https://github.com/exezin/exengine), [gunslinger](https://github.com/MrFrenik/gunslinger), [hate](https://github.com/excessive/hate), [island](https://github.com/island-org/island), [juno](https://github.com/rxi/juno), [l](https://github.com/Lyatus/L), [lgf](https://github.com/Planimeter/lgf), [limbus](https://github.com/redien/limbus), [love](https://github.com/love2d/love/), [lovr](https://github.com/bjornbytes/lovr), [mini3d](https://github.com/mini3d/mini3d), [mintaro](https://github.com/mackron/mintaro), [mio](https://github.com/ccxvii/mio), [opensource](https://github.com/w23/OpenSource), [ouzel](https://github.com/elnormous/ouzel/), [pez](https://github.com/prideout/pez), [pixie](https://github.com/mattiasgustavsson/pixie), [punity](https://github.com/martincohen/Punity), [ricotech](https://github.com/dbechrd/RicoTech), [rizz](https://github.com/septag/rizz), [tigr](https://github.com/erkkah/tigr),
+[amulet](https://github.com/ianmaclarty/amulet), [aroma](https://github.com/leafo/aroma/), [astera](https://github.com/tek256/astera), [blendelf](https://github.com/jesterKing/BlendELF), [bullordengine](https://github.com/MarilynDafa/Bulllord-Engine), [candle](https://github.com/EvilPudding/candle), [cave](https://github.com/kieselsteini/cave), [chickpea](https://github.com/ivansafrin/chickpea), [corange](https://github.com/orangeduck/Corange), [cute](https://github.com/RandyGaul/cute_framework), [dos-like](https://github.com/mattiasgustavsson/dos-like), [ejoy2d](https://github.com/ejoy/ejoy2d), [exengine](https://github.com/exezin/exengine), [gunslinger](https://github.com/MrFrenik/gunslinger), [hate](https://github.com/excessive/hate), [island](https://github.com/island-org/island), [juno](https://github.com/rxi/juno), [l](https://github.com/Lyatus/L), [lgf](https://github.com/Planimeter/lgf), [limbus](https://github.com/redien/limbus), [love](https://github.com/love2d/love/), [lovr](https://github.com/bjornbytes/lovr), [mini3d](https://github.com/mini3d/mini3d), [mintaro](https://github.com/mackron/mintaro), [mio](https://github.com/ccxvii/mio), [opensource](https://github.com/w23/OpenSource), [ouzel](https://github.com/elnormous/ouzel/), [pez](https://github.com/prideout/pez), [pixie](https://github.com/mattiasgustavsson/pixie), [punity](https://github.com/martincohen/Punity), [ricotech](https://github.com/dbechrd/RicoTech), [rizz](https://github.com/septag/rizz), [tigr](https://github.com/erkkah/tigr), [yourgamelib](https://github.com/duddel/yourgamelib)
 </p>

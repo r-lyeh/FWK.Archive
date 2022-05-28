@@ -168,8 +168,10 @@ int main(int argc, char **argv) {
     window_create(75, 0); // WINDOW_MSAA8);
     window_title("FWK");
 
-    const char **browser = vfs_list("shadertoys/*.fs");
-    int browser_count = 0; while(browser[browser_count]) browser_count++;
+    const char **list = vfs_list("shadertoys/*.fs");
+    array(char*) browser = 0;
+    while(*list) array_push(browser, STRDUP(file_name(*list++)));
+    int browser_count = array_count(browser);
 
     while(window_swap()) {
         // selector
@@ -183,7 +185,7 @@ int main(int argc, char **argv) {
             reload = 0;
             shaderfile = va("%s", browser[selector]);
             printf("loading %s ...\n", shaderfile);
-            window_title(va("FWK - %s", browser[selector]));
+            window_title(va("FWK - %s", shaderfile));
             shadertoy_init();
         }
 
@@ -191,11 +193,11 @@ int main(int argc, char **argv) {
         shadertoy();
 
         // UI
-        if( ui_begin("Shadertoy", 0)) {
-            if( ui_list(va("Using %s", file_name(browser[selector])), browser, browser_count, &selector) ) {
+        if( ui_panel("Shadertoy", 0)) {
+            if( ui_list("In use", (const char**)browser, browser_count, &selector) ) {
                 reload = 1;
             }
-            ui_end();
+            ui_panel_end();
         }
     }
 }

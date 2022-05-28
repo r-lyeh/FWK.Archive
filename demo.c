@@ -189,7 +189,7 @@ int main() {
         font_print(va(FONT_RIGHT FONT_BOTTOM FONT_H4 "%5.2f FPS", window_fps()));
 
         // queue ui
-        if( ui_begin("App", 0)) {
+        if( ui_panel("App", 0)) {
             if(ui_bool("Show debugdraw demo", &do_debugdraw)) {}
             if(ui_separator()) {}
             if(ui_slider("Gamepad deadzone", &do_gamepad_deadzone)) {}
@@ -201,28 +201,28 @@ int main() {
             if(ui_separator()) {}
             if(ui_button("About...")) { do_about = 1; audio_play(voice, 0); }
             if(ui_dialog("About", __FILE__ "\n" __DATE__ "\n" "Public Domain.", 0, &do_about)) {}
-            ui_end();
+            ui_panel_end();
         }
-        if( ui_begin("Camera", 0)) {
+        if( ui_panel("Camera", 0)) {
             if( ui_float("Speed", &cam.speed) ) {}
             if( ui_float3("Position", cam.position.v3) ) {}
-            ui_end();
+            ui_panel_end();
         }
-        if( ui_begin("FX", 0) ) {
+        if( ui_panel("FX", 0) ) {
             for( int i = 0; i < 64; ++i ) {
                 char *name = fx_name(i); if( !name ) break;
                 bool b = fx_enabled(i);
                 if( ui_bool(name, &b) ) fx_enable(i, fx_enabled(i) ^ 1);
             }
-            ui_end();
+            ui_panel_end();
         }
-        if( ui_begin("Audio", 0)) {
+        if( ui_panel("Audio", 0)) {
             static float fx = 1, bgm = 1, master = 1;
             if( ui_slider2("FX", &fx, va("%.2f", fx))) audio_volume_clip(fx);
             if( ui_slider2("BGM", &bgm, va("%.2f", bgm))) audio_volume_stream(bgm);
             if( ui_slider2("Master", &master, va("%.2f", master))) audio_volume_master(master);
             if( ui_button("Coin FX") ) audio_play(voice, 0);
-            ui_end();
+            ui_panel_end();
         }
 
         input_demo(); // show some keyboard/mouse/gamepad UI tabs

@@ -28,17 +28,17 @@ int main() {
         if( input(KEY_ESC) ) break;
 
         // ui video
-        if( ui_begin("Video", 0) ) {
+        if( ui_panel("Video", 0) ) {
             if( ui_button("Rewind") )  video_seek(v, video_position(v) - 3);
             if( ui_button("Pause") )   video_pause(v, video_is_paused(v) ^ 1);
             if( ui_button("Forward") ) video_seek(v, video_position(v) + 3);
-            ui_end();
+            ui_panel_end();
         }
         // audio
-        if( ui_begin("Audio", 0)) {
+        if( ui_panel("Audio", 0)) {
             static float master = 1;
             if( ui_slider2("Master", &master, va("%.2f", master))) audio_volume_master(master);
-            ui_end();
+            ui_panel_end();
         }
     }
 }

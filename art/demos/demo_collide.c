@@ -74,7 +74,7 @@ int main(void) {
 
                 // ray
                 ro = vec3(-10,-1,20);
-                rd = vec3(-10+0.4f*sinf(dx), 2.0f*cosf(dy), 29.81023f);
+                rd = vec3(-10+0.4f*sin(dx), 2.0f*cos(dy), 29.81023f);
                 rd = sub3(rd, ro);
                 rd = norm3(rd);
 
@@ -152,7 +152,7 @@ int main(void) {
 
                 // ray
                 ro = vec3(0,-1,0);
-                rd = vec3(0.4f*sinf(dx), 2.0f*cosf(dy), 9.81023f);
+                rd = vec3(0.4f*sin(dx), 2.0f*cos(dy), 9.81023f);
                 rd = sub3(rd, ro);
                 rd = norm3(rd);
 
@@ -192,7 +192,7 @@ int main(void) {
                 aabb bounds = aabb(vec3(10-0.5f,-0.5f,7.5f), vec3(10.5f,0.5f,8.5f));
 
                 vec3 ro = vec3(10,-1,0);
-                vec3 rd = vec3(10+0.4f*sinf(dx), 2.0f*cosf(dy), 9.81023f);
+                vec3 rd = vec3(10+0.4f*sin(dx), 2.0f*cos(dy), 9.81023f);
                 rd = norm3(sub3(rd, ro));
                 ray r = ray(ro, rd);
 
@@ -229,7 +229,7 @@ int main(void) {
             {
                 // Sphere-Sphere intersection*/
                 sphere a = sphere(vec3(-10,0,8), 1);
-                sphere b = sphere(vec3(-10+0.6f*sinf(dx), 3.0f*cosf(dy),8), 1);
+                sphere b = sphere(vec3(-10+0.6f*sin(dx), 3.0f*cos(dy),8), 1);
                 hit *m = sphere_hit_sphere(a, b);
                 if (m) {
                     vec3 v;
@@ -245,8 +245,8 @@ int main(void) {
             }
             {
                 // AABB-AABB intersection*/
-                const float x = 10+0.6f*sinf(dx);
-                const float y = 3.0f*cosf(dy);
+                const float x = 10+0.6f*sin(dx);
+                const float y = 3.0f*cos(dy);
                 const float z = 20.0f;
 
                 aabb a = aabb(vec3(10-0.5f,-0.5f,20-0.5f), vec3(10+0.5f,0.5f,20.5f));
@@ -266,8 +266,8 @@ int main(void) {
             }
             {
                 // Capsule-Capsule intersection*/
-                const float x = 20+0.4f*sinf(dx);
-                const float y = 3.0f*cosf(dy);
+                const float x = 20+0.4f*sin(dx);
+                const float y = 3.0f*cos(dy);
                 const float z = 28.5f;
 
                 capsule a = capsule(vec3(20.0f,-1.0f,28.0f), vec3(20.0f,1.0f,28.0f), 0.2f);
@@ -287,7 +287,7 @@ int main(void) {
             {
                 // AABB-Sphere intersection*/
                 aabb a = aabb(vec3(20-0.5f,-0.5f,7.5f), vec3(20.5f,0.5f,8.5f));
-                sphere s = sphere(vec3(20+0.6f*sinf(dx), 3.0f*cosf(dy),8), 1);
+                sphere s = sphere(vec3(20+0.6f*sin(dx), 3.0f*cos(dy),8), 1);
                 hit *m  = aabb_hit_sphere(a, s);
                 if(m) {
                     vec3 v;
@@ -303,8 +303,8 @@ int main(void) {
             }
             {
                 // Sphere-AABB intersection*/
-                const float x = 10+0.6f*sinf(dx);
-                const float y = 3.0f*cosf(dy);
+                const float x = 10+0.6f*sin(dx);
+                const float y = 3.0f*cos(dy);
                 const float z = -8.0f;
 
                 sphere s = sphere(vec3(10,0,-8), 1);
@@ -325,7 +325,7 @@ int main(void) {
             {
                 // Capsule-Sphere intersection*/
                 capsule c = capsule(vec3(-20.5f,-1.0f,7.5f), vec3(-20+0.5f,1.0f,8.5f), 0.2f);
-                sphere b = sphere(vec3(-20+0.6f*sinf(dx), 3.0f*cosf(dy),8), 1);
+                sphere b = sphere(vec3(-20+0.6f*sin(dx), 3.0f*cos(dy),8), 1);
                 hit *m = capsule_hit_sphere(c, b);
                 if(m) {
                     vec3 v;
@@ -340,8 +340,8 @@ int main(void) {
             }
             {
                 // Sphere-Capsule intersection*/
-                const float x = 20+0.4f*sinf(dx);
-                const float y = 3.0f*cosf(dy);
+                const float x = 20+0.4f*sin(dx);
+                const float y = 3.0f*cos(dy);
                 const float z = -8;
 
                 sphere s = sphere(vec3(20,0,-8), 1);
@@ -361,8 +361,8 @@ int main(void) {
             }
             {
                 // Capsule-AABB intersection*/
-                const float x = -20+0.6f*sinf(dx);
-                const float y = 3.0f*cosf(dy);
+                const float x = -20+0.6f*sin(dx);
+                const float y = 3.0f*cos(dy);
                 const float z = 28.0f;
 
                 capsule c = capsule(vec3(-20.5f,-1.0f,27.5f), vec3(-20+0.5f,1.0f,28.5f), 0.2f);
@@ -381,8 +381,8 @@ int main(void) {
             }
             {
                 // AABB-Capsule intersection*/
-                const float x = 0.4f*sinf(dx);
-                const float y = 3.0f*cosf(dy);
+                const float x = 0.4f*sin(dx);
+                const float y = 3.0f*cos(dy);
                 const float z = -8;
 
                 aabb a = aabb(vec3(-0.5f,-0.5f,-8.5f), vec3(0.5f,0.5f,-7.5f));
@@ -399,7 +399,7 @@ int main(void) {
             }
             {
                 // poly(Pyramid)-Sphere (GJK) intersection*/
-                sphere s = sphere(vec3(-10+0.6f*sinf(dx), 3.0f*cosf(dy),-8), 1);
+                sphere s = sphere(vec3(-10+0.6f*sin(dx), 3.0f*cos(dy),-8), 1);
                 poly pyr = pyramid(vec3(-10.5f,-0.5f,-7.5f), vec3(-10.5f,1.0f,-7.5f), 1.0f);
 
                 gjk_result gjk;
@@ -419,7 +419,7 @@ int main(void) {
             {
                 // poly(Diamond)-Sphere (GJK) intersection*/
 
-                sphere s = sphere(vec3(-20+0.6f*sinf(dx), 3.0f*cosf(dy),-8), 1);
+                sphere s = sphere(vec3(-20+0.6f*sin(dx), 3.0f*cos(dy),-8), 1);
                 poly dmd = diamond(vec3(-20.5f,-0.5f,-7.5f), vec3(-20.5f,1.0f,-7.5f), 0.5f);
 
                 gjk_result gjk;
@@ -439,8 +439,8 @@ int main(void) {
             {
                 // poly(Pyramid)-Capsule (GJK) intersection*/
 
-                const float x = 0.4f*sinf(dx);
-                const float y = 3.0f*cosf(dy);
+                const float x = 0.4f*sin(dx);
+                const float y = 3.0f*cos(dy);
                 const float z = -15;
 
                 capsule c = capsule(vec3(x,y-1.0f,z), vec3(x,y+1.0f,z), 0.2f);
@@ -464,8 +464,8 @@ int main(void) {
             {
                 // poly(Diamond)-Capsule (GJK) intersection*/
 
-                const float x = -10 + 0.4f*sinf(dx);
-                const float y = 3.0f*cosf(dy);
+                const float x = -10 + 0.4f*sin(dx);
+                const float y = 3.0f*cos(dy);
                 const float z = -15;
 
                 capsule c = capsule(vec3(x,y-1.0f,z), vec3(x,y+1.0f,z), 0.2f);
@@ -489,8 +489,8 @@ int main(void) {
             {
                 // poly(Diamond)-poly(Pyramid) (GJK) intersection*/
 
-                const float x = -20 + 0.4f*sinf(dx);
-                const float y = 3.0f*cosf(dy);
+                const float x = -20 + 0.4f*sin(dx);
+                const float y = 3.0f*cos(dy);
                 const float z = -15;
 
                 poly pyr = pyramid(vec3(x,y-0.5f,z), vec3(x,y+1,z), 0.8f);
@@ -514,8 +514,8 @@ int main(void) {
             {
                 // poly(Pyramid)-poly(Diamond) (GJK) intersection*/
 
-                const float x = 10 + 0.4f*sinf(dx);
-                const float y = 3.0f*cosf(dy);
+                const float x = 10 + 0.4f*sin(dx);
+                const float y = 3.0f*cos(dy);
                 const float z = -15;
 
                 poly dmd = diamond(vec3(x,y-0.5f,z), vec3(x,y+1,z), 0.5f);
@@ -539,8 +539,8 @@ int main(void) {
             {
                 // poly(Diamond)-AABB (GJK) intersection*/
 
-                const float x = 20 + 0.4f*sinf(dx);
-                const float y = 3.0f*cosf(dy);
+                const float x = 20 + 0.4f*sin(dx);
+                const float y = 3.0f*cos(dy);
                 const float z = -15;
 
                 poly dmd = diamond(vec3(x,y-0.5f,z), vec3(x,y+1,z), 0.5f);

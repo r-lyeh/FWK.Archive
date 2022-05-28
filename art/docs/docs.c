@@ -68,6 +68,7 @@
 //   } image_t;
 
 #include "fwk.h"
+#include <ctype.h>
 
 int DO_CSS = 1;
 int DO_DEBUG = 0;

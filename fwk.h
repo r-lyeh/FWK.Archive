@@ -91,6 +91,10 @@
 extern "C" {
 #endif
 
+//-----------------------------------------------------------------------------
+// Headers
+
+#line 1 "fwk_config.h"
 // -----------------------------------------------------------------------------
 // if/n/def hell
 
@@ -178,14 +182,22 @@ extern "C" {
 #define benchmark        for(double macro(t) = -time_ss(); macro(t) < 0; printf("%.2fs (" FILELINE ")\n", macro(t)+=time_ss()))
 #define do_once          static int macro(once) = 0; for(;!macro(once);macro(once)=1)
 
+#ifdef _MSC_VER
+#define __thread         __declspec(thread)
+#elif defined __TINYC__ && defined _WIN32
+#define __thread         __declspec(thread) // compiles fine, but does not work apparently
+#elif defined __TINYC__
+#define __thread
+#endif
+#define threadlocal      __thread
+
 // usage: bool static(audio_is_init) = audio_init();
 //#define static(var)    static var; do_once var
 
 //-----------------------------------------------------------------------------
 // new C macros
 
-#define ASSERT(expr, ...)   do { int fool_msvc[] = {0,}; if(!(expr)) { fool_msvc[0]++; breakpoint(va("!Expression failed: " #expr " " FILELINE "\n" __VA_ARGS__)); } } while(0)
-#define PRINTF(...)         PRINTF(va(__VA_ARGS__), 1[#__VA_ARGS__] == '!' ? callstack(+48) : "", __FILE__, __LINE__, __FUNCTION__)
+#define ASSERT(expr, ...)          do { int fool_msvc[] = {0,}; if(!(expr)) { fool_msvc[0]++; static int seen = 0; if(!seen) seen = 1, breakpoint(va("!Expression failed: " #expr " " FILELINE "\n" __VA_ARGS__)); } } while(0)
 
 #define FILELINE                   __FILE__ ":" STRINGIZE(__LINE__)
 #define STRINGIZE(x)               STRINGIZ3(x)
@@ -219,15 +231,27 @@ extern "C" {
 #define FORCE_INLINE INLINE
 #endif
 
-//-----------------------------------------------------------------------------
-// Headers
+#if defined(_MSC_VER) && (_MSC_VER <= 1700)
+#define FINITE _finite
+#else
+#define FINITE isfinite
+#endif
 
-#line 1 "fwk_config.h"
+// usage: #define vec2(...) C_CAST(vec2, __VA_ARGS__)
+// typedef union vec2 { float X,Y; }; vec2 a = {0,1}, b = vec2(0,1);
+#ifdef __cplusplus
+#define C_CAST(type, ...)  ( type { __VA_ARGS__ } )
+#else
+#define C_CAST(type, ...)  ((type){ __VA_ARGS__ } )
+#endif
 
-#if is(cl) || (is(win32) && is(tcc))
+// -----------------------------------------------------------------------------
+// visibility
+
+#if is(win32)
 #define WITH_DLL 1
-#define IMPORT __declspec(dllimport)
-#define EXPORT __declspec(dllexport)
+#define IMPORT ifdef(gcc, __attribute__ ((dllimport)), __declspec(dllimport))
+#define EXPORT ifdef(gcc, __attribute__ ((dllexport)), __declspec(dllexport))
 #define STATIC
 #else
 #define WITH_DLL 0
@@ -236,9 +260,9 @@ extern "C" {
 #define STATIC    
 #endif
 
-// msvc users may need to -DAPI=IMPORT/EXPORT as needed when loading/building FWK as DLL.
+// win32 users would need to -DAPI=IMPORT/EXPORT as needed when using/building FWK as DLL.
 #ifndef API
-#define API
+#define API STATIC
 #endif
 
 // -----------------------------------------------------------------------------
@@ -302,29 +326,16 @@ extern "C" {
 #ifdef _MSC_VER
 #include <omp.h>      // compile with /openmp to speed up some computations
 #endif
-#include <math.h>
-#include <stdio.h>
 #include <assert.h>
-#include <limits.h>
-#include <stdarg.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdbool.h>
-
-// -----------------------------------------------------------------------------
-// stl, forward includes
-
-#define array(t) t*
-#define threadlocal __thread
-
-#ifdef _MSC_VER
-#define __thread         __declspec(thread)
-#elif defined __TINYC__ && defined _WIN32
-#define __thread         __declspec(thread) // compiles fine, but does not work apparently
-#elif defined __TINYC__
-#define __thread
-#endif
+//#include <float.h>
+//#include <limits.h>
+#include <math.h>     // NAN
+#include <stdarg.h>   // va_*(), ...
+#include <stdbool.h>  // bool,true,false
+#include <stdint.h>   // u/int8/16/32/64_t
+#include <stdio.h>    // FILE,NULL
+#include <stdlib.h>   // malloc,free,exit,
+#include <string.h>   // strlen,memset,memcpy,
 
 // -----------------------------------------------------------------------------
 // pragma libs
@@ -377,7 +388,7 @@ API uint64_t hash_int(int key);
 API uint64_t hash_ptr(const void* ptr);
 
 // -----------------------------------------------------------------------------
-// utils
+// bits
 
 API uint64_t popcnt64(uint64_t x);
 
@@ -424,7 +435,7 @@ static __thread unsigned array_n_;
 #define array_vlen_(t)  ( vlen(t) - 0 )
 #define array_realloc_(t,n)  ( (t) = array_cast(t) vrealloc((t), ((n)+0) * sizeof(0[t])) )
 #define array_free(t) array_clear(t)
-#else // new: with reserve support (buggy still?)
+#else // new: with reserve support (bugs?)
 #define array_reserve(t, n) ( array_realloc_((t),(n)), array_clear(t) )
 #define array_clear(t) ( array_realloc_((t),0) ) // -1
 #define array_vlen_(t)  ( vlen(t) - sizeof(0[t]) ) // -1
@@ -438,12 +449,6 @@ static __thread unsigned array_n_;
             { l[t] = i[t]; i[t] = (e-i)[t]; (e-i)[t] = l[t]; } \
         array_pop(t); \
     } while(0)
-
-//#define array_foreach2(t,val_t,v) \
-//    for( val_t *v = &0[t]; v < (&0[t] + array_count(t)); ++v )
-
-//#define array_foreach(t, it) \
-//    for( void *end__ = (it = &0[t]) + array_count(t); it != end__; ++it )
 
 #define array_foreach(t,val_t,v) for each_array(t,val_t,v)
 #define each_array(t,val_t,v) \
@@ -624,6 +629,7 @@ API void  (set_erase)(set *m, void *key, uint64_t keyhash);
 API void* (set_find)(const set *m, void *key, uint64_t keyhash);
 API int   (set_count)(const set *m);
 API void  (set_gc)(set *m); // only if using SET_DONT_ERASE
+API void  (set_clear)(set* m);
 
 // -----------------------------------------------------------------------------
 // map<K,V>
@@ -753,6 +759,7 @@ API void* (map_find)(map *m, void *key, uint64_t keyhash);
 API int   (map_count)(map *m);
 API void  (map_gc)(map *m); // only if using MAP_DONT_ERASE
 API bool  (map_sort)(map* m);
+API void  (map_clear)(map* m);
 #line 0
 
 #line 1 "fwk_math.h"
@@ -762,41 +769,25 @@ API bool  (map_sort)(map* m);
 //
 // Credits: @ands+@krig+@vurtun (PD), @datenwolf (WTFPL2), @evanw+@barerose (CC0), @sgorsten (Unlicense).
 
-#include <math.h>
-#include <float.h>
-#include <stdint.h>
-#include <stdbool.h>
-
 #define C_EPSILON  (1e-6)
 #define C_PI       (3.141592654f) // (3.14159265358979323846f)
 #define TO_RAD     (C_PI/180.f)
 #define TO_DEG     (180.f/C_PI)
 
-#if defined(_MSC_VER) && (_MSC_VER <= 1700)
-#define m_finite _finite
-#else
-#define m_finite isfinite
-#endif
-
-#ifdef __cplusplus
-#define M_CAST(type, ...)  ( type { __VA_ARGS__ } )
-#else
-#define M_CAST(type, ...)  ((type){ __VA_ARGS__ } )
-#endif
-
 // ----------------------------------------------------------------------------
 
 //#define ptr(type)         0[&(type).x]
-#define vec2(x, y      )  M_CAST(vec2, (float)(x), (float)(y)                        )
-#define vec3(x, y, z   )  M_CAST(vec3, (float)(x), (float)(y), (float)(z),           )
-#define vec4(x, y, z, w)  M_CAST(vec4, (float)(x), (float)(y), (float)(z), (float)(w))
-#define quat(x, y, z, w)  M_CAST(quat, (float)(x), (float)(y), (float)(z), (float)(w))
-#define axis(x, y, z)     M_CAST(axis, (float)(x), (float)(y), (float)(z))
-#define mat33(...)        M_CAST(mat33, __VA_ARGS__ )
-#define mat34(...)        M_CAST(mat34, __VA_ARGS__ )
-#define mat44(...)        M_CAST(mat44, __VA_ARGS__ )
-//#define coord_system(...) M_CAST(coord_system, __VA_ARGS__)
+#define vec2i(x, y     )  C_CAST(vec2i,(int)(x),   (int)(y)                          )
+#define vec2(x, y      )  C_CAST(vec2, (float)(x), (float)(y)                        )
+#define vec3(x, y, z   )  C_CAST(vec3, (float)(x), (float)(y), (float)(z),           )
+#define vec4(x, y, z, w)  C_CAST(vec4, (float)(x), (float)(y), (float)(z), (float)(w))
+#define quat(x, y, z, w)  C_CAST(quat, (float)(x), (float)(y), (float)(z), (float)(w))
+#define axis(x, y, z)     C_CAST(axis, (float)(x), (float)(y), (float)(z))
+#define mat33(...)        C_CAST(mat33, __VA_ARGS__ )
+#define mat34(...)        C_CAST(mat34, __VA_ARGS__ )
+#define mat44(...)        C_CAST(mat44, __VA_ARGS__ )
 
+typedef union vec2i{ struct { int X,Y; };       struct { int x,y; }; struct { int r,g; }; struct { int w,h; }; struct { int min,max; }; struct { int from,to; }; struct { int src,dst; }; int v2[2]; int array[1]; } vec2i;
 typedef union vec2 { struct { float X,Y; };     struct { float x,y; }; struct { float r,g; }; struct { float w,h; }; struct { float min,max; }; struct { float from,to; }; struct { float src,dst; }; float v2[2]; float array[1]; } vec2;
 typedef union vec3 { struct { float X,Y,Z; };   struct { float x,y,z; }; struct { float r,g,b; }; struct { float w,h,d; }; vec2 xy; vec2 rg; vec2 wh; float v3[3]; float array[1]; } vec3;
 typedef union vec4 { struct { float X,Y,Z,W; }; struct { float x,y,z,w; }; struct { float r,g,b,a; }; vec2 xy; vec3 xyz; vec2 rg; vec3 rgb; vec2 wh; vec3 whd; float v4[4]; float array[1]; } vec4;
@@ -1226,15 +1217,15 @@ typedef struct triangle { vec3 p0,p1,p2;                                        
 typedef struct poly     { vec3* verts; int cnt;                                       } poly;
 typedef union  frustum  { struct { vec4 l, r, t, b, n, f; }; vec4 pl[6]; float v[24]; } frustum;
 
-#define line(...)       M_CAST(line, __VA_ARGS__)
-#define sphere(...)     M_CAST(sphere, __VA_ARGS__)
-#define aabb(...)       M_CAST(aabb, __VA_ARGS__)
-#define plane(...)      M_CAST(plane, __VA_ARGS__)
-#define capsule(...)    M_CAST(capsule, __VA_ARGS__)
-#define ray(p,normdir)  M_CAST(ray, p, normdir)
-#define triangle(...)   M_CAST(triangle, __VA_ARGS__)
-#define poly(...)       M_CAST(poly, __VA_ARGS__)
-#define frustum(...)    M_CAST(frustum, __VA_ARGS__)
+#define line(...)       C_CAST(line, __VA_ARGS__)
+#define sphere(...)     C_CAST(sphere, __VA_ARGS__)
+#define aabb(...)       C_CAST(aabb, __VA_ARGS__)
+#define plane(...)      C_CAST(plane, __VA_ARGS__)
+#define capsule(...)    C_CAST(capsule, __VA_ARGS__)
+#define ray(p,normdir)  C_CAST(ray, p, normdir)
+#define triangle(...)   C_CAST(triangle, __VA_ARGS__)
+#define poly(...)       C_CAST(poly, __VA_ARGS__)
+#define frustum(...)    C_CAST(frustum, __VA_ARGS__)
 
 // ----------------------------------------------------------------------------
 
@@ -1251,7 +1242,7 @@ typedef struct hit {
     union { vec3 n; vec3 normal; };
 } hit;
 
-#define hit(...)        M_CAST(hit, __VA_ARGS__)
+#define hit(...)        C_CAST(hit, __VA_ARGS__)
 
 // ----------------------------------------------------------------------------
 
@@ -1336,7 +1327,7 @@ API poly    diamond(vec3 from, vec3 to, float size); // poly_free() required
 // asset pipeline framework
 // - rlyeh, public domain.
 //
-// all cooked assets are stored inside .cook.zip file at root folder, which acts as an asset database.
+// all cooked assets are stored inside zip file at root folder, which acts as an asset database.
 // during game boot, the database gets rebuilt as follows: (note: step 0 is an optional optimization)
 // 0. for N given cores, split list of infiles into N zipfiles. then, parallelize cookers.
 // 1. compare local disk files against file in zip database. for each mismatch do:
@@ -1347,7 +1338,7 @@ API poly    diamond(vec3 from, vec3 to, float size); // poly_free() required
 // notes: meta-datas from every raw asset are stored into comment field, inside .cook.zip archive.
 // @todo: fix leaks
 // @todo: symlink exact files
-// @todo: idle threads should steal jobs from busy threads (maybe use jobs/coroutines for this?)
+// @todo: idle threads should steal jobs from busy threads (maybe use jobs/coroutines for this?) ...
 // @todo: ... and should compress them in the original cook[N] bucket
 
 enum COOKER_FLAGS {
@@ -1361,7 +1352,7 @@ API bool cooker_start( const char *masks, int flags ); // "**"
 API void cooker_stop();
 API void cooker_cancel();
 API int  cooker_progress(); // [0..100]
-API int  cooker_jobs();     // [1..N]
+API int  cooker_jobs();     // [0..N]
 
 #line 0
 
@@ -1412,42 +1403,11 @@ API void* dll(const char *filename, const char *symbol);
 // -----------------------------------------------------------------------------
 // in-game editor
 // - rlyeh, public domain.
-//
-// when editor is on:
-// - [ ] ESC, toggles editor on/off
-// - [ ] ESC (long press), sends ESC key to game
-// - [ ] TAB, toggles console/log and debugdraw on/off
-// - [ ] TAB (long press), sends TAB key to game
-// - [ ] F1, isolated view of selected entity on/off.
-// - [ ] F1 (long press), sends F1 key to game
-// - [ ] F5, plays/restarts the game
-// - [ ] F5 (long press), sends F5 key to game
-// - [ ] F12, toggles fullscreen on/off
-// - [ ] F12 (long press), sends F12 key to game
-// - [ ] PAUSE, toggles game pause on/off
-// - [ ] PAUSE (long press), sends PAUSE key to game
-// - [ ] LMB, select item, display hierarchy @ left sidebar, status @ right sidebar. right click to unselect
-// - [ ] RMB, on selected item, display contextual menu: edit, edit script...
-// - [ ] RMB, camera move if no gameobj is selected + WASDEC + wheel
-// - [ ] SPC, on selected item, cycle transform: locate, rotate, scale
-// - [ ] CTRL+S save, CTRL+L load restore point
-// - [ ] IMPR save capture bug/info
-//
-// roadmap
-// - [x] ray/object picking
-// - [x] basic gizmos (@todo: fixed screen size, snapping)
-// - [ ] introspect properties on selected object
-// - [ ] add/rem entities, add/rem components, add/rem/pause/resume systems
-// - [ ] widgets for (bool,str,flt,int,vec2,vec3,vec4,range,mesh,texture,audio,any other asset,combo of anything)
-// - [ ] osc server for properties and editor behavior
-// - [ ] multiple selections/select all
-// - [ ] undo/redo
-// - [ ] cut/copy/paste (ctrl-c to serialize)
-// - [ ] menu: open, save, save as, save all, reload
 
-API void  editor();
-API bool  editor_active();
+//API void  editor();
+//API bool  editor_active();
 API vec3  editor_pick(float mouse_x, float mouse_y);
+API char* editor_path(const char *path);
 
 // open file dialog
 
@@ -1458,6 +1418,7 @@ API char* dialog_save();
 
 API int   gizmo(vec3 *pos, vec3 *rot, vec3 *sca);
 API bool  gizmo_active();
+API bool  gizmo_hover();
 
 // localization kit (I18N, L10N)
 
@@ -1474,7 +1435,6 @@ API char* kit_translate( const char *id ); // perform a translation, given curre
 API char* kit_translate2( const char *id, const char *langcode_iso639_1 ); // perform a translation given explicit locale
 
 API void  kit_dump_state( FILE *fp );
-
 #line 0
 
 #line 1 "fwk_file.h"
@@ -1491,6 +1451,8 @@ API void  kit_dump_state( FILE *fp );
 // physical filesystem. files
 
 API const char** file_list(const char *path, const char *masks); // **.png;*.c
+API bool         file_write( const char *file, const void *ptr, int len );
+API bool         file_append( const char *file, const void *ptr, int len );
 API char *       file_read(const char *filename);
 API char *       file_load(const char *filename, int *len);
 API uint64_t     file_size(const char *pathfile);
@@ -1503,6 +1465,7 @@ API char *       file_ext(const char *pathfile); // c:/prj/dir/file.ext -> .ext
 API char *       file_id(const char *pathfile); // c:/prj/dir/file.ext -> file/dir/prj (name then alphabetical)
 API char *       file_normalize(const char *pathfile); // c:/prj/dir/file.ext -> c/prj/dir/file_ext
 //API char *     file_normalize_with_folder(const char *pathfile); // c:/prj/dir/file.ext -> dir/file_ext
+API char *       file_counter(const char *pathfile); // fwk.ini -> fwk(001).ini -> fwk(002).ini [...]
 
 API uint64_t     file_stamp(const char *pathfile); // 20210319113316 (datetime in base10)
 API uint64_t     file_stamp_epoch(const char *pathfile); // 1616153596 (seconds since unix epoch)
@@ -1515,6 +1478,13 @@ API bool         file_move(const char *src, const char *dst);
 API FILE*        file_temp();
 API char*        file_tempname();
 
+// compressed files
+
+API array(char*) file_zip_list(const char *zipfile);
+API array(char)  file_zip_extract(const char *zipfile, const char *filename);
+API bool         file_zip_append(const char *zipfile, const char *filename, int clevel);
+API bool         file_zip_appendmem(const char *zipfile, const char *entryname, const void *ptr, unsigned len, int clevel);
+
 // storage (emscripten only)
 
 // Mounts local storage folder for writing. Useful for Emscripten only. @path_folder: "/save" for example
@@ -1523,13 +1493,6 @@ API char*        file_tempname();
 API void         storage_mount(const char* folder);
 API void         storage_read();
 API void         storage_flush();
-
-// compressed zipfiles
-
-API array(char*) zipfile_list(const char *zipname);
-API array(char)  zipfile_extract(const char *zipname, const char *filename);
-API bool         zipfile_append(const char *zipname, const char *filename, int clevel);
-API bool         zipfile_append_mem(const char *zipname, const char *entryname, const void *ptr, unsigned len, int clevel);
 
 // virtual filesystem
 
@@ -1548,6 +1511,19 @@ API FILE*        vfs_handle(const char *pathfile); // same as above, but returns
 
 API void *       cache_insert(const char *key, void *value, int size);
 API void *       cache_lookup(const char *key, int *size);
+
+// ini
+
+// @todo: evaluate alt api
+// int count = ini_count(filename);
+// char *key = ini_key(filename, id);
+// char *val = ini_val(filename, id);
+
+typedef map(char*,char*) ini_t;
+
+API ini_t        ini(const char *filename);
+API ini_t        ini_from_mem(const char *data);
+API bool         ini_write(const char *filename, const char *section, const char *key, const char *value);
 #line 0
 
 #line 1 "fwk_font.h"
@@ -1712,6 +1688,7 @@ API void        input_send( int vk ); // @todo
 API void*       input_save_state( int id, int *size); // @todo
 API bool        input_load_state( int id, void *ptr, int size); // @todo
 API char        input_keychar(unsigned code); // Converts keyboard code to its latin char (if any)
+API int         input_anykey();
 
 // --
 
@@ -1737,7 +1714,7 @@ enum INPUT_ENUMS {
     GAMEPAD_CONNECTED, GAMEPAD_A, GAMEPAD_B, GAMEPAD_X, GAMEPAD_Y,
     GAMEPAD_UP, GAMEPAD_DOWN, GAMEPAD_LEFT, GAMEPAD_RIGHT, GAMEPAD_MENU, GAMEPAD_START,
     GAMEPAD_LB, GAMEPAD_RB, GAMEPAD_LTHUMB, GAMEPAD_RTHUMB,
-    WINDOW_BLUR, WINDOW_FOCUS, WINDOW_CLOSE, WINDOW_MINIMIZE, WINDOW_MAXIMIZE, WINDOW_FULLSCREEN, WINDOW_WINDOWED,
+    WINDOW_BLUR, WINDOW_FOCUS, WINDOW_CLOSE, WINDOW_MINIMIZE, WINDOW_MAXIMIZE, WINDOW_FULLSCREEN, WINDOW_WINDOWED, // MINI/MAXI/RESTORED, SHOWN/HIDDEN
 
     // -- floats: x7 gamepad, x3 mouse, x4 touch, x4 window
     GAMEPAD_LPAD, GAMEPAD_LPADX = GAMEPAD_LPAD, GAMEPAD_LPADY,
@@ -1972,32 +1949,33 @@ API extern void (*dtor[256])(); ///-
 
 API void* obj_initialize( void **ptr, char *type_and_info );
 static threadlocal void *obj_tmpalloc;
-
 #line 0
 
 #line 1 "fwk_profile.h"
 // -----------------------------------------------------------------------------
 // profiler & stats (@fixme: threadsafe)
 
-#if WITH_PROFILE
+#if !WITH_PROFILE
+#   define profile(...)                 for(int macro(i) = 1; macro(i); macro(i) = 0)
+#   define profile_incstat(name, accum) do {} while(0)
+#   define profile_init()               do {} while(0)
+#   define profile_render()             do {} while(0)
+#   define profile_enable(x)            0
+#else
 #   define profile(section) for( \
-        struct profile_t *found = map_find_or_add(profiler, section "@" FILELINE, (struct profile_t){NAN} ), *dummy = (\
-        found->cost = -time_us(), found); found->cost < 0; found->cost += time_us(), found->avg = found->cost * 0.25 + found->avg * 0.75)  ///+
-#   define profile_incstat(name, accum) do { if(profiler) { \
-        struct profile_t *found = map_find(profiler, name); \
-        if(!found) found = map_insert(profiler, name, (struct profile_t){0}); \
-        found->stat += accum; \
-        } } while(0) ///+
+        struct profile_t *found = profiler_enabled ? \
+            map_find_or_add(profiler, section "@" FILELINE, (struct profile_t){NAN} ) : NULL, \
+        *doit = found + ( found ? found->cost = -time_us(), 1 : 1 ); doit; \
+        doit = found ? found->cost += time_us(), found->avg = found->cost * 0.25 + found->avg * 0.75, NULL : NULL)  ///+
+#   define profile_incstat(name, accum) for( \
+        struct profile_t *found = profiler_enabled ? map_find_or_add(profiler, name, (struct profile_t){0}) : NULL; \
+        found; found->stat += accum, found = NULL) ///+
+API int profile_enable(bool on);
+
 struct profile_t { double stat; int32_t cost, avg; }; ///-
 typedef map(char *, struct profile_t) profiler_t; ///-
 extern API profiler_t profiler; ///-
 extern API int profiler_enabled; ///-
-#else
-#   define profile_init()               do {} while(0)
-#   define profile_enable(x)            do {} while(0)
-#   define profile_incstat(name, accum) do {} while(0)
-#   define profile(...)                 for(int macro(i) = 1; macro(i); macro(i) = 0)
-#   define profile_render()
 #endif
 #line 0
 
@@ -2026,6 +2004,9 @@ API float    alpha( unsigned rgba );
 #define RGB4(r,g,b,a) RGBX(RGB3(r,g,b),a)
 
 #define BLACK   RGBX(0x000000,255)
+#define WHITE   RGBX(0xFFF1E8,255)
+
+#if 0
 #define RED     RGBX(0xFF004D,255)
 #define GREEN   RGBX(0x00B543,255)
 #define BLUE    RGBX(0x065AB5,255)
@@ -2033,8 +2014,23 @@ API float    alpha( unsigned rgba );
 #define CYAN    RGBX(0x29ADFF,255)
 #define PURPLE  RGBX(0x7E2553,255)
 #define YELLOW  RGBX(0xFFEC27,255)
-#define WHITE   RGBX(0xFFF1E8,255)
 #define GRAY    RGBX(0x725158,255)
+#else
+// in this colour scheme, all components make 255+192 (~) to keep
+// tone balance. red, purple and yellow tweak a little bit to
+// fit better with gray colours.
+#define RED     RGB3(   255,48,48 )
+#define GREEN   RGB3(  144,255,48 )
+#define CYAN    RGB3(   0,192,255 )
+#define ORANGE  RGB3(  255,144,48 )
+#define PURPLE  RGB3( 178,128,255 )
+#define YELLOW  RGB3(   255,224,0 )
+#define GRAY    RGB3( 149,149,149 )
+#define PINK    RGB3(  255,48,144 )
+#define AQUA    RGB3(  48,255,144 )
+
+#define BLUE    RGBX(0x065AB5,255)
+#endif
 
 // -----------------------------------------------------------------------------
 // images
@@ -2402,8 +2398,8 @@ API void ddraw_color(unsigned rgb);
 API void ddraw_color_push(unsigned rgb);
 API void ddraw_color_pop();
 //
-API void ddraw_ontop_push(int enabled);
 API void ddraw_ontop(int enabled);
+API void ddraw_ontop_push(int enabled);
 API void ddraw_ontop_pop();
 //
 API void ddraw_aabb(vec3 minbb, vec3 maxbb);
@@ -2463,7 +2459,8 @@ typedef struct camera_t {
 } camera_t;
 
 API camera_t camera();
-API void camera_move(camera_t *cam, float x, float y, float z);
+API void camera_teleport(camera_t *cam, float px, float py, float pz);
+API void camera_move(camera_t *cam, float incx, float incy, float incz);
 API void camera_fps(camera_t *cam, float yaw, float pitch);
 API void camera_orbit(camera_t *cam, float yaw, float pitch, float inc_distance);
 API void camera_lookat(camera_t *cam, vec3 target);
@@ -2580,6 +2577,7 @@ char* strtok_s(char* str,const char* delimiters,char** context); // tcc misses t
 // utils
 
 API int          strmatch(const char *s, const char *wildcard);
+API int          strmatchi(const char *s, const char *wildcard);
 
 API int          strcmp_qsort(const void *a, const void *b);
 API int          strcmpi_qsort(const void *a, const void *b);
@@ -2609,13 +2607,13 @@ API size_t       strlcpy(char *dst, const char *src, size_t dstcap); // copy 2 s
 /// split `string` after any of `delimiters` character is found.
 /// returns temporary array of split strings. see: strjoin
 /// > array(char*) tokens = strsplit("hello! world!", " !"); // [0]="hello",[1]="world",
-API array(char*) strsplit(const char *string, const char *delimiters);
+API array(char*)    strsplit(const char *string, const char *delimiters);
 
 /// concatenate all elements within `list`, with `separator` string in between.
 /// returns: temporary joint string. see: strsplit
 /// > array(char*) tokens = strsplit("hello! world!", " !"); // [0]="hello",[1]="world",
 /// > char *joint = strjoin(tokens, "+"); // joint="hello+world"
-API char*        strjoin(array(char*) list, const char *separator);
+API char*           strjoin(array(char*) list, const char *separator);
 
 API char *          string8(const wchar_t *str);  /// convert from wchar16(win) to utf8/ascii
 API array(uint32_t) string32( const char *utf8 ); /// convert from utf8 to utf32
@@ -2632,28 +2630,25 @@ API array(uint32_t) string32( const char *utf8 ); /// convert from utf8 to utf32
 API int         argc();
 API char*       argv(int);
 
-API int         flag(const char *commalist); // --arg
-API const char* option(const char *commalist, const char *defaults); // --arg=key or --arg key
+API int         flag(const char *commalist); // --arg // app_flag?
+API const char* option(const char *commalist, const char *defaults); // --arg=value or --arg value
 API int         optioni(const char *commalist, int defaults); // argvi() ?
-API float       optionf(const char *commalist, float defaults);
+API float       optionf(const char *commalist, float defaults); // app_option?
 
 // @todo:
 // ini(file, key, default);
 // inif(file, key, default);
 
-API char*       os_exec_output(); // legacy
-API int         os_exec(const char *command); // legacy
-#define         os_exec(...) os_exec(file_normalize(va(__VA_ARGS__))) // legacy
-API char*       os_exec_(int *retvalue, const char *command); // new
-#define         os_exec_(rc, ...) os_exec(rc, file_normalize(va(__VA_ARGS__))) // new
+API char*       os_exec_output();
+API int         os_exec(const char *command); // app_exec?
 
 API void        tty_color(unsigned color);
 API void        tty_reset();
 
-API int         cpu_cores();
+API int         cpu_cores(); // app_cores?
 
 // return battery level [1..100]. also positive if charging (+), negative if discharging (-), and 0 if no battery is present.
-API int         battery();
+API int         battery(); // app_battery?
 
 API const char* app_name();
 API const char* app_path();
@@ -2707,8 +2702,10 @@ API uint64_t*   big64p(void *n, int sz);
 API double*     big64pf(void *n, int sz);
 
 #define PANIC(...)   PANIC(va(__VA_ARGS__), __FILE__, __LINE__) // die() ?
-API int (PRINTF)(const char *text, const char *stack, const char *file, int line, const char *function);
 API int (PANIC)(const char *error, const char *file, int line);
+
+#define PRINTF(...)  PRINTF(va(__VA_ARGS__), 1[#__VA_ARGS__] == '!' ? callstack(+48) : "", __FILE__, __LINE__, __FUNCTION__)
+API int (PRINTF)(const char *text, const char *stack, const char *file, int line, const char *function);
 #line 0
 
 #line 1 "fwk_ui.h"
@@ -2719,8 +2716,11 @@ API int (PANIC)(const char *error, const char *file, int line);
 // @todo: logger/console
 // @todo: surround-adaptive window resizing. ie, surrounding windows adapting theirselves to fit dragged active window
 
+API int ui_notify(const char *title, const char *body);
 API int ui_window(const char *title, int *enabled);
-API int  ui_begin(const char *title, int flags);
+API int  ui_panel(const char *title, int flags);
+API int   ui_collapse(const char *label, const char *id);
+API int   ui_context();
 API int    ui_section(const char *title);
 API int    ui_int(const char *label, int *value);
 API int    ui_bool(const char *label, bool *value);
@@ -2736,7 +2736,9 @@ API int    ui_color4(const char *label, float *color4); //[0..255]
 API int    ui_color4f(const char *label, float *color4); //[0..1]
 API int    ui_button(const char *label);
 API int    ui_buttons(int buttons, /*labels*/...);
-API int    ui_toolbar(const char *icons); // int clicked_icon = ui_toolbar( ICON_1 ";" ICON_2 ";" ICON_3 ";" ICON_4 );
+API int    ui_button_transparent(const char *label);
+API int    ui_toolbar(const char *options); // int choice = ui_toolbar("A;B;C;D");
+API int    ui_submenu(const char *options); // int choice = ui_submenu("A;B;C;D");
 API int    ui_browse(const char **outfile, bool *inlined);
 API int    ui_toggle(const char *label, bool *value);
 API int    ui_dialog(const char *title, const char *text, int choices, bool *show); // @fixme: return
@@ -2747,6 +2749,7 @@ API int    ui_colormap(const char *map_name, colormap_t *cm); // returns num mem
 API int    ui_separator();
 API int    ui_bits8(const char *label, uint8_t *bits);
 API int    ui_bits16(const char *label, uint16_t *bits);
+API int    ui_console();
 API int    ui_clampf(const char *label, float *value, float minf, float maxf);
 API int    ui_label(const char *label);
 API int    ui_label2(const char *label, const char *caption);
@@ -2755,19 +2758,24 @@ API int    ui_slider2(const char *label, float *value, const char *caption);
 API int    ui_const_bool(const char *label, const double value);
 API int    ui_const_float(const char *label, const double value);
 API int    ui_const_string(const char *label, const char *value);
-API void  ui_end();
-API void ui_window_end();
+API int   ui_context_end();
+API int   ui_collapse_clicked();
+API int   ui_collapse_end();
+API int  ui_panel_end();
+API int ui_window_end();
 
-API int  ui_has_menubar();
-API int  ui_menu(const char *items); // semicolon- or comma-separated items
-API int  ui_item();
+API int ui_show(const char *panel_or_window_title, int enabled);
+API int ui_visible(const char *panel_or_window_title);
 
-API int  ui_notify(const char *title, const char *body);
+API int ui_has_menubar();
+API int ui_menu(const char *items); // semicolon- or comma-separated items
+API int ui_item();
 
-API int  ui_popups(); // ui_any_popup()? ui_has_popups()?
-API int  ui_hover(); // ui_is_hover()?
-API int  ui_active(); // ui_is_active()?
-API void ui_demo();
+API int ui_popups(); // ui_any_popup()? ui_has_popups()?
+API int ui_hover(); // ui_is_hover()?
+API int ui_active(); // ui_is_active()?
+
+API int ui_demo();
 #line 0
 
 #line 1 "fwk_video.h"
@@ -2803,11 +2811,11 @@ API void       video_destroy( video_t *v );
 // video recorder (uses external ffmpeg and fallbacks to built-in mpeg1 encoder)
 // - rlyeh, public domain
 //
-// @fixme: MSAA can cause some artifacts with PBOs: either use glDisable(GL_MULTISAMPLE) before recording or do not create window with WINDOW_MSAA at all.
+// @fixme: MSAA can cause some artifacts with Intel PBOs: either use glDisable(GL_MULTISAMPLE) before recording or do not create window with WINDOW_MSAA at all.
 
-API void       videorec_start(const char *outfile_mp4); // window_record() ?
-API bool        videorec_active();
-API void       videorec_stop(void);
+API bool       record_start(const char *outfile_mp4);
+API bool        record_active();
+API void       record_stop(void);
 #line 0
 
 #line 1 "fwk_window.h"
@@ -2856,10 +2864,8 @@ API char*    window_stats();
 API uint64_t window_frame();
 API int      window_width();
 API int      window_height();
-API double   window_aspect();
 API double   window_time();
 API double   window_delta();
-API double   window_fps();
 
 // API bool  window_hook(void (*func)(), void* userdata); // deprecated
 // API void  window_unhook(void (*func)()); // deprecated
@@ -2875,10 +2881,14 @@ API int      window_has_pause();
 API void     window_visible(int visible);
 API int      window_has_visible();
 
-API void     window_lock_aspect(unsigned numer, unsigned denom);
-API void     window_unlock_aspect();
-API void     window_lock_fps(float fps);
-API void     window_unlock_fps();
+API double   window_aspect();
+API void     window_aspect_lock(unsigned numer, unsigned denom);
+API void     window_aspect_unlock();
+
+API double   window_fps();
+API double   window_fps_target();
+API void     window_fps_lock(float fps);
+API void     window_fps_unlock();
 
 API void     window_screenshot(const char* outfile_png);
 API int      window_record(const char *outfile_mp4);
@@ -2891,14 +2901,14 @@ API int      window_record(const char *outfile_mp4);
 #endif
 
 // expose glfw/glad apis
-#ifdef __EMSCRIPTEN__ // emscripten is dumb
+#ifdef __EMSCRIPTEN__
     #include <GL/glew.h>
     #include <GLFW/glfw3.h>
     #include <emscripten.h>
     #include <emscripten/html5.h>
     #define gladLoadGL(func) (glewExperimental = true, glewInit() == GLEW_OK)
 #else
-    #if is(win32) && is(tcc) && WITH_DLL
+    #if is(win32) && /*is(tcc) &&*/ WITH_DLL
     #define GLAD_API_CALL API
     #endif
     #ifndef GLAD_GL_H_
