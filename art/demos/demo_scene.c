@@ -108,11 +108,6 @@ int main() {
             ddraw_flush();
         }
 
-        // edit entities
-        profile("Editor") {
-            editor();
-        }
-
         // apply post-fxs from here
         fx_begin();
 

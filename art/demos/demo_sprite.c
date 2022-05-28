@@ -165,7 +165,7 @@ int main(int argc, char **argv) {
     camera_enable(&cam);
 
     while(window_swap()) {
-        if( input(KEY_F5)) app_reload();
+        if( input(KEY_F5)) window_reload();
         if( input(KEY_F11)) window_fullscreen( window_has_fullscreen() ^ 1);
         if( input(KEY_ESC) ) break;
 

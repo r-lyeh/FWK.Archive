@@ -168,6 +168,17 @@ uint64_t hash_ptr(const void *ptr) {
 }
 
 // -----------------------------------------------------------------------------
+// utils
+
+uint64_t popcnt64(uint64_t x) {
+    // [src] https://en.wikipedia.org/wiki/Hamming_weight
+    x -= (x >> 1) & 0x5555555555555555ULL;                                //put count of each 2 bits into those 2 bits
+    x = (x & 0x3333333333333333ULL) + ((x >> 2) & 0x3333333333333333ULL); //put count of each 4 bits into those 4 bits
+    x = (x + (x >> 4)) & 0x0f0f0f0f0f0f0f0fULL;                           //put count of each 8 bits into those 8 bits
+    return (x * 0x0101010101010101ULL) >> 56;                             //returns left 8 bits of x + (x<<8) + (x<<16) + (x<<24) + ...
+}
+
+// -----------------------------------------------------------------------------
 // vector based allocator (x1.75 enlarge factor)
 
 void* vrealloc( void* p, size_t sz ) {
@@ -180,12 +191,13 @@ void* vrealloc( void* p, size_t sz ) {
         }
         return 0;
     } else {
-        size_t *ret = (size_t*)p - 2;
+        size_t *ret;
         if( !p ) {
             ret = (size_t*)REALLOC( 0, sizeof(size_t) * 2 + sz );
             ret[0] = sz;
             ret[1] = 0;
         } else {
+            ret = (size_t*)p - 2;
             size_t osz = ret[0];
             size_t ocp = ret[1];
             if( sz <= (osz + ocp) ) {
@@ -469,7 +481,7 @@ void (set_free)(set* m) {
 char* tempvl(const char *fmt, va_list vl) {
     va_list copy;
     va_copy(copy, vl);
-    int sz = vsnprintf( 0, 0, fmt, copy ) + 1;
+    int sz = /*stbsp_*/vsnprintf( 0, 0, fmt, copy ) + 1;
     va_end(copy);
 
     int reqlen = sz;
@@ -478,14 +490,14 @@ char* tempvl(const char *fmt, va_list vl) {
     static __thread char buf[STACK_ALLOC];
 #else
     enum { STACK_ALLOC = 128*1024 };
-    static __thread char *buf = 0; if(!buf) buf = REALLOC(0, STACK_ALLOC); // leak
+    static __thread char *buf = 0; if(!buf) buf = REALLOC(0, STACK_ALLOC); // @leak
 #endif
-    static __thread int cur = 0, len = STACK_ALLOC; //printf("string stack %d/%d\n", cur, STACK_ALLOC);
+    static __thread int cur = 0, len = STACK_ALLOC - 1; //printf("string stack %d/%d\n", cur, STACK_ALLOC);
 
     assert(reqlen < STACK_ALLOC && "no stack enough, increase STACK_ALLOC variable above");
     char* ptr = buf + (cur *= (cur+reqlen) < len, (cur += reqlen) - reqlen);
 
-    vsnprintf( ptr, sz, fmt, vl );
+    /*stbsp_*/vsnprintf( ptr, sz, fmt, vl );
     return (char *)ptr;
 }
 char* tempva(const char *fmt, ...) {
@@ -656,11 +668,11 @@ char *string8(const wchar_t *str) { // from wchar16(win) to utf8/ascii
 
 char *strrepl(char **string, const char *target, const char *replace) { // may reallocate input string if needed
     //if new text is shorter than old one,then no need to heap, replace inline
-    //int rlen = strlen(replace), diff = strlen(target) - rlen;
-    //if( diff >= 0 ) return strswap(*string, target, replace);
+    int rlen = strlen(replace), tlen = strlen(target), diff = tlen - rlen;
+    if( diff >= 0 ) return strswap(*string, target, replace);
 
     char *buf = 0, *aux = *string;
-    for( int tgtlen = strlen(target); tgtlen && aux[0]; ) {
+    for( int tgtlen = tlen; tgtlen && aux[0]; ) {
         char *found = strstr(aux, target);
         if( found ) {
             strcatf(&buf, "%.*s%s", (int)(found - aux), aux, replace);
@@ -928,10 +940,50 @@ static void fwk_post_init(float);
 #line 0
 
 #line 1 "fwk_profile.c"
+
 #if WITH_PROFILE
 profiler_t profiler;
 int profiler_enabled = 1;
+
+void (profile_init)() { map_init(profiler, less_str, hash_str); }
+void (profile_enable)(bool on) { profiler_enabled = !!(on); }
+void (profile_render)() { 
+    if(!profiler) return;
+    if(!profiler_enabled) return;
+
+    int has_menu = ui_has_menubar();
+    if( !has_menu ) {
+        // render profiler, unless we are in the cooking stage 
+        // also, we defer profile from rendering some initial frames, so the user may have chance to actually call any UI call before us
+        // (given the UI policy nature, first-called first-served, we dont want profile tab to be on top of all other tabs)
+        static unsigned frames = 0; if(frames <= 3) frames += cooker_progress() >= 100;
+        if( frames <= 3 ) return;
+    }
+
+    if( has_menu ? ui_window("Profiler", 0) : ui_begin("Profiler", 0) ) {
+
+        for each_map_ptr(profiler, const char *, key, struct profile_t, val ) {
+            if( !isnan(val->stat) ) {
+                float v = val->stat;
+                ui_slider2(va("Stat: %s", *key), &v, va("%.2f", val->stat));
+                val->stat = 0;
+            }
+        }
+
+        ui_separator();
+
+        for each_map_ptr(profiler, const char *, key, struct profile_t, val ) {
+            if( isnan(val->stat) ) {
+                float v = val->avg/1000.0;
+                ui_slider2(*key, &v, va("%.2f ms", val->avg/1000.0));
+            }
+        }
+
+        (has_menu ? ui_window_end : ui_end)();
+    }
+}
 #endif
+
 #line 0
 
 #line 1 "fwk_audio.c"
@@ -2643,7 +2695,12 @@ array(struct fs) zipscan_filter(int threadid, int numthreads) {
     // iterate all previously scanned files
     array(struct fs) fs = 0;
     for( int i = 0, end = array_count(fs_now); i < end; ++i ) {
-        const char *fname = fs_now[i].fname;
+        // during workload distribution, we assign random files to specific thread buckets.
+        // we achieve this by hashing the basename of the file. we used to hash also the path 
+        // long time ago but that is less resilient to file relocations across the repository. 
+        // excluding the file extension from the hash also helps from external file conversions.
+        char *fname = file_name(fs_now[i].fname);
+        char *dot = strrchr(fname, '.'); if(dot) *dot = '\0';
 
         // skip if list item does not belong to this thread bucket
         uint64_t hash = hash_str(fname);
@@ -2680,7 +2737,7 @@ int zipscan_diff( zip* old, array(struct fs) now ) {
             uint64_t oldsize = atoi64(zip_comment(old,found)); // zip_size(old, found); returns sizeof processed asset. return original size of unprocessed asset, which we store in comment section
             uint64_t oldstamp = atoi64(zip_modt(old, found)+20);
             if( oldsize != now[i].bytes || oldstamp > (now[i].stamp + 1) ) { // @fixme: should use hash instead. hashof(tool) ^ hashof(args used) ^ hashof(rawsize) ^ hashof(rawdate)
-                printf("%s:\t%llu vs %llu, %llu vs %llu\n", now[i].fname, (uint64_t)oldsize,(uint64_t)now[i].bytes, (uint64_t)oldstamp,(uint64_t)now[i].stamp);
+                printf("%s:\t%u vs %u, %u vs %u\n", now[i].fname, (unsigned)oldsize,(unsigned)now[i].bytes, (unsigned)oldstamp,(unsigned)now[i].stamp);
                 array_push(changed, STRDUP(now[i].fname));
                 array_push(uncooked, STRDUP(now[i].fname));
             }
@@ -3157,18 +3214,21 @@ char *file_pathabs( const char *pathfile ) {
 char *file_path(const char *pathfile) {
     return va("%.*s", (int)(strlen(pathfile)-strlen(file_name(pathfile))), pathfile);
 }
-char *file_load(const char *filename, int *len) { // @todo: fix leaks
+char *file_load(const char *filename, int *len) { // @todo: 32 counters/thread enough?
+    static threadlocal array(char) buffer[32] = {0}, *invalid[1];
+    static threadlocal unsigned i = 0; i = (i+1) % 32;
+
     FILE *fp = filename[0] ? fopen(filename, "rb") : NULL;
     if( fp ) {
         fseek(fp, 0L, SEEK_END);
         size_t sz = ftell(fp);
         fseek(fp, 0L, SEEK_SET);
-        char *bin = REALLOC(0, sz+1);
-        fread(bin,sz,1,fp);
-        fclose(fp);
-        bin[sz] = 0;
+        array_resize(buffer[i], sz+1);
+        sz *= fread(buffer[i],sz,1,fp) == 1;
+        buffer[i][sz] = 0;
         if(len) *len = (int)sz;
-        return bin;
+        fclose(fp);
+        return buffer[i]; // @fixme: return 0 on error instead?
     }
     if (len) *len = 0;
     return 0;
@@ -3338,14 +3398,16 @@ const char** file_list(const char *cwd, const char *masks) {
                 if( strstr(line, arg0) ) line = buf + larg0;
                 if( !memcmp(line, "./", 2) ) line += 2;
                 int len = strlen(line); while( len > 0 && line[len-1] < 32 ) line[--len] = 0;
-                for(int i = 0; i < len; ++i ) if(line[i] == '\\') line[i] = '/';
+                if( line[0] == '\0' ) continue;
                 // do not insert system folders/files
+                for(int i = 0; i < len; ++i ) if(line[i] == '\\') line[i] = '/';
+                if( line[0] == '.' ) continue;
                 if( strstr(line, "/.") ) continue;
                 // insert copy
                 #if is(win32)
                 char *copy = STRDUP(line); // full path already provided
                 #else
-                while(line[0] == '/') ++line;
+                // while(line[0] == '/') ++line;
                 char *copy = STRDUP(va("%s%s", cwd, line)); // need to prepend path
                 #endif
                 array_push(list, copy);
@@ -9008,7 +9070,7 @@ void shader_colormap(const char *name, colormap_t c ) {
 // colors
 
 unsigned rgba( uint8_t r, uint8_t g, uint8_t b, uint8_t a ) {
-    return a << 24 | r << 16 | g << 8 | b;
+    return (unsigned)a << 24 | r << 16 | g << 8 | b;
 }
 unsigned bgra( uint8_t b, uint8_t g, uint8_t r, uint8_t a ) {
     return rgba(r,g,b,a);
@@ -10634,17 +10696,9 @@ bool postfx_load_from_mem( postfx *fx, const char *name, const char *fs ) {
     return true;
 }
 
-uint64_t postfx_count_ones(uint64_t x) {
-    // [src] https://en.wikipedia.org/wiki/Hamming_weight
-    x -= (x >> 1) & 0x5555555555555555ULL;                                //put count of each 2 bits into those 2 bits
-    x = (x & 0x3333333333333333ULL) + ((x >> 2) & 0x3333333333333333ULL); //put count of each 4 bits into those 4 bits
-    x = (x + (x >> 4)) & 0x0f0f0f0f0f0f0f0fULL;                           //put count of each 8 bits into those 8 bits
-    return (x * 0x0101010101010101ULL) >> 56;                             //returns left 8 bits of x + (x<<8) + (x<<16) + (x<<24) + ...
-}
-
 bool postfx_enable(postfx *fx, int pass, bool enabled) {
     fx->mask = enabled ? fx->mask | (1ull << pass) : fx->mask & ~(1ull << pass);
-    fx->enabled = !!postfx_count_ones(fx->mask);
+    fx->enabled = !!popcnt64(fx->mask);
     return fx->enabled;
 }
 
@@ -10684,7 +10738,7 @@ bool postfx_begin(postfx *fx, int width, int height) {
         fx->fb[1] = fbo(fx->diffuse[1].id, fx->depth[1].id, 0);
     }
 
-    uint64_t num_active_passes = postfx_count_ones(fx->mask);
+    uint64_t num_active_passes = popcnt64(fx->mask);
     bool active = fx->enabled && num_active_passes;
     if( !active ) {
         fbo_unbind();
@@ -10705,7 +10759,7 @@ bool postfx_begin(postfx *fx, int width, int height) {
 }
 
 bool postfx_end(postfx *fx) {
-    uint64_t num_active_passes = postfx_count_ones(fx->mask);
+    uint64_t num_active_passes = popcnt64(fx->mask);
     bool active = fx->enabled && num_active_passes;
     if( !active ) {
         return false;
@@ -10714,6 +10768,7 @@ bool postfx_end(postfx *fx) {
     fbo_unbind();
 
     // disable depth test in 2d rendering
+    bool is_depth_test_enabled = glIsEnabled(GL_DEPTH_TEST);
     glDisable(GL_DEPTH_TEST);
 
     int frame = 0;
@@ -10768,6 +10823,9 @@ bool postfx_end(postfx *fx) {
             else glUseProgram(0);
         }
     }
+
+    if(is_depth_test_enabled);
+    glEnable(GL_DEPTH_TEST);
 
     return true;
 }
@@ -13360,14 +13418,6 @@ const char *app_cache() {
     return buffer;
 }
 
-void app_reload() {
-    // @todo: save_on_exit();
-    fflush(0);
-    chdir(app_path());
-    execv(__argv[0], __argv);
-    exit(0);
-}
-
 char* os_exec_output() {
     static threadlocal char os_exec__output[4096] = {0};
     return os_exec__output;
@@ -13722,6 +13772,11 @@ uint64_t date() {
     time_t epoch = time(0);
     struct tm *ti = localtime(&epoch);
     return atoi64(va("%04d%02d%02d%02d%02d%02d",ti->tm_year+1900,ti->tm_mon+1,ti->tm_mday,ti->tm_hour,ti->tm_min,ti->tm_sec));
+}
+char *date_string() {
+    time_t epoch = time(0);
+    struct tm *ti = localtime(&epoch);
+    return va("%04d-%02d-%02d %02d:%02d:%02d",ti->tm_year+1900,ti->tm_mon+1,ti->tm_mday,ti->tm_hour,ti->tm_min,ti->tm_sec);
 }
 uint64_t date_epoch() {
     time_t epoch = time(0);
@@ -14149,61 +14204,82 @@ static struct nk_context *ui_ctx;
 static struct nk_glfw nk_glfw = {0};
 
 static void nk_config_custom_fonts() {
-    #define ICON_FONTNAME "fontawesome-webfont.ttf"
-    #define ICON_FONTSIZE 15
-    #define ICON_MIN 0xF000
-    #define ICON_MAX 0xF2E0
-    #define ICON_FILE_O "\xef\x80\x96" // U+f016
-    #define ICON_BARS "\xef\x83\x89" // U+f0c9
-    #define ICON_FOLDER_OPEN "\xef\x81\xbc"  // U+f07c
-    #define ICON_PAUSE "\xef\x81\x8c"    // U+f04c
-    #define ICON_PLAY "\xef\x81\x8b" // U+f04b
-    #define ICON_STOP "\xef\x81\x8d" // U+f04d
-    #define ICON_DATABASE "\xef\x87\x80" // U+f1c0
-    #define ICON_CUBE "\xef\x86\xb2" // U+f1b2
-    #define ICON_TEST_GLYPH ICON_FILE_O
+    #define ICON_FONTNAME "MaterialIconsSharp-Regular.otf" // "MaterialIconsOutlined-Regular.otf" "MaterialIcons-Regular.ttf" // 
+    #define ICON_FONTSIZE 21
+    #define ICON_MIN ICON_MIN_MD
+    #define ICON_MED ICON_MAX_16_MD
+    #define ICON_MAX ICON_MAX_MD
+    #define ICON_SPACING_X 0
+    #define ICON_SPACING_Y 0
+
+    #define ICON_BARS        ICON_MD_MENU
+    #define ICON_LOOP        ICON_MD_LOOP
+    #define ICON_FILE        ICON_MD_INSERT_DRIVE_FILE
+    #define ICON_SD_CARD     ICON_MD_SD_CARD
+    #define ICON_TRASH       ICON_MD_DELETE
 
     struct nk_font *font = NULL;
     struct nk_font_atlas *atlas = NULL;
     nk_glfw3_font_stash_begin(&nk_glfw, &atlas); // nk_sdl_font_stash_begin(&atlas);
 
-        // Default font...
+        // Default font(#1)...
 
         if( vfs_read("Carlito-Regular.ttf") ) {
-            // win32: struct nk_font *arial = nk_font_atlas_add_from_file(atlas, va("%s/fonts/arial.ttf",getenv("windir")), 15.f, 0); font = arial ? arial : font;
-            // struct nk_font *droid = nk_font_atlas_add_from_file(atlas, "nuklear/extra_font/DroidSans.ttf", 14, 0); font = droid ? droid : font;
-            struct nk_font *regular = nk_font_atlas_add_from_memory(atlas, vfs_read("Carlito-Regular.ttf"), vfs_size("Carlito-Regular.ttf"), 14.5f, 0); font = regular ? regular : font;
-        } else {
-            // fallback font
-            struct nk_font *proggy = nk_font_atlas_add_default(atlas, 13.f, NULL); font = proggy ? proggy : font;        
+            float font_size = 14.5f;
+                struct nk_font_config cfg = nk_font_config(font_size);
+                cfg.oversample_v = 2;
+                cfg.pixel_snap = 0;
+            // win32: struct nk_font *arial = nk_font_atlas_add_from_file(atlas, va("%s/fonts/arial.ttf",getenv("windir")), font_size, &cfg); font = arial ? arial : font;
+            // struct nk_font *droid = nk_font_atlas_add_from_file(atlas, "nuklear/extra_font/DroidSans.ttf", font_size, &cfg); font = droid ? droid : font;
+            struct nk_font *regular = nk_font_atlas_add_from_memory(atlas, vfs_read("Carlito-Regular.ttf"), vfs_size("Carlito-Regular.ttf"), font_size, &cfg); font = regular ? regular : font;
         }
 
         // ...with icons embedded on it.
 
         if( vfs_read(ICON_FONTNAME) ) {
-            struct nk_font_config cfg = nk_font_config(ICON_FONTSIZE+1);
-            static const nk_rune icon_range[] = {ICON_MIN, ICON_MAX, 0};
+            static const nk_rune icon_range[] = {ICON_MIN, ICON_MED /*MAX*/, 0};
+
+            struct nk_font_config cfg = nk_font_config(ICON_FONTSIZE);
             cfg.range = icon_range; // nk_font_default_glyph_ranges();
             cfg.merge_mode = 1;
 
-            cfg.spacing.x += 8.f;
-         // cfg.spacing.y += 0.f;
-         // cfg.font->ascent ++;
-         // cfg.font->height += 4;
+            cfg.spacing.x += ICON_SPACING_X;
+            cfg.spacing.y += ICON_SPACING_Y;
+         // cfg.font->ascent += ICON_ASCENT;
+         // cfg.font->height += ICON_HEIGHT;
 
-         // cfg.oversample_h = 1;
-         // cfg.oversample_v = 1;
+            cfg.oversample_h = 1;
+            cfg.oversample_v = 1;
+            cfg.pixel_snap = 1;
 
             struct nk_font *icons = nk_font_atlas_add_from_memory(atlas, vfs_read(ICON_FONTNAME), vfs_size(ICON_FONTNAME), ICON_FONTSIZE, &cfg);
         }
 
-        // Secondary fonts from here...
+        // Monospaced font. Used in terminals or consoles.
+
+        if( vfs_read("Inconsolata-Regular.ttf") ) {
+            const float fontsize = 18.f;
+            static const nk_rune icon_range[] = {32, 127, 0};
+
+            struct nk_font_config cfg = nk_font_config(fontsize);
+            cfg.range = icon_range;
+
+            cfg.oversample_h = 1;
+            cfg.oversample_v = 1;
+            cfg.pixel_snap = 1;
+
+            // struct nk_font *proggy = nk_font_atlas_add_default(atlas, fontsize, &cfg);
+            struct nk_font *bold = nk_font_atlas_add_from_memory(atlas, vfs_read("Inconsolata-Regular.ttf"), vfs_size("Inconsolata-Regular.ttf"), fontsize, &cfg);
+        }
+
+        // Extra optional fonts from here...
 
         if( vfs_read("Carlito-BoldItalic.ttf") ) {
             struct nk_font *bold = nk_font_atlas_add_from_memory(atlas, vfs_read("Carlito-BoldItalic.ttf"), vfs_size("Carlito-BoldItalic.ttf"), 16.f, 0); // font = bold ? bold : font;
         }
 
     nk_glfw3_font_stash_end(&nk_glfw); // nk_sdl_font_stash_end();
+    ASSERT(font);
     if(font) nk_style_set_font(ui_ctx, &font->handle);
 
     // Load Cursor: if you uncomment cursor loading please hide the cursor
@@ -14244,9 +14320,9 @@ static void nk_config_custom_style() {
     // table[NK_COLOR_COMBO] = nk_rgba(50, 58, 61, 255);
 
     // table[NK_COLOR_PROPERTY] = nk_rgba(50, 58, 61, 255);
-    // table[NK_COLOR_CHART] = nk_rgba(50, 58, 61, 255);
-    // table[NK_COLOR_CHART_COLOR] = main_color;
-    // table[NK_COLOR_CHART_COLOR_HIGHLIGHT] = nk_rgba(255, 0, 0, 255);
+table[NK_COLOR_CHART] = nk_rgba(50, 58, 61, 255);
+table[NK_COLOR_CHART_COLOR] = main_color;
+table[NK_COLOR_CHART_COLOR_HIGHLIGHT] = hover_color; // nk_rgba(255, 0, 0, 255);
     // table[NK_COLOR_TAB_HEADER] = main_color;
     // table[NK_COLOR_SELECT] = nk_rgba(57, 67, 61, 255);
     // table[NK_COLOR_SELECT_ACTIVE] = main_color;
@@ -14261,6 +14337,29 @@ static void nk_config_custom_style() {
     s->combo.border = 0;
     s->button.border = 1;
     s->edit.border = 0;
+}
+
+static float ui_alpha = 1;
+static array(float) ui_alphas;
+static void ui_alpha_push(float alpha) {
+    array_push(ui_alphas, ui_alpha);
+    ui_alpha = alpha;
+
+    struct nk_color c;
+    struct nk_style *s = &ui_ctx->style;
+    c = s->window.background;                  c.a = alpha * 255; nk_style_push_color(ui_ctx, &s->window.background, c);
+    c = s->text.color;                         c.a = alpha * 255; nk_style_push_color(ui_ctx, &s->text.color, c);
+    c = s->window.fixed_background.data.color; c.a = alpha * 255; nk_style_push_style_item(ui_ctx, &s->window.fixed_background, nk_style_item_color(c));
+}
+static void ui_alpha_pop() {
+    if( array_count(ui_alphas) ) {
+        nk_style_pop_style_item(ui_ctx);
+        nk_style_pop_color(ui_ctx);
+        nk_style_pop_color(ui_ctx);
+
+        ui_alpha = *array_back(ui_alphas);
+        array_pop(ui_alphas);
+    }
 }
 
 // -----------------------------------------------------------------------------
@@ -14278,8 +14377,7 @@ int ui_menu(const char *items) { // semicolon- or comma-separated items
     return ui_item();
 }
 
-static
-int ui_menu_active() {
+int ui_has_menubar() {
     return !!ui_items; // array_count(ui_items) > 0;
 }
 
@@ -14324,7 +14422,7 @@ vec2 ui_toolbar_(array(char*) ui_items, vec2 ui_results, float min_width) {
 #if 0
     nk_layout_row_dynamic(ui_ctx, 25/*h*/, array_count(ui_items));
 #else
-    // adjust size for all the next UI elements
+    // adjust size for all the upcoming UI elements
     {
         const struct nk_style *style = &ui_ctx->style;
         const struct nk_user_font *f = style->font;
@@ -14334,7 +14432,10 @@ vec2 ui_toolbar_(array(char*) ui_items, vec2 ui_results, float min_width) {
             char first_token[64];
             sscanf(ui_items[i], "%[^,;|]", first_token);
 
-            float pixels_width = f->width(f->userdata, f->height, first_token, strlen(first_token));
+            char *tooltip = strchr(first_token, '@');
+            int len = tooltip ? (int)(tooltip - first_token /*- 1*/) : strlen(first_token);
+
+            float pixels_width = f->width(f->userdata, f->height, first_token, len);
             if( min_width ) pixels_width += ( style->window.header.label_padding.x + style->window.header.padding.x ) * 2;
             if( pixels_width < min_width ) pixels_width = min_width;
             nk_layout_row_template_push_static(ui_ctx, pixels_width);
@@ -14344,6 +14445,7 @@ vec2 ui_toolbar_(array(char*) ui_items, vec2 ui_results, float min_width) {
 #endif
 
     // display the UI elements
+    bool has_popups = ui_popups();
     for( int i = 0, end = array_count(ui_items); i < end; ++i ) {
         array(char*) ids = strsplit(ui_items[i], ",;|");
 
@@ -14357,31 +14459,55 @@ vec2 ui_toolbar_(array(char*) ui_items, vec2 ui_results, float min_width) {
         do_once transparent_style.hover.data.color = nk_rgba(0,0,0,127);
         transparent_style.text_alignment = NK_TEXT_ALIGN_CENTERED|NK_TEXT_ALIGN_MIDDLE; // array_count(ids) > 1 ? NK_TEXT_ALIGN_LEFT : NK_TEXT_ALIGN_CENTERED;
 
+        char *tooltip = strchr(ids[0], '@');
+        int len = tooltip ? (int)(tooltip -  ids[0]) : strlen(ids[0]);
+
         // single button
         if( array_count(ids) == 1 ) {
-            if( nk_button_label_styled(ui_ctx, &transparent_style, ids[0]) )
+            // tooltip
+            if( tooltip && !has_popups ) {
+                struct nk_rect bounds = nk_widget_bounds(ui_ctx);
+                if (nk_input_is_mouse_hovering_rect(&ui_ctx->input, bounds)) {
+                    nk_tooltip(ui_ctx, tooltip+1);
+                }
+            }
+            // text
+            if( nk_button_text_styled(ui_ctx, &transparent_style, ids[0], len) ) {
                 ui_results = vec2(i+1, 0+1);
+            }
         }
-
-        // dropdown menu
-        if( array_count(ids) > 1 )
-        if( nk_menu_begin_text_styled(ui_ctx, ids[0], strlen(ids[0]), NK_TEXT_ALIGN_CENTERED|NK_TEXT_ALIGN_MIDDLE, nk_vec2(120, array_count(ids)* 32), &transparent_style) ) { // nk_menu_begin_label(ui_ctx, ids[0], NK_TEXT_LEFT, nk_vec2(120, array_count(ids)* 32)) ) {
-            nk_layout_row_dynamic(ui_ctx, 32, 1);
-
+        else {
+            struct nk_vec2 dims = {120, array_count(ids)* 32};
+            const struct nk_style *style = &ui_ctx->style;
+            const struct nk_user_font *f = style->font;
+            static array(float) lens = 0; array_resize(lens, array_count(ids));
+            lens[0] = len;
             for( int j = 1; j < array_count(ids); ++j ) {
-                char *item = ids[j];
-                if( *item == '-' ) {
-                    while(*item == '-') ++item;
-                    //nk_menu_item_label(ui_ctx, "---", NK_TEXT_LEFT);
-                    ui_separator_line();
-                }
+                lens[j] = strlen(ids[j]);
+                float width_px = f->width(f->userdata, f->height, ids[j], lens[j]);
+                dims.x = maxf(dims.x, width_px);
+            }
+            dims.x += 2 * style->window.header.label_padding.x;
 
-                if( nk_menu_item_label(ui_ctx, item, NK_TEXT_LEFT) ) {
-                    ui_results = vec2(i+1, j+1);
-                }
-            }                    
+            // dropdown menu
+            if( nk_menu_begin_text_styled(ui_ctx, ids[0], lens[0], NK_TEXT_ALIGN_CENTERED|NK_TEXT_ALIGN_MIDDLE, dims, &transparent_style) ) {
+                nk_layout_row_dynamic(ui_ctx, 32, 1);
 
-            nk_menu_end(ui_ctx);
+                for( int j = 1; j < array_count(ids); ++j ) {
+                    char *item = ids[j];
+                    if( *item == '-' ) {
+                        while(*item == '-') ++item, --lens[j];
+                        //nk_menu_item_label(ui_ctx, "---", NK_TEXT_LEFT);
+                        ui_separator_line();
+                    }
+
+                    if( nk_menu_item_text(ui_ctx, item, lens[j], NK_TEXT_LEFT) ) {
+                        ui_results = vec2(i+1, j+1-1);
+                    }
+                }                    
+
+                nk_menu_end(ui_ctx);
+            }            
         }
     }
 
@@ -14399,16 +14525,16 @@ int ui_toolbar(const char *icons) { // usage: int clicked_icon = ui_toolbar( ICO
 static map(char*,unsigned) ui_windows = 0;
 static int ui_window_register(const char *title) {
     if(!ui_windows) map_init(ui_windows, less_str, hash_str);
-    *map_find_or_add(ui_windows, (char*)title, 0) |= 2;
+    *map_find_or_add_allocated_key(ui_windows, STRDUP(title), 0) |= 2;
     return 1;
 }
 static int ui_window_visible(const char *title) {
     if(!ui_windows) map_init(ui_windows, less_str, hash_str);
-    return *map_find_or_add(ui_windows, (char*)title, 0) & 1;
+    return *map_find_or_add_allocated_key(ui_windows, STRDUP(title), 0) & 1;
 }
 static int ui_window_show(const char *title, int enabled) {
     if(!ui_windows) map_init(ui_windows, less_str, hash_str);
-    unsigned *found = map_find_or_add(ui_windows, (char*)title, 0);
+    unsigned *found = map_find_or_add_allocated_key(ui_windows, STRDUP(title), 0);
     if( enabled ) {
         *found |= 1;
         nk_window_collapse(ui_ctx, title, NK_MAXIMIZED); // in case windows was previously collapsed
@@ -14420,12 +14546,14 @@ static int ui_window_show(const char *title, int enabled) {
 static char *ui_build_window_list() {
     if(!ui_windows) map_init(ui_windows, less_str, hash_str);
     char *build_windows_menu = 0;
-    strcatf(&build_windows_menu, "%s;", "Windows");
+    strcatf(&build_windows_menu, "%s;", ICON_MD_VIEW_QUILT); // "Windows");
     for each_map_sorted_ptr(ui_windows, char*, k, unsigned, v) {
-        strcatf(&build_windows_menu, "%s;", *k);
+        strcatf(&build_windows_menu, "%s%s;", ui_window_visible(*k) ? ICON_MD_TOGGLE_ON : ICON_MD_TOGGLE_OFF, *k);
     }
+    strcatf(&build_windows_menu, "-%s;%s", ICON_MD_RECYCLING "Reset layout", ICON_MD_SAVE_AS "Save layout");
     return build_windows_menu; // @leak if discarded
 }
+static int ui_layout_reset();
 
 
 static
@@ -14433,16 +14561,20 @@ void ui_menu_render() {
     // clean up from past frame
     ui_results = vec2(0,0);
     if( !ui_items ) return;
+    if( !array_count(ui_items) ) return;
 
-// add last Windows menu
-array_push(ui_items, ui_build_window_list());
+// artificially inject Windows menu on the first icon
+bool show_window_menu = !!array_count(ui_items);
+if( show_window_menu ) {
+    array_push_front(ui_items, ui_build_window_list());
+}
 
     // process menus
     if( nk_begin(ui_ctx, "Menu", nk_rect(0, 0, window_width(), 32), NK_WINDOW_NO_SCROLLBAR/*|NK_WINDOW_BACKGROUND*/)) {
         if( ui_ctx->current ) {
             nk_menubar_begin(ui_ctx);
 
-            ui_results = ui_toolbar_(ui_items, ui_results, 40);
+            ui_results = ui_toolbar_(ui_items, ui_results, 5);
 
             //nk_layout_row_end(ui_ctx);
             nk_menubar_end(ui_ctx);
@@ -14450,14 +14582,21 @@ array_push(ui_items, ui_build_window_list());
     }
     nk_end(ui_ctx);
 
-// if clicked on Windows menu
-if( ui_results.x == array_count(ui_items) ) {
-    array(char*) split = strsplit(*array_back(ui_items), ";");
-    const char *title = split[(int)ui_results.y - 1]; title += title[0] == '-';
-    // show window
-    ui_window_show(title, true);
-    // reset click so developer don't catch this one
-    ui_results = vec2(0,0);
+if( show_window_menu ) {
+    // if clicked on first menu (Windows)
+    if( ui_results.x == 1 ) {
+        array(char*) split = strsplit(ui_items[0],";"); // *array_back(ui_items), ";");
+        const char *title = split[(int)ui_results.y]; title += title[0] == '-'; title += 3 * (title[0] == '\xee'); title += title[0] == ' '; /*skip separator+emoji+space*/
+        // toggle window unless clicked on lasts items {"reset layout", "save layout"}
+        bool clicked_reset = ui_results.y == array_count(split) - 2;
+        if( clicked_reset ) ui_layout_reset();
+        else ui_window_show(title, ui_window_visible(title) ^ true);
+        // reset value so developers don't catch this click
+        ui_results = vec2(0,0);
+    }
+    // restore state prior to previously injected Windows menu
+    else
+    ui_results.x = ui_results.x > 0 ? ui_results.x - 1 : 0;
 }
 
     // clean up for next frame
@@ -14470,16 +14609,20 @@ if( ui_results.x == array_count(ui_items) ) {
 // -----------------------------------------------------------------------------
 
 static int ui_dirty = 1;
-static int ui_popups_active = 0;
+static int ui_has_active_popups = 0;
 static float ui_hue = 0; // hue
-static int ui_hovering = 0;
-static int ui_actived = 0;
+static int ui_is_hover = 0;
+static int ui_is_active = 0;
+static uint64_t ui_active_mask = 0;
 
+int ui_popups() {
+    return ui_has_active_popups;
+}
 int ui_hover() {
-    return ui_hovering;
+    return ui_is_hover;
 }
 int ui_active() {
-    return ui_actived; //window_has_cursor() && nk_window_is_any_hovered(ui_ctx) && nk_item_is_any_active(ui_ctx);
+    return ui_is_active; //window_has_cursor() && nk_window_is_any_hovered(ui_ctx) && nk_item_is_any_active(ui_ctx);
 }
 
 void ui_destroy(void) {
@@ -14497,8 +14640,57 @@ void ui_create() {
     }
 }
 
+enum {
+    UI_NOTIFICATION = 1,  // sets panel as notification. used by ui_notify()
+};
+
+struct ui_notify {
+    char *title;
+    char *body; // char *icon;
+    float timeout;
+    float alpha;
+    int   used;
+};
+
+static array(struct ui_notify) ui_notifications; // format=("%d*%s\n%s", timeout, title, body)
+
+static
+void ui_notify_render() {
+    // draw queued notifications
+    if( array_count(ui_notifications) ) {
+        struct ui_notify *n = array_back(ui_notifications);
+
+        static double timeout = 0;
+        timeout += 1/60.f; // window_delta(); // @fixme: use editor_time() instead
+
+        ui_alpha_push( timeout >= n->timeout ? 1 - clampf(timeout - n->timeout,0,1) : 1 );
+
+            if( timeout < (n->timeout + 1) ) { // N secs display + 1s fadeout
+                if(n->used++ < 3) nk_window_set_focus(ui_ctx, "!notify");
+
+                if( ui_begin( "!notify", UI_NOTIFICATION ) ) {
+                    if(n->title) ui_label(n->title);
+                    if(n->body)  ui_label(n->body);
+                    ui_end();
+                }
+            }
+
+            if( timeout >= (n->timeout + 2) ) { // 1s fadeout + 1s idle
+                timeout = 0;
+
+                if(n->title) FREE(n->title);
+                if(n->body)  FREE(n->body);
+                array_pop(ui_notifications);
+            }
+
+        ui_alpha_pop();
+    }
+}
+
 void ui_render() {
+
     // draw queued menus
+    ui_notify_render();
     ui_menu_render();
 
     /* IMPORTANT: `nk_sdl_render` modifies some global OpenGL state
@@ -14514,19 +14706,140 @@ void ui_render() {
     ui_dirty = 1;
     ui_hue = 0;
 
-    ui_hovering = nk_window_is_any_hovered(ui_ctx) && window_has_cursor();
+    ui_is_hover = nk_window_is_any_hovered(ui_ctx) && window_has_cursor();
 
     if(input_down(MOUSE_L))
-        ui_actived = (ui_hovering && nk_item_is_any_active(ui_ctx));
+        ui_is_active = (ui_is_hover && nk_item_is_any_active(ui_ctx));
     if(input_up(MOUSE_L))
-        ui_actived = 0;
+        ui_is_active = 0;
 }
 
 
-// ----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// save/restore all window layouts on every framebuffer resize
+
+#define UI_SNAP_PX      1 /*treshold of pixels when snapping panels/windows to the application borders [1..N]*/
+#define UI_ANIM_ALPHA 0.9 /*animation alpha used when restoring panels/windows state from application resizing events: [0..1]*/
+//#define UI_MENUBAR_Y     32 // menubar and row
+
+typedef struct ui_layout {
+    const char *title;
+
+    bool is_panel;
+
+    vec2   desktop;
+    vec2     p0,p1;
+    float    l0,l1;
+
+    float alpha;
+
+} ui_layout;
+
+static ui_layout ui_layouts[2][64] = {0};
+
+static
+int ui_layout_find(const char *title, bool is_panel) {
+    int i, found = 0;
+    for( i = 0; i < 64 && !found; ++i) {
+        if (!ui_layouts[is_panel][i].title) break;
+        if( strcmp(title, ui_layouts[is_panel][i].title)) continue;
+        found = 1;
+        break;
+    }
+    if( !found ) {  
+        ui_layouts[is_panel][i].is_panel = is_panel;
+        ui_layouts[is_panel][i].title = STRDUP(title);
+    }
+    return i;
+}
+
+static
+void ui_layout_save(int idx, vec2 desktop, float workarea_h, struct nk_rect xywh, bool is_panel) {
+    ui_layout *s = &ui_layouts[is_panel][idx];
+
+    s->desktop = desktop;
+
+struct nk_window *win = nk_window_find(ui_ctx, s->title);
+float excess = 0;
+if( win && (win->flags & NK_WINDOW_MINIMIZED)) {
+    excess = xywh.h - 32;
+    xywh.h = 32;
+}
+
+    // sanity checks
+    if(xywh.x<0)                               xywh.x = 0;
+    if(xywh.w>desktop.w-UI_SNAP_PX)            xywh.w = desktop.w-UI_SNAP_PX-1;
+
+    if(xywh.y<workarea_h)                      xywh.y = workarea_h;
+    if(xywh.h>desktop.h-workarea_h-UI_SNAP_PX) xywh.h = desktop.h-workarea_h-UI_SNAP_PX-1;
+
+    if((xywh.x+xywh.w)>desktop.w)              xywh.x-= xywh.x+xywh.w-desktop.w;
+    if((xywh.y+xywh.h)>desktop.h)              xywh.y-= xywh.y+xywh.h-desktop.h;
+
+if( win && (win->flags & NK_WINDOW_MINIMIZED)) {
+    xywh.h += excess;
+}
+
+    // build reconstruction vectors from bottom-right corner
+    s->p0 = vec2(xywh.x/s->desktop.x,xywh.y/s->desktop.y);
+    s->p1 = vec2(xywh.w/s->desktop.x,xywh.h/s->desktop.y);
+    s->p0 = sub2(s->p0, vec2(1,1)); s->l0 = len2(s->p0);
+    s->p1 = sub2(s->p1, vec2(1,1)); s->l1 = len2(s->p1);
+}
+
+static
+struct nk_rect ui_layout_restore(int idx, vec2 desktop, bool is_panel) {
+    ui_layout *s = &ui_layouts[is_panel][idx];
+
+    // extract reconstruction coords from bottom-right corner
+    vec2 p0 = mul2(add2(vec2(1,1), scale2(norm2(s->p0), s->l0)), desktop);
+    vec2 p1 = mul2(add2(vec2(1,1), scale2(norm2(s->p1), s->l1)), desktop);
+
+    return (struct nk_rect){ p0.x, p0.y, p1.x, p1.y };
+}
+
+static int ui_layout_reset_num_frames;
+
+static
+int ui_layout_reset() {
+    ui_layout z = {0};
+
+    vec2 desktop = vec2(window_width(), window_height());
+    float workarea_h = ui_has_menubar()*32; // @fixme workarea -> reserved_area
+
+    for( int is_panel = 0; is_panel < 2; ++is_panel ) {
+        for( int j = 0; j < 64; ++j ) {
+            if( ui_layouts[is_panel][j].title ) {
+                struct nk_rect xywh = { 0, workarea_h + j * 32, desktop.w / 3.333, 32 };
+                if( is_panel ) {
+                    xywh.x = 0;
+                    xywh.y = workarea_h + j * 32;
+                    xywh.w = desktop.w / 4;
+                    xywh.h = desktop.h / 3;
+                } else {
+                    xywh.x = desktop.w / 3.00 + j * 32;
+                    xywh.y = workarea_h + j * 32;
+                    xywh.w = desktop.w / 4;
+                    xywh.h = desktop.h / 3;
+                }
+                nk_window_set_focus(ui_ctx, ui_layouts[is_panel][j].title );
+                nk_window_collapse(ui_ctx, ui_layouts[is_panel][j].title, is_panel ? 0 : 1);
+                ui_layout_save(j, desktop, workarea_h, xywh, is_panel);
+            }
+        }
+    }
+
+    ui_layout_reset_num_frames = maxf(desktop.w, desktop.h);
+    return 0;
+}
+
+
+// -----------------------------------------------------------------------------
+// shared code for both panels and windows. really messy.
 
 static
 int ui_begin_panel_or_window_(const char *title, int flags, bool is_window) {
+
     ui_create();
 
     uint64_t hash = 14695981039346656037ULL, mult = 0x100000001b3ULL;
@@ -14534,81 +14847,166 @@ int ui_begin_panel_or_window_(const char *title, int flags, bool is_window) {
     ui_hue = (hash & 0x3F) / (float)0x3F; ui_hue += !ui_hue;
 
     int is_panel = !is_window;
-#if 0
-    static int rows = 0;
-    static hashmap(const char*,int) map, *init = 0;
-    if( !init ) { hashmap_create(init = &map, 128 /*maxwindows*/, str64); }
-    int *found = hashmap_find(&map, title);
-    if( !found ) hashmap_insert(&map, title, ++rows);
-    int row = found ? *found : rows;
-#else // fixme
-    static const char *list[128] = {0};
-    static int         posx[128] = {0};
-    int row = -1, find = 0; while( find < 128 && list[find] ) {
-        if( !strcmp(title, list[find]) ) { row = find; break; } else ++find;
-    }
-    if( row < 0 ) list[row = find] = STRDUP(title);
-    if( ui_menu_active() ) ++row; // add 1 to skip menu
-#endif
+    int idx = ui_layout_find(title, is_panel);
+    ui_layout *s = &ui_layouts[is_panel][idx];
 
-    int is_active = nk_window_is_active(ui_ctx, title);
+vec2 desktop = vec2(window_width(), window_height());
+float workarea_h = ui_has_menubar()*32;
 
-    int window_flags = 0;
-    if( is_panel ) window_flags |= is_active ? 0 : NK_WINDOW_MINIMIZED; //NK_MINIMIZED;
-    else window_flags |= NK_WINDOW_CLOSABLE | NK_WINDOW_MINIMIZABLE;
-    window_flags |= NK_WINDOW_BORDER;
-    window_flags |= NK_WINDOW_SCALABLE;
-    window_flags |= NK_WINDOW_MOVABLE;
-    //window_flags |= NK_WINDOW_NO_SCROLLBAR;
-    //window_flags |= NK_WINDOW_SCALE_LEFT;
-    window_flags |= NK_WINDOW_MINIMIZABLE;
+    int row = idx + !!ui_has_menubar(); // add 1 to skip menu
+    vec2 offset = vec2(is_panel ? 0 : 32*row + 200, 32*row + is_window * 75);
+    float w = desktop.w / 3.33, h = flags & UI_NOTIFICATION ? 64 : desktop.h - offset.y * 2 - 1; // h = desktop.h * 0.66; // 
+    struct nk_rect start_coords = {offset.x, offset.y, offset.x+w, offset.y+h};
+
+    static vec2 edge = {0}; static int edge_type = 0; // [off],L,R,U,D
+    do_once edge = vec2(desktop.w * 0.33, desktop.h * 0.66);
+
+// do not snap windows and/or save windows when using may be interacting with UI
+int is_active = 0;
+struct nk_window *win = nk_window_find(ui_ctx, title);
+int mouse_pressed = !!input(MOUSE_L) && ui_ctx->active == win;
+if( win ) {
+    // update global window activity bitmask
+    is_active = ui_ctx->active == win;
+    ui_active_mask = is_active ? ui_active_mask | (1ull << idx) : ui_active_mask & ~(1ull << idx);
+}
 
 //  struct nk_style *s = &ui_ctx->style;
 //  nk_style_push_color(ui_ctx, &s->window.header.normal.data.color, nk_hsv_f(ui_hue,0.6,0.8));
 
+// adjust inactive edges automatically
+if( win ) {
+    bool group1_any             = !is_active; // && !input(MOUSE_L);
+    bool group2_not_resizing    =  is_active && !win->is_window_resizing;
+    bool group2_interacting     =  is_active && input(MOUSE_L);
+
+    if( group1_any ) {
+        float distance_x = absf(input(MOUSE_X) - win->bounds.x) / window_width();
+        float distance_y = absf(input(MOUSE_Y) - win->bounds.y) / window_height();
+        float alpha_x = sqrt(sqrt(distance_x)); // amplify signals a little bit: 0.1->0.56,0.5->0.84,0.98->0.99,etc
+        float alpha_y = sqrt(sqrt(distance_y));
+
+        /**/ if( (edge_type & 1) && win->bounds.x <= UI_SNAP_PX ) {
+            win->bounds.w = win->bounds.w * alpha_y + edge.w * (1-alpha_y);
+        }
+        else if( (edge_type & 2) && (win->bounds.x + win->bounds.w) >= (desktop.w-UI_SNAP_PX) ) {
+            win->bounds.w = win->bounds.w * alpha_y + edge.w * (1-alpha_y);
+            win->bounds.x = desktop.w - win->bounds.w;
+        }
+        if( (edge_type & 8) && (win->bounds.y + (win->flags & NK_WINDOW_MINIMIZED ? 32 : win->bounds.h)) >= (desktop.h-UI_SNAP_PX) ) {
+            win->bounds.h = win->bounds.h * alpha_x + edge.h * (1-alpha_x);
+            win->bounds.y = desktop.h - (win->flags & NK_WINDOW_MINIMIZED ? 32 : win->bounds.h);
+        }        
+    }
+
+    if( group1_any || !group2_interacting || (ui_layout_reset_num_frames > 0)) {
+        struct nk_rect target = ui_layout_restore(idx, desktop, is_panel);
+        float alpha = len2sq(sub2(s->desktop, desktop)) ? 0 : UI_ANIM_ALPHA; // smooth unless we're restoring a desktop change 
+        win->bounds = (struct nk_rect){ 
+            win->bounds.x * alpha + target.x * (1 - alpha),
+            win->bounds.y * alpha + target.y * (1 - alpha),
+            win->bounds.w * alpha + target.w * (1 - alpha),
+            win->bounds.h * alpha + target.h * (1 - alpha)
+        };
+    }
+    int skip_save = ui_layout_reset_num_frames > 0;
+    if( ui_layout_reset_num_frames > 0 ) ui_layout_reset_num_frames--;
+    if( !skip_save ) { // group1_any || group2_interacting ) {
+        ui_layout_save(idx, desktop, workarea_h, win->bounds, is_panel);
+    }
+} else {
+    ui_layout_save(idx, desktop, workarea_h, start_coords, is_panel);    
+}
+
+
+    int window_flags = 0;
+    if( is_panel ) window_flags |= NK_WINDOW_MINIMIZABLE | (win ? 0 : NK_WINDOW_MINIMIZED); // is_active ? 0 : NK_WINDOW_MINIMIZED;
+    else window_flags |= NK_WINDOW_CLOSABLE | NK_WINDOW_MINIMIZABLE;
+    window_flags |= NK_WINDOW_BORDER;
+    window_flags |= NK_WINDOW_MOVABLE;
+    window_flags |= NK_WINDOW_SCALABLE;
+    window_flags |= is_panel ? NK_WINDOW_NO_SCROLLBAR_X : NK_WINDOW_NO_SCROLLBAR;
+if(win) //    if(!is_panel && win)
+    window_flags |= input(MOUSE_X) < (win->bounds.x + win->bounds.w/2) ? NK_WINDOW_SCALE_LEFT : 0;
+if(win) //    if(!is_panel && win)
+    window_flags |= input(MOUSE_Y) < (win->bounds.y + win->bounds.h/2) ? NK_WINDOW_SCALE_TOP : 0;
+    window_flags |= NK_WINDOW_MINIMIZABLE;
 // if( is_window ) window_flags &= ~(NK_WINDOW_MINIMIZED | NK_WINDOW_MINIMIZABLE); // modal
-if( is_panel ) if( posx[row] > 0 ) window_flags &= ~NK_WINDOW_MINIMIZED;
+if( is_panel && win ) {
+//    if( win->bounds.x > 0 && (win->bounds.x+win->bounds.w) < desktop.w-1 ) window_flags &= ~NK_WINDOW_MINIMIZED;
+}
 
-    vec2 offset = vec2(is_panel ? 0 : 32*row, 32*row);
-    float w = window_width() / 3.33, h = window_height() - offset.y * 2;
-    if( nk_begin(ui_ctx, title, nk_rect(offset.x, offset.y, offset.x+w, offset.y+h), window_flags) ) {
+bool is_notify = flags & UI_NOTIFICATION;
+if( is_notify ) {
+    window_flags = NK_WINDOW_MOVABLE | NK_WINDOW_NOT_INTERACTIVE | NK_WINDOW_NO_SCROLLBAR;
+    start_coords = (struct nk_rect){desktop.w / 2 - w / 2, -h, w, h};
+}
 
-posx[row] = nk_window_get_position(ui_ctx).x;
+
+    if( nk_begin(ui_ctx, title, start_coords, window_flags) ) {
+
+// set width for all inactive panels
+struct nk_rect bounds = nk_window_get_bounds(ui_ctx); 
+if( mouse_pressed && win && win->is_window_resizing ) {
+    edge = vec2(bounds.w, bounds.h);
+
+    // push direction
+    int top  = !!(win->is_window_resizing & NK_WINDOW_SCALE_TOP);
+    int left = !!(win->is_window_resizing & NK_WINDOW_SCALE_LEFT), right = !left;
+
+    edge_type = 0;
+    /**/ if( right && (win->bounds.x <= UI_SNAP_PX) ) edge_type |= 1;
+    else if(  left && (win->bounds.x + win->bounds.w) >= (desktop.w-UI_SNAP_PX) ) edge_type |= 2;
+    /**/ if(   top && (win->bounds.y + win->bounds.h) >= (desktop.h-UI_SNAP_PX) ) edge_type |= 8;
+
+    // @fixme
+    // - if window is in a corner (sharing 2 edges), do not allow for multi edges. either vert or horiz depending on the clicked scaler
+    // - or maybe, only propagate edge changes to the other windows that overlapping our window.
+
+    if( edge_type ) {
+        uint64_t ones = popcnt64(edge_type);
+    }
+}
 
         return 1;
     } else {
-if(is_panel)        ui_end();
-else ui_window_end();
+
+if(is_panel) {
+   ui_end(); 
+} else ui_window_end();
+
         return 0;
     }
 }
 
-static const char *ui_last_window = 0;
+static const char *ui_last_title = 0;
 static int *ui_last_enabled = 0;
 static int ui_has_window = 0;
-static int ui_has_menubar = 0;
+static int ui_window_has_menubar = 0;
 int ui_window(const char *title, int *enabled) {
     if( window_width() <= 0 ) return 0;
     if( window_height() <= 0 ) return 0;
+    if( !ui_ctx || !ui_ctx->style.font ) return 0;
 
     ui_window_register(title);
     if(!ui_window_visible(title)) {
         bool forced_creation = ( enabled && *enabled );
         if( !forced_creation ) return 0;
+        ui_window_show(title, forced_creation);
     }
 
     ui_last_enabled = enabled;
-    ui_last_window = title;
+    ui_last_title = title;
     ui_has_window = 1;
     return ui_begin_panel_or_window_(title, /*flags*/0, true);
 }
 void ui_window_end() {
-    if(ui_has_menubar) nk_menubar_end(ui_ctx), ui_has_menubar = 0;
+    if(ui_window_has_menubar) nk_menubar_end(ui_ctx), ui_window_has_menubar = 0;
     nk_end(ui_ctx), ui_has_window = 0;
 
-    if( nk_window_is_hidden(ui_ctx, ui_last_window) ) {
-        nk_window_close(ui_ctx, ui_last_window);
-        ui_window_show(ui_last_window, false);
+    if( nk_window_is_hidden(ui_ctx, ui_last_title) ) {
+        nk_window_close(ui_ctx, ui_last_title);
+        ui_window_show(ui_last_title, false);
         if( ui_last_enabled ) *ui_last_enabled = 0; // clear developers' flag
     }
 }
@@ -14616,6 +15014,7 @@ void ui_window_end() {
 int ui_begin(const char *title, int flags) {
     if( window_width() <= 0 ) return 0;
     if( window_height() <= 0 ) return 0;
+    if( !ui_ctx || !ui_ctx->style.font ) return 0;
 
     if( ui_has_window ) {
         // transparent style
@@ -14628,10 +15027,10 @@ int ui_begin(const char *title, int flags) {
         do_once transparent_style.hover.data.color = nk_rgba(0,0,0,127);
         transparent_style.text_alignment = NK_TEXT_ALIGN_CENTERED|NK_TEXT_ALIGN_MIDDLE;
 
-        if(!ui_has_menubar) nk_menubar_begin(ui_ctx);
-        if(!ui_has_menubar) nk_layout_row_begin(ui_ctx, NK_STATIC, 25, 4);
-        if(!ui_has_menubar) nk_layout_row_push(ui_ctx, 70);
-        ui_has_menubar = 1;
+        if(!ui_window_has_menubar) nk_menubar_begin(ui_ctx);
+        if(!ui_window_has_menubar) nk_layout_row_begin(ui_ctx, NK_STATIC, 25, 4);
+        if(!ui_window_has_menubar) nk_layout_row_push(ui_ctx, 70);
+        ui_window_has_menubar = 1;
 
         return nk_menu_begin_text_styled(ui_ctx, title, strlen(title), NK_TEXT_ALIGN_CENTERED|NK_TEXT_ALIGN_MIDDLE, nk_vec2(220, 200), &transparent_style);    
     }
@@ -14647,21 +15046,24 @@ void ui_end() {
 //  nk_style_pop_color(ui_ctx);
 }
 
-int ui_button(const char *s) {
-    nk_layout_row_dynamic(ui_ctx, 0, 1);
+// -----------------------------------------------------------------------------
+// code for all the widgets
 
-    struct nk_rect bounds = nk_widget_bounds(ui_ctx);
+static
+int nk_button_transparent(struct nk_context *ctx, const char *text) {
+    static struct nk_style_button transparent_style;
+    do_once transparent_style = ctx->style.button;
+    do_once transparent_style.normal.data.color = nk_rgba(0,0,0,0);
+    do_once transparent_style.border_color = nk_rgba(0,0,0,0);
+    do_once transparent_style.active = transparent_style.normal;
+    do_once transparent_style.hover = transparent_style.normal;
+    do_once transparent_style.hover.data.color = nk_rgba(0,0,0,127);
+    transparent_style.text_alignment = NK_TEXT_ALIGN_CENTERED|NK_TEXT_ALIGN_MIDDLE;
 
-    const char *split = strchr(s, '@'), *tooltip = split + 1;
-    int ret = split ? nk_button_text(ui_ctx, s, (int)(split - s)) : nk_button_label(ui_ctx, s);
-
-    const struct nk_input *in = &ui_ctx->input;
-    if (split && nk_input_is_mouse_hovering_rect(in, bounds) && !ui_popups_active) {
-        nk_tooltip(ui_ctx, tooltip);
-    }
-    return ret;
+    return nk_button_label_styled(ctx, &transparent_style, text);
 }
 
+static
 int ui_label_(const char *label, int alignment) {
     struct nk_rect bounds = nk_widget_bounds(ui_ctx);
     const struct nk_input *in = &ui_ctx->input;
@@ -14676,27 +15078,69 @@ int ui_label_(const char *label, int alignment) {
         bounds.h -= 1;
         struct nk_command_buffer *canvas = nk_window_get_canvas(ui_ctx);
         struct nk_input *input = &ui_ctx->input;
-        nk_fill_rect(canvas, bounds, 0, nk_hsv_f(ui_hue, 0.6f, 0.8f) );
+        nk_fill_rect(canvas, bounds, 0, nk_hsva_f(ui_hue, 0.6f, 0.8f, ui_alpha) );
 
-        const char *split = strchr(label, '@'), *tooltip = split + 1;
+        const char *split = strchr(label, '@');
             char buffer[128]; if( split ) label = (snprintf(buffer, 128, "%.*s", (int)(split-label), label), buffer);
 
+struct nk_style *style = &ui_ctx->style;
 bool emphasis = label[0] == '*'; label += emphasis;
-struct nk_font *font = emphasis ? nk_glfw.atlas.fonts->next : NULL; // list
+struct nk_font *font = emphasis ? nk_glfw.atlas.fonts->next->next /*3rd font*/ : NULL; // list
 if( font && nk_style_push_font(ui_ctx, &font->handle) ) {} else font = 0;
+if( font )  nk_style_push_color(ui_ctx, &style->text.color, nk_rgba(255, 255, 255, 255 * ui_alpha));
 
             nk_label(ui_ctx, label, alignment);
-    
+
+if( font )  nk_style_pop_color(ui_ctx);
 if( font )  nk_style_pop_font(ui_ctx);
 
-            if (split && is_hovering && !ui_popups_active) {
-                nk_tooltip(ui_ctx, split ? tooltip : label);
+            if (split && is_hovering && !ui_has_active_popups) {
+                nk_tooltip(ui_ctx, split + 1);
             }
 
     layout->at_x -= indent;
     layout->bounds.w += indent;
 
     return is_hovering ? nk_input_has_mouse_click_down_in_rect(input, NK_BUTTON_LEFT, layout->bounds, nk_true) : 0;
+}
+
+int ui_notify(const char *title, const char *body) {
+    struct ui_notify n = {0};
+    n.title = title ? stringf("*%s", title) : 0;
+    n.body = body ? STRDUP(body) : 0;
+    n.timeout = 1; // 1s timeout + 1s fade + 1s idle = 3s
+    n.alpha = 1;
+    array_push_front(ui_notifications, n);
+    return 1;
+}
+
+int ui_button(const char *s) {
+    nk_layout_row_dynamic(ui_ctx, 0, 1);
+
+    struct nk_rect bounds = nk_widget_bounds(ui_ctx);
+
+    const char *split = strchr(s, '@'), *tooltip = split + 1;
+    int ret = split ? nk_button_text(ui_ctx, s, (int)(split - s)) : nk_button_label(ui_ctx, s);
+
+    const struct nk_input *in = &ui_ctx->input;
+    if (split && nk_input_is_mouse_hovering_rect(in, bounds) && !ui_has_active_popups) {
+        nk_tooltip(ui_ctx, tooltip);
+    }
+    return ret;
+}
+
+int ui_buttons(int buttons, ...) {
+    nk_layout_row_dynamic(ui_ctx, 0, buttons);
+
+    va_list list;
+    va_start(list, buttons);
+    int rc = 0;
+    for( int i = 0; i < buttons; ++i ) {
+        if( nk_button_label(ui_ctx, va_arg(list, const char*) ) ) rc = i+1;
+    }
+    va_end(list);
+
+    return rc;
 }
 
 int ui_label(const char *label) {
@@ -14721,25 +15165,12 @@ int ui_const_string(const char *label, const char *text) {
     return nk_label(ui_ctx, text, NK_TEXT_LEFT), 0;
 }
 
-
-
 int ui_toggle(const char *label, bool *value) {
     nk_layout_row_dynamic(ui_ctx, 0, 2);
     ui_label_(label, NK_TEXT_LEFT);
 
-    struct nk_style_button button = ui_ctx->style.button; if(!*value) {
-    ui_ctx->style.button.normal =
-    ui_ctx->style.button.hover =
-    ui_ctx->style.button.active = nk_style_item_color(nk_rgba(50, 58, 61, 225)); // same as table[NK_COLOR_EDIT]
-    ui_ctx->style.button.border_color =
-    ui_ctx->style.button.text_background =
-    ui_ctx->style.button.text_normal =
-    ui_ctx->style.button.text_hover =
-    ui_ctx->style.button.text_active = nk_rgb(120,120,120);
-    }
-
-    int rc = nk_button_label(ui_ctx, *value ? "on":"off");
-    ui_ctx->style.button = button;
+    // nk_label(ui_ctx, label, alignment);
+    int rc = nk_button_transparent(ui_ctx, *value ? ICON_MD_TOGGLE_ON : ICON_MD_TOGGLE_OFF);
     return rc ? (*value ^= 1), rc : rc;
 }
 
@@ -14854,8 +15285,12 @@ int ui_bool(const char *label, bool *enabled ) {
     ui_label_(label, NK_TEXT_LEFT);
 
     int val = *enabled;
-    int chg = nk_checkbox_label(ui_ctx, "", &val);
-    *enabled = !!val;
+#if 0
+    int chg = !!nk_checkbox_label(ui_ctx, "", &val);
+#else
+    int chg = !!nk_button_transparent(ui_ctx, val ? ICON_MD_CHECK_BOX : ICON_MD_CHECK_BOX_OUTLINE_BLANK );
+#endif
+    *enabled ^= chg;
     return chg;
 }
 
@@ -15013,8 +15448,13 @@ int ui_radio(const char *label, const char **items, int num_items, int *selector
     return ret;
 }
 
+int ui_section(const char *section) {
+    ui_separator();
+    return ui_label(va("*%s", section));
+}
+
 int ui_dialog(const char *title, const char *text, int choices, bool *show) { // @fixme: return
-    ui_popups_active = 0;
+    ui_has_active_popups = 0;
     if(*show) {
         static struct nk_rect s = {0, 0, 300, 190};
         if (nk_popup_begin(ui_ctx, NK_POPUP_STATIC, title, NK_WINDOW_BORDER|NK_WINDOW_CLOSABLE, s)) {
@@ -15040,7 +15480,7 @@ int ui_dialog(const char *title, const char *text, int choices, bool *show) { //
         } else {
             *show = nk_false;
         }
-        ui_popups_active = *show;
+        ui_has_active_popups = *show;
     }
     return *show;
 }
@@ -15068,7 +15508,7 @@ int ui_bits##X(const char *label, uint##X##_t *enabled) { \
             *enabled = (*enabled & ~(1 << b)) | ((!!val) << b); \
             /* tooltip */ \
             struct nk_rect bb = { offset + 10 + i * 14, bounds.y, 14, 30 }; /* 10:padding,14:width,30:height */ \
-            if (nk_input_is_mouse_hovering_rect(&ui_ctx->input, bb) && !ui_popups_active) { \
+            if (nk_input_is_mouse_hovering_rect(&ui_ctx->input, bb) && !ui_has_active_popups) { \
                 nk_tooltipf(ui_ctx, "Bit %d", b); \
             } \
         } \
@@ -15080,7 +15520,6 @@ int ui_bits##X(const char *label, uint##X##_t *enabled) { \
 ui_bits_template(8);
 ui_bits_template(16);
 //ui_bits_template(32);
-
 
 int ui_browse(const char **output, bool *inlined) {
     static struct browser_media media = {0};
@@ -15112,7 +15551,7 @@ int ui_browse(const char **output, bool *inlined) {
         browser_config_type(icon_load_rect(i.id, i.w, i.h, W, H, 16, 1), ".lua" ".");
         browser_config_type(icon_load_rect(i.id, i.w, i.h, W, H, 10, 0), ".css.doc" ".");
         browser_config_type(icon_load_rect(i.id, i.w, i.h, W, H,  6, 0), ".wav.flac.ogg.mp1.mp3.mod.xm.s3m.it.sfxr.mid" ".");
-        browser_config_type(icon_load_rect(i.id, i.w, i.h, W, H,  1, 3), ".ttf.ttc" ".");
+        browser_config_type(icon_load_rect(i.id, i.w, i.h, W, H,  1, 3), ".ttf.ttc.otf" ".");
         browser_config_type(icon_load_rect(i.id, i.w, i.h, W, H,  7, 1), ".jpg.jpeg.png.bmp.psd.pic.pnm.ico.ktx.pvr.dds.astc.basis.hdr.tga.gif" ".");
         browser_config_type(icon_load_rect(i.id, i.w, i.h, W, H,  4, 3), ".mp4.mpg.ogv.mkv.wmv.avi" ".");
         browser_config_type(icon_load_rect(i.id, i.w, i.h, W, H,  2, 1), ".iqm.iqe.gltf.gltf2.glb.fbx.obj.dae.blend.md3.md5.ms3d.smd.x.3ds.bvh.dxf.lwo" ".");
@@ -15127,10 +15566,9 @@ int ui_browse(const char **output, bool *inlined) {
     bool windowed = !inlined;
     if( windowed || (!windowed && *inlined) ) {
 
-//        struct nk_rect bounds; nk_layout_peek(&bounds, ui_ctx); bounds.w -= 10; // bounds.w *= 0.95f;
-//        printf("%f %f %f %f\n", bounds.x, bounds.y, bounds.w, bounds.h);
-        struct nk_rect bounds = {0,0,400,300};
+        struct nk_rect bounds = {0,0,400,300}; // @fixme: how to retrieve inlined region below? (inlined)
         if( windowed ) bounds = nk_window_get_content_region(ui_ctx);
+        // else nk_layout_peek(&bounds, ui_ctx); // ???
 
         clicked = browser_run(ui_ctx, &browser, 0, bounds);
         if( clicked ) {
@@ -15139,6 +15577,9 @@ int ui_browse(const char **output, bool *inlined) {
             ui_browse_result[0] = '\0';
             strcatf(&ui_browse_result, "%s", browser.file);
             if( inlined ) *inlined = 0;
+
+            const char *target = ifdef(win32, "/", "\\"), *replace = ifdef(win32, "\\", "/");
+            strswap(ui_browse_result, target, replace);
 
             if( output ) *output = ui_browse_result;
         }
@@ -15182,83 +15623,95 @@ void ui_demo() {
     static bool show_browser = false;
     static const char* browsed_file = "";
     static uint8_t bitmask = 0x55;
+    static int hits = 0;
 
-    if( ui_begin("UI", 0)) {
-        if( ui_toolbar("Test1;Test2;Test3") == 3 ) show_browser = true;
+    if( ui_begin("UI", 0) ) {
+
+        switch( ui_toolbar("Browser;Toast@Notify") ) {
+            default: break;
+            case 1: show_browser = true; break;
+            case 2: ui_notify(va("My random toast (%d)", rand()), va("This is notification #%d", ++hits));
+        }
         if( ui_browse(&browsed_file, &show_browser) ) puts(browsed_file);
 
+        if( ui_section("Labels")) {}
         if( ui_label("my label")) {}
         if( ui_label("my label with tooltip@built on " __DATE__ " " __TIME__)) {}
-        if( ui_separator() ) {}
+
+        if( ui_section("Types")) {}
         if( ui_bool("my bool", &boolean) ) puts("bool changed");
         if( ui_int("my int", &integer) ) puts("int changed");
         if( ui_float("my float", &floating) ) puts("float changed");
         if( ui_string("my string", string, 64) ) puts("string changed");
-        if( ui_separator() ) {}
-        if( ui_slider("my slider", &slider)) puts("slider changed");
-        if( ui_slider2("my slider 2", &slider2, va("%.2f", slider2))) puts("slider2 changed");
-        if( ui_separator() ) {}
-        if( ui_list("my list", list, 3, &item ) ) puts("list changed");
-        if( ui_separator() ) {}
-        if( ui_color3f("my color3", rgb) ) puts("color3 changed");
-        if( ui_color4f("my color4@this is a tooltip", rgba) ) puts("color4 changed");
-        if( ui_separator() ) {}
+
+        if( ui_section("Vectors") ) {}
         if( ui_float2("my float2", float2) ) puts("float2 changed");
         if( ui_float3("my float3", float3) ) puts("float3 changed");
         if( ui_float4("my float4", float4) ) puts("float4 changed");
+
+        if( ui_section("Lists")) {}
+        if( ui_list("my list", list, 3, &item ) ) puts("list changed");
+
+        if( ui_section("Colors")) {}
+        if( ui_color3f("my color3", rgb) ) puts("color3 changed");
+        if( ui_color4f("my color4@this is a tooltip", rgba) ) puts("color4 changed");
+
+        if( ui_section("Sliders")) {}
+        if( ui_slider("my slider", &slider)) puts("slider changed");
+        if( ui_slider2("my slider 2", &slider2, va("%.2f", slider2))) puts("slider2 changed");
+
+        if( ui_section("Others")) {}
         if( ui_bits8("my bitmask", &bitmask) ) printf("bitmask changed %x\n", bitmask);
-        if( ui_separator() ) {}
         if( ui_toggle("my toggle", &toggle) ) printf("toggle %s\n", toggle ? "on":"off");
-        if( ui_separator() ) {}
         if( ui_image("my image", texture_checker().id, 0, 0) ) { puts("image clicked"); }
+        if( ui_separator() ) {}
+        if( ui_buttons(3, "yes", "no", "maybe") ) { puts("button clicked"); }
+        if( ui_buttons(2, "yes", "no") ) { puts("button clicked"); }
         if( ui_button("my button") ) { puts("button clicked"); show_dialog = true; }
         if( ui_dialog("my dialog", __FILE__ "\n" __DATE__ "\n" "Public Domain.", 2/*two buttons*/, &show_dialog) ) {}
 
-        if(0) { // plot
-            nk_layout_row_dynamic(ui_ctx, 100, 1);
-            static float values[1000] = {0}; static int offset = 0;
-            values[offset=(offset+1)%1000] = window_fps();
-            nk_plot(ui_ctx, NK_CHART_LINES, values,1000, 0);
-        }
-        if(0) { // logger/console
-            static char box_buffer[512] = {0};
-            static int box_len;
+        if(0) { // @todo: ui_plot()
+            // draw fps-meter: 300 samples, [0..70] range each, 70px height plot.
+            nk_layout_row_dynamic(ui_ctx, 70, 1);
 
-            nk_layout_row_dynamic(ui_ctx, 100, 1); // height(100), horiz_slots(1)
-            nk_edit_string(ui_ctx, NK_EDIT_BOX/*_EDITOR*/|NK_EDIT_GOTO_END_ON_ACTIVATE/*|NK_EDIT_READ_ONLY*/, box_buffer, &box_len, 512, nk_filter_default);
+            enum { COUNT = 300 };
 
-            ui_separator();
+            static float values[COUNT] = {0}; static int offset = 0;
+            values[offset=(offset+1)%COUNT] = window_fps();
 
-            static char text[64] = "demo";
-            static int text_len = 4;
-
-            nk_layout_row_dynamic(ui_ctx, 0, 1); // height(min), horiz_slots(2)
-            int active = nk_edit_string(ui_ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER|NK_EDIT_NO_CURSOR, text, &text_len, 64, nk_filter_ascii);
-            if (active & NK_EDIT_COMMITED) {
-                text[text_len++] = '\n';
-                memcpy(&box_buffer[box_len], &text, text_len);
-                box_len += text_len;
-                text_len = 0;
+            int index = -1;
+            if( nk_chart_begin(ui_ctx, NK_CHART_LINES, COUNT, 0.f, 70.f) ) {
+                for( int i = 0; i < COUNT; ++i ) {
+                    nk_flags res = nk_chart_push(ui_ctx, (float)values[i]);
+                    if( res & NK_CHART_HOVERING ) index = i;
+                    if( res & NK_CHART_CLICKED ) index = i;
+                }
+                nk_chart_end(ui_ctx);
             }
 
-            if(text_len > 0 && text[0] != '>') { strncpy(text, va(">%s", text), 64); text_len++; }
+            //  hightlight 60fps, 36fps and 12fps
+            struct nk_rect space; nk_layout_peek(&space, ui_ctx);
+            struct nk_command_buffer *canvas = nk_window_get_canvas(ui_ctx);
+            nk_stroke_line(canvas, space.x+0,space.y-60,space.x+space.w,space.y-60, 1.0, nk_rgba(0,255,0,128));
+            nk_stroke_line(canvas, space.x+0,space.y-36,space.x+space.w,space.y-36, 1.0, nk_rgba(255,255,0,128));
+            nk_stroke_line(canvas, space.x+0,space.y-12,space.x+space.w,space.y-12, 1.0, nk_rgba(255,0,0,128));
+
+            if( index >= 0 ) {
+                nk_tooltipf(ui_ctx, "Value: %.2f", (float)values[index]);
+            }
         }
 
         ui_end();
     }
 
-    if( ui_window("File Browser", 0) ) {
-        const char *browsed_file = 0;
-        if( ui_browse(&browsed_file, NULL) ) puts(browsed_file);
-        ui_window_end();
-    }
+    // window api showcasing
 
-    if( ui_window("Window #1 demo", 0) ) {
+    if( ui_window("UI Demo #1", 0) ) {
         ui_label("label #1");
         ui_window_end();
     }
 
-    if( ui_window("Window #2 demo", 0) ) {
+    if( ui_window("UI Demo #2", 0) ) {
         if( ui_begin("panel #2", 0) ) {
             ui_label("label #2");
             ui_end();
@@ -15266,7 +15719,7 @@ void ui_demo() {
         ui_window_end();
     }
 
-    if( ui_window("Window #3 demo", 0) ) {
+    if( ui_window("UI Demo #3", 0) ) {
         if( ui_begin("panel #3a", 0) ) {
             if( ui_bool("my bool", &boolean) ) puts("bool changed");
             if( ui_int("my int", &integer) ) puts("int changed");
@@ -15288,13 +15741,15 @@ void ui_demo() {
             ui_end();
         }
 
-        const char *title = "Window #3 demo";
+        const char *title = "UI Demo #3";
         struct nk_window *win = nk_window_find(ui_ctx, title);
         if( win ) {
-            struct nk_rect bounds = win->bounds; bounds.y += 65; bounds.h -= 65; // exclude title bar (~32) + menu bounds (~25)
-
+            enum { menubar_height = 65 }; // title bar (~32) + menu bounds (~25)
+            struct nk_rect bounds = win->bounds; bounds.y += menubar_height; bounds.h -= menubar_height; 
+#if 0
             ddraw_flush();
 
+            // @fixme: this is breaking rendering when post-fxs are in use
             static texture_t tx = {0};
             if( texture_rec_begin(&tx, bounds.w, bounds.h )) {
                 glClearColor(0.15,0.15,0.15,1);
@@ -15303,10 +15758,17 @@ void ui_demo() {
                 ddraw_flush();
                 texture_rec_end(&tx);
             }
+            struct nk_image image = nk_image_id((int)tx.id);
+            nk_draw_image_flipped(nk_window_get_canvas(ui_ctx), bounds, &image, nk_white);
+#else
+            static video_t *v = NULL;
+            do_once v = video( "bjork-all-is-full-of-love.mp4", VIDEO_RGB );
 
-            struct nk_image image = nk_image_id((int)tx.id); //(int)4);
-            struct nk_command_buffer* buffer = nk_window_get_canvas(ui_ctx);
-            nk_draw_image_flipped(buffer, bounds, &image, nk_white);
+            texture_t *textures = video_decode( v );
+
+            struct nk_image image = nk_image_id((int)textures[0].id);
+            nk_draw_image(nk_window_get_canvas(ui_ctx), bounds, &image, nk_white);
+#endif
         }
 
         ui_window_end();
@@ -15485,6 +15947,8 @@ void videorec_stop(void) {
 void videorec_start(const char *outfile_mp4) {
     do_once atexit(videorec_stop);
 
+    videorec_stop();
+
     // first choice: external ffmpeg encoder
     if( !rec_ffmpeg ) {
         extern const char *TOOLS;
@@ -15493,7 +15957,7 @@ void videorec_start(const char *outfile_mp4) {
 
         char *cmd = va("%sffmpeg%s "
                     "-hide_banner -loglevel error " // less verbose
-                    "-r 60 -f rawvideo -pix_fmt bgr24 -s %dx%d " // raw BGR WxH-60Hz frames
+                    "-r %d -f rawvideo -pix_fmt bgr24 -s %dx%d " // raw BGR WxH-60Hz frames
                     // "-framerate 30 " // interpolating new video output frames from the source frames
                     "-i - "              // read frames from stdin
                     //"-draw_mouse 1 "
@@ -15505,8 +15969,8 @@ void videorec_start(const char *outfile_mp4) {
                     "-pix_fmt yuv420p "  // compatible with Windows Media Player and Quicktime
                     "-vf vflip "         // flip Y
 //                  "-vf \"pad=ceil(iw/2)*2:ceil(ih/2)*2\" "
-                    "-y \"%s\"", tools_native_path, ifdef(win32, ".exe", ifdef(osx, ".osx",".linux")), 
-                    window_width(), window_height(), outfile_mp4);    // overwrite output file
+                    "-y \"%s\"", tools_native_path, ifdef(win32, ".exe", ifdef(osx, ".osx",".linux")),
+                    (int)window_fps(), window_width(), window_height(), outfile_mp4);    // overwrite output file
 
         // -rtbufsize 100M (https://trac.ffmpeg.org/wiki/DirectShow#BufferingLatency) Prevent some frames in the buffer from being dropped.
         // -probesize 10M (https://www.ffmpeg.org/ffmpeg-formats.html#Format-Options) Set probing size in bytes, i.e. the size of the data to analyze to get stream information. A higher value will enable detecting more information in case it is dispersed into the stream, but will increase latency. Must be an integer not lesser than 32. It is 5000000 by default.
@@ -15700,7 +16164,7 @@ void window_drop_callback(GLFWwindow* window, int count, const char** paths) {
     }
 
     if( errors ) PANIC("%d errors found during file dropping", errors);
-    else  app_reload();
+    else  window_reload();
 
     (void)window;
 }
@@ -15909,7 +16373,7 @@ bool window_create_from_handle(void *handle, float scale, unsigned flags) {
         // Sleep(500);
         if( file_directory(TOOLS) && cooker_jobs() )
         while( cooker_progress() < 100 ) {
-            for( int frames = 0; frames < 10 && window_swap(); frames += cooker_progress() >= 100 ) {
+            for( int frames = 0; frames < 2/*10*/ && window_swap(); frames += cooker_progress() >= 100 ) {
                 window_title(va("%s %.2d%%", cooker_cancelling ? "Aborting" : "Cooking assets", cooker_progress()));
                 if( input(KEY_ESC) ) cooker_cancel();
 
@@ -16041,11 +16505,7 @@ void window_frame_end() {
         touch_flush();
         sprite_flush();
 
-        // render profiler except during cooking stage 
-        // also, we defer profile rendering to 10th frame at least, so the user may have chance to actually call any UI call before us
-        // (given the UI policy nature, first-called first-served, we dont want profile tab to be on top of all other tabs)
-        // if( cooker_progress() >= 100 ) { static int once = 0; if(once) profile_render(); once = 1; }
-        static unsigned frames = 0; if(frames > 10) profile_render(); else frames += cooker_progress() >= 100;
+        profile_render();
  
         // flush all debugdraw calls before swap
         dd_ontop = 0;
@@ -16233,6 +16693,20 @@ void* window_handle() {
     return window;
 }
 
+void window_reload() {
+    // @todo: save_on_exit();
+    fflush(0);
+    chdir(app_path());
+    execv(__argv[0], __argv);
+    exit(0);
+}
+
+int window_record(const char *outfile_mp4) {
+    videorec_start(outfile_mp4);
+    return videorec_active();
+}
+
+
 // -----------------------------------------------------------------------------
 // fullscreen
 
@@ -16383,8 +16857,8 @@ int window_has_visible() {
     return glfwGetWindowAttrib(window, GLFW_VISIBLE);
 }
 
-void window_screenshot(const char* filename_png) {
-    snprintf(screenshot_file, 512, "%s", filename_png ? filename_png : "");
+void window_screenshot(const char* outfile_png) {
+    snprintf(screenshot_file, 512, "%s", outfile_png ? outfile_png : "");
 }
 
 void window_lock_aspect(unsigned numer, unsigned denom) {
@@ -16912,11 +17386,6 @@ int main() {
 // editing:
 // nope > functions: add/rem property
 
-static int editor_mode = 1;
-static int editor_selected = -1; // object in scene selected
-static vec2 editor_mouse; // 2d coord for ray/picking
-static int editor_hz = 60;
-
 vec3 editor_pick(float mouse_x, float mouse_y) {
     // unproject 2d coord as 3d coord
     camera_t *camera = camera_get_active();
@@ -16932,8 +17401,6 @@ bool gizmo_active() {
     return gizmo__active;
 }
 int gizmo(vec3 *pos, vec3 *rot, vec3 *sca) {
-    uint32_t bak = dd_color;
-
 #if 0
     ddraw_flush();
     mat44 copy; copy44(copy, camera_get_active()->view);
@@ -16946,7 +17413,8 @@ int gizmo(vec3 *pos, vec3 *rot, vec3 *sca) {
     }
 #endif
 
-    ddraw_ontop(1);
+    ddraw_color_push(dd_color);
+    ddraw_ontop_push(1);
 
     int enabled = !ui_active() && !ui_hover();
     vec3 mouse = enabled ? vec3(input(MOUSE_X),input(MOUSE_Y),input_down(MOUSE_L)) : vec3(0,0,0); // x,y,l
@@ -17026,102 +17494,10 @@ int gizmo(vec3 *pos, vec3 *rot, vec3 *sca) {
     copy44(camera_get_active()->view, copy);
 #endif
 
-    ddraw_ontop(0);
-    ddraw_color(bak);
+    ddraw_ontop_pop();
+    ddraw_color_pop();
 
     return modified;
-}
-
-void editor_update() {
-    scene_t *scene = scene_get_active();
-    camera_t *camera = camera_get_active();
-
-    // input: mouse
-    bool any_active = (ui_hover() || ui_active()) || gizmo_active();
-    if( !any_active && input_down(MOUSE_L) ) {
-        editor_mouse = vec2(input(MOUSE_X), input(MOUSE_Y));
-    }
-    if( !any_active && input_click(MOUSE_L, 500) ) { // pick entity
-        // unproject 2d coord as 3d coord
-        vec3 out = editor_pick(editor_mouse.x, editor_mouse.y);
-        vec3 from = camera_get_active()->position, to = out;
-        ray r = ray(from, to);
-        //ddraw_line(from, to); // visualize ray
-
-        int found = -1, count = scene_count();
-        for( int i = 0; i < count; ++i ) {
-            object_t *obj = scene_index(i);
-            // bring aabb box to object position
-            aabb box = model_aabb(obj->model, obj->transform); //add3(obj->pos, obj->bounds.min), add3(obj->pos, obj->bounds.max));
-            // test ray hit
-            if( ray_hit_aabb(r, box) ) {
-                editor_selected = i;
-                break;
-            }
-        }
-    }
-
-    object_t *obj = 0;
-    if( editor_selected >= 0 ) {
-        obj = scene_index(editor_selected);
-        // bring aabb box to object position
-        aabb box = model_aabb(obj->model, obj->transform); // aabb box = aabb(add3(obj->pos, obj->bounds.min), add3(obj->pos, obj->bounds.max));
-        ddraw_color(YELLOW);
-        ddraw_aabb(box.min, box.max);
-        // draw gizmo
-        if( gizmo(&obj->pos, &obj->euler, &obj->sca) ) {
-            object_update(obj);
-        }
-    }
-
-    if( ui_begin("Editor", 0) ) {
-        bool x;
-        ui_float2("mouse (2d pick)", editor_mouse.v2);
-        if( ui_bool("breakpoint", (x = 0, &x)) ) breakpoint("editor breakpoint");
-        if( ui_bool("debugger", (x = has_debugger(), &x))) {}
-        if( ui_bool("fullscreen", (x = window_has_fullscreen(), &x)) ) window_fullscreen( x );
-        if( ui_bool("pause", (x = window_has_pause(), &x)) ) window_pause( x );
-        if( ui_int(va("target fps (%.2f)", fps), &editor_hz) ) if(editor_hz < 0) editor_hz = 0; if(editor_hz > 0 && editor_hz < 5) editor_hz = 5;
-        ui_separator();
-        if( editor_selected >= 0 ) {
-            ui_label(va("[%p]", obj));
-            if(ui_float3("Position", obj->pos.v3))   object_teleport(obj, obj->pos), gizmo__mode = 0;
-            if(ui_float3("Rotation", obj->euler.v3)) object_rotate(obj, obj->euler), gizmo__mode = 2;
-            if(ui_float3("Scale", obj->sca.v3))      object_scale(obj, obj->sca),    gizmo__mode = 1;
-        }
-        ui_end();
-    }
-
-    window_lock_fps( editor_hz );
-}
-bool editor_active() {
-    return ui_hover() || ui_active() || gizmo_active() ? 1 : 0;
-}
-
-void editor() {
-    // input: keyboard.
-#if 0
-    if( input_up(KEY_TAB) ) editor_mode ^= 1; // cycle editor mode
-    if( input_up(KEY_F1) )  window_pause( window_has_pause() ^ 1 );
-    if( input_up(KEY_F5) )  app_reload();
-    if( input_up(KEY_F11) ) window_fullscreen( window_has_fullscreen() ^ 1);
-    if( input_up(KEY_F12) ) screenshot("_screenshot.png", 3, true);
-#endif
-    // @fixme: send keys to game
-    // if( input_repeat(KEY_TAB, 300)) {}
-    // if( input_repeat(KEY_F1, 300)) {}
-    // etc...
-
-    if( ui_menu( ICON_BARS ";New Project;" ICON_TEST_GLYPH "Open Project;-Save Project;Settings;-Quit") ) printf("Selected File.%d\n", ui_item());
-        if( ui_item() == 6 ) exit(0);
-        if( ui_menu( ICON_FOLDER_OPEN )) {}
-        if( ui_menu( window_has_pause() ? ICON_PLAY : ICON_PAUSE )) window_pause( window_has_pause() ^ 1 );
-        if( ui_menu( ICON_STOP )) window_pause(1);
-    if( ui_menu( va(ICON_DATABASE " %s", xstats() ))) {} // 012/136MB
-    if( ui_menu( va(ICON_CUBE " %d", 0 ))) {} // map_count(offline) )));
-    if( ui_menu("Edit;Cut;Copy;Paste") ) printf("Selected Edit.%d\n", ui_item());
-
-    if( editor_mode ) editor_update();
 }
 
 char* dialog_load() {
@@ -17173,7 +17549,9 @@ void kit_init() {
 void kit_insert( const char *id, const char *translation) {
     char *id2 = KIT_MAKE_ID2(kit_my_lang, id);
 
-    map_find_or_add(kit_ids, STRDUP(id2), STRDUP(translation)); // x2 STRDUPs needed?
+    char **found = map_find_or_add_allocated_key(kit_ids, STRDUP(id2), NULL);
+    if(*found) FREE(*found);
+    *found = STRDUP(translation);
 }
 
 bool kit_merge( const char *filename ) {
@@ -17192,7 +17570,8 @@ bool kit_load( const char *filename ) {
 void kit_set( const char *key, const char *value ) {
     value = value && value[0] ? value : "";
 
-    char **found = map_find_or_add(kit_vars, STRDUP(key), NULL ); // x2 STRDUPs needed?
+    char **found = map_find_or_add_allocated_key(kit_vars, STRDUP(key), NULL );
+    if(*found) FREE(*found);
     *found = STRDUP(value);
 }
 
@@ -17297,6 +17676,9 @@ int main() {
 // ----------------------------------------------------------------------------
 
 static void fwk_pre_init() {
+    window_icon(va("%s.png", app_name()));
+    window_icon(va("%s.ico", app_name()));
+
     glfwPollEvents();
 
     profile_init();
@@ -17311,9 +17693,6 @@ static void fwk_pre_init() {
 
     script_init();
     audio_init(0);
-
-    window_icon(va("%s.png", app_name()));
-    window_icon(va("%s.ico", app_name()));
 }
 static void fwk_post_init(float refresh_rate) {
     const char *app = app_name();

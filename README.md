@@ -1,4 +1,4 @@
-<h1 align="center"><a href="https://bit.ly/-FWK-">F·W·K</a></h1>
+<h1 align="center"><a href="https://bit.ly/-fwk-">F·W·K</a></h1>
 <p align="center">3D game framework in C, with Luajit bindings now.</p>
 
 <p align="center">
@@ -17,6 +17,7 @@
 - [x] Pipeline: configurable and integrated [asset pipeline](fwk.ini).
 - [x] Embedded: single-file, all dependencies included.
 - [x] Compiler: MSVC, MINGW64, TCC, GCC, clang and emscripten.
+- [x] Linkage: Both static linkage and dynamic .dll/.so/.dylib support. 
 - [x] Platform: Windows, Linux and OSX. Partial HTML5/Web support.
 - [x] DS: hash, sort, array/vector, map, set.
 - [x] Math: rand, noise, ease, vec2/3/4, mat33/34/44, quat.
@@ -26,7 +27,7 @@
 - [x] Script: Lua scripting, Luajit bindings.
 - [x] Network: downloads (HTTPS) and sockets (TCP/UDP). <!-- [*] Object, GameObject, W/ECS -->
 - [x] UI: color3/4, button, list, slider, toggle, checkbox, editbox, dialog, image, menus.
-- [x] Font: TTF and TTC. Basic syntax highlighter. Glyph ranges. Atlasing.
+- [x] Font: TTF, OTF and TTC. Basic syntax highlighter. Glyph ranges. Atlasing.
 - [x] Localization: XLSX, INI, Unicode and L10/I18N.
 - [x] Image: JPG, PNG, BMP, PSD, PIC, PNM, ICO.
 - [x] Texture: KTX/2, PVR, DDS, ASTC, BASIS, HDR, TGA.
@@ -46,14 +47,14 @@
 - [x] Disk cache.
 - [x] Scene handling.
 - [x] Profiler, stats and leaks finder.
-- [x] [Documentation (wip)](https://bit.ly/-FWK-).
+- [x] [Documentation (wip)](https://bit.ly/-fwk-).
 
 ## Roadmap ᕕ(ᐛ)ᕗ (in order of arrival; ✱: partial support)
-- [ ] Editor: gizmos✱, scene tree, property editor, load/save, undo/redo, copy/paste. <!-- editor = tree of nodes. levels and objects are nodes, and widgets are also nodes --><!-- you can perform actions on nodes, with or without descendants, top-bottom or bottom-top --><!-- operations include load/save, reset, undo/redo, play/render vis on/off/alpha logic on/off/other ddraw on/off log on/off, etc --> 
+- [ ] Editor: gizmos✱, scene tree, property editor✱, load/save✱, undo/redo✱, copy/paste. <!-- editor = tree of nodes. levels and objects are nodes, and widgets are also nodes --><!-- you can perform actions on nodes, with or without descendants, top-bottom or bottom-top --><!-- operations include load/save, reset, undo/redo, play/render vis on/off/alpha logic on/off/other ddraw on/off log on/off, etc --> 
 - [ ] Level objects: volumes✱, triggers, platforms, streaming. 
 - [ ] World: W/ECS, gameobj, serialization/merge, diff/patch. 
-- [ ] Scene: toggles on/off (billboards✱, materials, un/lit, cast shadows, wireframe, skybox/mie, collide, physics).
-- [ ] Scene: node singleton display, node console, node labels, node outlines. <!-- node == gameobj ? -->
+- [ ] Scene: toggles on/off (billboards✱, materials, un/lit, cast shadows, wireframe, skybox✱/mie✱, collide✱, physics).
+- [ ] Scene: node singleton display, node console, node labels, node outlines✱. <!-- node == gameobj ? -->
 - [ ] Math: quat2, bezier, catmull.
 - [ ] Render: Materials (colors✱, textures✱, matcaps✱, videos✱, shadertoys✱). Shadertoys as post-fx✱. <!--materials as postfx, as they have an update() method -->
 - [ ] Render: Hard/soft shadow mapping and baked lightmaps.
@@ -245,30 +246,33 @@ int main() {
 Type `MAKE.bat` (Win) or `sh MAKE.bat` (Linux/OSX) to build everything. Alternatively,
 
 ```lua
-echo Windows (vc+tcc)      && cl  demo.c       fwk.c
-echo Windows (mingw64)     && gcc demo.c       fwk.c -o demo -w -lws2_32 -lgdi32 -lwinmm -ldbghelp
-echo Linux (gcc+clang+tcc) && cc  demo.c       fwk.c -o demo -w -lm -ldl -lpthread -lX11
-echo OSX (gcc+clang)       && cc  demo.c -ObjC fwk.c -o demo -w -framework cocoa -framework iokit
+echo Windows (vc)          && cl  demo.c       fwk.c
+echo Windows (tcc)         && tcc demo.c       fwk.c
+echo Windows (mingw64)     && gcc demo.c       fwk.c -o demo -lws2_32 -lgdi32 -lwinmm -ldbghelp
+echo Linux (gcc+clang+tcc) && cc  demo.c       fwk.c -o demo -lm -ldl -lpthread -lX11
+echo OSX (gcc+clang)       && cc  demo.c -ObjC fwk.c -o demo -framework cocoa -framework iokit
 ```
 <!-- - Note: Windows: Assimp.dll may need [this package installed](https://www.microsoft.com/en-us/download/confirmation.aspx?id=30679).-->
 - Note: TCC is partially supported on Windows+Linux. Beware, no threading.
 
 ## Build (as dynamic library)
-Type `MAKE.bat dll` or `sh MAKE.bat dll` (Linux/OSX) to build FWK as a dynamic library. Alternatively,
+Type `MAKE.bat dll` (Win) or `sh MAKE.bat dll` (Linux/OSX) to build FWK as a dynamic library. Alternatively,
 
 ```lua
-echo Windows && cl fwk.c /LD /DAPI=EXPORT
-echo Linux   && cc -fPIC fwk.c -shared -o libfwk.so -w -lX11
-echo OSX     && cc -ObjC -dynamiclib -o libfwk.dylib fwk.c -framework cocoa -framework iokit -w
+echo Windows(vc)  && cl fwk.c /LD /DAPI=EXPORT
+echo Windows(tcc) && tcc fwk.c -shared -DAPI=EXPORT && tcc -impdef fwk.dll
+echo Linux        && cc -fPIC fwk.c -shared -o libfwk.so -lX11
+echo OSX          && cc -ObjC -dynamiclib -o libfwk.dylib fwk.c -framework cocoa -framework iokit
 ```
 
-- Quick test on Windows: `cl demo.c fwk.lib /DAPI=IMPORT`
+- Quick test on Windows (vc): `cl fwk.c /LD /DAPI=EXPORT && cl demo.c fwk.lib /DAPI=IMPORT`
+- Quick test on Windows (tcc): `tcc fwk.c -shared -DAPI=EXPORT && tcc demo.c fwk.def -DAPI=IMPORT`
 - Or also, copy the dynamic library into `art/demos/lua` and then run `luajit demo_luajit_model.lua` from there.
 
 ## Cook
 - Most asset types need to be cooked before being used in your application. Other assets like `.png` do not.
 - Cooker is already embedded into you application and will scan for new contents & cook assets automatically.
-- In order to achieve this, your binary needs to keep both [`fwk.ini` file](fwk.ini) and [`tools/` folder](tools/) close together.
+- In order to achieve this, your binary needs to keep both [`fwk.ini` file](fwk.ini) and [`tools/` folder](art/editor/tools/) close together.
 - Cooked assets will be written into .zipfiles close to your executable, and mounted before entering game loop.
 - When distributing your game, only your binary and these .zipfiles are required.
 
@@ -282,25 +286,26 @@ echo OSX     && cc -ObjC -dynamiclib -o libfwk.dylib fwk.c -framework cocoa -fra
 echo // This C file is a header that you can #include.  Do #define FWK_C  > fwk-single-header.h
 echo // early in **one** C compilation unit to unroll the implementation >> fwk-single-header.h
 echo // The FWK_C symbol **must be defined in a C file**; C++ wont work. >> fwk-single-header.h
-type tools\depot\3rd\3rd_glad.h >> fwk-single-header.h
-type fwk.h                      >> fwk-single-header.h
-echo #ifdef FWK_C               >> fwk-single-header.h
-echo #pragma once               >> fwk-single-header.h
-echo #define FWK_3RD            >> fwk-single-header.h
-type fwk                        >> fwk-single-header.h
-type fwk.c                      >> fwk-single-header.h
-echo #endif // FWK_C            >> fwk-single-header.h
+type art\editor\tools\3rd\3rd_glad.h >> fwk-single-header.h
+type fwk.h                           >> fwk-single-header.h
+echo #ifdef FWK_C                    >> fwk-single-header.h
+echo #pragma once                    >> fwk-single-header.h
+echo #define FWK_3RD                 >> fwk-single-header.h
+type fwk                             >> fwk-single-header.h
+type fwk.c                           >> fwk-single-header.h
+echo #endif // FWK_C                 >> fwk-single-header.h
 ```
 
 ## Extra tips
 - Any ico/png file matching the executable name will be automatically used as app icon.
 - Dropped files into game window will be imported & saved into [`art/import`](art/import) folder.
-- Update the gamepad controller database by upgrading the [`gamecontrollerdb.txt`](tools/editor/assets/input) file.
+- Update the gamepad controller database by upgrading the [`gamecontrollerdb.txt`](art/editor/input) file.
 - Cancel entire cooking stage by pressing `ESC key` (not recommended).
-- Disable automatic cooking by invoking `--with-cook-jobs=0` flag (not recommended).
-- Cook from command-line by running [`tools/bin/cook.*` binaries](tools/bin/). 
-- Linux/OSX users can optionally install wine to use the Windows pipeline as an alternate asset pipeline (by using `--with-wine` flag).
-<!-- - On windows + vc, you can use `make bindings` or `make docs` to generate everything prior to a release --><!-- smaller exes (4.5MiB): cl demo.c fwk.c /Os /Ox /O2 /Oy /GL /GF /MT /DNDEBUG /Gw /link /OPT:ICF /LTCG -->
+- Disable automatic cooking by using `--with-cook-jobs=0` flag (not recommended).
+- Cook from command-line by running [`cook.*` binaries](art/editor/tools/). 
+- Linux/OSX users can optionally install wine and use the Windows pipeline instead (by using `--with-wine` flag).
+- Get smaller .exes by compiling with `/Os /Ox /O2 /Oy /GL /GF /MT /DNDEBUG /Gw /link /OPT:ICF /LTCG` (vc).
+<!-- - On windows + vc, you can use `make bindings` or `make docs` to generate everything prior to a release -->
 
 ## Bindings
 - Luajit: Luajit bindings are provided in the [auto-generated fwk.lua file](art/demos/lua/fwk.lua).
@@ -348,6 +353,7 @@ echo #endif // FWK_C            >> fwk-single-header.h
 - [Ilya Muravyov](https://github.com/encode84) for bcm, balz, crush, ulz, lz4x (PD).
 - [Jon Olick](https://www.jonolick.com/), for jo_mp1 and jo_mpeg (PD).
 - [Joonas Pihlajamaa](https://github.com/jokkebk/JUnzip), for JUnzip library (PD).
+- [Juliette Focault](https://github.com/juliettef/IconFontCppHeaders/blob/main/IconsMaterialDesign.h), for the generated MD header (ZLIB).
 - [Lee Salzman](https://github.com/lsalzman/iqm/tree/5882b8c32fa622eba3861a621bb715d693573420/demo), for IQM spec & player (PD).
 - [Lee Salzman, V.Hrytsenko and D.Madarász](https://github.com/zpl-c/enet/), for enet (MIT).
 - [Libtomcrypt](https://github.com/libtom/libtomcrypt), for libtomcrypt (Unlicense).
@@ -358,7 +364,7 @@ echo #endif // FWK_C            >> fwk-single-header.h
 - [Rich Geldreich](https://github.com/richgel999/miniz), for miniz (PD).
 - [Ross Williams](http://ross.net/compression/lzrw3a.html) for lzrw3a (PD).
 - [Samuli Raivio](https://github.com/bqqbarbhg/bq_websocket), for bq_websocket (PD).
-- [Sean Barrett](https://github.com/nothings), for stb_image, stb_image_write, stb_truetype and stb_vorbis (PD).
+- [Sean Barrett](https://github.com/nothings), for stb_image, stb_image_write, stb_sprintf, stb_truetype and stb_vorbis (PD).
 - [Sebastian Steinhauer](https://github.com/kieselsteini), for sts_mixer (PD).
 - [Stefan Gustavson](https://github.com/stegu/perlin-noise), for simplex noise (PD).
 - [Vassvik](https://github.com/vassvik/mv_easy_font), for mv_easy_font (Unlicense).

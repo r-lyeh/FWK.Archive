@@ -87,11 +87,11 @@ int main() {
     {
         // input
         if( input_down(KEY_ESC) ) break;
-        if( input_down(KEY_F5) ) app_reload();
+        if( input_down(KEY_F5) ) window_reload();
         if( input_down(KEY_W) && input_held(KEY_LCTRL) ) break;
         if( input_down(KEY_F11) ) window_fullscreen( window_has_fullscreen() ^ 1 );
         if( input_down(KEY_X) ) window_screenshot(__FILE__ ".png");
-        if( input_down(KEY_Z) ) videorec_start(__FILE__ ".mp4");
+        if( input_down(KEY_Z) ) window_record(__FILE__ ".mp4");
 
         // vec2 filtered_lpad = input_filter_deadzone(input2(GAMEPAD_LPAD), do_gamepad_deadzone + 1e-3);
         // vec2 filtered_rpad = input_filter_deadzone(input2(GAMEPAD_RPAD), do_gamepad_deadzone + 1e-3);
@@ -121,10 +121,6 @@ int main() {
             glEnable(GL_DEPTH_TEST);
             mesh_render(&sky.geometry);
             skybox_pop_state();
-        }
-
-        profile("Editor") {
-            editor();
         }
 
         // apply post-fxs from here

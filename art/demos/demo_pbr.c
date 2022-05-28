@@ -437,7 +437,7 @@ int main( int argc, const char *argv[] ) {
 
     while( window_swap() && !input(KEY_ESC) ) {
 
-        if( input(KEY_F5) ) app_reload();
+        if( input(KEY_F5) ) window_reload();
         if( input_down( KEY_F ) ) camera_fit(&cam);
 
         // ---------------------------------------------------------------------

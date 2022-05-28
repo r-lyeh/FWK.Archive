@@ -1,0 +1,160 @@
+#ifdef ICON
+// 2 states
+ICON(DONE),ICON(DONE_ALL),
+ICON(CHECK_BOX),ICON(CHECK_BOX_OUTLINE_BLANK),
+ICON(VISIBILITY),ICON(VISIBILITY_OFF),
+ICON(NOTIFICATIONS),ICON(NOTIFICATIONS_OFF),
+
+ICON(TOGGLE_ON),ICON(TOGGLE_OFF),
+ICON(LIGHTBULB),ICON(LIGHTBULB_OUTLINE),
+ICON(FULLSCREEN),ICON(FULLSCREEN_EXIT),
+ICON(VIDEOCAM),ICON(VIDEOCAM_OFF),
+
+ICON(FIBER_MANUAL_RECORD),ICON(FIBER_SMART_RECORD),
+ICON(EXPAND_MORE),ICON(EXPAND_LESS),
+ICON(SPORTS_ESPORTS),ICON(VIDEOGAME_ASSET),ICON(GAMEPAD),//ICON(STADIA_CONTROLLER),
+ICON(FILE_DOWNLOAD),ICON(FILE_UPLOAD),
+
+// 3 states
+ICON(FOLDER_OPEN),ICON(CREATE_NEW_FOLDER),ICON(FOLDER_SPECIAL),
+ICON(CONTENT_CUT),ICON(CONTENT_COPY),ICON(CONTENT_PASTE),
+ICON(STAR),ICON(STAR_HALF),ICON(STAR_OUTLINE),
+ICON(VOLUME_DOWN),ICON(VOLUME_UP),ICON(VOLUME_OFF),
+
+// 6 states
+ICON(FAST_REWIND),ICON(SKIP_PREVIOUS),ICON(PLAY_ARROW),ICON(SKIP_NEXT),ICON(FAST_FORWARD),ICON(REPEAT),
+
+// 12 states
+ICON(POWER),ICON(BATTERY_CHARGING_FULL),ICON(BATTERY_FULL),ICON(BATTERY_6_BAR),ICON(BATTERY_5_BAR),ICON(BATTERY_4_BAR),ICON(BATTERY_3_BAR),ICON(BATTERY_2_BAR),ICON(BATTERY_1_BAR),ICON(BATTERY_0_BAR),ICON(BATTERY_ALERT),
+
+
+ICON(MOVIE),
+ICON(CAMERA),ICON(PHOTO_CAMERA),
+ICON(SPEED),
+ICON(ROOM),
+ICON(PUSH_PIN),
+ICON(FLAG),
+
+ICON(G_TRANSLATE),
+ICON(SETTINGS),
+ICON(CLOSED_CAPTION),
+
+ICON(BUILD),
+ICON(ROCKET_LAUNCH),
+
+ICON(TODAY),ICON(EVENT_NOTE),
+
+ICON(3D_ROTATION),
+ICON(LAUNCH),
+ICON(SEARCH),
+ICON(TIMELAPSE),
+ICON(ARROW_DOWNWARD),
+ICON(CALL_MERGE),
+ICON(ARCHIVE),
+ICON(SHOW_CHART),
+ICON(WARNING),
+ICON(CREATE),ICON(ADD),
+
+ICON(TEXT_FORMAT),
+ICON(CHECK),
+ICON(SAVE),
+ICON(CANCEL),
+ICON(DELETE),
+ICON(CLOSE),
+ICON(REFRESH),
+ICON(SYNC),
+ICON(HIGHLIGHT_OFF),
+ICON(SYSTEM_UPDATE),
+ICON(UNDO),ICON(REDO),
+ICON(CLASS),
+ICON(TITLE),
+ICON(HD),
+
+ICON(VIEW_QUILT),
+
+ICON(FINGERPRINT),
+ICON(VPN_KEY),
+ICON(FACE),ICON(PERSON),
+ICON(CHAT_BUBBLE),
+
+ICON(COPYRIGHT),
+#undef ICON
+#endif
+
+#ifdef TERMINAL
+#undef TERMINAL
+    if( ui_window("Console", 0) ) {
+
+struct nk_font *font = nk_glfw.atlas.fonts->next /*2nd font*/;
+if( font && nk_style_push_font(ui_ctx, &font->handle) ) {} else font = 0;
+
+            static char  input[256] = {0};
+            static int   input_len = 0;
+
+            static char *output = 0; do_once output = CALLOC(1, 128*1024);
+            static int   output_len = 0;
+
+            do_once {
+                for( FILE *fp = popen(ifdef(win32, "ver", "uname"), "r"); fp; pclose(fp), fp = 0) {
+                    char buffer[1024];
+                    while( fgets(buffer, 1024, fp) ) {
+                        int len = 0; while(buffer[len] != '\r' && buffer[len] != '\n') { if(buffer[len] < 0) buffer[len] = '?'; len++; }
+                        strncpy(output + output_len, buffer, 128*1024 - output_len); output_len += len;
+                        strncpy(output + output_len, "\n",   128*1024 - output_len); output_len += 1;
+                    }
+                }
+            }
+
+            nk_layout_row_dynamic(ui_ctx, 400, 1);
+
+            int active;
+            int flags = NK_EDIT_BOX/*_EDITOR*/|NK_EDIT_AUTO_SELECT|NK_EDIT_SIG_ENTER|NK_EDIT_GOTO_END_ON_ACTIVATE/*|NK_EDIT_READ_ONLY*/; 
+            nk_edit_focus(ui_ctx, flags);
+            active = nk_edit_string(ui_ctx, flags, output, &output_len, 128*1024, nk_filter_default);
+
+            //ui_separator();
+            //nk_layout_row_dynamic(ui_ctx, 0, 1); // height(min), horiz_slots(2)
+            //int active = nk_edit_string(ui_ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER/*|NK_EDIT_NO_CURSOR*/, input, &input_len, 256, nk_filter_ascii);
+            if (active & NK_EDIT_COMMITED) {
+
+char *blob = output + ( output_len > 128 ? output_len - 128 : 0 );
+char *last = strrchr(blob, '\n');
+#if 0
+if( last ) {
+    *last = 0;
+    char *last2 = strrchr(blob, '\n');
+    if( last2 ) {
+        strcpy(input, last2+1);
+        input_len = strlen(input);
+        puts(input);
+    }
+    *last = '\r';
+}
+#else
+if(last)  {
+    strcpy(input, last+1);
+    input_len = strlen(input);
+}
+#endif
+
+                // update
+                strncpy(output + output_len, input, 128*1024 - output_len); output_len += input_len;
+                strncpy(output + output_len, "\n",  128*1024 - output_len); output_len += 1;
+                // echo
+                for( FILE *fp = popen(input, "r"); fp; pclose(fp), fp = 0) {
+                    char buffer[1024];
+                    while( fgets(buffer, 1024, fp) ) {
+                        int len = 0; while(buffer[len] != '\r' && buffer[len] != '\n') { if(buffer[len] < 0) buffer[len] = '?'; len++; }
+                        strncpy(output + output_len, buffer, 128*1024 - output_len); output_len += len;
+                        strncpy(output + output_len, "\n",   128*1024 - output_len); output_len += 1;
+                    }
+                }
+                input[input_len = 0] = '\0';
+            }
+
+if( font )  nk_style_pop_font(ui_ctx);
+
+        ui_window_end();
+    }
+#endif
+

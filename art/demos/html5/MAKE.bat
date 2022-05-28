@@ -15,11 +15,11 @@ popd
 
 ## cook art
 if [ "$(uname)" = "Darwin" ]; then
-    chmod +x ../../../tools/bin/cook.osx
-    ../../../tools/bin/cook.osx
+    chmod +x ../../editor/tools/cook.osx
+    ../../editor/tools/cook.osx
 else
-    chmod +x ../../../tools/bin/cook.linux
-    ../../../tools/bin/cook.linux
+    chmod +x ../../editor/tools/cook.linux
+    ../../editor/tools/cook.linux
 fi
 
 ## host webserver, compile and launch
@@ -43,7 +43,7 @@ if not exist "..\..\..\..\emsdk" (
 if "%EMSDK%"=="" call ..\..\..\..\emsdk\emsdk_env.bat
 
 rem cook art
-..\..\..\tools\bin\cook.exe
+..\..\editor\tools\cook.exe
 
 rem host webserver, compile and launch
 start python -m http.server --bind 127.0.0.1 8000

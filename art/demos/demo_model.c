@@ -53,7 +53,7 @@ int main() {
     animations_t a = animations("kgirl/animlist.txt", 0);
 
     while( window_swap() ) {
-        if(input(KEY_F5)) app_reload();
+        if(input(KEY_F5)) window_reload();
         if(input(KEY_ESC)) break;
 
         // fps camera
