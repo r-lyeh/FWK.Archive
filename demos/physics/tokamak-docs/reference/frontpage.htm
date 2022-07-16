@@ -1,0 +1,28 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Language" content="en-gb">
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta name="GENERATOR" content="Microsoft FrontPage 4.0">
+<meta name="ProgId" content="FrontPage.Editor.Document">
+<title>front</title>
+<base target="_self">
+</head>
+
+<body>
+
+<h1>Introduction</h1>
+<p>The Tokamak API exposes two different types of classes. The Interface classes 
+  are classes of objects which must be created and freed through a Tokamak API 
+  function or a member function of a Tokamak class. The other group, Peripheral 
+  classes, consists of ordinary C++ classes which are managed by the API user.</p>
+<p>Note: the Tokamak API is written in C++ and is of an object-oriented design. 
+  But it keeps the use of virtual class functions to an absolute minimum. Internally, 
+  there are no virtual functions at all. The rationale behind this design decision 
+  is that on some platforms virtual function calls are very costly due to limited 
+  cache space. Thus, we have taken care that Tokamak does create virtual function 
+  call overhead.</p>
+
+</body>
+
+</html>

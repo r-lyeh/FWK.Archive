@@ -1,0 +1,169 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta name="GENERATOR" content="Microsoft FrontPage 4.0">
+<meta name="ProgId" content="FrontPage.Editor.Document">
+<title>neAnimatedBody</title>
+<base target="_self">
+</head>
+
+<body link="#880000">
+
+<h1><a name="class neAnimatedBody">class neAnimatedBody</a></h1>
+<table border="1" width="100%" height="252">
+  <tr>
+    <td width="33%" height="19">Properties</td>
+    <td width="33%" height="19">Spatial Properties</td>
+    <td width="34%" height="19">Others Functions</td>
+  </tr>
+  <tr>
+    <td width="33%" height="221" valign="top"><font COLOR="#880000"><a href="#SetCollisionID">SetCollisionID</a><br>
+      <a href="#SetCollisionID">
+      GetCollisionID</a><br>
+      <a href="#SetUserData">
+      SetUserData</a><br>
+      <a href="#SetUserData">
+      GetUserData</a></font>
+      <p>&nbsp;</td>
+    <td width="33%" height="221" valign="top"><font COLOR="#880000"><a href="#GetPos">GetPos</a><br>
+      <a href="#GetPos">
+      SetPos</a><br>
+      <a href="#GetPos">
+      GetRotationM3</a><br>
+      <a href="#GetPos">
+      GetRotationQ</a><br>
+      <a href="#GetPos">
+      SetRotation</a><br>
+      <a href="#GetPos">
+      SetRotation</a><br>
+      <a href="#GetPos">
+      GetTransform</a></font>
+      <p>&nbsp;</td>
+    <td width="34%" height="221" valign="top"><font COLOR="#880000"><a href="#GetGeometryCount">GetGeometryCount</a><br>
+      <a href="#GetGeometryCount">
+      AddGeometry</a><br>
+      <a href="#GetGeometryCount">
+      RemoveGeometry</a><br>
+      <a href="#GetGeometryCount">
+      BeginIterateGeometry</a><br>
+      <a href="#GetGeometryCount">
+      GetNextGeometry
+      </a><a href="#BreakGeometry"><font COLOR="#880000"><br>
+      </font>BreakGeometry</a><br>
+      <a href="#AddSensor">
+      AddSensor</a><br>
+      <a href="#AddSensor">
+      RemoveSensor</a><br>
+      <a href="#AddSensor">
+      BeginIterateSensor</a><br>
+      <a href="#AddSensor">
+      GetNextSensor</a><br>
+      <a href="#UpdateBoundingInfo">
+      UpdateBoundingInfo</a><br>
+      <a href="#CollideConnected">
+      CollideConnected</a><br>
+      <a href="#CollideConnected">
+      CollideConnected</a><br>
+      <a href="#Active">
+      Active</a><br>
+      <a href="#Active">
+      Active</a><br>
+      <a href="#Active">
+      Active</a></font></td>
+  </tr>
+</table>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="SetCollisionID">SetCollisionID</a></font>(<font COLOR="#0000ff">s32</font>
+<font COLOR="#808080">cid</font>);<font COLOR="#0000ff"><br>
+s32</font> <font COLOR="#880000">GetCollisionID</font>();</p>
+<p>Set and retrieve the collision ID of the animated body. The collision ID, along 
+  with the <font color="#880000">neCollisionTable</font>, determines how the animated 
+  body will respond when a collision has occured with other objects in the simulation. 
+  See also <font color="#880000">neCollisionTable</font>.</p>
+<p><i><a href="#class neAnimatedBody">&lt;back to top&gt;</a></i></p>
+<hr>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="SetUserData">SetUserData</a></font>(<font COLOR="#0000ff">u32</font>
+<font COLOR="#808080">userData</font>);<font COLOR="#0000ff"><br>
+u32</font> <font COLOR="#880000">GetUserData</font>();</p>
+<p>Set and retrieve the user data property. This is a u32 value, used to store 
+  game-specific information associated with the animated body.</p>
+<p><a href="#class neAnimatedBody"><i>&lt;back to top&gt;</i></a></p>
+<hr>
+<p><font COLOR="#0000ff">neV3</font> <font COLOR="#880000"><a name="GetPos">GetPos</a></font>();<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">SetPos</font>(<font COLOR="#0000ff">const</font>
+<font COLOR="#0000ff">neV3</font> &amp; <font COLOR="#808080">p</font>);<font COLOR="#0000ff"><br>
+neM3</font> <font COLOR="#880000">GetRotationM3</font>();<font COLOR="#0000ff"><br>
+neQ</font> <font COLOR="#880000">GetRotationQ</font>();<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">SetRotation</font>(<font COLOR="#0000ff">const</font>
+<font COLOR="#0000ff">neM3</font> &amp; <font COLOR="#808080">m</font>);<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">SetRotation</font>(<font COLOR="#0000ff">const</font>
+<font COLOR="#0000ff">neQ</font> &amp; <font COLOR="#808080">q</font>);<font COLOR="#0000ff"><br>
+neT3</font> <font COLOR="#880000">GetTransform</font>();</p>
+<p>Set and retrieve spatial states for the animated body with these functions.</p>
+<p><a href="#class neAnimatedBody"><i>&lt;back to top&gt;</i></a></p>
+<hr>
+<p><font COLOR="#0000ff">s32</font> <font COLOR="#880000"><a name="GetGeometryCount">GetGeometryCount</a></font>();<font COLOR="#0000ff"><br>
+neGeometry</font> * <font COLOR="#880000">AddGeometry</font>();<font COLOR="#0000ff"><br>
+neBool</font> <font COLOR="#880000">RemoveGeometry</font>(<font COLOR="#0000ff">neGeometry</font>
+* <font COLOR="#808080">g</font>);<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">BeginIterateGeometry</font>();<font COLOR="#0000ff"><br>
+neGeometry</font> * <font COLOR="#880000">GetNextGeometry</font>();</p>
+<p>Use these functions to create and retrieve <font color="#880000">neGeometry</font> 
+  objects for the animated body. The collection <font color="#880000">neGeometry,</font> 
+  belonging to an animated body, defines the body's collision boundary. It also 
+  defines the animated body's breaking behaviour. An animated body can also exist 
+  without any <font color="#880000">neGeomtry</font> assigned to it; it just wont 
+  collide with anything in the simulation. All <font color="#880000">neGeometry</font> 
+  objects within an animated body will be freed automatcally when the animated 
+  body is freed. See also <font color="#880000">neGeometry</font>.</p>
+<p><a href="#class neAnimatedBody"><i>&lt;back to top&gt;</i></a></p>
+<hr>
+<p><font COLOR="#0000ff">neRigidBody</font> * <font COLOR="#880000"><a name="BreakGeometry">BreakGeometry</a></font>(<font COLOR="#0000ff">neGeometry</font>
+* <font COLOR="#808080">g</font>);</p>
+<p>Breaks off the geometry object, which must belong to the rigid body. Returns
+the newly created rigid body.</p>
+<p><a href="#class neAnimatedBody"><i>&lt;back to top&gt;</i></a></p>
+<hr>
+<p><font COLOR="#0000ff">neSensor</font> * <font COLOR="#880000"><a name="AddSensor">AddSensor</a></font>();<font COLOR="#0000ff"><br>
+neBool</font> <font COLOR="#880000">RemoveSensor</font>(<font COLOR="#0000ff">neSensor</font>
+* <font COLOR="#808080">s</font>);<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">BeginIterateSensor</font>();<font COLOR="#0000ff"><br>
+neSensor</font> * <font COLOR="#880000">GetNextSensor</font>();</p>
+<p>Use these functions to create and retrieve neSensor objects for the animated body. See <font color="#880000">neSensor</font>.</p>
+<p><a href="#class neAnimatedBody"><i>&lt;back to top&gt;</i></a></p>
+<hr>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="UpdateBoundingInfo">UpdateBoundingInfo</a></font>();</p>
+<p>Update the internal bounding information of the animated body. Whenever the 
+  user changes geometry and/or sensors of the animated body, by adding, removing, 
+  or modifying geometry and/or sensors, this function needs to be called to update 
+  the internal bounding information.</p>
+<p><a href="#class neAnimatedBody"><i>&lt;back to top&gt;</i></a></p>
+<hr>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="CollideConnected">CollideConnected</a></font>(<font COLOR="#0000ff">neBool</font>
+<font COLOR="#808080">yes</font>);<font COLOR="#0000ff"><br>
+neBool</font> <font COLOR="#880000">CollideConnected</font>();</p>
+<p>Define whether or not an animated&nbsp; body will collide with another body 
+  connected to it via joints (<font color="#880000">neJoint</font>). The behaviour 
+  defined by this function overrides the behaviour defined by the <font color="#880000">neCollisionTable</font>.</p>
+<p><a href="#class neAnimatedBody"><i>&lt;back to top&gt;</i></a></p>
+<hr>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="Active">Active</a></font>(<font COLOR="#0000ff">neBool</font>
+<font COLOR="#808080">yes</font>, <font COLOR="#0000ff">neRigidBody</font> * <font COLOR="#808080">hint</font>
+= <font COLOR="#a000a0">NULL</font>);<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">Active</font>(<font COLOR="#0000ff">neBool</font>
+<font COLOR="#808080">yes</font>, <font COLOR="#0000ff">neAnimatedBody</font> * <font COLOR="#808080">hint</font>
+= <font COLOR="#a000a0">NULL</font>);<font COLOR="#0000ff"><br>
+neBool</font> <font COLOR="#880000">Active</font>();</p>
+
+<p>Activate or deactivate the animated body. When an animated body is deactivated, 
+  the simulator will not perform a collision test on the animated body.</p>
+<p>When activating (<font color="#808080">yes</font> == <font color="#0000FF">true</font>),
+an optional hint can be supplied. The hint should be a rigid body or an animated
+body near where the animated body being activated is. This can help speed up the
+introduction of the new activated animated body into the simulation.</p>
+
+<p><a href="#class neAnimatedBody"><i>&lt;back to top&gt;</i></a></p>
+
+</body>
+
+</html>

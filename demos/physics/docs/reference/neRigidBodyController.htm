@@ -1,0 +1,31 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta name="GENERATOR" content="Microsoft FrontPage 4.0">
+<meta name="ProgId" content="FrontPage.Editor.Document">
+<title>neRigidBodyController</title>
+</head>
+
+<body>
+
+<h1>class <a name="neRigidBodyController">neRigidBodyController</a></h1>
+<p>The rigid body controller is an object passed to the application during a rigid 
+  body controller callback. Using the rigid body controller object, the application 
+  can obtain the rigid body currently being controlled, and the application can 
+  specify the force and torque to be applied to the body by the controller.</p>
+
+<p><font COLOR="#0000ff">neRigidBody</font> * <font COLOR="#880000">GetRigidBody</font>();<font COLOR="#0000ff"><br>
+neV3</font> <font COLOR="#880000">GetControllerForce</font>();<font COLOR="#0000ff"><br>
+neV3</font> <font COLOR="#880000">GetControllerTorque</font>();<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">SetControllerForce</font>(<font COLOR="#0000ff">const</font>
+<font COLOR="#0000ff">neV3</font> &amp; <font COLOR="#808080">force</font>);<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">SetControllerTorque</font>(<font COLOR="#0000ff">const</font>
+<font COLOR="#0000ff">neV3</font> &amp; <font COLOR="#808080">torque</font>);<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">SetControllerForceWithTorque</font>(<font COLOR="#0000ff">const</font>
+<font COLOR="#0000ff">neV3</font> &amp; <font COLOR="#808080">force</font>, <font COLOR="#0000ff">const</font>
+<font COLOR="#0000ff">neV3</font> &amp; <font COLOR="#808080">pos</font>);</p>
+
+</body>
+
+</html>

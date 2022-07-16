@@ -1,4 +1,4 @@
-<h1 align="center"><a href="https://bit.ly/-fwk-">F·W·K</a></h1>
+<h1 align="center"><a href="https://bit.ly/F-W-K">F·W·K</a></h1>
 <p align="center">3D game framework in C, with Luajit bindings now.</p>
 
 <p align="center">
@@ -53,7 +53,7 @@ editor1 | editor2
 - [x] Disk cache.
 - [x] Scene handling.
 - [x] Profiler, stats and leaks finder.
-- [x] [Documentation (wip)](https://bit.ly/-fwk-).
+- [x] [Documentation (wip)](https://bit.ly/F-W-K).
 
 ## Roadmap ᕕ(ᐛ)ᕗ (in order of arrival; ✱: partial support)
 - [ ] Editor: gizmos✱, scene tree, property editor✱, load/save✱, undo/redo✱, copy/paste. <!-- editor = tree of nodes. levels and objects are nodes, and widgets are also nodes --><!-- you can perform actions on nodes, with or without descendants, top-bottom or bottom-top --><!-- operations include load/save, reset, undo/redo, play/render vis on/off/alpha logic on/off/other ddraw on/off log on/off, etc --> 
@@ -185,18 +185,18 @@ R. Documentation pass: API, functions, samples, examples, pipeline. #5
 
 ## Gallery
 <p align="center">
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/art/demos/demo_script.png"    width="204px" title="Script."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/art/demos/demo_font.png"      width="204px" title="Fonts."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/art/demos/demo_collide.png"   width="204px" title="Collision."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/art/demos/demo_model.png"     width="204px" title="Model."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/art/demos/demo_scene.png"     width="204px" title="Scene."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/art/demos/demo_sprite.png"    width="204px" title="Sprite."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/art/demos/demo_shadertoy.png" width="204px" title="Shadertoy."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/art/demos/demo_cubemap.png"   width="204px" title="Cubemaps and SH."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/art/demos/demo_video.png"     width="204px" title="Video."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/art/demos/demo_pbr.png"       width="204px" title="PBR."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/art/demos/demo_instanced.png" width="204px" title="Instancing."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/art/demos/editor.png" width="204px" title="Editor."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_script.png"    width="204px" title="Script."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_font.png"      width="204px" title="Fonts."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_collide.png"   width="204px" title="Collision."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_model.png"     width="204px" title="Model."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_scene.png"     width="204px" title="Scene."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_sprite.png"    width="204px" title="Sprite."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_shadertoy.png" width="204px" title="Shadertoy."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_cubemap.png"   width="204px" title="Cubemaps and SH."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_video.png"     width="204px" title="Video."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_pbr.png"       width="204px" title="PBR."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_instanced.png" width="204px" title="Instancing."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/editor/editor.png"        width="204px" title="Editor."/>
 <br/>
 </p>
 
@@ -259,7 +259,7 @@ echo OSX      && cc -ObjC -dynamiclib -o libfwk.dylib fwk.c -framework cocoa -fr
 ## Cook
 - Most asset types need to be cooked before being used in your application. Other assets like `.png` do not.
 - Cooker is already embedded into you application and will scan for new contents & cook assets automatically.
-- In order to achieve this, your binary needs to keep both [`fwk.ini` file](fwk.ini) and [`tools/` folder](art/editor/tools/) close together.
+- In order to achieve this, your binary needs to keep both [`fwk.ini` file](fwk.ini) and [`tools/` folder](tools/) close together.
 - Cooked assets will be written into .zipfiles close to your executable, and mounted before entering game loop.
 - When distributing your game, only your binary and these .zipfiles are required.
 
@@ -267,29 +267,30 @@ echo OSX      && cc -ObjC -dynamiclib -o libfwk.dylib fwk.c -framework cocoa -fr
 - Depending on your IDE, you might need to [split all amalgamated](#Amalgamation) files when debugging FWK.
 - Split FWK into separate files by running `MAKE.bat split` (or `sh MAKE.bat split` in Linux/OSX).
 - Merge those files back into FWK by running `MAKE.bat join` (or `sh MAKE.bat join` in Linux/OSX).
-- Optionally, generate a single-header distribution by executing following script:
+- Optionally, generate a single-header distribution by executing `MAKE.bat amalgamation` or following script:
 
 ```lua
 echo // This C file is a header that you can #include.  Do #define FWK_C  > fwk-single-header.h
 echo // early in **one** C compilation unit to unroll the implementation >> fwk-single-header.h
 echo // The FWK_C symbol **must be defined in a C file**; C++ wont work. >> fwk-single-header.h
-type art\editor\tools\3rd\3rd_glad.h >> fwk-single-header.h
-type fwk.h                           >> fwk-single-header.h
-echo #ifdef FWK_C                    >> fwk-single-header.h
-echo #pragma once                    >> fwk-single-header.h
-echo #define FWK_3RD                 >> fwk-single-header.h
-type fwk                             >> fwk-single-header.h
-type fwk.c                           >> fwk-single-header.h
-echo #endif // FWK_C                 >> fwk-single-header.h
+echo #pragma once              >> fwk-single-header.h
+type split\split\3rd_glad.h    >> fwk-single-header.h
+type split\fwk.h               >> fwk-single-header.h
+echo #ifdef FWK_C              >> fwk-single-header.h
+echo #pragma once              >> fwk-single-header.h
+echo #define FWK_3RD           >> fwk-single-header.h
+type split\fwk                 >> fwk-single-header.h
+type split\fwk.c               >> fwk-single-header.h
+echo #endif // FWK_C           >> fwk-single-header.h
 ```
 
 ## Extra tips
 - Any ico/png file matching the executable name will be automatically used as app icon.
-- Dropped files into game window will be imported & saved into [`art/import`](art/import) folder.
-- Update the gamepad controller database by upgrading the [`gamecontrollerdb.txt`](art/editor/input) file.
+- Dropped files into game window will be imported & saved into [`editor/import`](editor/import) folder.
+- Update the gamepad controller database by upgrading the [`gamecontrollerdb.txt`](editor/input) file.
 - Cancel entire cooking stage by pressing `ESC key` (not recommended).
 - Disable automatic cooking by using `--with-cook-jobs=0` flag (not recommended).
-- Cook from command-line by running [`cook.*` binaries](art/editor/tools/). 
+- Cook directly from command-line by running supplied [`tools/cook` standalone binary](tools/).
 - Linux/OSX users can optionally install wine and use the Windows pipeline instead (by using `--with-wine` flag).
 - Generate a Visual Studio solution by dropping `fwk.h, fwk.c and fwk` files into it.
 - Faster builds by typing `MAKE.bat tcc` (Win/Linux).
@@ -297,7 +298,7 @@ echo #endif // FWK_C                 >> fwk-single-header.h
 <!-- - On windows + vc, you can use `make bindings` or `make docs` to generate everything prior to a release -->
 
 ## Bindings
-- Luajit: Luajit bindings are provided in the [auto-generated fwk.lua file](art/demos/lua/fwk.lua).
+- Luajit: Luajit bindings are provided in the [auto-generated fwk.lua file](demos/lua/fwk.lua).
 - Nelua: [Nelua bindings](https://github.com/Rabios/nelua-fun/tree/main/fwk) provided by Rabia Alhaffar.
 
 ## Credits (Artwork + demos)
