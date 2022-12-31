@@ -758,8 +758,8 @@ bool is_pinned = win && (win->flags & NK_WINDOW_PINNED);
 if( is_pinned ) {
 //    is_closable = false;
     is_auto_minimizes = false;
-//    is_scalable = false;
-    is_movable = false;
+    is_scalable = false;
+//    is_movable = false;
 }
 
     ui_create();
@@ -1172,6 +1172,11 @@ ui_label_icon_clicked_R.x = is_hovering ? ( (int)((input->mouse.pos.x - bounds.x
 
     return ui_label_icon_clicked_R.x;
 }
+int ui_label2_toolbar(const char *label, const char *icons, float icon_size) {
+    int mouse_click = ui_label2(label, va(">%s", icons));
+    int choice = !mouse_click ? 0 : 1 + -mouse_click / icon_size; // 24px per ICON_MD_ glyph approximately
+    return choice;
+}
 
 int ui_notify(const char *title, const char *body) {
     struct ui_notify n = {0};
@@ -1198,18 +1203,30 @@ int ui_button_(const char *text) {
     int ret = 0;
 
     if( 1 ) {
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_hover,  nk_rgb(0,0,0));
+#if UI_BUTTON_MONOCHROME
         nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_normal, nk_rgb(0,0,0));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_hover,  nk_rgb(0,0,0));
         nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_active, nk_rgb(0,0,0));
 
-#if UI_BUTTON_MONOCHROME
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.hover.data.color,  nk_hsv_f(ui_hue,0.0,1.0));
         nk_style_push_color(ui_ctx, &ui_ctx->style.button.normal.data.color, nk_hsv_f(ui_hue,0.0,0.8));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.hover.data.color,  nk_hsv_f(ui_hue,0.0,1.0));
         nk_style_push_color(ui_ctx, &ui_ctx->style.button.active.data.color, nk_hsv_f(ui_hue,0.0,0.4));
-#else
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.hover.data.color,  nk_hsv_f(ui_hue,1.00,1.0));
+#elif 0 // old
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_normal, nk_rgb(0,0,0));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_hover,  nk_rgb(0,0,0));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_active, nk_rgb(0,0,0));
+
         nk_style_push_color(ui_ctx, &ui_ctx->style.button.normal.data.color, nk_hsv_f(ui_hue,0.75,0.8));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.hover.data.color,  nk_hsv_f(ui_hue,1.00,1.0));
         nk_style_push_color(ui_ctx, &ui_ctx->style.button.active.data.color, nk_hsv_f(ui_hue,0.60,0.4));
+#else // new
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_normal, nk_rgba(0,0,0,255));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_hover,  nk_rgba(28,28,28,255));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_active, nk_rgb(0,0,0));
+
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.normal.data.color, nk_hsv_f(ui_hue,0.80,0.6));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.hover.data.color,  nk_hsv_f(ui_hue,0.85,0.9));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.active.data.color, nk_hsv_f(ui_hue,0.80,0.6));
 #endif
     }
 
@@ -1393,6 +1410,8 @@ int ui_slider2(const char *label, float *slider, const char *caption) {
         int chg = nk_progress(ui_ctx, &val, 1000, NK_MODIFIABLE);
         *slider = val / 1000.f;
 
+    chg |= input(MOUSE_L) && nk_input_is_mouse_hovering_rect(&ui_ctx->input, bounds); // , true);
+
     nk_widget_text(&win->buffer, bounds, caption, strlen(caption), &text, NK_TEXT_RIGHT, style->font);
     return chg;
 }
@@ -1515,15 +1534,34 @@ int ui_separator() {
     return 1;
 }
 
+int ui_subimage(const char *label, handle id, unsigned iw, unsigned ih, unsigned sx, unsigned sy, unsigned sw, unsigned sh) {
+    nk_layout_row_dynamic(ui_ctx, sh < 30 || id == texture_checker().id ? 0 : sh, label && label[0] ? 2 : 1);
+    if( label && label[0] ) ui_label_(label, NK_TEXT_LEFT);
+
+    struct nk_rect bounds; nk_layout_peek(&bounds, ui_ctx); bounds.w -= 10; // bounds.w *= 0.95f;
+
+    int ret = nk_button_image(ui_ctx, nk_subimage_id((int)id, iw, ih, ((struct nk_rect){sx,sy,sw,sh})));
+    if( !ret ) {
+        ret |= input(MOUSE_L) && nk_input_is_mouse_hovering_rect(&ui_ctx->input, bounds); // , true);
+    }
+    if( ret ) {
+        int px = 100 * (ui_ctx->input.mouse.pos.x - bounds.x ) / (float)bounds.w;
+        int py = 100 * (ui_ctx->input.mouse.pos.y - bounds.y ) / (float)bounds.h;
+        return px * 100 + py; // printf("%d %d xy:%d\n", px, py, (px * 100) + py);
+    }
+    return ret; // !!ret;
+}
+
 int ui_image(const char *label, handle id, unsigned w, unsigned h) {
-    //nk_layout_row_dynamic(ui_ctx, 1, 1);
-    //struct nk_rect bounds = nk_widget_bounds(ui_ctx);
+    return ui_subimage(label, id, w,h, 0,0,w,h);
+}
 
-    nk_layout_row_dynamic(ui_ctx, h < 30 || id == texture_checker().id ? 0 : h, 2);
-    ui_label_(label, NK_TEXT_LEFT);
+int ui_texture(const char *label, texture_t t) {
+    return ui_subimage(label, t.id, t.w,t.h, 0,0,t.w,t.h);
+}
 
-    int ret = nk_button_image(ui_ctx, nk_image_id((int)id));
-    return !!ret;
+int ui_subtexture(const char *label, texture_t t, unsigned x, unsigned y, unsigned w, unsigned h) {
+    return ui_subimage(label, t.id, t.w,t.h, x,y,w,h);
 }
 
 int ui_colormap( const char *map_name, colormap_t *cm ) {

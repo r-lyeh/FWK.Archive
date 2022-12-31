@@ -50,6 +50,7 @@
 #define TFD_IMPLEMENTATION                    // tinyfiledialogs
 #define BQ_PLATFORM_IMPLEMENTATION            // websocket
 #define BQ_WEBSOCKET_IMPLEMENTATION           // websocket
+#define XML_C                                 // xml
 #ifdef __APPLE__
 #define _GLFW_COCOA                           // glfw osx
 #elif defined _WIN32
@@ -167,4 +168,7 @@ int execv(const char *path, char *const argv[]);
 {{FILE:3rd_simplex.h}}
 {{FILE:3rd_tfd.h}}
 {{FILE:3rd_stb_sprintf.h}}
+#define g g2
+{{FILE:3rd_xml.h}}
+#undef g
 #endif // FWK_3RD

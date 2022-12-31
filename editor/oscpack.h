@@ -13,12 +13,14 @@ API char* osc_pack_va( const char *addr, const char *fmt, ... );
 
 
 #pragma once
+/*
 #ifdef _WIN32
 #include <winsock2.h>
 #pragma comment(lib, "ws2_32")
 #else
 #include <arpa/inet.h>
 #endif
+*/
 
 int osc__buffer_vl( char *buf, const char *fmt, va_list vl ) {
     // if `buf` is NULL, just calc needed space

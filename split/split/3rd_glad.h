@@ -1,5 +1,9 @@
 #ifndef __EMSCRIPTEN__
 
+#ifndef _GNU_SOURCE // juicy linux headers
+#define _GNU_SOURCE
+#endif
+
 #if defined(_MSC_VER) && defined(_WIN32) // for VC IDE
 #define _CRT_SECURE_NO_WARNINGS
 #define _CRT_NONSTDC_NO_DEPRECATE

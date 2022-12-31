@@ -12,8 +12,7 @@ cd `dirname $0`
 
 # tidy environment
 if [ "$1" = "tidy" ]; then
-    rm demo_* 2> /dev/null
-    rm demo 2> /dev/null
+    rm 00-* 2> /dev/null
     rm fwk.o 2> /dev/null
     rm .art*.zip 2> /dev/null
     rm demos/lua/.art*.zip 2> /dev/null
@@ -94,10 +93,10 @@ done
 if [ "$(uname)" != "Darwin" ]; then
 
     # setup (ArchLinux)
-    [[ ! -f ".setup" ]] && sudo pacman -S --noconfirm tcc && echo>.setup
+    [ ! -f ".setup" ] && sudo pacman -S --noconfirm tcc && echo>.setup
     # setup (Debian, Ubuntu, etc)
-    [[ ! -f ".setup" ]] && sudo apt-get -y update
-    [[ ! -f ".setup" ]] && sudo apt-get -y install tcc libx11-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev && echo>.setup       # absolute minimum
+    [ ! -f ".setup" ] && sudo apt-get -y update
+    [ ! -f ".setup" ] && sudo apt-get -y install tcc libx11-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev && echo>.setup       # absolute minimum
     #                      sudo apt-get -y install clang xorg-dev                                                                             # memorable, around 100 mib
     #                      sudo apt-get -y install clang xorg-dev libglfw3-dev libassimp-dev gcc                                              # initial revision
     #                      sudo apt-get -y install ffmpeg || (sudo apt-get install snapd && sudo snap install ffmpeg)                         # variant
@@ -106,14 +105,12 @@ if [ "$(uname)" != "Darwin" ]; then
     #cc tools/ass2iqe.c   -o tools/ass2iqe.linux  -lm -ldl -lpthread -w -g -lassimp
     #cc tools/iqe2iqm.cpp -o tools/iqe2iqm.linux  -lm -ldl -lpthread -w -g -lstdc++
     #cc tools/mid2wav.c   -o tools/mid2wav.linux  -lm -ldl -lpthread -w -g
-    #cc tools/xml2json.c  -o tools/xml2json.linux -lm -ldl -lpthread -w -g
 
     # change permissions of precompiled tools binaries because of 'Permission denied' runtime error (@procedural)
     chmod +x tools/ass2iqe.linux
     chmod +x tools/iqe2iqm.linux
     chmod +x tools/mid2wav.linux
     chmod +x tools/mod2wav.linux
-    chmod +x tools/xml2json.linux
     chmod +x tools/sfxr2wav.linux
     chmod +x tools/ffmpeg.linux
     chmod +x tools/cuttlefish.linux
@@ -139,22 +136,26 @@ if [ "$(uname)" != "Darwin" ]; then
     echo editor         && $cc -o editor!        editor/editor.c        -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
 
     # demos
-    echo demo           && $cc -o demo           demos/demo.c           -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
-    echo demo_cubemap   && $cc -o demo_cubemap   demos/demo_cubemap.c   -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
-    echo demo_collide   && $cc -o demo_collide   demos/demo_collide.c   -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
-    echo demo_model     && $cc -o demo_model     demos/demo_model.c     -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
-    echo demo_scene     && $cc -o demo_scene     demos/demo_scene.c     -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
-    echo demo_shadertoy && $cc -o demo_shadertoy demos/demo_shadertoy.c -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
-    echo demo_sprite    && $cc -o demo_sprite    demos/demo_sprite.c    -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
-    echo demo_video     && $cc -o demo_video     demos/demo_video.c     -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
-    echo demo_script    && $cc -o demo_script    demos/demo_script.c    -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
-    echo demo_socket    && $cc -o demo_socket    demos/demo_socket.c    -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
-    echo demo_easing    && $cc -o demo_easing    demos/demo_easing.c    -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
-    echo demo_font      && $cc -o demo_font      demos/demo_font.c      -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
-    echo demo_material  && $cc -o demo_material  demos/demo_material.c  -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
-    echo demo_pbr       && $cc -o demo_pbr       demos/demo_pbr.c       -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
-    echo demo_instanced && $cc -o demo_instanced demos/demo_instanced.c -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
-    echo demo_audio     && $cc -o demo_audio     demos/demo_audio.c     -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import
+    echo 00-demo      && $cc -o 00-demo      demos/00-demo.c      -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
+    echo 00-hello     && $cc -o 00-hello     demos/00-hello.c     -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
+    echo 00-cubemap   && $cc -o 00-cubemap   demos/00-cubemap.c   -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
+    echo 00-collide   && $cc -o 00-collide   demos/00-collide.c   -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
+    echo 00-anims     && $cc -o 00-anims     demos/00-anims.c     -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
+    echo 00-scene     && $cc -o 00-scene     demos/00-scene.c     -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
+    echo 00-shadertoy && $cc -o 00-shadertoy demos/00-shadertoy.c -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
+    echo 00-sprite    && $cc -o 00-sprite    demos/00-sprite.c    -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
+    echo 00-tilemap   && $cc -o 00-tilemap   demos/00-tilemap.c   -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
+    echo 00-tiled     && $cc -o 00-tiled     demos/00-tiled.c     -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
+    echo 00-video     && $cc -o 00-video     demos/00-video.c     -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
+    echo 00-script    && $cc -o 00-script    demos/00-script.c    -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
+    echo 00-socket    && $cc -o 00-socket    demos/00-socket.c    -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
+    echo 00-easing    && $cc -o 00-easing    demos/00-easing.c    -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
+    echo 00-font      && $cc -o 00-font      demos/00-font.c      -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
+    echo 00-material  && $cc -o 00-material  demos/00-material.c  -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
+    echo 00-pbr       && $cc -o 00-pbr       demos/00-pbr.c       -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
+    echo 00-instanced && $cc -o 00-instanced demos/00-instanced.c -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
+    echo 00-audio     && $cc -o 00-audio     demos/00-audio.c     -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import &
+    echo 00-spine     && $cc -o 00-spine     demos/00-spine.c     -lm -ldl -lpthread -lX11 -w -g -Isplit $args $import
 fi
 
 if [ "$(uname)" = "Darwin" ]; then
@@ -166,14 +167,12 @@ if [ "$(uname)" = "Darwin" ]; then
     #cc tools/ass2iqe.c   -o tools/ass2iqe.osx  -w -g -lassimp
     #cc tools/iqe2iqm.cpp -o tools/iqe2iqm.osx  -w -g -lstdc++
     #cc tools/mid2wav.c   -o tools/mid2wav.osx  -w -g
-    #cc tools/xml2json.c  -o tools/xml2json.osx -w -g
 
     # change permissions of precompiled tools binaries because of 'Permission denied' runtime error (@procedural)
     chmod +x tools/ass2iqe.osx
     chmod +x tools/iqe2iqm.osx
     chmod +x tools/mid2wav.osx
     chmod +x tools/mod2wav.osx
-    chmod +x tools/xml2json.osx
     chmod +x tools/sfxr2wav.osx
     chmod +x tools/ffmpeg.osx
     chmod +x tools/cuttlefish.osx
@@ -199,22 +198,26 @@ if [ "$(uname)" = "Darwin" ]; then
     echo editor         && cc -o editor! -ObjC  editor/editor.c        -framework cocoa -framework iokit -w -g -Isplit $import $args &
 
     # demos
-    echo demo           && cc -o demo           demos/demo.c           -framework cocoa -framework iokit -w -g -Isplit $import $args &
-    echo demo_cubemap   && cc -o demo_cubemap   demos/demo_cubemap.c   -framework cocoa -framework iokit -w -g -Isplit $import $args &
-    echo demo_collide   && cc -o demo_collide   demos/demo_collide.c   -framework cocoa -framework iokit -w -g -Isplit $import $args &
-    echo demo_model     && cc -o demo_model     demos/demo_model.c     -framework cocoa -framework iokit -w -g -Isplit $import $args &
-    echo demo_scene     && cc -o demo_scene     demos/demo_scene.c     -framework cocoa -framework iokit -w -g -Isplit $import $args &
-    echo demo_shadertoy && cc -o demo_shadertoy demos/demo_shadertoy.c -framework cocoa -framework iokit -w -g -Isplit $import $args &
-    echo demo_sprite    && cc -o demo_sprite    demos/demo_sprite.c    -framework cocoa -framework iokit -w -g -Isplit $import $args &
-    echo demo_video     && cc -o demo_video     demos/demo_video.c     -framework cocoa -framework iokit -w -g -Isplit $import $args &
-    echo demo_script    && cc -o demo_script    demos/demo_script.c    -framework cocoa -framework iokit -w -g -Isplit $import $args &
-    echo demo_socket    && cc -o demo_socket    demos/demo_socket.c    -framework cocoa -framework iokit -w -g -Isplit $import $args &
-    echo demo_easing    && cc -o demo_easing    demos/demo_easing.c    -framework cocoa -framework iokit -w -g -Isplit $import $args &
-    echo demo_font      && cc -o demo_font      demos/demo_font.c      -framework cocoa -framework iokit -w -g -Isplit $import $args &
-    echo demo_material  && cc -o demo_material  demos/demo_material.c  -framework cocoa -framework iokit -w -g -Isplit $import $args &
-    echo demo_pbr       && cc -o demo_pbr       demos/demo_pbr.c       -framework cocoa -framework iokit -w -g -Isplit $import $args &
-    echo demo_instanced && cc -o demo_instanced demos/demo_instanced.c -framework cocoa -framework iokit -w -g -Isplit $import $args &
-    echo demo_audio     && cc -o demo_audio     demos/demo_audio.c     -framework cocoa -framework iokit -w -g -Isplit $import $args
+    echo 00-demo      && cc -o 00-demo      demos/00-demo.c      -framework cocoa -framework iokit -w -g -Isplit $import $args &
+    echo 00-hello     && cc -o 00-hello     demos/00-hello.c     -framework cocoa -framework iokit -w -g -Isplit $import $args &
+    echo 00-cubemap   && cc -o 00-cubemap   demos/00-cubemap.c   -framework cocoa -framework iokit -w -g -Isplit $import $args &
+    echo 00-collide   && cc -o 00-collide   demos/00-collide.c   -framework cocoa -framework iokit -w -g -Isplit $import $args &
+    echo 00-anims     && cc -o 00-anims     demos/00-anims.c     -framework cocoa -framework iokit -w -g -Isplit $import $args &
+    echo 00-scene     && cc -o 00-scene     demos/00-scene.c     -framework cocoa -framework iokit -w -g -Isplit $import $args &
+    echo 00-shadertoy && cc -o 00-shadertoy demos/00-shadertoy.c -framework cocoa -framework iokit -w -g -Isplit $import $args &
+    echo 00-sprite    && cc -o 00-sprite    demos/00-sprite.c    -framework cocoa -framework iokit -w -g -Isplit $import $args &
+    echo 00-tilemap   && cc -o 00-tilemap   demos/00-tilemap.c   -framework cocoa -framework iokit -w -g -Isplit $import $args &
+    echo 00-tiled     && cc -o 00-tiled     demos/00-tiled.c     -framework cocoa -framework iokit -w -g -Isplit $import $args &
+    echo 00-video     && cc -o 00-video     demos/00-video.c     -framework cocoa -framework iokit -w -g -Isplit $import $args &
+    echo 00-script    && cc -o 00-script    demos/00-script.c    -framework cocoa -framework iokit -w -g -Isplit $import $args &
+    echo 00-socket    && cc -o 00-socket    demos/00-socket.c    -framework cocoa -framework iokit -w -g -Isplit $import $args &
+    echo 00-easing    && cc -o 00-easing    demos/00-easing.c    -framework cocoa -framework iokit -w -g -Isplit $import $args &
+    echo 00-font      && cc -o 00-font      demos/00-font.c      -framework cocoa -framework iokit -w -g -Isplit $import $args &
+    echo 00-material  && cc -o 00-material  demos/00-material.c  -framework cocoa -framework iokit -w -g -Isplit $import $args &
+    echo 00-pbr       && cc -o 00-pbr       demos/00-pbr.c       -framework cocoa -framework iokit -w -g -Isplit $import $args &
+    echo 00-instanced && cc -o 00-instanced demos/00-instanced.c -framework cocoa -framework iokit -w -g -Isplit $import $args &
+    echo 00-audio     && cc -o 00-audio     demos/00-audio.c     -framework cocoa -framework iokit -w -g -Isplit $import $args &
+    echo 00-spine     && cc -o 00-spine     demos/00-spine.c     -framework cocoa -framework iokit -w -g -Isplit $import $args
 fi
 
 exit
@@ -229,14 +232,40 @@ setlocal enableDelayedExpansion
 rem show help
 if "%1"=="help" (
     echo %0
+    echo %0 [help]
+    echo %0 [info]
     echo %0 [tidy]
     echo %0 [docs]
     echo %0 [cook]
     echo %0 [bindings]
-    echo %0 [memcheck]
+    echo %0 [checkmem]
     echo %0 [split^|join]
-    echo %0 [demo name "compiler args" "program args"]
     echo %0 [dll^|static] [dbg^|dev^|rel] [cl^|tcc^|cc^|gcc^|clang] [-- compiler args]
+    exit /b
+)
+
+rem show manual compilation infos
+if "%1"=="info" (
+    echo :: FWK as static object (compilation-unit^)
+    echo cl  demo.c fwk.c
+    echo tcc demo.c fwk.c
+    echo gcc demo.c fwk.c -o demo.exe -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32
+    echo.
+    echo :: FWK as static object (single-header^)
+    echo cl  demo.c -DFWK_C
+    echo tcc demo.c -DFWK_C
+    echo gcc demo.c -DFWK_C -o demo.exe -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32
+    echo.
+    echo :: FWK as dll (export^)
+    echo cl  fwk.c -DAPI=EXPORT -LD
+    echo tcc fwk.c -DAPI=EXPORT -shared
+    echo gcc fwk.c -DAPI=EXPORT -shared -o fwk.dll -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lshell32 -lcomdlg32 -Wl,--out-implib,fwk.a
+    echo.
+    echo :: FWK as dll (import^)
+    echo cl  demo.c fwk.lib -DAPI=IMPORT
+    echo tcc demo.c fwk.def -DAPI=IMPORT
+    echo gcc demo.c fwk.a   -DAPI=IMPORT -o demo.exe
+    echo.
     exit /b
 )
 
@@ -287,15 +316,17 @@ if "%1"=="amalgamation" (
 echo // This C file is a header that you can #include.  Do #define FWK_C  > fwk.h
 echo // early in **one** C compilation unit to unroll the implementation >> fwk.h
 echo // The FWK_C symbol **must be defined in a C file**; C++ wont work. >> fwk.h
-echo #pragma once            >> fwk.h
-type split\split\3rd_glad.h  >> fwk.h
-type split\fwk.h             >> fwk.h
-echo #ifdef FWK_C            >> fwk.h
-echo #pragma once            >> fwk.h
-echo #define FWK_3RD         >> fwk.h
-type split\fwk               >> fwk.h
-type split\fwk.c             >> fwk.h
-echo #endif // FWK_C         >> fwk.h
+echo // Looking at the FWK APIs? Open any of the split/ folders instead. >> fwk.h
+echo #pragma once               >> fwk.h
+type split\split\3rd_font_md.h  >> fwk.h
+type split\split\3rd_glad.h     >> fwk.h
+type split\fwk.h                >> fwk.h
+echo #ifdef FWK_C               >> fwk.h
+echo #pragma once               >> fwk.h
+echo #define FWK_3RD            >> fwk.h
+type split\fwk                  >> fwk.h
+type split\fwk.c                >> fwk.h
+echo #endif // FWK_C            >> fwk.h
 exit /b
 )
 
@@ -317,19 +348,6 @@ if "%1"=="github" (
     exit /b
 )
 
-rem build & execute single demo. usage: make demo name "compiler args" "program args"
-if "%1"=="demo" (
-    setlocal enableDelayedExpansion
-    set "FILENAME=demo"
-    if exist "demo_%2.c" (
-        set "FILENAME=demo_%2"
-    )
-    copy /y !FILENAME!.c demos\!FILENAME!.c
-    cl !FILENAME!.c /nologo /openmp /Zi fwk.c %~3%
-    if %ERRORLEVEL%==0 (call !FILENAME!.exe %~4%) else (echo Compilation error: !FILENAME!)
-    exit /b
-)
-
 rem shortcuts for split & join amalgamation scripts
 if "%1"=="split" (
     call tools\split
@@ -342,11 +360,11 @@ if "%1"=="join" (
 
 rem check memory api calls
 if "%1"=="checkmem" (
-    findstr /RNC:"[^_xv]realloc[(]" fwk.c
-    findstr /RNC:"[^_xv]malloc[(]"  fwk.c
-    findstr /RNC:"[^_xv]free[(]"    fwk.c
-    findstr /RNC:"[^_xv]calloc[(]"  fwk.c
-    findstr /RNC:"[^_xv]strdup[(]"  fwk.c
+    findstr /RNC:"[^_xv]realloc[(]" split\fwk.c split\split\fwk*
+    findstr /RNC:"[^_xv]malloc[(]"  split\fwk.c split\split\fwk*
+    findstr /RNC:"[^_xv]free[(]"    split\fwk.c split\split\fwk*
+    findstr /RNC:"[^_xv]calloc[(]"  split\fwk.c split\split\fwk*
+    findstr /RNC:"[^_xv]strdup[(]"  split\fwk.c split\split\fwk*
     exit /b
 )
 
@@ -355,8 +373,8 @@ rem echo n | copy /-y demos\*.c 1> nul 2> nul
 
 rem tidy environment
 if "%1"=="tidy" (
-    move /y demo_*.png demos
-    move /y demo_*.c demos
+    move /y ??-*.png demos
+    move /y ??-*.c demos
     del demos\lua\fwk.dll
     del .temp*.*
     del *.zip
@@ -375,7 +393,7 @@ if "%1"=="tidy" (
     del *.dll
     del 3rd_*.*
     del fwk_*.*
-    del demo_*.*
+rem del ??-*.*
     del temp_*.*
     rd /q /s .vs
     del tcc.bat
@@ -482,25 +500,29 @@ if "!cc!"=="cl" (
     if "!dll!"=="dll"   copy /y fwk.dll demos\lua > nul
 
     rem editor
-    cl editor\editor.c        -Isplit !import! !args!
+    cl editor\editor.c      -Isplit !import! !args!
 
     rem demos
-    cl demos\demo.c           -Isplit !import! !args!
-    cl demos\demo_cubemap.c   -Isplit !import! !args!
-    cl demos\demo_collide.c   -Isplit !import! !args!
-    cl demos\demo_model.c     -Isplit !import! !args!
-    cl demos\demo_scene.c     -Isplit !import! !args!
-    cl demos\demo_shadertoy.c -Isplit !import! !args!
-    cl demos\demo_sprite.c    -Isplit !import! !args!
-    cl demos\demo_video.c     -Isplit !import! !args!
-    cl demos\demo_script.c    -Isplit !import! !args!
-    cl demos\demo_socket.c    -Isplit !import! !args!
-    cl demos\demo_easing.c    -Isplit !import! !args!
-    cl demos\demo_font.c      -Isplit !import! !args!
-    cl demos\demo_material.c  -Isplit !import! !args!
-    cl demos\demo_pbr.c       -Isplit !import! !args!
-    cl demos\demo_instanced.c -Isplit !import! !args!
-    cl demos\demo_audio.c     -Isplit !import! !args!
+    cl demos\00-demo.c      -Isplit !import! !args!
+    cl demos\00-hello.c     -Isplit !import! !args!
+    cl demos\00-cubemap.c   -Isplit !import! !args!
+    cl demos\00-collide.c   -Isplit !import! !args!
+    cl demos\00-anims.c     -Isplit !import! !args!
+    cl demos\00-scene.c     -Isplit !import! !args!
+    cl demos\00-shadertoy.c -Isplit !import! !args!
+    cl demos\00-sprite.c    -Isplit !import! !args!
+    cl demos\00-tilemap.c   -Isplit !import! !args!
+    cl demos\00-tiled.c     -Isplit !import! !args!
+    cl demos\00-video.c     -Isplit !import! !args!
+    cl demos\00-script.c    -Isplit !import! !args!
+    cl demos\00-socket.c    -Isplit !import! !args!
+    cl demos\00-easing.c    -Isplit !import! !args!
+    cl demos\00-font.c      -Isplit !import! !args!
+    cl demos\00-material.c  -Isplit !import! !args!
+    cl demos\00-pbr.c       -Isplit !import! !args!
+    cl demos\00-instanced.c -Isplit !import! !args!
+    cl demos\00-audio.c     -Isplit !import! !args!
+    cl demos\00-spine.c     -Isplit !import! !args!
 
 ) else if "!cc!"=="tcc" (
 
@@ -527,25 +549,29 @@ if "!cc!"=="cl" (
     if "!dll!"=="dll"   copy /y fwk.dll demos\lua > nul
 
     rem editor
-    echo editor         && call tcc editor\editor.c        -Isplit !import! !args!
+    echo editor         && call tcc editor\editor.c    -Isplit !import! !args!
 
     rem demos
-    echo demo           && call tcc demos\demo.c           -Isplit !import! !args!
-    echo demo_cubemap   && call tcc demos\demo_cubemap.c   -Isplit !import! !args!
-    echo demo_collide   && call tcc demos\demo_collide.c   -Isplit !import! !args!
-    echo demo_model     && call tcc demos\demo_model.c     -Isplit !import! !args!
-    echo demo_scene     && call tcc demos\demo_scene.c     -Isplit !import! !args!
-    echo demo_shadertoy && call tcc demos\demo_shadertoy.c -Isplit !import! !args!
-    echo demo_sprite    && call tcc demos\demo_sprite.c    -Isplit !import! !args!
-    echo demo_video     && call tcc demos\demo_video.c     -Isplit !import! !args!
-    echo demo_script    && call tcc demos\demo_script.c    -Isplit !import! !args!
-    echo demo_socket    && call tcc demos\demo_socket.c    -Isplit !import! !args!
-    echo demo_easing    && call tcc demos\demo_easing.c    -Isplit !import! !args!
-    echo demo_font      && call tcc demos\demo_font.c      -Isplit !import! !args!
-    echo demo_material  && call tcc demos\demo_material.c  -Isplit !import! !args!
-    echo demo_pbr       && call tcc demos\demo_pbr.c       -Isplit !import! !args!
-    echo demo_instanced && call tcc demos\demo_instanced.c -Isplit !import! !args!
-    echo demo_audio     && call tcc demos\demo_audio.c     -Isplit !import! !args!
+    echo 00-demo      && call tcc demos\00-demo.c      -Isplit !import! !args!
+    echo 00-hello     && call tcc demos\00-hello.c     -Isplit !import! !args!
+    echo 00-cubemap   && call tcc demos\00-cubemap.c   -Isplit !import! !args!
+    echo 00-collide   && call tcc demos\00-collide.c   -Isplit !import! !args!
+    echo 00-anims     && call tcc demos\00-anims.c     -Isplit !import! !args!
+    echo 00-scene     && call tcc demos\00-scene.c     -Isplit !import! !args!
+    echo 00-shadertoy && call tcc demos\00-shadertoy.c -Isplit !import! !args!
+    echo 00-sprite    && call tcc demos\00-sprite.c    -Isplit !import! !args!
+    echo 00-tilemap   && call tcc demos\00-tilemap.c   -Isplit !import! !args!
+    echo 00-tiled     && call tcc demos\00-tiled.c     -Isplit !import! !args!
+    echo 00-video     && call tcc demos\00-video.c     -Isplit !import! !args!
+    echo 00-script    && call tcc demos\00-script.c    -Isplit !import! !args!
+    echo 00-socket    && call tcc demos\00-socket.c    -Isplit !import! !args!
+    echo 00-easing    && call tcc demos\00-easing.c    -Isplit !import! !args!
+    echo 00-font      && call tcc demos\00-font.c      -Isplit !import! !args!
+    echo 00-material  && call tcc demos\00-material.c  -Isplit !import! !args!
+    echo 00-pbr       && call tcc demos\00-pbr.c       -Isplit !import! !args!
+    echo 00-instanced && call tcc demos\00-instanced.c -Isplit !import! !args!
+    echo 00-audio     && call tcc demos\00-audio.c     -Isplit !import! !args!
+    echo 00-spine     && call tcc demos\00-spine.c     -Isplit !import! !args!
 
 ) else ( rem if "!cc!"=="gcc" or "clang"
 
@@ -574,25 +600,29 @@ if "!cc!"=="cl" (
     if "!dll!"=="dll"   copy /y fwk.dll demos\lua > nul
 
     rem editor
-    echo editor         && !cc! -o editor         editor\editor.c        -Isplit !import! !args!
+    echo editor       && !cc! -o editor       editor\editor.c      -Isplit !import! !args!
 
     rem demos
-    echo demo           && !cc! -o demo           demos\demo.c           -Isplit !import! !args!
-    echo demo_cubemap   && !cc! -o demo_cubemap   demos\demo_cubemap.c   -Isplit !import! !args!
-    echo demo_collide   && !cc! -o demo_collide   demos\demo_collide.c   -Isplit !import! !args!
-    echo demo_model     && !cc! -o demo_model     demos\demo_model.c     -Isplit !import! !args!
-    echo demo_scene     && !cc! -o demo_scene     demos\demo_scene.c     -Isplit !import! !args!
-    echo demo_shadertoy && !cc! -o demo_shadertoy demos\demo_shadertoy.c -Isplit !import! !args!
-    echo demo_sprite    && !cc! -o demo_sprite    demos\demo_sprite.c    -Isplit !import! !args!
-    echo demo_video     && !cc! -o demo_video     demos\demo_video.c     -Isplit !import! !args!
-    echo demo_script    && !cc! -o demo_script    demos\demo_script.c    -Isplit !import! !args!
-    echo demo_socket    && !cc! -o demo_socket    demos\demo_socket.c    -Isplit !import! !args!
-    echo demo_easing    && !cc! -o demo_easing    demos\demo_easing.c    -Isplit !import! !args!
-    echo demo_font      && !cc! -o demo_font      demos\demo_font.c      -Isplit !import! !args!
-    echo demo_material  && !cc! -o demo_material  demos\demo_material.c  -Isplit !import! !args!
-    echo demo_pbr       && !cc! -o demo_pbr       demos\demo_pbr.c       -Isplit !import! !args!
-    echo demo_instanced && !cc! -o demo_instanced demos\demo_instanced.c -Isplit !import! !args!
-    echo demo_audio     && !cc! -o demo_audio     demos\demo_audio.c     -Isplit !import! !args!
+    echo 00-demo      && !cc! -o 00-demo      demos\00-demo.c      -Isplit !import! !args!
+    echo 00-hello     && !cc! -o 00-hello     demos\00-hello.c     -Isplit !import! !args!
+    echo 00-cubemap   && !cc! -o 00-cubemap   demos\00-cubemap.c   -Isplit !import! !args!
+    echo 00-collide   && !cc! -o 00-collide   demos\00-collide.c   -Isplit !import! !args!
+    echo 00-anims     && !cc! -o 00-anims     demos\00-anims.c     -Isplit !import! !args!
+    echo 00-scene     && !cc! -o 00-scene     demos\00-scene.c     -Isplit !import! !args!
+    echo 00-shadertoy && !cc! -o 00-shadertoy demos\00-shadertoy.c -Isplit !import! !args!
+    echo 00-sprite    && !cc! -o 00-sprite    demos\00-sprite.c    -Isplit !import! !args!
+    echo 00-tilemap   && !cc! -o 00-tilemap   demos\00-tilemap.c   -Isplit !import! !args!
+    echo 00-tiled     && !cc! -o 00-tiled     demos\00-tiled.c     -Isplit !import! !args!
+    echo 00-video     && !cc! -o 00-video     demos\00-video.c     -Isplit !import! !args!
+    echo 00-script    && !cc! -o 00-script    demos\00-script.c    -Isplit !import! !args!
+    echo 00-socket    && !cc! -o 00-socket    demos\00-socket.c    -Isplit !import! !args!
+    echo 00-easing    && !cc! -o 00-easing    demos\00-easing.c    -Isplit !import! !args!
+    echo 00-font      && !cc! -o 00-font      demos\00-font.c      -Isplit !import! !args!
+    echo 00-material  && !cc! -o 00-material  demos\00-material.c  -Isplit !import! !args!
+    echo 00-pbr       && !cc! -o 00-pbr       demos\00-pbr.c       -Isplit !import! !args!
+    echo 00-instanced && !cc! -o 00-instanced demos\00-instanced.c -Isplit !import! !args!
+    echo 00-audio     && !cc! -o 00-audio     demos\00-audio.c     -Isplit !import! !args!
+    echo 00-spine     && !cc! -o 00-spine     demos\00-spine.c     -Isplit !import! !args!
 )
 
 rem PAUSE only if double-clicked from Windows explorer

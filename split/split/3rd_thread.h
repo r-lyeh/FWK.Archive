@@ -617,6 +617,9 @@ struct thread_queue_t
 
 #elif defined( __linux__ ) || defined( __APPLE__ ) || defined( __ANDROID__ ) || defined( __EMSCRIPTEN__ ) //< @r-lyeh, ems
 
+    #ifndef _GNU_SOURCE
+    #define _GNU_SOURCE //< @r-lyeh: pthread_setname_np()
+    #endif
     #include <pthread.h>
     #include <sys/time.h>
 

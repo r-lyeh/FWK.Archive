@@ -3,7 +3,11 @@
 int  osc_edit(const char *hierarchy_descriptor, char type, void *ptr); // descriptor format: [ifsTF]/path/name
 void osc_edit_sync(int server_fd, int client_fd, unsigned timeout_ms);
 
-#define OSC_EDIT_PORT "2022" // maybe use portname("OSC_EDITOR_V1", 000) ?
+int  osc_edit_load(const char *mask);
+int  osc_edit_save(const char *mask);
+int  osc_edit_reset(const char *mask);
+
+#define OSC_EDIT_PORT "2023" // maybe use portname("OSC_EDITOR_V1", 000) ?
 
 // --- impl
 
@@ -11,6 +15,10 @@ void osc_edit_sync(int server_fd, int client_fd, unsigned timeout_ms);
 #include "oscpack.h"
 #include "oscsend.h"
 #include "oscrecv.h"
+
+#ifndef OSC_EDIT_INI
+#define OSC_EDIT_INI "oscedit.ini"
+#endif
 
 typedef struct osc_variant {
     char *key;          // key address
@@ -36,14 +44,8 @@ int osc_edit(const char *hierarchy_descriptor, char type, void *ptr) {
     return 0;
 }
 
-// @todo: undo,redo
-
-#ifndef OSCEDIT_INI
-#define OSCEDIT_INI "oscedit.ini"
-#endif
-
 int osc_edit_load(const char *mask) {
-    ini_t map = ini(OSCEDIT_INI);
+    ini_t map = ini(OSC_EDIT_INI);
     if( !map ) return 0;
 
     map_clear(server_vars); // @todo: @leak: iterate variant strings and free() them
@@ -69,12 +71,12 @@ int osc_edit_load(const char *mask) {
 
     map_free(map);
 
-    ui_notify(va("Loaded %s ok", mask), NULL);
+    ui_notify("Loaded.", NULL);
     return 1;
 }
 
 int osc_edit_save(const char *mask) {
-    unlink( OSCEDIT_INI );
+    unlink( OSC_EDIT_INI );
 
     for each_map_ptr(server_vars, char *, title, osc_variant, msg) {
         if( strmatchi(*title, mask) ) {
@@ -83,14 +85,14 @@ int osc_edit_save(const char *mask) {
             if( msg->type == 's' ) msg->offline[0].s = STRDUP(msg->live[0].s); // @leak
             else memcpy( &msg->offline[0], &msg->live[0], sizeof(msg->offline[0]) );
 
-            if( msg->type == 'i' )        ini_write(OSCEDIT_INI, "i", msg->key, va("%d",   (int)msg->live[0].i ));
-            if( msg->type == 'f' )        ini_write(OSCEDIT_INI, "f", msg->key, va("%f", (float)msg->live[0].f ));
-            if( msg->type == 's' )        ini_write(OSCEDIT_INI, "s", msg->key, va("%s",        msg->live[0].s ));
-            if( strchr("bTF",msg->type) ) ini_write(OSCEDIT_INI, "b", msg->key, va("%s", msg->live[0].i ? "true":"false" ));
+            if( msg->type == 'i' )        ini_write(OSC_EDIT_INI, "i", msg->key, va("%d",   (int)msg->live[0].i ));
+            if( msg->type == 'f' )        ini_write(OSC_EDIT_INI, "f", msg->key, va("%f", (float)msg->live[0].f ));
+            if( msg->type == 's' )        ini_write(OSC_EDIT_INI, "s", msg->key, va("%s",        msg->live[0].s ));
+            if( strchr("bTF",msg->type) ) ini_write(OSC_EDIT_INI, "b", msg->key, va("%s", msg->live[0].i ? "true":"false" ));
         }
     }
 
-    ui_notify(va("Saved %s ok", mask), NULL);
+    ui_notify("Saved.", NULL);
     return 1;
 }
 
@@ -183,7 +185,7 @@ void osc_edit_sync(int server_fd, int client_fd, unsigned timeout_ms) {
                 if( new_section ) {
                     if( prev_title ) ui_separator();
                     char *caption = va("*%.*s", title_len + 2, *title);
-                    int mouse_click = prev_title ? ui_label(caption), 0 : ui_label2(caption, va(">%d" ICON_MD_EMAIL " " ICON_MD_UNDO " " ICON_MD_LOOP " " ICON_MD_SD_CARD, num_messages));
+                    int mouse_click = prev_title ? ui_label(caption), 0 : ui_label2(caption, va(">%d" ICON_MD_EMAIL " " ICON_MD_UNDO " " ICON_MD_LOOP " " ICON_MD_SD_CARD, num_messages)); // ICON_MD_UNDO " " ICON_MD_UPLOAD " " ICON_MD_DOWNLOAD
                     int choice = !mouse_click ? 0 : 1 + -mouse_click / 24.0; // 24px per ICON_MD_ glyph approximately
                     if( choice == 3 ) osc_edit_reset("*");
                     if( choice == 2 ) osc_edit_load("*");

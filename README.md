@@ -1,10 +1,29 @@
 <h1 align="center"><a href="https://bit.ly/F-W-K">F·W·K</a></h1>
-<p align="center">3D game framework in C, with Luajit bindings now.</p>
-
 <p align="center">
-<img src="https://i.imgur.com/sInbRoA.gif"/><br/>
+3D game framework in C, with Luajit bindings now.<br/>
 </p>
 
+<p align="center">
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/editor/logos/grid_4.png.removebg.png" width="512" height="512"/>
+</p>
+
+## Gallery
+<p align="center">
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/00-script.png"    width="204px" title="Script."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/00-font.png"      width="204px" title="Fonts."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/00-collide.png"   width="204px" title="Collision."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/00-anims.png"     width="204px" title="Anims."/>
+<img src="https://i.imgur.com/sInbRoA.gif"                                            width="204px" title="Scene."/><!--https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/00-scene.png"     -->
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/00-sprite.png"    width="204px" title="Sprite."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/00-shadertoy.png" width="204px" title="Shadertoy."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/00-cubemap.png"   width="204px" title="Cubemaps and SH."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/00-video.png"     width="204px" title="Video."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/00-pbr.png"       width="204px" title="PBR."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/00-instanced.png" width="204px" title="Instancing."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/00-tiled.png"     width="204px" title="Tiled."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/editor/editor.png"      width="204px" title="Editor."/>
+<br/>
+</p>
 <!--
 editor1 | editor2
 :-: | :-:
@@ -21,7 +40,7 @@ editor1 | editor2
 
 ## Features ᕦ(ᐛ)ᕤ
 - [x] Pipeline: configurable and integrated [asset pipeline](fwk.ini).
-- [x] Embedded: single-file, all dependencies included.
+- [x] Embedded: [single-file header](fwk.h), all dependencies included.
 - [x] Compiler: MSVC, MINGW64, TCC, GCC, clang and emscripten.
 - [x] Linkage: Both static linkage and dynamic .dll/.so/.dylib support. 
 - [x] Platform: Windows, Linux and OSX. Partial HTML5/Web support.
@@ -47,6 +66,7 @@ editor1 | editor2
 - [x] Render: 3D Anims, skeletal anims, hardware skinning and instanced rendering.
 - [x] Render: 3D Debugdraw, batching and vectorial font.
 - [x] Render: 2D Sprites, spritesheets, AA zooming and batching.
+- [x] Render: 2D Tilemaps and tilesets: TMX, TSX.
 - [x] Compression: DEFLATE, LZMA, LZ4, ULZ, BALZ, BCM, CRUSH, LZW3, LZSS and PPP.
 - [x] Virtual filesystem: ZIP, PAK, TAR and DIR.
 - [x] Level data: JSON, JSON5, SJSON, XML, INI.
@@ -75,7 +95,7 @@ editor1 | editor2
 - [ ] Maybe: Mobile/WASM/HTML5✱ pass. 
 - [ ] Maybe: Lighting pass.
 - [ ] Maybe: Node/Graph editor. <!-- reused into materials, animgraphs and blueprints -->
-- [ ] Maybe: Tiled maps and 2D spines. Sprite parallaxs.
+- [ ] Maybe: 2D spines. Sprite parallaxs.
 - [ ] Maybe: Font text layout and shaping, underlining, soft/hard shadows, outlines.
 - [ ] API: Fewer and better examples.
 - [ ] API: Discuss API and freeze it.
@@ -183,22 +203,6 @@ R. Documentation pass: API, functions, samples, examples, pipeline. #5
 
 -->
 
-## Gallery
-<p align="center">
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_script.png"    width="204px" title="Script."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_font.png"      width="204px" title="Fonts."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_collide.png"   width="204px" title="Collision."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_model.png"     width="204px" title="Model."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_scene.png"     width="204px" title="Scene."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_sprite.png"    width="204px" title="Sprite."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_shadertoy.png" width="204px" title="Shadertoy."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_cubemap.png"   width="204px" title="Cubemaps and SH."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_video.png"     width="204px" title="Video."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_pbr.png"       width="204px" title="PBR."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/demo_instanced.png" width="204px" title="Instancing."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/editor/editor.png"        width="204px" title="Editor."/>
-<br/>
-</p>
 
 ## Hello FWK
 ```C
@@ -273,21 +277,23 @@ echo OSX      && cc -ObjC -dynamiclib -o libfwk.dylib fwk.c -framework cocoa -fr
 echo // This C file is a header that you can #include.  Do #define FWK_C  > fwk-single-header.h
 echo // early in **one** C compilation unit to unroll the implementation >> fwk-single-header.h
 echo // The FWK_C symbol **must be defined in a C file**; C++ wont work. >> fwk-single-header.h
-echo #pragma once              >> fwk-single-header.h
-type split\split\3rd_glad.h    >> fwk-single-header.h
-type split\fwk.h               >> fwk-single-header.h
-echo #ifdef FWK_C              >> fwk-single-header.h
-echo #pragma once              >> fwk-single-header.h
-echo #define FWK_3RD           >> fwk-single-header.h
-type split\fwk                 >> fwk-single-header.h
-type split\fwk.c               >> fwk-single-header.h
-echo #endif // FWK_C           >> fwk-single-header.h
+echo // Looking at the FWK APIs? Open any of the split/ folders instead. >> fwk-single-header.h
+echo #pragma once                                                        >> fwk-single-header.h
+type split\split\3rd_font_md.h                                           >> fwk-single-header.h
+type split\split\3rd_glad.h                                              >> fwk-single-header.h
+type split\fwk.h                                                         >> fwk-single-header.h
+echo #ifdef FWK_C                                                        >> fwk-single-header.h
+echo #pragma once                                                        >> fwk-single-header.h
+echo #define FWK_3RD                                                     >> fwk-single-header.h
+type split\fwk                                                           >> fwk-single-header.h
+type split\fwk.c                                                         >> fwk-single-header.h
+echo #endif // FWK_C                                                     >> fwk-single-header.h
 ```
 
 ## Extra tips
 - Any ico/png file matching the executable name will be automatically used as app icon.
-- Dropped files into game window will be imported & saved into [`editor/import`](editor/import) folder.
-- Update the gamepad controller database by upgrading the [`gamecontrollerdb.txt`](editor/input) file.
+- Dropped files into game window will be imported & saved into [`import`](editor/art/import) folder.
+- Update the gamepad controller database by upgrading the [`gamecontrollerdb.txt`](editor/art/input) file.
 - Cancel entire cooking stage by pressing `ESC key` (not recommended).
 - Disable automatic cooking by using `--with-cook-jobs=0` flag (not recommended).
 - Cook directly from command-line by running supplied [`tools/cook` standalone binary](tools/).
@@ -307,6 +313,7 @@ echo #endif // FWK_C           >> fwk-single-header.h
 - [Goblin165cm](https://sketchfab.com/3d-models/halloween-little-witch-ccc023590bfb4789af9322864e42d1ab), for witch 3D model (CC BY 4.0).
 - [Nanofactory](https://sketchfab.com/3d-models/kgirls01-d2f946f58a8040ae993cda70c97b302c), for kgirls01 3D model (CC BY-NC-ND 4.0).
 - [Quaternius](https://www.patreon.com/quaternius), for the lovely 3D robots (CC0).
+- [RottingPixels](https://opengameart.org/content/2d-castle-platformer-tileset-16x16), for castle-tileset (CC0).
 - [Rxi](https://github.com/rxi/autobatch), for lovely sprites & cats demo (MIT).
 - [wwwtyro](https://github.com/wwwtyro/glsl-atmosphere), for nicest rayleigh/mie scattering shader around (CC0).
 
@@ -359,6 +366,7 @@ echo #endif // FWK_C           >> fwk-single-header.h
 - [Sean Barrett](https://github.com/nothings), for stb_image, stb_image_write, stb_sprintf, stb_truetype and stb_vorbis (PD).
 - [Sebastian Steinhauer](https://github.com/kieselsteini), for sts_mixer (PD).
 - [Stefan Gustavson](https://github.com/stegu/perlin-noise), for simplex noise (PD).
+- [Tor Andersson](https://github.com/ccxvii/minilibs), for xml.c (PD).
 - [Vassvik](https://github.com/vassvik/mv_easy_font), for mv_easy_font (Unlicense).
 - Special thanks to [@ands](https://github.com/ands), [@barerose](https://github.com/barerose), [@datenwolf](https://github.com/datenwolf), [@evanw](https://github.com/evanw), [@glampert](https://github.com/glampert), [@krig](https://github.com/krig), [@sgorsten](https://github.com/sgorsten) and [@vurtun](https://github.com/vurtun) for their math libraries (PD,CC0,WTFPL2,CC0,PD,CC0,Unlicense,PD).
 
@@ -371,5 +379,9 @@ This software is released into the [public domain](https://unlicense.org/). Also
 <a href="https://discord.gg/vu6Vt9d"><img alt="Discord" src="https://img.shields.io/discord/270565488365535232?color=5865F2&label=chat&logo=discord&logoColor=white"/></a><br/>
 
 Still looking for alternatives?
-[amulet](https://github.com/ianmaclarty/amulet), [aroma](https://github.com/leafo/aroma/), [astera](https://github.com/tek256/astera), [blendelf](https://github.com/jesterKing/BlendELF), [bullordengine](https://github.com/MarilynDafa/Bulllord-Engine), [candle](https://github.com/EvilPudding/candle), [cave](https://github.com/kieselsteini/cave), [chickpea](https://github.com/ivansafrin/chickpea), [corange](https://github.com/orangeduck/Corange), [cute](https://github.com/RandyGaul/cute_framework), [dos-like](https://github.com/mattiasgustavsson/dos-like), [ejoy2d](https://github.com/ejoy/ejoy2d), [exengine](https://github.com/exezin/exengine), [gunslinger](https://github.com/MrFrenik/gunslinger), [hate](https://github.com/excessive/hate), [island](https://github.com/island-org/island), [juno](https://github.com/rxi/juno), [l](https://github.com/Lyatus/L), [lgf](https://github.com/Planimeter/lgf), [limbus](https://github.com/redien/limbus), [love](https://github.com/love2d/love/), [lovr](https://github.com/bjornbytes/lovr), [mini3d](https://github.com/mini3d/mini3d), [mintaro](https://github.com/mackron/mintaro), [mio](https://github.com/ccxvii/mio), [opensource](https://github.com/w23/OpenSource), [ouzel](https://github.com/elnormous/ouzel/), [pez](https://github.com/prideout/pez), [pixie](https://github.com/mattiasgustavsson/pixie), [punity](https://github.com/martincohen/Punity), [ricotech](https://github.com/dbechrd/RicoTech), [rizz](https://github.com/septag/rizz), [tigr](https://github.com/erkkah/tigr), [yourgamelib](https://github.com/duddel/yourgamelib)
+[amulet](https://github.com/ianmaclarty/amulet), [aroma](https://github.com/leafo/aroma/), [astera](https://github.com/tek256/astera), [blendelf](https://github.com/jesterKing/BlendELF), [bullordengine](https://github.com/MarilynDafa/Bulllord-Engine), [candle](https://github.com/EvilPudding/candle), [cave](https://github.com/kieselsteini/cave), [chickpea](https://github.com/ivansafrin/chickpea), [corange](https://github.com/orangeduck/Corange), [cute](https://github.com/RandyGaul/cute_framework), [dos-like](https://github.com/mattiasgustavsson/dos-like), [ejoy2d](https://github.com/ejoy/ejoy2d), [exengine](https://github.com/exezin/exengine), [gunslinger](https://github.com/MrFrenik/gunslinger), [hate](https://github.com/excessive/hate), [island](https://github.com/island-org/island), [juno](https://github.com/rxi/juno), [l](https://github.com/Lyatus/L), [lgf](https://github.com/Planimeter/lgf), [limbus](https://github.com/redien/limbus), [love](https://github.com/love2d/love/), [lovr](https://github.com/bjornbytes/lovr), [mini3d](https://github.com/mini3d/mini3d), [mintaro](https://github.com/mackron/mintaro), [mio](https://github.com/ccxvii/mio), [opensource](https://github.com/w23/OpenSource), [ouzel](https://github.com/elnormous/ouzel/), [pez](https://github.com/prideout/pez), [pixie](https://github.com/mattiasgustavsson/pixie), [punity](https://github.com/martincohen/Punity), [r96](https://github.com/badlogic/r96), [ricotech](https://github.com/dbechrd/RicoTech), [rizz](https://github.com/septag/rizz), [tigr](https://github.com/erkkah/tigr), [yourgamelib](https://github.com/duddel/yourgamelib)
+</p>
+
+<p align="center">
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/editor/logos/grid_4.png.removebg.png" width="512" height="512"/><br/>
 </p>

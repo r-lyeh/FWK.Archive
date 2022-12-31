@@ -50,8 +50,8 @@ API vec2        input_filter_deadzone_4way( vec2 v, float deadzone_treshold );
 // -- multi-touch 
 
 enum TOUCH_BUTTONS {
-	TOUCH_0,    // defaults to left screen area. input_touch_area() to override
-	TOUCH_1,    // defaults to right screen area. input_touch_area() to override
+    TOUCH_0,    // defaults to left screen area. input_touch_area() to override
+    TOUCH_1,    // defaults to right screen area. input_touch_area() to override
 };
 
 API void        input_touch_area(unsigned button, vec2 begin_coord_ndc, vec2 end_coord_ndc);

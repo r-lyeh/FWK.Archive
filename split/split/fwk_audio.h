@@ -17,6 +17,7 @@ API int     audio_play( audio_t s, int flags );
 API int     audio_play_gain( audio_t a, int flags, float gain/*0*/ );
 API int     audio_play_gain_pitch( audio_t a, int flags, float gain, float pitch/*1*/ );
 API int     audio_play_gain_pitch_pan( audio_t a, int flags, float gain, float pitch, float pan/*0*/ );
+API int     audio_stop( audio_t a );
 
 API float   audio_volume_clip(float gain);   // set     fx volume if gain is in [0..1] range. return current     fx volume in any case
 API float   audio_volume_stream(float gain); // set    bgm volume if gain is in [0..1] range. return current    bgm volume in any case
@@ -36,6 +37,9 @@ enum AUDIO_FLAGS {
 
     AUDIO_MIXER_GAIN = 0, // default
     AUDIO_IGNORE_MIXER_GAIN = 32,
+
+    AUDIO_MULTIPLE_INSTANCES = 0, // default
+    AUDIO_SINGLE_INSTANCE = 64,
 };
 
 API int audio_queue( const void *samples, int num_samples, int flags );

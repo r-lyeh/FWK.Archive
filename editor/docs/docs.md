@@ -8,7 +8,7 @@
 ## a b o u t
 
 - https://github.com/r-lyeh/FWK is a 3D game framework in C, with Luajit bindings.
-- Download latest: https://github.com/r-lyeh/FWK/archive/refs/heads/master.zip
+- Download latest release: https://github.com/r-lyeh/FWK/releases
 - WIP Documentation below. Need extra support? <a href="https://discord.gg/vu6Vt9d">Join us</a>.
 
 ![Image from demo.c](https://i.imgur.com/sInbRoA.gif)

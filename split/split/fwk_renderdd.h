@@ -59,3 +59,6 @@ API void ddraw_prism(vec3 center, float radius, float height, vec3 normal, int s
 API void ddraw_demo();
 API void ddraw_flush();
 API void ddraw_flush_projview(mat44 proj, mat44 view);
+//
+API void ddraw_push_2d();
+API void ddraw_pop_2d();

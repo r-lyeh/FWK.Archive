@@ -55,7 +55,7 @@ API size_t vlen( void* p );
 #define array_at(t,i) (t[i])
 #define array_count(t) (int)( (t) ? array_vlen_(t) / sizeof(0[t]) : 0u )
 #define array_bytes(t) (int)( (t) ? array_vlen_(t) : 0u )
-#define array_sort(t, cmpfunc) qsort( t, array_count(t), sizeof(0[t]), (uintptr_t)cmpfunc == (uintptr_t)strcmp ? strcmp_qsort : cmpfunc )
+#define array_sort(t, cmpfunc) qsort( t, array_count(t), sizeof(0[t]), (uintptr_t)cmpfunc == (uintptr_t)strcmp ? (void*)strcmp_qsort : (void*)cmpfunc )
 #define array_empty(t) ( !array_count(t) )
 
 #define array_push_front(arr,x) \
@@ -151,6 +151,16 @@ static __thread unsigned array_n_;
         } \
     }
 #endif
+
+#define array_shuffle(t) do { /* https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle */ \
+    void* tmp = stack(sizeof(0[t])); \
+    for( int i = 0, n = array_count(t); i < n; ++i ) { \
+        int j = randi(i, n); /* j random integer such that [i,n) i<=j<n */ \
+        memcpy(tmp, &j[t], sizeof(0[t])); \
+        memcpy(&j[t], &i[t], sizeof(0[t])); \
+        memcpy(&i[t], tmp, sizeof(0[t])); \
+    } \
+} while(0)
 
 // -----------------------------------------------------------------------------
 // set<K>
@@ -360,6 +370,13 @@ API void  (set_clear)(set* m);
 
 #define map_count(m)        map_count(&(m)->base)
 #define map_gc(m)           map_gc(&(m)->base)
+
+// aliases:
+
+#ifndef map_init_int
+#define map_init_int(m)     map_init((m), less_int, hash_64)
+#define map_init_str(m)     map_init((m), less_str, hash_str)
+#endif
 
 // private:
 

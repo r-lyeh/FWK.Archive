@@ -311,44 +311,23 @@ char* strjoin(array(char*) list, const char *separator) {
 }
 
 static
-uint32_t extract_utf32(const char **p) {
-    if( (**p & 0x80) == 0x00 ) {
-        int a = *((*p)++);
-        return a;
-    }
-    if( (**p & 0xe0) == 0xc0 ) {
-        int a = *((*p)++) & 0x1f;
-        int b = *((*p)++) & 0x3f;
-        return (a << 6) | b;
-    }
-    if( (**p & 0xf0) == 0xe0 ) {
-        int a = *((*p)++) & 0x0f;
-        int b = *((*p)++) & 0x3f;
-        int c = *((*p)++) & 0x3f;
-        return (a << 12) | (b << 6) | c;
-    }
-    if( (**p & 0xf8) == 0xf0 ) {
-        int a = *((*p)++) & 0x07;
-        int b = *((*p)++) & 0x3f;
-        int c = *((*p)++) & 0x3f;
-        int d = *((*p)++) & 0x3f;
-        return (a << 18) | (b << 12) | (c << 8) | d;
-    }
-    return 0;
+const char *extract_utf32(const char *s, uint32_t *out) {
+    /**/ if( (s[0] & 0x80) == 0x00 ) return *out = (s[0]), s + 1;
+    else if( (s[0] & 0xe0) == 0xc0 ) return *out = (s[0] & 31) <<  6 | (s[1] & 63), s + 2;
+    else if( (s[0] & 0xf0) == 0xe0 ) return *out = (s[0] & 15) << 12 | (s[1] & 63) <<  6 | (s[2] & 63), s + 3;
+    else if( (s[0] & 0xf8) != 0xf0 ) return *out = (s[0] &  7) << 18 | (s[1] & 63) << 12 | (s[2] & 63) << 8 | (s[3] & 63), s + 4;
+    return *out = 0, s + 0;
 }
 array(uint32_t) string32( const char *utf8 ) {
-    static __thread int slot = 0;
-    static __thread char *buf[16] = {0};
-    static __thread array(uint32_t) list[16] = {0};
-
-    slot = (slot+1) % 16;
-    array_resize(list[slot], 0);
+    static __thread int slot = 0; slot = (slot+1) % 16;
+    static __thread array(uint32_t) out[16] = {0}; array_resize(out[slot], 0);
 
     //int worstlen = strlen(utf8) + 1; array_reserve(out, worstlen);
     while( *utf8 ) {
-        uint32_t unicode = extract_utf32( &utf8 );
-        array_push(list[slot], unicode);
+        uint32_t unicode = 0;
+        utf8 = extract_utf32( utf8, &unicode );
+        array_push(out[slot], unicode);
     }
-    return list[slot];
+    return out[slot];
 }
 

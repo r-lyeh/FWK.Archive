@@ -163,11 +163,7 @@
 
 #define fourcc(x) (*(unsigned *)(#x "    "))
 
-#if 1
-#include "../split/fwk.h"
-#else
-#include "../split/fwk.c"
-#endif
+#include "fwk.h"
 
 #include "labs/ecs.c"
 
@@ -1340,7 +1336,7 @@ ray *editor_pickup() {
 static
 void editor_init() {
     // enable outlines
-    do_once fx_load("editor/fx/fxOutline.fs");
+    do_once fx_load("editor/art/fx/fxOutline.fs");
     do_once fx_enable(0, 1);
 
     // init editor

@@ -41,7 +41,9 @@ static void fwk_post_init(float refresh_rate) {
         if(!mounted) break;
     }
     // mount physical filesystems first (higher priority)
-    if(!any_mounted) vfs_mount(ART);
+    if(!any_mounted) for each_substring(ART,",",art_folder) {
+        vfs_mount(art_folder);
+    }
 
     // config nuklear UI (after VFS mounting, as UI needs cooked fonts here)
     nk_config_custom_fonts();
@@ -57,6 +59,7 @@ static void fwk_post_init(float refresh_rate) {
 #endif
     input_init();
     network_init();
+    randset(time_ns());
     boot_time = -time_ss(); // measure boot time, this is continued in window_stats()
 
     // clean any errno setup by cooking stage
@@ -141,5 +144,18 @@ void fwk_init() {
 
 #if is(linux) && is(tcc) // fixes `tcc: error: undefined symbol '__dso_handle'`
 int __dso_handle; // compiled with: `tcc demo.c fwk.c -D__STDC_NO_VLA__ -lX11`
+#endif
+
+#if is(win32) && is(tcc) // fixes `tcc: error: undefined symbol '_InterlockedExchangeAdd'` when compiling with `-m64` flag
+__CRT_INLINE LONG _InterlockedExchangeAdd(LONG volatile *add, LONG val) {
+    LONG old;
+    do old = *add; while( InterlockedCompareExchange(add, old + val, old) != old );
+    return old;
+}
+__CRT_INLINE LONGLONG _InterlockedExchangeAdd64(LONGLONG volatile *add, LONGLONG val) { // 64bit version, for completeness
+    LONGLONG old;
+    do old = *add; while( InterlockedCompareExchange64(add, old + val, old) != old );
+    return old;
+}
 #endif
 

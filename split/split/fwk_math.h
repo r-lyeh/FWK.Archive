@@ -37,7 +37,7 @@ API void     randset(uint64_t state);
 API uint64_t rand64(void);
 API double   randf(void); // [0, 1) interval
 API int      randi(int mini, int maxi); // [mini, maxi) interval
-API double   rng(void); // [0..1) Lehmer RNG "minimal standard"
+//API double rng(void); // [0..1) Lehmer RNG "minimal standard"
 
 // ----------------------------------------------------------------------------
 
@@ -105,6 +105,7 @@ API float pmodf    (float  a, float  b);
 API float signf    (float  a)           ;
 API float clampf   (float v,float a,float b);
 API float mixf     (float a,float b,float t);
+API float fractf   (float a);
 
 // ----------------------------------------------------------------------------
 

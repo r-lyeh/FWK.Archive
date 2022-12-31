@@ -1,6 +1,6 @@
 // @fixme: really shutdown audio & related threads before quitting. drwav crashes.
 
-// encapsulate drwav,drmp3,stbvoribs and some buffer with the sts_mixer_stream_t
+// encapsulate drwav,drmp3,stbvorbis and some buffer with the sts_mixer_stream_t
 enum { UNK, WAV, OGG, MP1, MP3 };
 typedef struct {
     int type;
@@ -15,6 +15,7 @@ typedef struct {
     int32_t             data[4096*2];       // static sample buffer
     float               dataf[4096*2];
     };
+    bool rewind;
 } mystream_t;
 
 static void stereo_float_to_mono( int channels, float *buffer, int samples ) {
@@ -45,23 +46,29 @@ static void refill_stream(sts_mixer_sample_t* sample, void* userdata) {
         default:
         break; case WAV: {
             int sl = sample->length / 2; /*sample->channels*/;
+            if( stream->rewind ) stream->rewind = 0, drwav_seek_to_pcm_frame(&stream->wav, 0);
             if (drwav_read_pcm_frames_s16(&stream->wav, sl, (short*)stream->data) < sl) {
                 drwav_seek_to_pcm_frame(&stream->wav, 0);
             }
         }
         break; case MP3: {
             int sl = sample->length / 2; /*sample->channels*/;
+            if( stream->rewind ) stream->rewind = 0, drmp3_seek_to_pcm_frame(&stream->mp3_, 0);
             if (drmp3_read_pcm_frames_f32(&stream->mp3_, sl, stream->dataf) < sl) {
                 drmp3_seek_to_pcm_frame(&stream->mp3_, 0);
             }
         }
         break; case OGG: {
             stb_vorbis *ogg = (stb_vorbis*)stream->ogg;
+            if( stream->rewind ) stream->rewind = 0, stb_vorbis_seek(stream->ogg, 0);
             if( stb_vorbis_get_samples_short_interleaved(ogg, 2, (short*)stream->data, sample->length) == 0 )  {
                 stb_vorbis_seek(stream->ogg, 0);
             }
         }
     }
+}
+static void reset_stream(mystream_t* stream) {
+    if( stream ) memset( stream->data, 0, sizeof(stream->data) ), stream->rewind = 1;
 }
 
 // load a (stereo) stream
@@ -156,16 +163,6 @@ static bool load_sample(sts_mixer_sample_t* sample, const char *filename) {
             REALLOC( inputData, 0 );
         }
     }
-
-#if 0
-    if( !channels ) {
-        //loadPreset(1, 0);
-        //SaveSettings("test.sfxr");
-        LoadSettings(filename);
-        ExportWAV("sfxr.wav");
-        return load_sample(sample, "sfxr.wav");
-    }
-#endif
 
     if( !channels ) {
         return false;
@@ -340,6 +337,10 @@ int audio_play_gain_pitch_pan( audio_t a, int flags, float gain, float pitch, fl
         gain += a->is_clip ? volume_clip : volume_stream;
     }
 
+    if( flags & AUDIO_SINGLE_INSTANCE ) {
+        audio_stop( a );
+    }
+
     // gain: [0..+1], pitch: (0..N], pan: [-1..+1]
 
     if( a->is_clip ) {
@@ -363,6 +364,17 @@ int audio_play_gain( audio_t a, int flags, float gain ) {
 
 int audio_play( audio_t a, int flags ) {
     return audio_play_gain(a, flags & ~AUDIO_IGNORE_MIXER_GAIN, 0.f);
+}
+
+int audio_stop( audio_t a ) {
+    if( a->is_clip ) {
+        sts_mixer_stop_sample(&mixer, &a->clip);
+    }
+    if( a->is_stream ) {
+        sts_mixer_stop_stream(&mixer, &a->stream.stream);
+        reset_stream(&a->stream);
+    }
+    return 1;
 }
 
 // -----------------------------------------------------------------------------

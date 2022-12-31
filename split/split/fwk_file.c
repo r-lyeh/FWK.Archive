@@ -549,7 +549,7 @@ const char *vfs_resolve(const char *pathfile) {
     return pathfile;
 }
 
-char* vfs_load(const char *pathfile, int *size_out) { // @todo: fix leaks
+char* vfs_load(const char *pathfile, int *size_out) { // @todo: fix leaks, vfs_unpack()
     // @fixme: handle \\?\ absolute path (win)
     if (!pathfile[0]) return file_load(pathfile, size_out);
     // if (pathfile[0] == '/' || pathfile[1] == ':') return file_load(pathfile, size_out); // @fixme: handle current cooked /home/FWK or C:/FWK path cases within zipfiles

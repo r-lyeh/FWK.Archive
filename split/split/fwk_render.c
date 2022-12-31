@@ -1738,12 +1738,20 @@ void fullscreen_ycbcr_quad( texture_t textureYCbCr[3], float gamma ) {
 // sprites
 
 typedef struct sprite_t {
-    float cellw, cellh;       // dimensions of any cell in spritesheet
-    int frame, ncx, ncy;      // frame in a (num cellx, num celly) spritesheet
     float px, py, pz;         // origin x, y, depth
     float ox, oy, cos, sin;   // offset x, offset y, cos/sin of rotation degree
     float sx, sy;             // scale x,y
     uint32_t rgba;            // vertex color
+    float cellw, cellh;       // dimensions of any cell in spritesheet
+
+    union {
+    struct {
+        int frame, ncx, ncy;      // frame in a (num cellx, num celly) spritesheet
+    };
+    struct {
+        float x, y, w, h;         // normalized[0..1] within texture bounds
+    };
+    };
 } sprite_t;
 
 // sprite batching
@@ -1762,15 +1770,44 @@ static int sprite_count = 0;
 static int sprite_program = -1;
 static array(sprite_index)  sprite_indices = 0;
 static array(sprite_vertex) sprite_vertices = 0;
-static batch_group_t sprite_additive_group = {0};
-static batch_group_t sprite_translucent_group = {0};
+static batch_group_t sprite_additive_group = {0}; // (w/2,h/2) centered
+static batch_group_t sprite_translucent_group = {0}; // (w/2,h/2) centered
+static batch_group_t sprite_00_translucent_group = {0}; // (0,0) centered
 
-void tile( texture_t texture, float position[3], float rotation, uint32_t color ) {
+void sprite( texture_t texture, float position[3], float rotation, uint32_t color ) {
     float offset[2] = {0,0}, scale[2] = {1,1}, spritesheet[3] = {0,0,0};
-    sprite( texture, position, rotation, offset, scale, 0, color, spritesheet );
+    sprite_sheet( texture, spritesheet, position, rotation, offset, scale, 0, color );
 }
 
-void sprite( texture_t texture, float position[3], float rotation, float offset[2], float scale[2], int is_additive, uint32_t rgba, float spritesheet[3]) {
+// rect(x,y,w,h) is [0..1] normalized, z-index, pos(x,y,zoom), rotation (degrees), color (rgba)
+void sprite_rect( texture_t t, vec4 rect, float zindex, vec3 pos, float tilt_deg, unsigned tint_rgba) {
+    // @todo: no need to queue if alpha or scale are zero
+    sprite_t s = {0};
+
+    s.x = rect.x, s.y = rect.y, s.w = rect.z, s.h = rect.w;
+    s.cellw = s.w * t.w, s.cellh = s.h * t.h;
+
+    s.px = pos.x, s.py = pos.y, s.pz = zindex;
+    s.sx = s.sy = pos.z;
+    s.rgba = tint_rgba;
+    s.ox = 0/*ox*/ * s.sx;
+    s.oy = 0/*oy*/ * s.sy;
+    if( tilt_deg ) {
+        tilt_deg = (tilt_deg + 0) * ((float)C_PI / 180);
+        s.cos = cosf(tilt_deg);
+        s.sin = sinf(tilt_deg);
+    } else {
+        s.cos = 1;
+        s.sin = 0;
+    }
+
+    batch_group_t *batches = &sprite_00_translucent_group;
+    batch_t *found = map_find_or_add(*batches, t.id, (batch_t){0});
+
+    array_push(found->sprites, s);
+}
+
+void sprite_sheet( texture_t texture, float spritesheet[3], float position[3], float rotation, float offset[2], float scale[2], int is_additive, uint32_t rgba) {
     const float px = position[0], py = position[1], pz = position[2];
     const float ox = offset[0], oy = offset[1], sx = scale[0], sy = scale[1];
     const float frame = spritesheet[0], xcells = spritesheet[1], ycells = spritesheet[2];
@@ -1875,11 +1912,65 @@ static void sprite_rebuild_meshes() {
             array_clear(bt->sprites);
         }
     }
+
+    batch_group_t* list2[] = { &sprite_00_translucent_group };
+    for( int l = 0; l < countof(list2); ++l) {
+        for each_map_ptr(*list2[l], int,_, batch_t,bt) {
+
+            bt->dirty = array_count(bt->sprites) ? 1 : 0;
+            if( !bt->dirty ) continue;
+
+            int index = 0;
+            array_clear(sprite_indices);
+            array_clear(sprite_vertices);
+
+            array_foreach_ptr(bt->sprites, sprite_t,it ) {
+                float x0 = it->ox - it->cellw/2, x3 = x0 + it->cellw;
+                float y0 = it->oy - it->cellh/2, y3 = y0;
+                float x1 = x0,                   x2 = x3;
+                float y1 = y0 + it->cellh,       y2 = y1;
+
+                // @todo: move this affine transform into glsl shader
+                vec3 v0 = { it->px + ( x0 * it->cos - y0 * it->sin ), it->py + ( x0 * it->sin + y0 * it->cos ), it->pz };
+                vec3 v1 = { it->px + ( x1 * it->cos - y1 * it->sin ), it->py + ( x1 * it->sin + y1 * it->cos ), it->pz };
+                vec3 v2 = { it->px + ( x2 * it->cos - y2 * it->sin ), it->py + ( x2 * it->sin + y2 * it->cos ), it->pz };
+                vec3 v3 = { it->px + ( x3 * it->cos - y3 * it->sin ), it->py + ( x3 * it->sin + y3 * it->cos ), it->pz };
+
+                float ux = it->x, vx = ux + it->w;
+                float uy = it->y, vy = uy + it->h;
+
+                vec2 uv0 = vec2(ux, uy);
+                vec2 uv1 = vec2(ux, vy);
+                vec2 uv2 = vec2(vx, vy);
+                vec2 uv3 = vec2(vx, uy);
+
+                array_push( sprite_vertices, sprite_vertex(v0, uv0, it->rgba) ); // Vertex 0 (A)
+                array_push( sprite_vertices, sprite_vertex(v1, uv1, it->rgba) ); // Vertex 1 (B)
+                array_push( sprite_vertices, sprite_vertex(v2, uv2, it->rgba) ); // Vertex 2 (C)
+                array_push( sprite_vertices, sprite_vertex(v3, uv3, it->rgba) ); // Vertex 3 (D)
+
+                //      A--B                  A               A-B
+                // quad |  | becomes triangle |\  and triangle \|
+                //      D--C                  D-C               C
+                GLuint A = (index+0), B = (index+1), C = (index+2), D = (index+3); index += 4;
+
+                array_push( sprite_indices, sprite_index(C, D, A) ); // Triangle 1
+                array_push( sprite_indices, sprite_index(C, A, B) ); // Triangle 2
+            }
+
+            mesh_upgrade(&bt->mesh, "p3 t2 c4B", 0,array_count(sprite_vertices),sprite_vertices, 3*array_count(sprite_indices),sprite_indices, MESH_STATIC);
+
+            // clear elements from queue
+            sprite_count += array_count(bt->sprites);
+            array_clear(bt->sprites);
+        }
+    }
 }
 
 static void sprite_render_meshes() {
     if( map_count(sprite_additive_group) <= 0 )
     if( map_count(sprite_translucent_group) <= 0 )
+    if( map_count(sprite_00_translucent_group) <= 0 )
         return;
 
     if( sprite_program < 0 ) {
@@ -1941,6 +2032,17 @@ static void sprite_render_meshes() {
 //        map_clear(sprite_translucent_group);
     }
 
+    if( map_count(sprite_00_translucent_group) > 0 ) {
+        glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+        for each_map_ptr(sprite_00_translucent_group, int,texture_id, batch_t,bt) {
+            if( bt->dirty ) {
+                shader_texture_unit("u_texture", *texture_id, 0);
+                mesh_render(&bt->mesh);
+            }
+        }
+//        map_clear(sprite_00_translucent_group);
+    }
+
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
     glDepthFunc(GL_LESS);
@@ -1948,6 +2050,7 @@ static void sprite_render_meshes() {
 }
 
 static void sprite_init() {
+    map_init(sprite_00_translucent_group, less_int, hash_int);
     map_init(sprite_translucent_group, less_int, hash_int);
     map_init(sprite_additive_group, less_int, hash_int);
 }
@@ -1959,6 +2062,75 @@ void sprite_flush() {
     profile("Sprite render") {
     sprite_render_meshes();
     }
+}
+
+// -----------------------------------------------------------------------------
+// tilemaps
+
+tilemap_t tilemap(const char *map, int blank_chr, int linefeed_chr) {
+    tilemap_t t = {0};
+    t.tint = ~0u; // WHITE
+    t.blank_chr = blank_chr;
+    for( ; *map ; ++map ) {
+        if( map[0] == linefeed_chr ) ++t.rows;
+        else {
+            array_push(t.map, map[0]);
+            ++t.cols;
+        }
+    }
+    return t;
+}
+
+void tilemap_render_ext( tilemap_t m, tileset_t t, float zindex, float xy_zoom[3], float tilt, unsigned tint, bool is_additive ) {
+    vec3 old_pos = camera_get_active()->position;
+    sprite_flush();
+    camera_get_active()->position = vec3(window_width()/2,window_height()/2,1);
+
+    float scale[2] = {xy_zoom[2], xy_zoom[2]};
+    xy_zoom[2] = zindex;
+
+    float offset[2] = {0,0};
+    float spritesheet[3] = {0,t.cols,t.rows}; // selected tile index and spritesheet dimensions (cols,rows)
+
+    for( unsigned y = 0, c = 0; y < m.rows; ++y ) {
+        for( unsigned x = 0; x < m.cols; ++x, ++c ) {
+            if( m.map[c] != m.blank_chr ) {
+                spritesheet[0] = m.map[c];
+                sprite_sheet(t.tex, spritesheet, xy_zoom, tilt, offset, scale, is_additive, tint);
+            }
+            offset[0] += t.tile_w;
+        }
+        offset[0] = 0, offset[1] += t.tile_h;
+    }
+
+    sprite_flush();
+    camera_get_active()->position = old_pos;
+}
+
+void tilemap_render( tilemap_t map, tileset_t set ) {
+    map.position.x += set.tile_w;
+    map.position.y += set.tile_h;
+    tilemap_render_ext( map, set, map.zindex, &map.position.x, map.tilt, map.tint, map.is_additive );
+}
+
+tileset_t tileset(texture_t tex, unsigned tile_w, unsigned tile_h, unsigned cols, unsigned rows) {
+    tileset_t t = {0};
+    t.tex = tex;
+    t.cols = cols, t.rows = rows;
+    t.tile_w = tile_w, t.tile_h = tile_h;
+    return t;
+}
+
+int tileset_ui( tileset_t t ) {
+    ui_subimage(va("Selection #%d (%d,%d)", t.selected, t.selected % t.cols, t.selected / t.cols), t.tex.id, t.tex.w, t.tex.h, (t.selected % t.cols) * t.tile_w, (t.selected / t.cols) * t.tile_h, t.tile_w, t.tile_h);
+    int choice;
+    if( (choice = ui_image(0, t.tex.id, t.tex.w,t.tex.h)) ) { 
+        int px = ((choice / 100) / 100.f) * t.tex.w / t.tile_w;
+        int py = ((choice % 100) / 100.f) * t.tex.h / t.tile_h;
+        t.selected = px + py * t.cols;
+    }
+    // if( (choice = ui_buttons(3, "load", "save", "clear")) ) {}
+    return t.selected;
 }
 
 // -----------------------------------------------------------------------------
@@ -3628,19 +3800,19 @@ float model_animate_clip(model_t m, float curframe, int minframe, int maxframe, 
 
     float retframe = -1;
     if( numframes > 0 ) {
-        int frame1 = (int)/*floor*/(curframe);
+        float offset = curframe - (int)curframe;
+        int frame1 = (int)curframe;
         int frame2 = frame1 + (curframe >= m.curframe ? 1 : -1);
-        float frameoffset = curframe - frame1;
 
         if( loop ) {
-            int distance = (maxframe - minframe);
-            frame1 = frame1 >= maxframe ? minframe : frame1 < minframe ? maxframe - clampf(minframe - frame1, 0, distance) : frame1;
-            frame2 = frame2 >= maxframe ? minframe : frame2 < minframe ? maxframe - clampf(minframe - frame2, 0, distance) : frame2;
-            retframe = frame1 + frameoffset;
+            int distance = maxframe - minframe;
+            frame1 = fmod(frame1 - minframe, distance) + minframe; // frame1 >= maxframe ? minframe : frame1 < minframe ? maxframe - clampf(minframe - frame1, 0, distance) : frame1;
+            frame2 = fmod(frame2 - minframe, distance) + minframe; // frame2 >= maxframe ? minframe : frame2 < minframe ? maxframe - clampf(minframe - frame2, 0, distance) : frame2;
+            retframe = fmod(frame1 + offset - minframe, distance) + minframe;
         } else {
             frame1 = clampf(frame1, minframe, maxframe);
             frame2 = clampf(frame2, minframe, maxframe);
-            retframe = minf(frame1 + frameoffset, maxframe); // clamp to maxframe
+            retframe = clampf(frame1 + offset, minframe, maxframe);
         }
 
         mat34 *mat1 = &frames[frame1 * numjoints];
@@ -3649,7 +3821,7 @@ float model_animate_clip(model_t m, float curframe, int minframe, int maxframe, 
         // Interpolate matrixes between the two closest frames and concatenate with
         // parent matrix if necessary. Concatenate the result with the inverse of the base pose.
         for(int i = 0; i < numjoints; i++) {
-            mat34 mat; lerp34(mat, mat1[i], mat2[i], frameoffset);
+            mat34 mat; lerp34(mat, mat1[i], mat2[i], offset);
             if(joints[i].parent >= 0) multiply34x2(outframe[i], outframe[joints[i].parent], mat);
             else copy34(outframe[i], mat);
         }

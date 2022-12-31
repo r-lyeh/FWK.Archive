@@ -49,7 +49,7 @@ double randf(void) { // [0, 1) interval
     double dbl = u.d - 1.0;
     return 1 - 2.0 * ((float)(dbl / 2));
 }
-int randi(int mini, int maxi) { // [mini, maxi) interval ; @todo: test randi(-4,4)
+int randi(int mini, int maxi) { // [mini, maxi) interval ; @todo: test randi(-4,4) and #define randi(m,x) (m + randf() * (x-m))
     if( mini < maxi ) {
         uint32_t x, r, range = maxi - mini;
         do r = (x = rand64()) % range; while(range > (r-x));
@@ -57,11 +57,13 @@ int randi(int mini, int maxi) { // [mini, maxi) interval ; @todo: test randi(-4,
     }
     return mini > maxi ? randi(maxi, mini) : mini;
 }
+#if 0  // @todo: deprecate me
 double rng(void) { // [0..1) Lehmer RNG "minimal standard"
     static __thread unsigned int seed = 123;
     seed *= 16807;
     return seed / (double)0x100000000ULL;
 }
+#endif
 
 // ----------------------------------------------------------------------------
 
@@ -130,6 +132,7 @@ float pmodf    (float  a, float  b) { return (a < 0.0f ? 1.0f : 0.0f) + (float)f
 float signf    (float  a)           { return (a < 0) ? -1.f : 1.f; }
 float clampf(float v,float a,float b){return maxf(minf(b,v),a); }
 float mixf(float a,float b,float t) { return a*(1-t)+b*t; }
+float fractf   (float a)            { return a - (int)a; }
 
 // ----------------------------------------------------------------------------
 

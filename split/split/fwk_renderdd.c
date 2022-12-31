@@ -40,6 +40,26 @@ static map(unsigned,array(vec3)) dd_lists[2][3] = {0}; // [0/1 ontop][0/1/2 thin
 static bool                      dd_use_line = 0;
 static bool                      dd_ontop = 0;
 static array(text2d_cmd)         dd_text2d;
+static array(vec4)               dd_matrix2d;
+
+void ddraw_push_2d() {
+    float width = window_width();
+    float height = window_height();
+    float zdepth_max = window_height();
+    array_push(dd_matrix2d, vec4(width,height,zdepth_max,0));
+
+    ddraw_flush();
+}
+
+void ddraw_pop_2d() {
+    vec4 dim = *array_back(dd_matrix2d);
+    array_pop(dd_matrix2d);
+
+    mat44 id, proj;
+    id44(id);
+    ortho44(proj, 0,dim.x,dim.y,0, -dim.z, +dim.z);
+    ddraw_flush_projview(proj, id);
+}
 
 void ddraw_flush() {
     ddraw_flush_projview(camera_get_active()->proj, camera_get_active()->view);
@@ -280,7 +300,7 @@ void (ddraw_text)(vec3 pos, float scale, const char *text) {
     "MGK@@HYGWGUHSIRJPJNILEJIHJFJDIBHAG?G=H;@@GIIGIEHCGBF@F>G<H;J:","CIEZE:","hOFZH"
     "YIXJVJTIRHQGOGMIK@@HYIWIUHSGRFPFNGLKJGHFFFDGBHAI?I=H;@@IIGGGEHCIBJ@J>I<H;F:",""
     "XYDGDIELGMIMKLOIQHSHUIVK@@DIEKGLILKKOHQGSGUHVKVM" };
-    vec3 src = pos, old = {0};
+    vec3 src = pos, old = {0}; float abs_scale = absf(scale);
     for( signed char c; (c = *text++, c > 0 && c < 127); ) {
         if( c == '\n' || c == '\r' ) {
             pos.x = src.x, pos.y -= scale * ((signed char)hershey['W'-32][1] - 65) * 1.25f; // spacing @1
@@ -289,12 +309,12 @@ void (ddraw_text)(vec3 pos, float scale, const char *text) {
             if( c > 32 ) for( int pen = 0, i = 0; i < (glyph[0] - 65); i++ ) { // verts @0
                 int x = glyph[2 + i*2 + 0] - 65, y = glyph[2 + i*2 + 1] - 65;
                 if( x == -1 && y == -1 ) pen = 0; else {
-                    vec3 next = add3(pos, vec3(scale*x, scale*y, 0));
+                    vec3 next = add3(pos, vec3(abs_scale*x, scale*y, 0));
                     if( !pen ) pen = 1; else ddraw_line(old, next);
                     old = next;
                 }
             }
-            pos.x += scale * (glyph[1] - 65); // spacing @1
+            pos.x += abs_scale * (glyph[1] - 65); // spacing @1
         }
     }
 }

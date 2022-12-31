@@ -789,45 +789,24 @@ char* strjoin(array(char*) list, const char *separator) {
 }
 
 static
-uint32_t extract_utf32(const char **p) {
-    if( (**p & 0x80) == 0x00 ) {
-        int a = *((*p)++);
-        return a;
-    }
-    if( (**p & 0xe0) == 0xc0 ) {
-        int a = *((*p)++) & 0x1f;
-        int b = *((*p)++) & 0x3f;
-        return (a << 6) | b;
-    }
-    if( (**p & 0xf0) == 0xe0 ) {
-        int a = *((*p)++) & 0x0f;
-        int b = *((*p)++) & 0x3f;
-        int c = *((*p)++) & 0x3f;
-        return (a << 12) | (b << 6) | c;
-    }
-    if( (**p & 0xf8) == 0xf0 ) {
-        int a = *((*p)++) & 0x07;
-        int b = *((*p)++) & 0x3f;
-        int c = *((*p)++) & 0x3f;
-        int d = *((*p)++) & 0x3f;
-        return (a << 18) | (b << 12) | (c << 8) | d;
-    }
-    return 0;
+const char *extract_utf32(const char *s, uint32_t *out) {
+    /**/ if( (s[0] & 0x80) == 0x00 ) return *out = (s[0]), s + 1;
+    else if( (s[0] & 0xe0) == 0xc0 ) return *out = (s[0] & 31) <<  6 | (s[1] & 63), s + 2;
+    else if( (s[0] & 0xf0) == 0xe0 ) return *out = (s[0] & 15) << 12 | (s[1] & 63) <<  6 | (s[2] & 63), s + 3;
+    else if( (s[0] & 0xf8) != 0xf0 ) return *out = (s[0] &  7) << 18 | (s[1] & 63) << 12 | (s[2] & 63) << 8 | (s[3] & 63), s + 4;
+    return *out = 0, s + 0;
 }
 array(uint32_t) string32( const char *utf8 ) {
-    static __thread int slot = 0;
-    static __thread char *buf[16] = {0};
-    static __thread array(uint32_t) list[16] = {0};
-
-    slot = (slot+1) % 16;
-    array_resize(list[slot], 0);
+    static __thread int slot = 0; slot = (slot+1) % 16;
+    static __thread array(uint32_t) out[16] = {0}; array_resize(out[slot], 0);
 
     //int worstlen = strlen(utf8) + 1; array_reserve(out, worstlen);
     while( *utf8 ) {
-        uint32_t unicode = extract_utf32( &utf8 );
-        array_push(list[slot], unicode);
+        uint32_t unicode = 0;
+        utf8 = extract_utf32( utf8, &unicode );
+        array_push(out[slot], unicode);
     }
-    return list[slot];
+    return out[slot];
 }
 
 #line 0
@@ -850,7 +829,7 @@ const struct in6_addr in6addr_loopback;   /* ::1 */
 #endif
 #else
 #include <unistd.h>
-#include <sched.h>    // CPU_ZERO, CPU_COUNT
+#include <sched.h> // sched_setaffinity(), CPU_ZERO(), CPU_COUNT()
 #include <sys/ioctl.h>
 #endif
 
@@ -954,7 +933,7 @@ static void fwk_post_init(float);
 #line 1 "fwk_audio.c"
 // @fixme: really shutdown audio & related threads before quitting. drwav crashes.
 
-// encapsulate drwav,drmp3,stbvoribs and some buffer with the sts_mixer_stream_t
+// encapsulate drwav,drmp3,stbvorbis and some buffer with the sts_mixer_stream_t
 enum { UNK, WAV, OGG, MP1, MP3 };
 typedef struct {
     int type;
@@ -969,6 +948,7 @@ typedef struct {
     int32_t             data[4096*2];       // static sample buffer
     float               dataf[4096*2];
     };
+    bool rewind;
 } mystream_t;
 
 static void stereo_float_to_mono( int channels, float *buffer, int samples ) {
@@ -999,23 +979,29 @@ static void refill_stream(sts_mixer_sample_t* sample, void* userdata) {
         default:
         break; case WAV: {
             int sl = sample->length / 2; /*sample->channels*/;
+            if( stream->rewind ) stream->rewind = 0, drwav_seek_to_pcm_frame(&stream->wav, 0);
             if (drwav_read_pcm_frames_s16(&stream->wav, sl, (short*)stream->data) < sl) {
                 drwav_seek_to_pcm_frame(&stream->wav, 0);
             }
         }
         break; case MP3: {
             int sl = sample->length / 2; /*sample->channels*/;
+            if( stream->rewind ) stream->rewind = 0, drmp3_seek_to_pcm_frame(&stream->mp3_, 0);
             if (drmp3_read_pcm_frames_f32(&stream->mp3_, sl, stream->dataf) < sl) {
                 drmp3_seek_to_pcm_frame(&stream->mp3_, 0);
             }
         }
         break; case OGG: {
             stb_vorbis *ogg = (stb_vorbis*)stream->ogg;
+            if( stream->rewind ) stream->rewind = 0, stb_vorbis_seek(stream->ogg, 0);
             if( stb_vorbis_get_samples_short_interleaved(ogg, 2, (short*)stream->data, sample->length) == 0 )  {
                 stb_vorbis_seek(stream->ogg, 0);
             }
         }
     }
+}
+static void reset_stream(mystream_t* stream) {
+    if( stream ) memset( stream->data, 0, sizeof(stream->data) ), stream->rewind = 1;
 }
 
 // load a (stereo) stream
@@ -1110,16 +1096,6 @@ static bool load_sample(sts_mixer_sample_t* sample, const char *filename) {
             REALLOC( inputData, 0 );
         }
     }
-
-#if 0
-    if( !channels ) {
-        //loadPreset(1, 0);
-        //SaveSettings("test.sfxr");
-        LoadSettings(filename);
-        ExportWAV("sfxr.wav");
-        return load_sample(sample, "sfxr.wav");
-    }
-#endif
 
     if( !channels ) {
         return false;
@@ -1294,6 +1270,10 @@ int audio_play_gain_pitch_pan( audio_t a, int flags, float gain, float pitch, fl
         gain += a->is_clip ? volume_clip : volume_stream;
     }
 
+    if( flags & AUDIO_SINGLE_INSTANCE ) {
+        audio_stop( a );
+    }
+
     // gain: [0..+1], pitch: (0..N], pan: [-1..+1]
 
     if( a->is_clip ) {
@@ -1317,6 +1297,17 @@ int audio_play_gain( audio_t a, int flags, float gain ) {
 
 int audio_play( audio_t a, int flags ) {
     return audio_play_gain(a, flags & ~AUDIO_IGNORE_MIXER_GAIN, 0.f);
+}
+
+int audio_stop( audio_t a ) {
+    if( a->is_clip ) {
+        sts_mixer_stop_sample(&mixer, &a->clip);
+    }
+    if( a->is_stream ) {
+        sts_mixer_stop_stream(&mixer, &a->stream.stream);
+        reset_stream(&a->stream);
+    }
+    return 1;
 }
 
 // -----------------------------------------------------------------------------
@@ -2360,6 +2351,8 @@ typedef struct cook_script_t {
     int compress_level;
 } cook_script_t;
 
+static unsigned ART_SKIP_ROOT; // number of chars that belong to the base root in ART folder
+
 static
 cook_script_t cook_script(const char *rules, const char *infile, const char *outfile) {
     // by default, assume:
@@ -2379,15 +2372,9 @@ cook_script_t cook_script(const char *rules, const char *infile, const char *out
     if(!symbols) map_init(symbols, less_str, hash_str);
     if(!groups)  map_init(groups, less_str, hash_str);
 
-    // pretty (truncated) input (C:/prj/FWK/art/file.wav -> file.wav)
-    int artlen = strlen(ART);
-    const char *pretty = infile;
-    if( !strncmp(pretty, ART, artlen) ) pretty += artlen;
-    while(pretty[0] == '/') ++pretty;
-
     map_find_or_add(symbols, "INFILE", STRDUP(infile));
     map_find_or_add(symbols, "INPUT", STRDUP(infile));
-    map_find_or_add(symbols, "PRETTY", STRDUP(pretty));
+    map_find_or_add(symbols, "PRETTY", STRDUP(infile + ART_SKIP_ROOT)); // pretty (truncated) input (C:/prj/FWK/art/file.wav -> file.wav)
     map_find_or_add(symbols, "OUTPUT", STRDUP(outfile));
     map_find_or_add(symbols, "TOOLS", STRDUP(TOOLS));
     map_find_or_add(symbols, "EDITOR", STRDUP(EDITOR));
@@ -2905,47 +2892,65 @@ bool cooker_start( const char *masks, int flags ) {
         EDITOR = STRDUP(t); // @leak
     }
 
-    // scan disk
-    const char **list = file_list(ART, "**");
-    // inspect disk
-    for( int i = 0; list[i]; ++i ) {
-        const char *fname = list[i];
+    // scan disk: all subfolders in ART (comma-separated)
+    static array(char *) list = 0; // @leak
+    for each_substring(ART, ",", art_folder) {
+        const char **glob = file_list(art_folder, "**");
+        for( unsigned i = 0; glob[i]; ++i ) {
+            const char *fname = glob[i];
 
-        // skip special files, folders and internal files like .art.zip
-        const char *dir = file_path(fname);
-        if( dir[0] == '.' ) continue; // discard system dirs and hidden files
-        if( strbegi(dir, TOOLS) ) continue; // discard tools folder
-        if( !file_ext(fname)[0] ) continue; // discard extensionless entries
-        if( !file_size(fname)) continue; // skip dirs and empty files
+            // skip special files, folders and internal files like .art.zip
+            const char *dir = file_path(fname);
+            if( dir[0] == '.' ) continue; // discard system dirs and hidden files
+            if( strbegi(dir, TOOLS) ) continue; // discard tools folder
+            if( !file_ext(fname)[0] ) continue; // discard extensionless entries
+            if( !file_size(fname)) continue; // skip dirs and empty files
 
-        // exclude vc c/c++ .obj files. they're not 3d wavefront .obj files
-        if( strend(fname, ".obj") ) {
-            char header[4] = {0};
-            for( FILE *in = fopen(fname, "rb"); in; fclose(in), in = NULL) {
-                fread(header, 1, 2, in);
+            // exclude vc c/c++ .obj files. they're not 3d wavefront .obj files
+            if( strend(fname, ".obj") ) {
+                char header[4] = {0};
+                for( FILE *in = fopen(fname, "rb"); in; fclose(in), in = NULL) {
+                    fread(header, 1, 2, in);
+                }
+                if( !memcmp(header, "\x64\x86", 2) ) continue;
+                if( !memcmp(header, "\x00\x00", 2) ) continue;
             }
-            if( !memcmp(header, "\x64\x86", 2) ) continue;
-            if( !memcmp(header, "\x00\x00", 2) ) continue;
-        }
-        // exclude vc/gcc files
-        if( strend(fname, ".a") || strend(fname, ".pdb") || strend(fname, ".lib") || strend(fname, ".ilk") || strend(fname, ".exp") ) {
-            continue;
-        }
+            // exclude vc/gcc files
+            if( strend(fname, ".a") || strend(fname, ".pdb") || strend(fname, ".lib") || strend(fname, ".ilk") || strend(fname, ".exp") ) {
+                continue;
+            }
 
-        // @todo: normalize path & rebase here (absolute to local)
-        // [...]
-        // fi.normalized = ; tolower->to_underscore([]();:+ )->remove_extra_underscores
+            // @todo: normalize path & rebase here (absolute to local)
+            // [...]
+            // fi.normalized = ; tolower->to_underscore([]();:+ )->remove_extra_underscores
 
-        if (file_name(fname)[0] == '.') continue; // skip system files
-        if (file_name(fname)[0] == ';') continue; // skip comment files
+            if (file_name(fname)[0] == '.') continue; // skip system files
+            if (file_name(fname)[0] == ';') continue; // skip comment files
+
+            array_push(list, STRDUP(fname));
+        }
+    }
+
+    // estimate ART_SKIP_ROOT (C:/prj/fwk/demos/assets/file.png -> strlen(C:/prj/fwk/) -> 11)
+    if( array_count(list) > 1 ) {
+        array_sort(list, strcmp);
+
+        char *head = list[0], *back = *array_back(list);
+        for(  ; *head && *back && *head == *back; ++ART_SKIP_ROOT, ++head, ++back ) {}
+        // exit(-printf("%s\n%s\n%*.s^ %d\n", list[0], *array_back(list), ART_SKIP_ROOT, "", ART_SKIP_ROOT));
+    }
+
+    // inspect disk
+    for( int i = 0, end = array_count(list); i < end; ++i ) {
+        char *fname = list[i];
 
         struct fs fi = {0};
-        fi.fname = STRDUP(fname);
+        fi.fname = fname; // STRDUP(fname);
         fi.bytes = file_size(fname);
         fi.stamp = file_stamp(fname); // human-readable base10 timestamp
 
         array_push(fs_now, fi);
-    }
+    }        
 
     // spawn all the threads
     int num_jobs = cooker_jobs();
@@ -2959,10 +2964,13 @@ bool cooker_start( const char *masks, int flags ) {
     }
     for( int i = 0; i < num_jobs; ++i ) {
         if( jobs[i].numthreads > 1 ) {
+#ifndef __TINYC__
             jobs[i].self = thread_init(cook_async, &jobs[i], "cook_async()", 0/*STACK_SIZE*/);
-        } else {
-            return !!cook(&jobs[0]);
+            continue;
+#endif
         }
+
+        if(!cook(&jobs[i])) return false;
     }
 
     (void) flags;
@@ -2983,10 +2991,10 @@ void cooker_stop() {
 int cooker_progress() {
     int count = 0, sum = 0;
     for( int i = 0, end = cooker_jobs(); i < end; ++i ) {
-        if( jobs[i].progress >= 0 ) {
+//        if( jobs[i].progress >= 0 ) {
             sum += jobs[i].progress;
             ++count;
-        }
+//        }
     }
     return cooker_jobs() ? sum / (count+!count) : 100;
 }
@@ -2996,7 +3004,7 @@ void cooker_cancel() {
 }
 
 int cooker_jobs() {
-    int num_jobs = optioni("--with-cook-jobs", ifdef(tcc, 1, cpu_cores()*2)), max_jobs = countof(jobs);
+    int num_jobs = optioni("--with-cook-jobs", cpu_cores()*2), max_jobs = countof(jobs);
     ifdef(ems, num_jobs = 0);
     return clampi(num_jobs, 0, max_jobs);
 }
@@ -3091,6 +3099,13 @@ json5* data_node(const char *keypath) {
     for each_substring( keypath, "/[.]", key ) {
         r = 0;
         /**/ if( j->type == JSON5_ARRAY ) r = j = &j->array[atoi(key)];
+        else if( j->type == JSON5_OBJECT && isdigit(key[0]) )
+        for( int i = 0, seq = atoi(key); !r && i < j->count; ++i ) {
+            if( i == seq ) {
+                r = j = &j->nodes[i];
+                break;
+            }
+        }
         else if( j->type == JSON5_OBJECT )
         for( int i = 0; !r && i < j->count; ++i ) {
             if( j->nodes[i].name && !strcmp(j->nodes[i].name, key) ) {
@@ -3120,7 +3135,8 @@ data_t *data_find(const char *type_keypath) {
 
     data_t *v = &buf[slot];
     v->i = j ? j->integer : 0;
-    if(!v->p && type == 's') v->s = ""; // if_null_string
+    if(type == 's' && (!v->p || j->type == JSON5_NULL)) v->s = ""; // if_null_string
+    if(type == 'f' && j && j->type == JSON5_INTEGER) v->f = j->integer;
     return v;
 }
 
@@ -3131,10 +3147,161 @@ data_t data_get(const char *type_keypath) {
 
     data_t v = {0};
     v.i = j ? j->integer : 0;
-    if(!v.p && type == 's') v.s = ""; // if_null_string
+    if(type == 's' && (!v.p || j->type == JSON5_NULL)) v.s = ""; // if_null_string
+    if(type == 'f' && j && j->type == JSON5_INTEGER) v.f = j->integer;
     return v;
 }
 
+const char *(data_key)(const char *keypath) {
+    json5 *j = data_node(keypath);
+    if( !j ) return "";
+    return j->name;
+}
+
+// xml impl
+
+static __thread array(char *) xml_sources;
+static __thread array(struct xml *) xml_docs;
+
+int xml_push(const char *xml_source) {
+    if( xml_source ) {
+        char *src = STRDUP(xml_source), *error = 0;
+        for( struct xml *doc = xml_parse(src, 0, &error); doc && !error; ) {
+            array_push(xml_docs, doc);
+            array_push(xml_sources, src);
+            return 1;
+        }
+        if( error ) PRINTF("%s\n", error);
+        FREE(src);
+    }
+    return 0;
+}
+
+void xml_pop() {
+    if( array_count(xml_docs) ) {
+        xml_free( *array_back(xml_docs) );
+        array_pop(xml_docs);
+        FREE( *array_back(xml_sources) );
+        array_pop(xml_sources);
+    }
+}
+
+static void *xml_path(struct xml *node, char *path, int down) {
+    if( !path || !path[0] ) return node;
+    if( node ) {
+
+        char type = path[0];
+        if( type == '/' ) {
+            int sep = strcspn(++path, "/[@$");
+            if( !sep ) type = path[0];
+            else
+            if( 1 ) { // path[ sep ] ) {
+                char tag[32]; snprintf(tag, 32, "%.*s", sep, path);
+                // Find the first sibling with the given tag name (may be the same node)
+                struct xml *next = down ? xml_find_down(node, tag) : xml_find(node, tag);
+                return xml_path(next, &path[ sep ], 1);
+            }            
+        }
+        if( type == '$' ) {
+            return (void*)( node->down ? xml_text( node->down ) : xml_tag( node ) );
+        }
+        if( type == '@' ) {
+            return (void*)xml_att(node, ++path);
+        }
+        if( type == '[' ) {
+            for( int i = 0, end = atoi(++path); i < end; ++i ) { node = xml_find_next(node, xml_tag(node)); if(!node) return NULL; }
+            while( isdigit(path[0]) ) ++path;
+            return xml_path(node, ++path, 1);
+        }
+    }
+    return NULL;
+}
+
+const char *(xml_string)(char *key) {
+    struct xml *node = xml_path(*array_back(xml_docs), key, 0);
+    if( !node ) return "(null)";
+    if( strchr(key, '@') ) return (const char *)node;
+    if( strchr(key, '$') ) return (const char *)node;
+    return "";
+}
+unsigned (xml_count)(char *key) {
+    struct xml *node = xml_path(*array_back(xml_docs), key, 0);
+    if( !node ) return 0;
+    const char *tag = xml_tag(node);
+    unsigned count = 1;
+    while( (node = xml_find_next(node, tag)) != 0) ++count; 
+    return count;
+}
+array(char) (xml_blob)(char *key) { // base64 blob
+    struct xml *node = xml_path(*array_back(xml_docs), key, 0);
+    if( !node ) return 0;
+    if( !strchr(key, '$') ) return 0;
+    char *data = (char*)node;
+
+    // from libtomcrypt
+    #define BASE64_ENCODE_OUT_SIZE(s)   (((s) + 2) / 3 * 4)
+    #define BASE64_DECODE_OUT_SIZE(s)   (((s)) / 4 * 3)
+
+    unsigned inlen = strlen(data);
+    unsigned long bounds = BASE64_DECODE_OUT_SIZE(inlen);
+    array(char) out = 0;
+    array_resize(out, bounds);
+    if( base64_decode(data, inlen, out, &bounds) != CRYPT_OK ) { array_free(out); return 0; }
+    else array_resize(out, bounds);
+
+    return out;
+}
+
+// compression api
+
+static struct zcompressor {
+    // id of compressor
+    unsigned enumerator;
+    // name of compressor
+    const char name1, *name4, *name;
+    // returns worst case compression estimation for selected flags
+    unsigned (*bounds)(unsigned bytes, unsigned flags);
+    // returns number of bytes written. 0 if error.
+    unsigned (*encode)(const void *in, unsigned inlen, void *out, unsigned outcap, unsigned flags);
+    // returns number of excess bytes that will be overwritten when decoding.
+    unsigned (*excess)(unsigned flags);
+    // returns number of bytes written. 0 if error.
+    unsigned (*decode)(const void *in, unsigned inlen, void *out, unsigned outcap);
+} zlist[] = {
+    { COMPRESS_RAW,     '0', "raw",  "raw",     raw_bounds, raw_encode, raw_excess, raw_decode },
+    { COMPRESS_PPP,     'p', "ppp",  "ppp",     ppp_bounds, ppp_encode, ppp_excess, ppp_decode },
+    { COMPRESS_ULZ,     'u', "ulz",  "ulz",     ulz_bounds, ulz_encode, ulz_excess, ulz_decode },
+    { COMPRESS_LZ4,     '4', "lz4x", "lz4x",    lz4x_bounds, lz4x_encode, lz4x_excess, lz4x_decode },
+    { COMPRESS_CRUSH,   'c', "crsh", "crush",   crush_bounds, crush_encode, crush_excess, crush_decode },
+    { COMPRESS_DEFLATE, 'd', "defl", "deflate", deflate_bounds, deflate_encode, deflate_excess, deflate_decode },
+    { COMPRESS_LZP1,    '1', "lzp1", "lzp1",    lzp1_bounds, lzp1_encode, lzp1_excess, lzp1_decode },
+    { COMPRESS_LZMA,    'm', "lzma", "lzma",    lzma_bounds, lzma_encode, lzma_excess, lzma_decode },
+    { COMPRESS_BALZ,    'b', "balz", "balz",    balz_bounds, balz_encode, balz_excess, balz_decode },
+    { COMPRESS_LZW3,    'w', "lzw3", "lzrw3a",  lzrw3a_bounds, lzrw3a_encode, lzrw3a_excess, lzrw3a_decode },
+    { COMPRESS_LZSS,    's', "lzss", "lzss",    lzss_bounds, lzss_encode, lzss_excess, lzss_decode },
+    { COMPRESS_BCM,     'B', "bcm",  "bcm",     bcm_bounds, bcm_encode, bcm_excess, bcm_decode },
+    { COMPRESS_ZLIB,    'z', "zlib", "zlib",    deflate_bounds, deflatez_encode, deflate_excess, deflatez_decode },
+};
+
+enum { COMPRESS_NUM = 14 };
+
+static char *znameof(unsigned flags) {
+    static __thread char buf[16];
+    snprintf(buf, 16, "%4s.%c", zlist[(flags>>4)&0x0F].name4, "0123456789ABCDEF"[flags&0xF]);
+    return buf;
+}
+unsigned zencode(void *out, unsigned outlen, const void *in, unsigned inlen, unsigned flags) {
+    return zlist[(flags >> 4) % COMPRESS_NUM].encode(in, inlen, (uint8_t*)out, outlen, flags & 0x0F);
+}
+unsigned zdecode(void *out, unsigned outlen, const void *in, unsigned inlen, unsigned flags) {
+    return zlist[(flags >> 4) % COMPRESS_NUM].decode((uint8_t*)in, inlen, out, outlen);
+}
+unsigned zbounds(unsigned inlen, unsigned flags) {
+    return zlist[(flags >> 4) % COMPRESS_NUM].bounds(inlen, flags & 0x0F);
+}
+unsigned zexcess(unsigned flags) {
+    return zlist[(flags >> 4) % COMPRESS_NUM].excess(flags & 0x0F);
+}
 #line 0
 
 #line 1 "fwk_dll.c"
@@ -3721,7 +3888,7 @@ const char *vfs_resolve(const char *pathfile) {
     return pathfile;
 }
 
-char* vfs_load(const char *pathfile, int *size_out) { // @todo: fix leaks
+char* vfs_load(const char *pathfile, int *size_out) { // @todo: fix leaks, vfs_unpack()
     // @fixme: handle \\?\ absolute path (win)
     if (!pathfile[0]) return file_load(pathfile, size_out);
     // if (pathfile[0] == '/' || pathfile[1] == ':') return file_load(pathfile, size_out); // @fixme: handle current cooked /home/FWK or C:/FWK path cases within zipfiles
@@ -6583,6 +6750,8 @@ void input_update() {
         k(F1),k(F2),k(F3),k(F4),k(F5),k(F6),k(F7),k(F8),k(F9),k(F10),k(F11),k(F12), k2(PRINT,PRINT_SCREEN),k(PAUSE),
         k2(INS,INSERT),k(HOME),k2(PGUP,PAGE_UP), k2(DEL,DELETE),k(END), k2(PGDN,PAGE_DOWN),
     };
+    #undef k
+    #undef k2
     any_key = 0;
     for(int i = 0; i < countof(table); ++i) {
 #if is(ems)
@@ -6591,8 +6760,6 @@ void input_update() {
         any_key |= (bits[i] = glfwGetKeys(win)[ table[i] ]);
 #endif
     }
-    #undef k
-    #undef k2
 
 #if is(ems)
     {
@@ -7098,7 +7265,7 @@ double randf(void) { // [0, 1) interval
     double dbl = u.d - 1.0;
     return 1 - 2.0 * ((float)(dbl / 2));
 }
-int randi(int mini, int maxi) { // [mini, maxi) interval ; @todo: test randi(-4,4)
+int randi(int mini, int maxi) { // [mini, maxi) interval ; @todo: test randi(-4,4) and #define randi(m,x) (m + randf() * (x-m))
     if( mini < maxi ) {
         uint32_t x, r, range = maxi - mini;
         do r = (x = rand64()) % range; while(range > (r-x));
@@ -7106,11 +7273,13 @@ int randi(int mini, int maxi) { // [mini, maxi) interval ; @todo: test randi(-4,
     }
     return mini > maxi ? randi(maxi, mini) : mini;
 }
+#if 0  // @todo: deprecate me
 double rng(void) { // [0..1) Lehmer RNG "minimal standard"
     static __thread unsigned int seed = 123;
     seed *= 16807;
     return seed / (double)0x100000000ULL;
 }
+#endif
 
 // ----------------------------------------------------------------------------
 
@@ -7179,6 +7348,7 @@ float pmodf    (float  a, float  b) { return (a < 0.0f ? 1.0f : 0.0f) + (float)f
 float signf    (float  a)           { return (a < 0) ? -1.f : 1.f; }
 float clampf(float v,float a,float b){return maxf(minf(b,v),a); }
 float mixf(float a,float b,float t) { return a*(1-t)+b*t; }
+float fractf   (float a)            { return a - (int)a; }
 
 // ----------------------------------------------------------------------------
 
@@ -10034,12 +10204,20 @@ void fullscreen_ycbcr_quad( texture_t textureYCbCr[3], float gamma ) {
 // sprites
 
 typedef struct sprite_t {
-    float cellw, cellh;       // dimensions of any cell in spritesheet
-    int frame, ncx, ncy;      // frame in a (num cellx, num celly) spritesheet
     float px, py, pz;         // origin x, y, depth
     float ox, oy, cos, sin;   // offset x, offset y, cos/sin of rotation degree
     float sx, sy;             // scale x,y
     uint32_t rgba;            // vertex color
+    float cellw, cellh;       // dimensions of any cell in spritesheet
+
+    union {
+    struct {
+        int frame, ncx, ncy;      // frame in a (num cellx, num celly) spritesheet
+    };
+    struct {
+        float x, y, w, h;         // normalized[0..1] within texture bounds
+    };
+    };
 } sprite_t;
 
 // sprite batching
@@ -10058,15 +10236,44 @@ static int sprite_count = 0;
 static int sprite_program = -1;
 static array(sprite_index)  sprite_indices = 0;
 static array(sprite_vertex) sprite_vertices = 0;
-static batch_group_t sprite_additive_group = {0};
-static batch_group_t sprite_translucent_group = {0};
+static batch_group_t sprite_additive_group = {0}; // (w/2,h/2) centered
+static batch_group_t sprite_translucent_group = {0}; // (w/2,h/2) centered
+static batch_group_t sprite_00_translucent_group = {0}; // (0,0) centered
 
-void tile( texture_t texture, float position[3], float rotation, uint32_t color ) {
+void sprite( texture_t texture, float position[3], float rotation, uint32_t color ) {
     float offset[2] = {0,0}, scale[2] = {1,1}, spritesheet[3] = {0,0,0};
-    sprite( texture, position, rotation, offset, scale, 0, color, spritesheet );
+    sprite_sheet( texture, spritesheet, position, rotation, offset, scale, 0, color );
 }
 
-void sprite( texture_t texture, float position[3], float rotation, float offset[2], float scale[2], int is_additive, uint32_t rgba, float spritesheet[3]) {
+// rect(x,y,w,h) is [0..1] normalized, z-index, pos(x,y,zoom), rotation (degrees), color (rgba)
+void sprite_rect( texture_t t, vec4 rect, float zindex, vec3 pos, float tilt_deg, unsigned tint_rgba) {
+    // @todo: no need to queue if alpha or scale are zero
+    sprite_t s = {0};
+
+    s.x = rect.x, s.y = rect.y, s.w = rect.z, s.h = rect.w;
+    s.cellw = s.w * t.w, s.cellh = s.h * t.h;
+
+    s.px = pos.x, s.py = pos.y, s.pz = zindex;
+    s.sx = s.sy = pos.z;
+    s.rgba = tint_rgba;
+    s.ox = 0/*ox*/ * s.sx;
+    s.oy = 0/*oy*/ * s.sy;
+    if( tilt_deg ) {
+        tilt_deg = (tilt_deg + 0) * ((float)C_PI / 180);
+        s.cos = cosf(tilt_deg);
+        s.sin = sinf(tilt_deg);
+    } else {
+        s.cos = 1;
+        s.sin = 0;
+    }
+
+    batch_group_t *batches = &sprite_00_translucent_group;
+    batch_t *found = map_find_or_add(*batches, t.id, (batch_t){0});
+
+    array_push(found->sprites, s);
+}
+
+void sprite_sheet( texture_t texture, float spritesheet[3], float position[3], float rotation, float offset[2], float scale[2], int is_additive, uint32_t rgba) {
     const float px = position[0], py = position[1], pz = position[2];
     const float ox = offset[0], oy = offset[1], sx = scale[0], sy = scale[1];
     const float frame = spritesheet[0], xcells = spritesheet[1], ycells = spritesheet[2];
@@ -10171,11 +10378,65 @@ static void sprite_rebuild_meshes() {
             array_clear(bt->sprites);
         }
     }
+
+    batch_group_t* list2[] = { &sprite_00_translucent_group };
+    for( int l = 0; l < countof(list2); ++l) {
+        for each_map_ptr(*list2[l], int,_, batch_t,bt) {
+
+            bt->dirty = array_count(bt->sprites) ? 1 : 0;
+            if( !bt->dirty ) continue;
+
+            int index = 0;
+            array_clear(sprite_indices);
+            array_clear(sprite_vertices);
+
+            array_foreach_ptr(bt->sprites, sprite_t,it ) {
+                float x0 = it->ox - it->cellw/2, x3 = x0 + it->cellw;
+                float y0 = it->oy - it->cellh/2, y3 = y0;
+                float x1 = x0,                   x2 = x3;
+                float y1 = y0 + it->cellh,       y2 = y1;
+
+                // @todo: move this affine transform into glsl shader
+                vec3 v0 = { it->px + ( x0 * it->cos - y0 * it->sin ), it->py + ( x0 * it->sin + y0 * it->cos ), it->pz };
+                vec3 v1 = { it->px + ( x1 * it->cos - y1 * it->sin ), it->py + ( x1 * it->sin + y1 * it->cos ), it->pz };
+                vec3 v2 = { it->px + ( x2 * it->cos - y2 * it->sin ), it->py + ( x2 * it->sin + y2 * it->cos ), it->pz };
+                vec3 v3 = { it->px + ( x3 * it->cos - y3 * it->sin ), it->py + ( x3 * it->sin + y3 * it->cos ), it->pz };
+
+                float ux = it->x, vx = ux + it->w;
+                float uy = it->y, vy = uy + it->h;
+
+                vec2 uv0 = vec2(ux, uy);
+                vec2 uv1 = vec2(ux, vy);
+                vec2 uv2 = vec2(vx, vy);
+                vec2 uv3 = vec2(vx, uy);
+
+                array_push( sprite_vertices, sprite_vertex(v0, uv0, it->rgba) ); // Vertex 0 (A)
+                array_push( sprite_vertices, sprite_vertex(v1, uv1, it->rgba) ); // Vertex 1 (B)
+                array_push( sprite_vertices, sprite_vertex(v2, uv2, it->rgba) ); // Vertex 2 (C)
+                array_push( sprite_vertices, sprite_vertex(v3, uv3, it->rgba) ); // Vertex 3 (D)
+
+                //      A--B                  A               A-B
+                // quad |  | becomes triangle |\  and triangle \|
+                //      D--C                  D-C               C
+                GLuint A = (index+0), B = (index+1), C = (index+2), D = (index+3); index += 4;
+
+                array_push( sprite_indices, sprite_index(C, D, A) ); // Triangle 1
+                array_push( sprite_indices, sprite_index(C, A, B) ); // Triangle 2
+            }
+
+            mesh_upgrade(&bt->mesh, "p3 t2 c4B", 0,array_count(sprite_vertices),sprite_vertices, 3*array_count(sprite_indices),sprite_indices, MESH_STATIC);
+
+            // clear elements from queue
+            sprite_count += array_count(bt->sprites);
+            array_clear(bt->sprites);
+        }
+    }
 }
 
 static void sprite_render_meshes() {
     if( map_count(sprite_additive_group) <= 0 )
     if( map_count(sprite_translucent_group) <= 0 )
+    if( map_count(sprite_00_translucent_group) <= 0 )
         return;
 
     if( sprite_program < 0 ) {
@@ -10237,6 +10498,17 @@ static void sprite_render_meshes() {
 //        map_clear(sprite_translucent_group);
     }
 
+    if( map_count(sprite_00_translucent_group) > 0 ) {
+        glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+        for each_map_ptr(sprite_00_translucent_group, int,texture_id, batch_t,bt) {
+            if( bt->dirty ) {
+                shader_texture_unit("u_texture", *texture_id, 0);
+                mesh_render(&bt->mesh);
+            }
+        }
+//        map_clear(sprite_00_translucent_group);
+    }
+
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
     glDepthFunc(GL_LESS);
@@ -10244,6 +10516,7 @@ static void sprite_render_meshes() {
 }
 
 static void sprite_init() {
+    map_init(sprite_00_translucent_group, less_int, hash_int);
     map_init(sprite_translucent_group, less_int, hash_int);
     map_init(sprite_additive_group, less_int, hash_int);
 }
@@ -10255,6 +10528,75 @@ void sprite_flush() {
     profile("Sprite render") {
     sprite_render_meshes();
     }
+}
+
+// -----------------------------------------------------------------------------
+// tilemaps
+
+tilemap_t tilemap(const char *map, int blank_chr, int linefeed_chr) {
+    tilemap_t t = {0};
+    t.tint = ~0u; // WHITE
+    t.blank_chr = blank_chr;
+    for( ; *map ; ++map ) {
+        if( map[0] == linefeed_chr ) ++t.rows;
+        else {
+            array_push(t.map, map[0]);
+            ++t.cols;
+        }
+    }
+    return t;
+}
+
+void tilemap_render_ext( tilemap_t m, tileset_t t, float zindex, float xy_zoom[3], float tilt, unsigned tint, bool is_additive ) {
+    vec3 old_pos = camera_get_active()->position;
+    sprite_flush();
+    camera_get_active()->position = vec3(window_width()/2,window_height()/2,1);
+
+    float scale[2] = {xy_zoom[2], xy_zoom[2]};
+    xy_zoom[2] = zindex;
+
+    float offset[2] = {0,0};
+    float spritesheet[3] = {0,t.cols,t.rows}; // selected tile index and spritesheet dimensions (cols,rows)
+
+    for( unsigned y = 0, c = 0; y < m.rows; ++y ) {
+        for( unsigned x = 0; x < m.cols; ++x, ++c ) {
+            if( m.map[c] != m.blank_chr ) {
+                spritesheet[0] = m.map[c];
+                sprite_sheet(t.tex, spritesheet, xy_zoom, tilt, offset, scale, is_additive, tint);
+            }
+            offset[0] += t.tile_w;
+        }
+        offset[0] = 0, offset[1] += t.tile_h;
+    }
+
+    sprite_flush();
+    camera_get_active()->position = old_pos;
+}
+
+void tilemap_render( tilemap_t map, tileset_t set ) {
+    map.position.x += set.tile_w;
+    map.position.y += set.tile_h;
+    tilemap_render_ext( map, set, map.zindex, &map.position.x, map.tilt, map.tint, map.is_additive );
+}
+
+tileset_t tileset(texture_t tex, unsigned tile_w, unsigned tile_h, unsigned cols, unsigned rows) {
+    tileset_t t = {0};
+    t.tex = tex;
+    t.cols = cols, t.rows = rows;
+    t.tile_w = tile_w, t.tile_h = tile_h;
+    return t;
+}
+
+int tileset_ui( tileset_t t ) {
+    ui_subimage(va("Selection #%d (%d,%d)", t.selected, t.selected % t.cols, t.selected / t.cols), t.tex.id, t.tex.w, t.tex.h, (t.selected % t.cols) * t.tile_w, (t.selected / t.cols) * t.tile_h, t.tile_w, t.tile_h);
+    int choice;
+    if( (choice = ui_image(0, t.tex.id, t.tex.w,t.tex.h)) ) { 
+        int px = ((choice / 100) / 100.f) * t.tex.w / t.tile_w;
+        int py = ((choice % 100) / 100.f) * t.tex.h / t.tile_h;
+        t.selected = px + py * t.cols;
+    }
+    // if( (choice = ui_buttons(3, "load", "save", "clear")) ) {}
+    return t.selected;
 }
 
 // -----------------------------------------------------------------------------
@@ -11924,19 +12266,19 @@ float model_animate_clip(model_t m, float curframe, int minframe, int maxframe, 
 
     float retframe = -1;
     if( numframes > 0 ) {
-        int frame1 = (int)/*floor*/(curframe);
+        float offset = curframe - (int)curframe;
+        int frame1 = (int)curframe;
         int frame2 = frame1 + (curframe >= m.curframe ? 1 : -1);
-        float frameoffset = curframe - frame1;
 
         if( loop ) {
-            int distance = (maxframe - minframe);
-            frame1 = frame1 >= maxframe ? minframe : frame1 < minframe ? maxframe - clampf(minframe - frame1, 0, distance) : frame1;
-            frame2 = frame2 >= maxframe ? minframe : frame2 < minframe ? maxframe - clampf(minframe - frame2, 0, distance) : frame2;
-            retframe = frame1 + frameoffset;
+            int distance = maxframe - minframe;
+            frame1 = fmod(frame1 - minframe, distance) + minframe; // frame1 >= maxframe ? minframe : frame1 < minframe ? maxframe - clampf(minframe - frame1, 0, distance) : frame1;
+            frame2 = fmod(frame2 - minframe, distance) + minframe; // frame2 >= maxframe ? minframe : frame2 < minframe ? maxframe - clampf(minframe - frame2, 0, distance) : frame2;
+            retframe = fmod(frame1 + offset - minframe, distance) + minframe;
         } else {
             frame1 = clampf(frame1, minframe, maxframe);
             frame2 = clampf(frame2, minframe, maxframe);
-            retframe = minf(frame1 + frameoffset, maxframe); // clamp to maxframe
+            retframe = clampf(frame1 + offset, minframe, maxframe);
         }
 
         mat34 *mat1 = &frames[frame1 * numjoints];
@@ -11945,7 +12287,7 @@ float model_animate_clip(model_t m, float curframe, int minframe, int maxframe, 
         // Interpolate matrixes between the two closest frames and concatenate with
         // parent matrix if necessary. Concatenate the result with the inverse of the base pose.
         for(int i = 0; i < numjoints; i++) {
-            mat34 mat; lerp34(mat, mat1[i], mat2[i], frameoffset);
+            mat34 mat; lerp34(mat, mat1[i], mat2[i], offset);
             if(joints[i].parent >= 0) multiply34x2(outframe[i], outframe[joints[i].parent], mat);
             else copy34(outframe[i], mat);
         }
@@ -12181,6 +12523,26 @@ static map(unsigned,array(vec3)) dd_lists[2][3] = {0}; // [0/1 ontop][0/1/2 thin
 static bool                      dd_use_line = 0;
 static bool                      dd_ontop = 0;
 static array(text2d_cmd)         dd_text2d;
+static array(vec4)               dd_matrix2d;
+
+void ddraw_push_2d() {
+    float width = window_width();
+    float height = window_height();
+    float zdepth_max = window_height();
+    array_push(dd_matrix2d, vec4(width,height,zdepth_max,0));
+
+    ddraw_flush();
+}
+
+void ddraw_pop_2d() {
+    vec4 dim = *array_back(dd_matrix2d);
+    array_pop(dd_matrix2d);
+
+    mat44 id, proj;
+    id44(id);
+    ortho44(proj, 0,dim.x,dim.y,0, -dim.z, +dim.z);
+    ddraw_flush_projview(proj, id);
+}
 
 void ddraw_flush() {
     ddraw_flush_projview(camera_get_active()->proj, camera_get_active()->view);
@@ -12421,7 +12783,7 @@ void (ddraw_text)(vec3 pos, float scale, const char *text) {
     "MGK@@HYGWGUHSIRJPJNILEJIHJFJDIBHAG?G=H;@@GIIGIEHCGBF@F>G<H;J:","CIEZE:","hOFZH"
     "YIXJVJTIRHQGOGMIK@@HYIWIUHSGRFPFNGLKJGHFFFDGBHAI?I=H;@@IIGGGEHCIBJ@J>I<H;F:",""
     "XYDGDIELGMIMKLOIQHSHUIVK@@DIEKGLILKKOHQGSGUHVKVM" };
-    vec3 src = pos, old = {0};
+    vec3 src = pos, old = {0}; float abs_scale = absf(scale);
     for( signed char c; (c = *text++, c > 0 && c < 127); ) {
         if( c == '\n' || c == '\r' ) {
             pos.x = src.x, pos.y -= scale * ((signed char)hershey['W'-32][1] - 65) * 1.25f; // spacing @1
@@ -12430,12 +12792,12 @@ void (ddraw_text)(vec3 pos, float scale, const char *text) {
             if( c > 32 ) for( int pen = 0, i = 0; i < (glyph[0] - 65); i++ ) { // verts @0
                 int x = glyph[2 + i*2 + 0] - 65, y = glyph[2 + i*2 + 1] - 65;
                 if( x == -1 && y == -1 ) pen = 0; else {
-                    vec3 next = add3(pos, vec3(scale*x, scale*y, 0));
+                    vec3 next = add3(pos, vec3(abs_scale*x, scale*y, 0));
                     if( !pen ) pen = 1; else ddraw_line(old, next);
                     old = next;
                 }
             }
-            pos.x += scale * (glyph[1] - 65); // spacing @1
+            pos.x += abs_scale * (glyph[1] - 65); // spacing @1
         }
     }
 }
@@ -13545,8 +13907,8 @@ const char *app_path() { // should return absolute path always
     char *b = strrchr(buffer, '\\'); if(!b) b = buffer + strlen(buffer);
     char slash = (a < b ? *a : b < a ? *b : '/');
     snprintf(buffer, 1024, "%.*s%c", length - (int)(a < b ? b - a : a - b), buffer, slash), buffer;
-    if( strendi(buffer, "tools\\bin\\tcc-win\\") ) { // fix tcc -g -run case. @fixme: fix on non art-tools custom pipeline folder
-        strcat(buffer, "..\\..\\..\\");
+    if( strendi(buffer, "tools\\tcc-win\\") ) { // fix tcc -g -run case. @fixme: use TOOLS instead
+        strcat(buffer, "..\\..\\");
     }
 #else // #elif is(linux)
     char path[21] = {0};
@@ -13630,7 +13992,7 @@ int os_exec( const char *cmd ) {
 #if is(osx)
 #include <execinfo.h> // backtrace, backtrace_symbols
 #include <dlfcn.h>    // dladdr, Dl_info
-#elif is(gcc) && !is(ems) && !is(mingw)
+#elif is(gcc) && !is(ems) && !is(mingw) // maybe is(linux) is enough?
 #include <execinfo.h>  // backtrace, backtrace_symbols
 #elif is(win32) // && !defined __TINYC__
 #include <winsock2.h>  // windows.h alternative
@@ -13816,6 +14178,10 @@ double  * big64pf(void *p, int sz) { if(is_little()) { double   *n = (double   *
 
 // -----------------------------------------------------------------------------
 // cpu
+
+#if is(linux)
+#include <sched.h>
+#endif
 
 int cpu_cores() {
 #if is(win32)
@@ -14257,9 +14623,10 @@ void hexdumpf( FILE *fp, const void *ptr, unsigned len, int width ) {
         }
         fprintf( fp, "; %05d%s", jt, jt == len ? "\n" : " " );
         for( unsigned it = jt, next = it + width; it < len && it < next; ++it ) {
-            fprintf( fp, " %c %s", (signed char)data[it] >= 32 ? (signed char)data[it] : (signed char)'.', &" \n\0...\n"[ (1+it) < len ? 2 * !!((1+it) % width) : 3 ] );
+            fprintf( fp, " %c %s", (signed char)data[it] >= 32 ? (signed char)data[it] : (signed char)'.', &" \n\0..."[ (1+it) < len ? 2 * !!((1+it) % width) : 3 ] );
         }
     }
+    fprintf(fp, " %d bytes\n", len);
 }
 void hexdump( const void *ptr, unsigned len ) {
     hexdumpf( stdout, ptr, len, 16 );
@@ -15150,8 +15517,8 @@ bool is_pinned = win && (win->flags & NK_WINDOW_PINNED);
 if( is_pinned ) {
 //    is_closable = false;
     is_auto_minimizes = false;
-//    is_scalable = false;
-    is_movable = false;
+    is_scalable = false;
+//    is_movable = false;
 }
 
     ui_create();
@@ -15564,6 +15931,11 @@ ui_label_icon_clicked_R.x = is_hovering ? ( (int)((input->mouse.pos.x - bounds.x
 
     return ui_label_icon_clicked_R.x;
 }
+int ui_label2_toolbar(const char *label, const char *icons, float icon_size) {
+    int mouse_click = ui_label2(label, va(">%s", icons));
+    int choice = !mouse_click ? 0 : 1 + -mouse_click / icon_size; // 24px per ICON_MD_ glyph approximately
+    return choice;
+}
 
 int ui_notify(const char *title, const char *body) {
     struct ui_notify n = {0};
@@ -15590,18 +15962,30 @@ int ui_button_(const char *text) {
     int ret = 0;
 
     if( 1 ) {
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_hover,  nk_rgb(0,0,0));
+#if UI_BUTTON_MONOCHROME
         nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_normal, nk_rgb(0,0,0));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_hover,  nk_rgb(0,0,0));
         nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_active, nk_rgb(0,0,0));
 
-#if UI_BUTTON_MONOCHROME
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.hover.data.color,  nk_hsv_f(ui_hue,0.0,1.0));
         nk_style_push_color(ui_ctx, &ui_ctx->style.button.normal.data.color, nk_hsv_f(ui_hue,0.0,0.8));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.hover.data.color,  nk_hsv_f(ui_hue,0.0,1.0));
         nk_style_push_color(ui_ctx, &ui_ctx->style.button.active.data.color, nk_hsv_f(ui_hue,0.0,0.4));
-#else
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.hover.data.color,  nk_hsv_f(ui_hue,1.00,1.0));
+#elif 0 // old
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_normal, nk_rgb(0,0,0));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_hover,  nk_rgb(0,0,0));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_active, nk_rgb(0,0,0));
+
         nk_style_push_color(ui_ctx, &ui_ctx->style.button.normal.data.color, nk_hsv_f(ui_hue,0.75,0.8));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.hover.data.color,  nk_hsv_f(ui_hue,1.00,1.0));
         nk_style_push_color(ui_ctx, &ui_ctx->style.button.active.data.color, nk_hsv_f(ui_hue,0.60,0.4));
+#else // new
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_normal, nk_rgba(0,0,0,255));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_hover,  nk_rgba(28,28,28,255));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_active, nk_rgb(0,0,0));
+
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.normal.data.color, nk_hsv_f(ui_hue,0.80,0.6));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.hover.data.color,  nk_hsv_f(ui_hue,0.85,0.9));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.active.data.color, nk_hsv_f(ui_hue,0.80,0.6));
 #endif
     }
 
@@ -15785,6 +16169,8 @@ int ui_slider2(const char *label, float *slider, const char *caption) {
         int chg = nk_progress(ui_ctx, &val, 1000, NK_MODIFIABLE);
         *slider = val / 1000.f;
 
+    chg |= input(MOUSE_L) && nk_input_is_mouse_hovering_rect(&ui_ctx->input, bounds); // , true);
+
     nk_widget_text(&win->buffer, bounds, caption, strlen(caption), &text, NK_TEXT_RIGHT, style->font);
     return chg;
 }
@@ -15907,15 +16293,34 @@ int ui_separator() {
     return 1;
 }
 
+int ui_subimage(const char *label, handle id, unsigned iw, unsigned ih, unsigned sx, unsigned sy, unsigned sw, unsigned sh) {
+    nk_layout_row_dynamic(ui_ctx, sh < 30 || id == texture_checker().id ? 0 : sh, label && label[0] ? 2 : 1);
+    if( label && label[0] ) ui_label_(label, NK_TEXT_LEFT);
+
+    struct nk_rect bounds; nk_layout_peek(&bounds, ui_ctx); bounds.w -= 10; // bounds.w *= 0.95f;
+
+    int ret = nk_button_image(ui_ctx, nk_subimage_id((int)id, iw, ih, ((struct nk_rect){sx,sy,sw,sh})));
+    if( !ret ) {
+        ret |= input(MOUSE_L) && nk_input_is_mouse_hovering_rect(&ui_ctx->input, bounds); // , true);
+    }
+    if( ret ) {
+        int px = 100 * (ui_ctx->input.mouse.pos.x - bounds.x ) / (float)bounds.w;
+        int py = 100 * (ui_ctx->input.mouse.pos.y - bounds.y ) / (float)bounds.h;
+        return px * 100 + py; // printf("%d %d xy:%d\n", px, py, (px * 100) + py);
+    }
+    return ret; // !!ret;
+}
+
 int ui_image(const char *label, handle id, unsigned w, unsigned h) {
-    //nk_layout_row_dynamic(ui_ctx, 1, 1);
-    //struct nk_rect bounds = nk_widget_bounds(ui_ctx);
+    return ui_subimage(label, id, w,h, 0,0,w,h);
+}
 
-    nk_layout_row_dynamic(ui_ctx, h < 30 || id == texture_checker().id ? 0 : h, 2);
-    ui_label_(label, NK_TEXT_LEFT);
+int ui_texture(const char *label, texture_t t) {
+    return ui_subimage(label, t.id, t.w,t.h, 0,0,t.w,t.h);
+}
 
-    int ret = nk_button_image(ui_ctx, nk_image_id((int)id));
-    return !!ret;
+int ui_subtexture(const char *label, texture_t t, unsigned x, unsigned y, unsigned w, unsigned h) {
+    return ui_subimage(label, t.id, t.w,t.h, x,y,w,h);
 }
 
 int ui_colormap( const char *map_name, colormap_t *cm ) {
@@ -18377,7 +18782,9 @@ static void fwk_post_init(float refresh_rate) {
         if(!mounted) break;
     }
     // mount physical filesystems first (higher priority)
-    if(!any_mounted) vfs_mount(ART);
+    if(!any_mounted) for each_substring(ART,",",art_folder) {
+        vfs_mount(art_folder);
+    }
 
     // config nuklear UI (after VFS mounting, as UI needs cooked fonts here)
     nk_config_custom_fonts();
@@ -18393,6 +18800,7 @@ static void fwk_post_init(float refresh_rate) {
 #endif
     input_init();
     network_init();
+    randset(time_ns());
     boot_time = -time_ss(); // measure boot time, this is continued in window_stats()
 
     // clean any errno setup by cooking stage
@@ -18477,6 +18885,19 @@ void fwk_init() {
 
 #if is(linux) && is(tcc) // fixes `tcc: error: undefined symbol '__dso_handle'`
 int __dso_handle; // compiled with: `tcc demo.c fwk.c -D__STDC_NO_VLA__ -lX11`
+#endif
+
+#if is(win32) && is(tcc) // fixes `tcc: error: undefined symbol '_InterlockedExchangeAdd'` when compiling with `-m64` flag
+__CRT_INLINE LONG _InterlockedExchangeAdd(LONG volatile *add, LONG val) {
+    LONG old;
+    do old = *add; while( InterlockedCompareExchange(add, old + val, old) != old );
+    return old;
+}
+__CRT_INLINE LONGLONG _InterlockedExchangeAdd64(LONGLONG volatile *add, LONGLONG val) { // 64bit version, for completeness
+    LONGLONG old;
+    do old = *add; while( InterlockedCompareExchange64(add, old + val, old) != old );
+    return old;
+}
 #endif
 
 #line 0

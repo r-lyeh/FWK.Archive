@@ -14,8 +14,8 @@ const char *app_path() { // should return absolute path always
     char *b = strrchr(buffer, '\\'); if(!b) b = buffer + strlen(buffer);
     char slash = (a < b ? *a : b < a ? *b : '/');
     snprintf(buffer, 1024, "%.*s%c", length - (int)(a < b ? b - a : a - b), buffer, slash), buffer;
-    if( strendi(buffer, "tools\\bin\\tcc-win\\") ) { // fix tcc -g -run case. @fixme: fix on non art-tools custom pipeline folder
-        strcat(buffer, "..\\..\\..\\");
+    if( strendi(buffer, "tools\\tcc-win\\") ) { // fix tcc -g -run case. @fixme: use TOOLS instead
+        strcat(buffer, "..\\..\\");
     }
 #else // #elif is(linux)
     char path[21] = {0};
@@ -99,7 +99,7 @@ int os_exec( const char *cmd ) {
 #if is(osx)
 #include <execinfo.h> // backtrace, backtrace_symbols
 #include <dlfcn.h>    // dladdr, Dl_info
-#elif is(gcc) && !is(ems) && !is(mingw)
+#elif is(gcc) && !is(ems) && !is(mingw) // maybe is(linux) is enough?
 #include <execinfo.h>  // backtrace, backtrace_symbols
 #elif is(win32) // && !defined __TINYC__
 #include <winsock2.h>  // windows.h alternative
@@ -285,6 +285,10 @@ double  * big64pf(void *p, int sz) { if(is_little()) { double   *n = (double   *
 
 // -----------------------------------------------------------------------------
 // cpu
+
+#if is(linux)
+#include <sched.h>
+#endif
 
 int cpu_cores() {
 #if is(win32)
@@ -726,9 +730,10 @@ void hexdumpf( FILE *fp, const void *ptr, unsigned len, int width ) {
         }
         fprintf( fp, "; %05d%s", jt, jt == len ? "\n" : " " );
         for( unsigned it = jt, next = it + width; it < len && it < next; ++it ) {
-            fprintf( fp, " %c %s", (signed char)data[it] >= 32 ? (signed char)data[it] : (signed char)'.', &" \n\0...\n"[ (1+it) < len ? 2 * !!((1+it) % width) : 3 ] );
+            fprintf( fp, " %c %s", (signed char)data[it] >= 32 ? (signed char)data[it] : (signed char)'.', &" \n\0..."[ (1+it) < len ? 2 * !!((1+it) % width) : 3 ] );
         }
     }
+    fprintf(fp, " %d bytes\n", len);
 }
 void hexdump( const void *ptr, unsigned len ) {
     hexdumpf( stdout, ptr, len, 16 );

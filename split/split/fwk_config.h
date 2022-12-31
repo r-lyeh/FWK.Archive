@@ -18,7 +18,7 @@
 #define ifdef_mingw                    ifdef_false
 #define ifdef_tcc                      ifdef_true
 #define ifdef_cl                       ifdef_false
-#elif defined __MINGW64__ // __MINGW__ ?
+#elif defined __MINGW64__ || defined __MINGW32__
 #define ifdef_gcc                      ifdef_true
 #define ifdef_mingw                    ifdef_true
 #define ifdef_tcc                      ifdef_false

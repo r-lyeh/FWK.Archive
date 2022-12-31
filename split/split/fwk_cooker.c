@@ -21,6 +21,8 @@ typedef struct cook_script_t {
     int compress_level;
 } cook_script_t;
 
+static unsigned ART_SKIP_ROOT; // number of chars that belong to the base root in ART folder
+
 static
 cook_script_t cook_script(const char *rules, const char *infile, const char *outfile) {
     // by default, assume:
@@ -40,15 +42,9 @@ cook_script_t cook_script(const char *rules, const char *infile, const char *out
     if(!symbols) map_init(symbols, less_str, hash_str);
     if(!groups)  map_init(groups, less_str, hash_str);
 
-    // pretty (truncated) input (C:/prj/FWK/art/file.wav -> file.wav)
-    int artlen = strlen(ART);
-    const char *pretty = infile;
-    if( !strncmp(pretty, ART, artlen) ) pretty += artlen;
-    while(pretty[0] == '/') ++pretty;
-
     map_find_or_add(symbols, "INFILE", STRDUP(infile));
     map_find_or_add(symbols, "INPUT", STRDUP(infile));
-    map_find_or_add(symbols, "PRETTY", STRDUP(pretty));
+    map_find_or_add(symbols, "PRETTY", STRDUP(infile + ART_SKIP_ROOT)); // pretty (truncated) input (C:/prj/FWK/art/file.wav -> file.wav)
     map_find_or_add(symbols, "OUTPUT", STRDUP(outfile));
     map_find_or_add(symbols, "TOOLS", STRDUP(TOOLS));
     map_find_or_add(symbols, "EDITOR", STRDUP(EDITOR));
@@ -566,47 +562,65 @@ bool cooker_start( const char *masks, int flags ) {
         EDITOR = STRDUP(t); // @leak
     }
 
-    // scan disk
-    const char **list = file_list(ART, "**");
-    // inspect disk
-    for( int i = 0; list[i]; ++i ) {
-        const char *fname = list[i];
+    // scan disk: all subfolders in ART (comma-separated)
+    static array(char *) list = 0; // @leak
+    for each_substring(ART, ",", art_folder) {
+        const char **glob = file_list(art_folder, "**");
+        for( unsigned i = 0; glob[i]; ++i ) {
+            const char *fname = glob[i];
 
-        // skip special files, folders and internal files like .art.zip
-        const char *dir = file_path(fname);
-        if( dir[0] == '.' ) continue; // discard system dirs and hidden files
-        if( strbegi(dir, TOOLS) ) continue; // discard tools folder
-        if( !file_ext(fname)[0] ) continue; // discard extensionless entries
-        if( !file_size(fname)) continue; // skip dirs and empty files
+            // skip special files, folders and internal files like .art.zip
+            const char *dir = file_path(fname);
+            if( dir[0] == '.' ) continue; // discard system dirs and hidden files
+            if( strbegi(dir, TOOLS) ) continue; // discard tools folder
+            if( !file_ext(fname)[0] ) continue; // discard extensionless entries
+            if( !file_size(fname)) continue; // skip dirs and empty files
 
-        // exclude vc c/c++ .obj files. they're not 3d wavefront .obj files
-        if( strend(fname, ".obj") ) {
-            char header[4] = {0};
-            for( FILE *in = fopen(fname, "rb"); in; fclose(in), in = NULL) {
-                fread(header, 1, 2, in);
+            // exclude vc c/c++ .obj files. they're not 3d wavefront .obj files
+            if( strend(fname, ".obj") ) {
+                char header[4] = {0};
+                for( FILE *in = fopen(fname, "rb"); in; fclose(in), in = NULL) {
+                    fread(header, 1, 2, in);
+                }
+                if( !memcmp(header, "\x64\x86", 2) ) continue;
+                if( !memcmp(header, "\x00\x00", 2) ) continue;
             }
-            if( !memcmp(header, "\x64\x86", 2) ) continue;
-            if( !memcmp(header, "\x00\x00", 2) ) continue;
-        }
-        // exclude vc/gcc files
-        if( strend(fname, ".a") || strend(fname, ".pdb") || strend(fname, ".lib") || strend(fname, ".ilk") || strend(fname, ".exp") ) {
-            continue;
-        }
+            // exclude vc/gcc files
+            if( strend(fname, ".a") || strend(fname, ".pdb") || strend(fname, ".lib") || strend(fname, ".ilk") || strend(fname, ".exp") ) {
+                continue;
+            }
 
-        // @todo: normalize path & rebase here (absolute to local)
-        // [...]
-        // fi.normalized = ; tolower->to_underscore([]();:+ )->remove_extra_underscores
+            // @todo: normalize path & rebase here (absolute to local)
+            // [...]
+            // fi.normalized = ; tolower->to_underscore([]();:+ )->remove_extra_underscores
 
-        if (file_name(fname)[0] == '.') continue; // skip system files
-        if (file_name(fname)[0] == ';') continue; // skip comment files
+            if (file_name(fname)[0] == '.') continue; // skip system files
+            if (file_name(fname)[0] == ';') continue; // skip comment files
+
+            array_push(list, STRDUP(fname));
+        }
+    }
+
+    // estimate ART_SKIP_ROOT (C:/prj/fwk/demos/assets/file.png -> strlen(C:/prj/fwk/) -> 11)
+    if( array_count(list) > 1 ) {
+        array_sort(list, strcmp);
+
+        char *head = list[0], *back = *array_back(list);
+        for(  ; *head && *back && *head == *back; ++ART_SKIP_ROOT, ++head, ++back ) {}
+        // exit(-printf("%s\n%s\n%*.s^ %d\n", list[0], *array_back(list), ART_SKIP_ROOT, "", ART_SKIP_ROOT));
+    }
+
+    // inspect disk
+    for( int i = 0, end = array_count(list); i < end; ++i ) {
+        char *fname = list[i];
 
         struct fs fi = {0};
-        fi.fname = STRDUP(fname);
+        fi.fname = fname; // STRDUP(fname);
         fi.bytes = file_size(fname);
         fi.stamp = file_stamp(fname); // human-readable base10 timestamp
 
         array_push(fs_now, fi);
-    }
+    }        
 
     // spawn all the threads
     int num_jobs = cooker_jobs();
@@ -620,10 +634,13 @@ bool cooker_start( const char *masks, int flags ) {
     }
     for( int i = 0; i < num_jobs; ++i ) {
         if( jobs[i].numthreads > 1 ) {
+#ifndef __TINYC__
             jobs[i].self = thread_init(cook_async, &jobs[i], "cook_async()", 0/*STACK_SIZE*/);
-        } else {
-            return !!cook(&jobs[0]);
+            continue;
+#endif
         }
+
+        if(!cook(&jobs[i])) return false;
     }
 
     (void) flags;
@@ -644,10 +661,10 @@ void cooker_stop() {
 int cooker_progress() {
     int count = 0, sum = 0;
     for( int i = 0, end = cooker_jobs(); i < end; ++i ) {
-        if( jobs[i].progress >= 0 ) {
+//        if( jobs[i].progress >= 0 ) {
             sum += jobs[i].progress;
             ++count;
-        }
+//        }
     }
     return cooker_jobs() ? sum / (count+!count) : 100;
 }
@@ -657,7 +674,7 @@ void cooker_cancel() {
 }
 
 int cooker_jobs() {
-    int num_jobs = optioni("--with-cook-jobs", ifdef(tcc, 1, cpu_cores()*2)), max_jobs = countof(jobs);
+    int num_jobs = optioni("--with-cook-jobs", cpu_cores()*2), max_jobs = countof(jobs);
     ifdef(ems, num_jobs = 0);
     return clampi(num_jobs, 0, max_jobs);
 }

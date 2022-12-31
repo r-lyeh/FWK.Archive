@@ -237,6 +237,8 @@ void input_update() {
         k(F1),k(F2),k(F3),k(F4),k(F5),k(F6),k(F7),k(F8),k(F9),k(F10),k(F11),k(F12), k2(PRINT,PRINT_SCREEN),k(PAUSE),
         k2(INS,INSERT),k(HOME),k2(PGUP,PAGE_UP), k2(DEL,DELETE),k(END), k2(PGDN,PAGE_DOWN),
     };
+    #undef k
+    #undef k2
     any_key = 0;
     for(int i = 0; i < countof(table); ++i) {
 #if is(ems)
@@ -245,8 +247,6 @@ void input_update() {
         any_key |= (bits[i] = glfwGetKeys(win)[ table[i] ]);
 #endif
     }
-    #undef k
-    #undef k2
 
 #if is(ems)
     {

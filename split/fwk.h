@@ -115,7 +115,7 @@ extern "C" {
 #define ifdef_mingw                    ifdef_false
 #define ifdef_tcc                      ifdef_true
 #define ifdef_cl                       ifdef_false
-#elif defined __MINGW64__ // __MINGW__ ?
+#elif defined __MINGW64__ || defined __MINGW32__
 #define ifdef_gcc                      ifdef_true
 #define ifdef_mingw                    ifdef_true
 #define ifdef_tcc                      ifdef_false
@@ -422,7 +422,7 @@ API size_t vlen( void* p );
 #define array_at(t,i) (t[i])
 #define array_count(t) (int)( (t) ? array_vlen_(t) / sizeof(0[t]) : 0u )
 #define array_bytes(t) (int)( (t) ? array_vlen_(t) : 0u )
-#define array_sort(t, cmpfunc) qsort( t, array_count(t), sizeof(0[t]), (uintptr_t)cmpfunc == (uintptr_t)strcmp ? strcmp_qsort : cmpfunc )
+#define array_sort(t, cmpfunc) qsort( t, array_count(t), sizeof(0[t]), (uintptr_t)cmpfunc == (uintptr_t)strcmp ? (void*)strcmp_qsort : (void*)cmpfunc )
 #define array_empty(t) ( !array_count(t) )
 
 #define array_push_front(arr,x) \
@@ -518,6 +518,16 @@ static __thread unsigned array_n_;
         } \
     }
 #endif
+
+#define array_shuffle(t) do { /* https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle */ \
+    void* tmp = stack(sizeof(0[t])); \
+    for( int i = 0, n = array_count(t); i < n; ++i ) { \
+        int j = randi(i, n); /* j random integer such that [i,n) i<=j<n */ \
+        memcpy(tmp, &j[t], sizeof(0[t])); \
+        memcpy(&j[t], &i[t], sizeof(0[t])); \
+        memcpy(&i[t], tmp, sizeof(0[t])); \
+    } \
+} while(0)
 
 // -----------------------------------------------------------------------------
 // set<K>
@@ -728,6 +738,13 @@ API void  (set_clear)(set* m);
 #define map_count(m)        map_count(&(m)->base)
 #define map_gc(m)           map_gc(&(m)->base)
 
+// aliases:
+
+#ifndef map_init_int
+#define map_init_int(m)     map_init((m), less_int, hash_64)
+#define map_init_str(m)     map_init((m), less_str, hash_str)
+#endif
+
 // private:
 
 #ifdef __cplusplus
@@ -807,7 +824,7 @@ API void     randset(uint64_t state);
 API uint64_t rand64(void);
 API double   randf(void); // [0, 1) interval
 API int      randi(int mini, int maxi); // [mini, maxi) interval
-API double   rng(void); // [0..1) Lehmer RNG "minimal standard"
+//API double rng(void); // [0..1) Lehmer RNG "minimal standard"
 
 // ----------------------------------------------------------------------------
 
@@ -875,6 +892,7 @@ API float pmodf    (float  a, float  b);
 API float signf    (float  a)           ;
 API float clampf   (float v,float a,float b);
 API float mixf     (float a,float b,float t);
+API float fractf   (float a);
 
 // ----------------------------------------------------------------------------
 
@@ -1144,6 +1162,7 @@ API int     audio_play( audio_t s, int flags );
 API int     audio_play_gain( audio_t a, int flags, float gain/*0*/ );
 API int     audio_play_gain_pitch( audio_t a, int flags, float gain, float pitch/*1*/ );
 API int     audio_play_gain_pitch_pan( audio_t a, int flags, float gain, float pitch, float pan/*0*/ );
+API int     audio_stop( audio_t a );
 
 API float   audio_volume_clip(float gain);   // set     fx volume if gain is in [0..1] range. return current     fx volume in any case
 API float   audio_volume_stream(float gain); // set    bgm volume if gain is in [0..1] range. return current    bgm volume in any case
@@ -1163,6 +1182,9 @@ enum AUDIO_FLAGS {
 
     AUDIO_MIXER_GAIN = 0, // default
     AUDIO_IGNORE_MIXER_GAIN = 32,
+
+    AUDIO_MULTIPLE_INSTANCES = 0, // default
+    AUDIO_SINGLE_INSTANCE = 64,
 };
 
 API int audio_queue( const void *samples, int num_samples, int flags );
@@ -1363,7 +1385,7 @@ API int  cooker_jobs();     // [0..N]
 
 #line 1 "fwk_data.h"
 // -----------------------------------------------------------------------------
-// data framework (json5) @todo:xml,kvdb
+// data framework (json5, xml, compression) @todo:kvdb
 // - rlyeh, public domain
 //
 // @todo: vec2,vec3,vec4
@@ -1376,17 +1398,55 @@ typedef union data_t {
     array(union data_t) arr;
 } data_t;
 
-// data api
+// data api (@todo: merge xml api into data api)
 
-API bool    data_push(const char *source);
-API data_t*     data_find(const char *type_keypath); // @todo, array(data_t) data_array();
-API data_t      data_get(const char *type_keypath); // @todo, array(data_t) data_array();
-API int         data_count(const char *keypath);
-#define         data_int(...)    (data_get(va("i" __VA_ARGS__)).i)
-#define         data_float(...)  (data_get(va("f" __VA_ARGS__)).f)
-#define         data_string(...) (data_get(va("s" __VA_ARGS__)).s)
-#define         data_count(...)   data_count(va(__VA_ARGS__))
-API bool    data_pop();
+API bool   			 data_push(const char *json_content);
+API const char*  		 data_key(const char *keypath);
+API data_t*			     data_find(const char *type_keypath);
+API data_t 			     data_get(const char *type_keypath);
+API int    			     data_count(const char *keypath);
+#define    			     data_int(...)    (data_get(va("i" __VA_ARGS__)).i)
+#define    			     data_float(...)  (data_get(va("f" __VA_ARGS__)).f)
+#define    			     data_string(...) (data_get(va("s" __VA_ARGS__)).s)
+#define    			     data_key(...)     data_key(va(__VA_ARGS__))
+#define    			     data_count(...)   data_count(va(__VA_ARGS__))
+API bool   			 data_pop();
+
+// xml api
+
+API int             xml_push(const char *xml_content);
+API const char *        xml_string(char *key);
+API unsigned            xml_count(char *key);
+API array(char)         xml_blob(char *key);
+#define xml_string(...) xml_string(va(__VA_ARGS__))       // syntax sugar: string
+#define xml_int(...)    atoi(xml_string(va(__VA_ARGS__))) // syntax sugar: int
+#define xml_float(...)  atof(xml_string(va(__VA_ARGS__))) // syntax sugar: float
+#define xml_blob(...)   xml_blob(va(__VA_ARGS__))         // syntax sugar: base64 blob
+#define xml_count(...)  xml_count(va(__VA_ARGS__))        // syntax sugar: count nodes
+API void            xml_pop();
+
+// compression api
+
+enum COMPRESS_FLAGS {
+    COMPRESS_RAW     = 0,
+    COMPRESS_PPP     = (1<<4),
+    COMPRESS_ULZ     = (2<<4),
+    COMPRESS_LZ4     = (3<<4),
+    COMPRESS_CRUSH   = (4<<4),
+    COMPRESS_DEFLATE = (5<<4),
+    COMPRESS_LZP1    = (6<<4),
+    COMPRESS_LZMA    = (7<<4),
+    COMPRESS_BALZ    = (8<<4),
+    COMPRESS_LZW3    = (9<<4),
+    COMPRESS_LZSS    = (10<<4),
+    COMPRESS_BCM     = (11<<4),
+    COMPRESS_ZLIB    = (12<<4), // same as deflate with header
+};
+
+API unsigned zbounds(unsigned inlen, unsigned flags);
+API unsigned zencode(void *out, unsigned outlen, const void *in, unsigned inlen, unsigned flags);
+API unsigned zexcess(unsigned flags);
+API unsigned zdecode(void *out, unsigned outlen, const void *in, unsigned inlen, unsigned flags);
 #line 0
 
 #line 1 "fwk_dll.h"
@@ -1676,8 +1736,8 @@ API vec2        input_filter_deadzone_4way( vec2 v, float deadzone_treshold );
 // -- multi-touch 
 
 enum TOUCH_BUTTONS {
-	TOUCH_0,    // defaults to left screen area. input_touch_area() to override
-	TOUCH_1,    // defaults to right screen area. input_touch_area() to override
+    TOUCH_0,    // defaults to left screen area. input_touch_area() to override
+    TOUCH_1,    // defaults to right screen area. input_touch_area() to override
 };
 
 API void        input_touch_area(unsigned button, vec2 begin_coord_ndc, vec2 end_coord_ndc);
@@ -2179,12 +2239,44 @@ API void  fullscreen_ycbcr_quad( texture_t texture_YCbCr[3], float gamma );
 // sprites
 
 // texture id, position(x,y,depth sort), tint color, rotation angle
-API void tile( texture_t texture, float position[3], float rotation /*0*/, uint32_t color /*~0u*/);
+API void sprite( texture_t texture, float position[3], float rotation /*0*/, uint32_t color /*~0u*/);
 
-// texture id, position(x,y,depth sort), rotation angle, offset(x,y), scale(x,y), is_additive, tint color, spritesheet(frameNumber,X,Y) (frame in a X*Y spritesheet)
-API void sprite( texture_t texture, float position[3], float rotation, float offset[2], float scale[2], int is_additive, uint32_t rgba, float spritesheet[3]);
+// texture id, rect(x,y,w,h) is [0..1] normalized, z-index, pos(x,y,zoom), rotation (degrees), color (rgba)
+API void sprite_rect( texture_t t, vec4 rect, float zindex, vec3 pos, float tilt_deg, unsigned tint_rgba);
+
+// texture id, sheet(frameNumber,X,Y) (frame in a X*Y spritesheet), position(x,y,depth sort), rotation angle, offset(x,y), scale(x,y), is_additive, tint color
+API void sprite_sheet( texture_t texture, float sheet[3], float position[3], float rotation, float offset[2], float scale[2], int is_additive, uint32_t rgba);
 
 API void sprite_flush();
+
+// -----------------------------------------------------------------------------
+// tilemaps
+
+typedef struct tileset_t {
+    texture_t tex;            // spritesheet
+    unsigned tile_w, tile_h;  // dimensions per tile in pixels
+    unsigned cols, rows;      // tileset num_cols, num_rows
+    unsigned selected;        // active tile (while editing)
+} tileset_t;
+
+API tileset_t tileset(texture_t tex, unsigned tile_w, unsigned tile_h, unsigned cols, unsigned rows);
+API int       tileset_ui( tileset_t t );
+
+typedef struct tilemap_t {
+    int blank_chr;                // transparent tile
+    unsigned cols, rows;          // map dimensions (in tiles)
+    array(int) map;
+
+    vec3 position;                // x,y,scale
+    float zindex;
+    float tilt;
+    unsigned tint;
+    bool is_additive;
+} tilemap_t;
+
+API tilemap_t tilemap(const char *map, int blank_chr, int linefeed_chr);
+API void      tilemap_render( tilemap_t m, tileset_t style );
+API void      tilemap_render_ext( tilemap_t m, tileset_t style, float zindex, float xy_zoom[3], float tilt, unsigned tint, bool is_additive );
 
 // -----------------------------------------------------------------------------
 // cubemaps
@@ -2447,6 +2539,9 @@ API void ddraw_prism(vec3 center, float radius, float height, vec3 normal, int s
 API void ddraw_demo();
 API void ddraw_flush();
 API void ddraw_flush_projview(mat44 proj, mat44 view);
+//
+API void ddraw_push_2d();
+API void ddraw_pop_2d();
 #line 0
 
 #line 1 "fwk_scene.h"
@@ -2740,8 +2835,8 @@ API int    ui_color3f(const char *label, float *color3); //[0..1]
 API int    ui_color4(const char *label, float *color4); //[0..255]
 API int    ui_color4f(const char *label, float *color4); //[0..1]
 API int    ui_button(const char *label);
-API int    ui_buttons(int buttons, /*labels*/...);
 API int    ui_button_transparent(const char *label);
+API int    ui_buttons(int buttons, /*labels*/...);
 API int    ui_toolbar(const char *options); // int choice = ui_toolbar("A;B;C;D");
 API int    ui_submenu(const char *options); // int choice = ui_submenu("A;B;C;D");
 API int    ui_browse(const char **outfile, bool *inlined);
@@ -2749,7 +2844,10 @@ API int    ui_toggle(const char *label, bool *value);
 API int    ui_dialog(const char *title, const char *text, int choices, bool *show); // @fixme: return
 API int    ui_list(const char *label, const char **items, int num_items, int *selector);
 API int    ui_radio(const char *label, const char **items, int num_items, int *selector);
+API int    ui_texture(const char *label, texture_t t);
+API int    ui_subtexture(const char *label, texture_t t, unsigned x, unsigned y, unsigned w, unsigned h);
 API int    ui_image(const char *label, handle id, unsigned w, unsigned h); //(w,h) can be 0
+API int    ui_subimage(const char *label, handle id, unsigned iw, unsigned ih, unsigned sx, unsigned sy, unsigned sw, unsigned sh);
 API int    ui_colormap(const char *map_name, colormap_t *cm); // returns num member changed: 1 for color, 2 for texture map
 API int    ui_separator();
 API int    ui_bits8(const char *label, uint8_t *bits);
@@ -2758,6 +2856,7 @@ API int    ui_console();
 API int    ui_clampf(const char *label, float *value, float minf, float maxf);
 API int    ui_label(const char *label);
 API int    ui_label2(const char *label, const char *caption);
+API int    ui_label2_toolbar(const char *label, const char *icons, float icon_size);
 API int    ui_slider(const char *label, float *value);
 API int    ui_slider2(const char *label, float *value, const char *caption);
 API int    ui_const_bool(const char *label, const double value);

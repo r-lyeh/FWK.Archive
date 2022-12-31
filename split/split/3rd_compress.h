@@ -3301,8 +3301,15 @@ int main() {
 // Rich Geldreich <richgel99@gmail.com>, last updated Oct. 13, 2013. Then stripped down by @r-lyeh.
 // Implements RFC 1950: http://www.ietf.org/rfc/rfc1950.txt and RFC 1951: http://www.ietf.org/rfc/rfc1951.txt
 
+// without zlib headers
 unsigned deflate_encode(const void *in, unsigned inlen, void *out, unsigned outlen, unsigned flags); // [0..(6)..9][10 (uber)]
 unsigned deflate_decode(const void *in, unsigned inlen, void *out, unsigned outlen);
+
+// with zlib headers
+unsigned deflatez_encode(const void *in, unsigned inlen, void *out, unsigned outlen, unsigned flags); // [0..(6)..9][10 (uber)]
+unsigned deflatez_decode(const void *in, unsigned inlen, void *out, unsigned outlen);
+
+// both options
 unsigned deflate_bounds(unsigned inlen, unsigned flags);
 unsigned deflate_excess(unsigned flags);
 
@@ -4871,19 +4878,19 @@ tdefl_status tdefl_init(tdefl_compressor *d, void *out, size_t outlen, int flags
 
 // end of deflate.c
 
-unsigned deflate_decode(const void *in, unsigned inlen_, void *out, unsigned outlen_) {
+static unsigned deflate_decode_(const void *in, unsigned inlen_, void *out, unsigned outlen_, unsigned zlib) {
     size_t inlen = inlen_, outlen = outlen_;
     tinfl_decompressor decomp = {0}; tinfl_status status; // tinfl_init(&decomp);
-    status = tinfl_decompress(&decomp, (const uint8_t*)in, &inlen, (uint8_t*)out, (uint8_t*)out, &outlen, TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF);
+    status = tinfl_decompress(&decomp, (const uint8_t*)in, &inlen, (uint8_t*)out, (uint8_t*)out, &outlen, zlib|TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF);
     return (unsigned)((status != TINFL_STATUS_DONE) ? 0 : outlen);
 }
-unsigned deflate_encode(const void *in, unsigned inlen, void *out, unsigned outlen, unsigned flags /*[0..9|10]*/) {
+static unsigned deflate_encode_(const void *in, unsigned inlen, void *out, unsigned outlen, unsigned flags /*[0..9|10]*/, unsigned zlib) {
     size_t bytes = 0;
     if(in && inlen && out && outlen) {
         int level = flags > 10 ? 10 : flags < 0 ? 0 : flags;
 
         const mz_uint tdefl_num_probes[11] = { 0, 1, 6, 32,  16, 32, 128, 256,  512, 768, 1500 };
-        mz_uint comp_flags = tdefl_num_probes[level % 12] | (level <= 3 ? TDEFL_GREEDY_PARSING_FLAG : 0);// | TDEFL_WRITE_ZLIB_HEADER );
+        mz_uint comp_flags = zlib | tdefl_num_probes[level % 12] | (level <= 3 ? TDEFL_GREEDY_PARSING_FLAG : 0);// | TDEFL_WRITE_ZLIB_HEADER );
 
         tdefl_compressor *pComp = (tdefl_compressor*)MZ_REALLOC(0,sizeof(tdefl_compressor)); if (!pComp) return MZ_FALSE;
         if(tdefl_init(pComp, out, outlen, (int)comp_flags) == TDEFL_STATUS_OKAY) {
@@ -4895,6 +4902,19 @@ unsigned deflate_encode(const void *in, unsigned inlen, void *out, unsigned outl
     }
     return (unsigned)bytes;
 }
+unsigned deflate_decode(const void *in, unsigned inlen_, void *out, unsigned outlen_) {
+    return deflate_decode_(in, inlen_, out, outlen_, 0);
+}
+unsigned deflate_encode(const void *in, unsigned inlen, void *out, unsigned outlen, unsigned flags /*[0..9|10]*/) {
+    return deflate_encode_(in, inlen, out, outlen, flags, 0);
+}
+unsigned deflatez_decode(const void *in, unsigned inlen_, void *out, unsigned outlen_) {
+    return deflate_decode_(in, inlen_, out, outlen_, TINFL_FLAG_PARSE_ZLIB_HEADER);
+}
+unsigned deflatez_encode(const void *in, unsigned inlen, void *out, unsigned outlen, unsigned flags /*[0..9|10]*/) {
+    return deflate_encode_(in, inlen, out, outlen, flags, TDEFL_WRITE_ZLIB_HEADER);
+}
+
 unsigned deflate_bounds(unsigned inlen, unsigned flags) {
     return (unsigned)MZ_MAX(128 + (inlen * 110) / 100, 128 + inlen + ((inlen / (31 * 1024)) + 1) * 5);
 }

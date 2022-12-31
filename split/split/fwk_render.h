@@ -192,12 +192,44 @@ API void  fullscreen_ycbcr_quad( texture_t texture_YCbCr[3], float gamma );
 // sprites
 
 // texture id, position(x,y,depth sort), tint color, rotation angle
-API void tile( texture_t texture, float position[3], float rotation /*0*/, uint32_t color /*~0u*/);
+API void sprite( texture_t texture, float position[3], float rotation /*0*/, uint32_t color /*~0u*/);
 
-// texture id, position(x,y,depth sort), rotation angle, offset(x,y), scale(x,y), is_additive, tint color, spritesheet(frameNumber,X,Y) (frame in a X*Y spritesheet)
-API void sprite( texture_t texture, float position[3], float rotation, float offset[2], float scale[2], int is_additive, uint32_t rgba, float spritesheet[3]);
+// texture id, rect(x,y,w,h) is [0..1] normalized, z-index, pos(x,y,zoom), rotation (degrees), color (rgba)
+API void sprite_rect( texture_t t, vec4 rect, float zindex, vec3 pos, float tilt_deg, unsigned tint_rgba);
+
+// texture id, sheet(frameNumber,X,Y) (frame in a X*Y spritesheet), position(x,y,depth sort), rotation angle, offset(x,y), scale(x,y), is_additive, tint color
+API void sprite_sheet( texture_t texture, float sheet[3], float position[3], float rotation, float offset[2], float scale[2], int is_additive, uint32_t rgba);
 
 API void sprite_flush();
+
+// -----------------------------------------------------------------------------
+// tilemaps
+
+typedef struct tileset_t {
+    texture_t tex;            // spritesheet
+    unsigned tile_w, tile_h;  // dimensions per tile in pixels
+    unsigned cols, rows;      // tileset num_cols, num_rows
+    unsigned selected;        // active tile (while editing)
+} tileset_t;
+
+API tileset_t tileset(texture_t tex, unsigned tile_w, unsigned tile_h, unsigned cols, unsigned rows);
+API int       tileset_ui( tileset_t t );
+
+typedef struct tilemap_t {
+    int blank_chr;                // transparent tile
+    unsigned cols, rows;          // map dimensions (in tiles)
+    array(int) map;
+
+    vec3 position;                // x,y,scale
+    float zindex;
+    float tilt;
+    unsigned tint;
+    bool is_additive;
+} tilemap_t;
+
+API tilemap_t tilemap(const char *map, int blank_chr, int linefeed_chr);
+API void      tilemap_render( tilemap_t m, tileset_t style );
+API void      tilemap_render_ext( tilemap_t m, tileset_t style, float zindex, float xy_zoom[3], float tilt, unsigned tint, bool is_additive );
 
 // -----------------------------------------------------------------------------
 // cubemaps

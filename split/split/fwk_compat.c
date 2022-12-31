@@ -15,7 +15,7 @@ const struct in6_addr in6addr_loopback;   /* ::1 */
 #endif
 #else
 #include <unistd.h>
-#include <sched.h>    // CPU_ZERO, CPU_COUNT
+#include <sched.h> // sched_setaffinity(), CPU_ZERO(), CPU_COUNT()
 #include <sys/ioctl.h>
 #endif
 
