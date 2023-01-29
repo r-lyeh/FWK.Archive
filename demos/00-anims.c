@@ -39,7 +39,7 @@ int main() {
     window_create(75, WINDOW_MSAA8);
     window_title(__FILE__);
 
-    for(const char **list = vfs_list("fx**.fs"); *list; list++) {
+    for(const char **list = file_list("./","fx**.fs"); *list; list++) {
         fx_load(*list);
     }
 
@@ -122,7 +122,7 @@ int main() {
         if( input(KEY_M) ) a.speed = a.speed + 0.01; // increase anim speed
         vec2i anim = a.anims[ a.inuse ];
         float delta = window_delta() * 30 * a.speed * !is_dragging_slider; // 30fps anim timer
-        profile("Skeletal update") if(!window_has_pause()) custom.curframe = model_animate_clip(custom, custom.curframe + delta, anim.min, anim.max, strstri(a.names[a.inuse], "loop"));
+        profile("Skeletal update") if(!window_has_pause()) custom.curframe = model_animate_clip(custom, custom.curframe + delta, anim.min, anim.max, !!strstri(a.names[a.inuse], "loop"));
 
         // UI
         if( ui_panel("Animation", 0)) {

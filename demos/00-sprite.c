@@ -155,7 +155,7 @@ int main(int argc, char **argv) {
     inputs = texture( "prompts_tilemap_34x24_16x16x1.png", TEXTURE_LINEAR );
 
     // load all post fx files
-    for(const char **list = vfs_list("fx**.fs"); *list; list++) {
+    for(const char **list = file_list("./","fx**.fs"); *list; list++) {
         fx_load(*list);
     }
 

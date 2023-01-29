@@ -5,7 +5,7 @@
 
 #include "fwk.h"
 
-#ifdef __TINYC__
+#if is(tcc) && !is(win32) // @todo: remove this & test on linux
 int log2_64 (uint64_t value) {
     const int tab64[64] = {
         63,  0, 58,  1, 59, 47, 53,  2,
@@ -384,7 +384,7 @@ int main( int argc, const char *argv[] ) {
     window_create( 75, WINDOW_MSAA2 );
 
     // load all fx files
-    for(const char **list = vfs_list("fx**.fs"); *list; list++) {
+    for(const char **list = file_list("./","fx**.fs"); *list; list++) {
         fx_load(*list);
     }
 
@@ -422,7 +422,7 @@ int main( int argc, const char *argv[] ) {
     unsigned skysphereShader = shader( vfs_read("Skyboxes/skysphere.vs"), vfs_read("Skyboxes/skysphere.fs"), NULL, NULL );
     Model skysphere = { 0 }; ModelLoad(&skysphere, "Skyboxes/skysphere.fbx"); ModelRebind(&skysphere, skysphereShader);
 
-    if( ModelLoad( &gModel, argc > 1 ? argv[ 1 ] : "damagedhelmet.gltf" ) ) {
+    if( ModelLoad( &gModel, argc > 1 && argv[1][0] != '-' ? argv[ 1 ] : "damagedhelmet.gltf" ) ) {
         ModelRebind( &gModel, gShader );
     }
 

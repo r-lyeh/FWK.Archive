@@ -1,10 +1,10 @@
-<h1 align="center"><a href="https://bit.ly/F-W-K">F·W·K</a></h1>
+<h1 align="center"><a href="https://bit.ly/f-w-k">F·W·K</a></h1>
 <p align="center">
 3D game framework in C, with Luajit bindings now.<br/>
 </p>
 
 <p align="center">
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/editor/logos/grid_4.png.removebg.png" width="512" height="512"/>
+<img src="https://i.imgur.com/sInbRoA.gif"/><br/>
 </p>
 
 ## Gallery
@@ -14,14 +14,14 @@
 <img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/00-collide.png"   width="204px" title="Collision."/>
 <img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/00-anims.png"     width="204px" title="Anims."/>
 <img src="https://i.imgur.com/sInbRoA.gif"                                            width="204px" title="Scene."/><!--https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/00-scene.png"     -->
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/00-sprite.png"    width="204px" title="Sprite."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/00-sprite.gif"    width="204px" title="Sprite."/>
 <img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/00-shadertoy.png" width="204px" title="Shadertoy."/>
 <img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/00-cubemap.png"   width="204px" title="Cubemaps and SH."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/00-video.png"     width="204px" title="Video."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/00-video.gif"     width="204px" title="Video."/>
 <img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/00-pbr.png"       width="204px" title="PBR."/>
 <img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/00-instanced.png" width="204px" title="Instancing."/>
 <img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/demos/00-tiled.png"     width="204px" title="Tiled."/>
-<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/editor/editor.png"      width="204px" title="Editor."/>
+<img src="https://raw.githubusercontent.com/r-lyeh/FWK/master/editor/editor.png"    width="204px" title="Editor."/>
 <br/>
 </p>
 <!--
@@ -39,9 +39,9 @@ editor1 | editor2
 - [x] ~~Royaltie fee~~. Free and unlicensed.
 
 ## Features ᕦ(ᐛ)ᕤ
-- [x] Pipeline: configurable and integrated [asset pipeline](fwk.ini).
+- [x] Pipeline: configurable and integrated [asset pipeline](tools/cook.ini).
 - [x] Embedded: [single-file header](fwk.h), all dependencies included.
-- [x] Compiler: MSVC, MINGW64, TCC, GCC, clang and emscripten.
+- [x] Compiler: MSVC, MINGW64, TCC, GCC, clang, clang-cl and emscripten.
 - [x] Linkage: Both static linkage and dynamic .dll/.so/.dylib support. 
 - [x] Platform: Windows, Linux and OSX. Partial HTML5/Web support.
 - [x] DS: hash, sort, array/vector, map, set.
@@ -51,13 +51,13 @@ editor1 | editor2
 - [x] Input: keyboard, mouse and gamepads.
 - [x] Script: Lua scripting, Luajit bindings.
 - [x] Network: downloads (HTTPS) and sockets (TCP/UDP). <!-- [*] Object, GameObject, W/ECS -->
-- [x] UI: color3/4, button, list, slider, toggle, checkbox, editbox, dialog, image, menus, windows
+- [x] UI: button, list, slider, toggle, checkbox, editbox, dialog, color, image, menu, window, notify.
 - [x] Font: TTF, OTF and TTC. Basic syntax highlighter. Glyph ranges. Atlasing.
 - [x] Localization/I18N: XLSX and INI. Unicode.
 - [x] Image: JPG, PNG, BMP, PSD, PIC, PNM, ICO.
 - [x] Texture: KTX/2, PVR, DDS, ASTC, BASIS, HDR, TGA.
 - [x] Texel: Depth, R, RG, RGB, RGBA, BC1/2/3/4/5/6/7, PVRI/II, ETC1/2, ASTC.
-- [x] Audio: WAV/FLAC, OGG/MP1/MP3, MOD/XM/S3M/IT, SFXR and MID.
+- [x] Audio: WAV/FLAC, OGG/MP1/MP3, FUR, MOD/XM/S3M/IT, SFXR and MID+SF2/SF3.
 - [x] Video: MP4, MPG, OGV, MKV, WMV and AVI. Also, MP4 recording with MPEG-1 fallback.
 - [x] Model: IQM/E, GLTF/2, GLB, FBX, OBJ, DAE, BLEND, MD3/5, MS3D, SMD, X, 3DS, BVH, DXF, LWO.
 - [x] Render: PBR (metallic-roughness) workflow. <!-- @todo: merge demo_pbr.c rendering code into fwk_render.c -->
@@ -73,99 +73,111 @@ editor1 | editor2
 - [x] Disk cache.
 - [x] Scene handling.
 - [x] Profiler, stats and leaks finder.
-- [x] [Documentation (wip)](https://bit.ly/F-W-K).
+- [x] [Documentation (wip)](https://bit.ly/f-w-k).
 
 ## Roadmap ᕕ(ᐛ)ᕗ (in order of arrival; ✱: partial support)
-- [ ] Editor: gizmos✱, scene tree, property editor✱, load/save✱, undo/redo✱, copy/paste. <!-- editor = tree of nodes. levels and objects are nodes, and widgets are also nodes --><!-- you can perform actions on nodes, with or without descendants, top-bottom or bottom-top --><!-- operations include load/save, reset, undo/redo, play/render vis on/off/alpha logic on/off/other ddraw on/off log on/off, etc --> 
-- [ ] Level objects: volumes✱, triggers, platforms, streaming. 
-- [ ] World: W/ECS, gameobj, serialization/merge, diff/patch. 
-- [ ] Scene: toggles on/off (billboards✱, materials, un/lit, cast shadows, wireframe, skybox✱/mie✱, collide✱, physics).
-- [ ] Scene: node singleton display, node console, node labels, node outlines✱. <!-- node == gameobj ? -->
-- [ ] Math: quat2, bezier, catmull.
-- [ ] Render: Materials (colors✱, textures✱, matcaps✱, videos✱, shadertoys✱). Shadertoys as post-fx✱. <!--materials as postfx, as they have an update() method -->
-- [ ] Render: Hard/soft shadow mapping and baked lightmaps.
-- [ ] Script: DLL✱ (module->plugin/sys), Lua✱, Luajit✱, Teal✱ and TypeScript.
-- [ ] Network: NAT traversal. Socketless API, message API and pub/sub wrappers (enet/websocket).
-- [ ] Pipeline: Extend: shaders, bindings. Per-platform✱, per-type✱, per-asset options. GIF, PKM.
-- [ ] Pipeline: Extend atlas (sprite/lightmaps). Fit packing (sprites).
-- [ ] Pipeline: Extend bindings and messaging: parse C headers during cooking stage. <!-- msgs,docs,refl,meta,lua -->
-- [ ] Maybe: AI/Logic pass.
-- [ ] Maybe: Animation pass.
-- [ ] Maybe: VM/Replication pass.
-- [ ] Maybe: Mobile/WASM/HTML5✱ pass. 
-- [ ] Maybe: Lighting pass.
-- [ ] Maybe: Node/Graph editor. <!-- reused into materials, animgraphs and blueprints -->
-- [ ] Maybe: 2D spines. Sprite parallaxs.
-- [ ] Maybe: Font text layout and shaping, underlining, soft/hard shadows, outlines.
+- [ ] Editor: Gizmos✱, scene tree, property editor✱, load/save✱, undo/redo✱, copy/paste, on/off (vis,tick,ddraw,log), vcs. <!-- editor = tree of nodes. levels and objects are nodes, and widgets are also nodes --><!-- you can perform actions on nodes, with or without descendants, top-bottom or bottom-top --><!-- operations include load/save, reset, play/render, etc -->
+- [ ] Editor: Scenenode pass: node singleton display, node console, node labels, node outlines✱.<!-- node == gameobj ? -->
+- [ ] Editor: Debug pass: toggles on/off (billboards✱, materials, un/lit, cast shadows, wireframe, skybox✱/mie✱, fog/atmosphere, collide✱, physics).
+- [ ] Editor: Level pass: volumes, triggers, platforms, level streaming.
+- [ ] Framework: Core: struct serialization, file checksums (crc32, md5, sha1), math (quat2, bezier, catmull).
+- [ ] Framework: Render: Materials (colors✱, textures✱, matcaps✱, videos✱, shadertoys✱). Shadertoys as post-fx✱. <!--materials as postfx, as they have an update() method -->
+- [ ] Framework: Render: Hard/soft shadow mapping and baked lightmaps.
+- [ ] Networked VM: Entity/component/systems and worlds. <!-- W/ECS, gameobj, serialization:load/save/merge, diff/patch.-->
+- [ ] Networked VM: Message pipeline and replication. <!-- manual/replication channels, node sharding/clustering. -->
+- [ ] Networked VM: Digital signals, message buffering and event polling.
+- [ ] Networked VM: World streaming and level loading.
+- [ ] Networked VM: Scenegraphs and spatial partioning. BVH, PVS, occluders, frustum culling.
+- [ ] Networked VM: Server/client architecture. Hybrid P2P.
+- [ ] Framework: Script: DLL✱ (module->plugin/sys), Lua✱, Luajit✱, Teal✱ and TypeScript.
+- [ ] Editor: GUI pass: timeline and data tracks, node graphs. <!-- worthy: will be reused into materials, animgraphs and blueprints -->
+- [ ] Editor: Edit pass: Procedural content, brushes, noise and CSG.
+- [ ] Networked VM: Network: NAT traversal. Socketless API, message API and pub/sub wrappers (enet/websocket).
+- [ ] Tools Extend: shaders, bindings. Per-platform✱, per-type✱, per-asset options. GIF, PKM.
+- [ ] Tools Extend atlas (sprite/lightmaps). Fit packing (sprites).
+- [ ] Tools Extend bindings and messaging: parse C headers during cooking stage. <!-- msgs,docs,refl,meta,lua -- (*.c, *.h) as .proto/.pbc maybe, free reflection+automatic bindings -->
 - [ ] API: Fewer and better examples.
 - [ ] API: Discuss API and freeze it.
 - [ ] API: Document everything. 
 
 <!--
 
-## 2021 Discord poll
-A. Core pass: struct serialization, file checksums (crc32, md5, sha1), math (quat2, bezier, catmull).
-B. Network pass: NAT Traversal, Socketless API, Message API, pub/sub wrappers (enet/websocket).
-
-C. World pass: world/entity/component/systems, serialization (load/save/merge), diff/patch. #3
-D. Scene pass: scenegraph, BVH, frustum culling, toggleviews (billboards, materials, un/lit, cast shadows, wireframe, skybox/mie, collide, physics). #3
-X. VM pass: auto/VM replication, manual/replication channels, node sharding/clustering.
-
-E. Editor pass: gizmos, scene tree, property editor, load/save, undo/redo, copy/paste, VCS integration. #1
-F. Level pass: volumes, triggers, platforms, level streaming. #2
-G. Debug pass: object singleton display, object console, object labels, object outlines.
-
-H. Material pass: colors, textures, matcaps, videos, shadertoys. Shadertoys as post-fx.
-I. Lighting pass: hard/soft shadow mapping, omnilights, spotlights, VSM, CSM and baked lightmaps.
-J. Render pass: reflection probes, object instancing, billboards, impostors, mesh lods, decals.
-K. FX pass: particles and emitters (TLFX), kawaii physics, clothes, breakables.
-
-L. Animation pass: playlists, blend/shapes, ik/bones, animgraph/controllers. Also 2D skeletal sprites (Spine).
-M. Logic pass: game state, h/fsm, planning goal, behavior trees, navpaths/waypoints, pathfinding, swarm/flocks. 
-N. Script pass: DLL (module->plugin/sys), Lua, Luajit, Teal and TypeScript. Docs/Refl/Meta binding tool (during cook stage).
-O. Social pass: Achievements, Scores, Rankings, Friends, Invites, Steam/Itchio 3rd-party store integrations, etc.
-P. UI/UX pass: HUD, UI Widgets, user/system notifications/toasts, touch input, touch gestures.
-
-Q. Portability pass: Mobile iOS/Android, Web/WASM, RaspberryPi. #4
-R. Documentation pass: API, functions, samples, examples, pipeline. #5
-
-// almost done:
-// [x] shadertoy textures
-// [*] billboards (follow sprite API? state instead? ie, billboard(true); before rendering?)
-// [ ] soft shadows (vsm, vsmcube)
-
-// nice to have:
-// [ ] fix leaks and todos
-// [ ] fwk_app: cpu usage, orientation
-// [ ] fwk_input: cursor, mouse clip, mouse wrap,
-// [ ] zip0 seek-vfs optimization. zip_append_file is suboptimal, and requires tons of contiguous memory for giant files.
-// [ ] expose uniforms as ui options, also model_uniform();
-// [ ] font: M/SDF https://github.com/WilliamBundy/wiggle https://github.com/Chlumsky/msdf-atlas-gen
-// [ ] lod: https://github.com/songrun/SeamAwareDecimater
-// [ ] lightmaps: https://blackpawn.com/texts/lightmaps/default.html 
-// [ ] https://github.com/jpcy/xatlas
-
-// plan:
-//[ ] Script: Refl/meta binding tool (during cook stage).
-//    fwk_cook (*.c, *.h) as .proto/.pbc maybe, free reflection+automatic bindings
-//[ ] cam: friction, projections (dimetric, isometric, ...)
-//[ ] Render: Materials (textures, matcaps, videos, shadertoys).
-//    material: fixed color, texture or script that returns color
-//    animated textures (shadertoys, videos)
-//[ ] Pipeline: Extend asset pipeline (shaders, bindings, xml). Asset options.
-//      cook: hlsl2glsl (XShaderCompiler), hlsl2spirv (dxc), spirv2many (spirv-cross), glsl2many (sokol-shdc)
-//      cook: tiled2json, spine2json, tlfx22json
+Nice to have/extend (engine dependant):
+- AI pass: game state, h/fsm, planning goap, behavior trees, navpaths/waypoints, pathfinding, swarm/flocks. 
+//    app: app state manager (h/fsm modules)
+//    scripts: states, signals, h/fsm, coroutines, load/save context
+//    ai: h/fsm for level objects and small enemies, planning GOAL, BTrees,
+- AI pass: Navpoints, navmesh traversal and pathfinding.
+//    nav: navpaths, waypoints, navigation, pathfinding (jps.hh), A*, A* GOAL planning, swarm/flocks,
+- Animation pass: playlists, additive, blend/shapes, ik/bones, animgraph/controllers.
 // 6) anims, I (playlist: forward/backwards/loop/rewind), II (blend/shapes), III (ik/bone), IV (graph/controller)
 //    blend anims, animtracks+animevents, ~~draw skeleton~~, additive anims,
 //    fwk_data: quantization: ~~half, quant, microfloat~~.
 //    anim; keyframes[] { frame+delay,frame+delay,... }, anim duration, anim flip,
 //    anim tracks / anim events
-//[ ] Maybe: AI/Logic pass.
-//    app: app state manager (h/fsm modules)
-//    scripts: states, signals, h/fsm, coroutines, load/save context
-//    ai: h/fsm for level objects and small enemies, planning GOAL, BTrees,
-//    nav: navpaths, waypoints, navigation, pathfinding (jps.hh), A*, A* GOAL planning, swarm/flocks,
-//[ ] Maybe: VM/ECS/Replication pass.
+- Audio pass: 2D/3D audio, HRTF, FFT, filtering and sound occlusion.
+- Design pass: Dialogue, quests and inventory.
+- Design pass: Input gestures and combos.
+- Design pass: Integrated cinematics QTE.
+- Design pass: Scripting, bindings and game modules.
+- Design pass: Scripting: DLL (module->plugin/sys), Lua, Luajit, Teal and TypeScript.
+- Env pass: Particles, billboards, emitters, trails and paths.
+- Pipe pass: Asset journaling.
+// expose uniforms as ui options, also model_uniform();
+// Pipeline: Extend asset pipeline (shaders, bindings, xml). Asset options.
+//     cook: slang: hlsl2glsl (XShaderCompiler), hlsl2spirv (dxc), spirv2many (spirv-cross), glsl2many (sokol-shdc)
+//     cook: tlfx22json
+- Render pass: 2D Spines. Sprite parallaxs.
+- Render pass: Frustum culling.
+- Render pass: FX: particles and emitters (TLFX2), kawaii physics, clothes, breakables.
+- Render pass: Lighting: hard/soft shadow mapping, spotlights (VSM), omnilights (VSMCube), CSM and baked lightmaps.
+// lightmaps: https://blackpawn.com/texts/lightmaps/default.html 
+// https://github.com/jpcy/xatlas
+- Render pass: Material: colors, textures, matcaps, videos, shadertoys. Shadertoys as post-fx.
+- Render pass: Render: LODs, object instancing, billboards, impostors, decals, reflection probes.
+// lod: https://github.com/songrun/SeamAwareDecimater
+- Render pass: Skyboxes and skydomes.
+- Render pass: Voxels
+- Render pass: VR.
+- Script pass: Refl/Meta binding tool (during cook stage).
+- System pass: Buffer encryption.
+- System pass: Mobile iOS/Android, HTML5✱, Web/WASM, RaspberryPi.
+- Social pass: Achievements, Scores, Rankings, Friends, Invites, Steam/Itchio 1st-party store integrations, etc.
+- UI/UX pass: HUD, UI Widgets, touch input, touch gestures.
+- UI Pass: Font text layout and shaping, underlining, soft/hard shadows, outlines.
+// font: M/SDF https://github.com/WilliamBundy/wiggle https://github.com/Chlumsky/msdf-atlas-gen
+- UI pass: Game flow and game UI.
+- UI pass: Localization, subtitles and unicode.
+
+Engine types:
+- 2DY   Pong (70)
+- 2DXY  Platformer (80) (dizzy, rick dangerous) screens
+- 2DXY  Platformer (80) (megaman) scroll
+- 2DXY  Arcade (80) (snowbros, bomberman) screens
+- 2DXZ  Racing (outrun)
+- 2DXYZ Isometric adventure (knight lore, diablo)
+- AGI (maniac)
+- First person shooter (80-90) (wolf3d > doom > hl1)
+- First person adventure (bloodwych)
+- Text adventure (z)
+
+Nice to have:
+- [ ] fix leaks and todos
+- [ ] fwk_app: cpu usage, orientation
+- [ ] fwk_input: cursor, mouse clip, mouse wrap,
+- [ ] zip0 seek-vfs optimization. zip_append_file is suboptimal, and requires tons of contiguous memory for giant files.
+
+Almost done:
+- [x] shadertoy textures
+- [*] billboards (follow sprite API? state instead? ie, billboard(true); before rendering?)
+
+- Docs pass: API, functions, samples, examples, pipeline.
+
+// plan:
+//[ ] cam: friction, projections (dimetric, isometric, ...)
+//[ ] Render: Materials (textures, matcaps, videos, shadertoys).
+//    material: fixed color, texture or script that returns color
+//    animated textures (shadertoys, videos)
 // 8) vm/ecs core + engines: custom frontends & backends
 //    vm: ram, workqueues, threading, priorities, load/save
 //    service protocols: websocket bqqbarbhg/bq_websocket, https, handshake
@@ -177,17 +189,13 @@ R. Documentation pass: API, functions, samples, examples, pipeline. #5
 //    network: filesystem
 //    int send_game_state(void *ptr, int len, int flags); PROTOCOL_V1|QUANTIZE|COMPRESS|RLE
 //    int recv_game_state(); compensate, extrapolate, intrapolate(); lerp();
-//[ ] Maybe: Lighting/PBR pass.
 // 9) render+
-//    lighting: vsm,vsmcube (per @procedural's request)
 //    2d: billboards
-//    PBR/IBL/materials (from Foxotron+sgorsten) + shading models
+//    IBL/materials (from Foxotron+sgorsten) + shading models
 //    lightmapping/xatlas (demos), reflection probes
-//    ~~instancing~~, frustum culling, impostors, mesh lods,
 //    renderbuckets
-//    decals
 //    tessellation
-//    2d: spines, particles (tlfx2)
+//    2d: particles (tlfx2)
 //    reverse-z {
 //    fbo attach format D16_UNORM -> D32_SFLOAT
 //    pipeline depth compare LEQUAL -> GEQUAL
@@ -202,7 +210,6 @@ R. Documentation pass: API, functions, samples, examples, pipeline. #5
     char *log = result+9;
 
 -->
-
 
 ## Hello FWK
 ```C
@@ -237,71 +244,73 @@ int main() {
 ```
 
 ## Build (as static library)
-Type `MAKE.bat static` (Win) or `sh MAKE.bat static` (Linux/OSX) to build everything dynamically. Alternatively,
+Type `MAKE.bat static` (Win) or `sh MAKE.bat static` (Linux/OSX) to build everything staticly. Alternatively,
 
 ```lua
-echo Win(vc)              && cl  demo.c       fwk.c
-echo Win(tcc)             && tcc demo.c       fwk.c
+echo Win(vc,clang-cl)     && cl  demo.c       fwk.c
+echo Win(tcc)             && tcc demo.c       fwk.c -m64
 echo Win(gcc)             && gcc demo.c       fwk.c -lws2_32 -lgdi32 -lwinmm -ldbghelp -lole32 -lcomdlg32
 echo Linux(gcc+clang+tcc) && cc  demo.c       fwk.c -lm -ldl -lpthread -lX11
-echo OSX(gcc+clang)       && cc  demo.c -ObjC fwk.c -framework cocoa -framework iokit
+echo OSX(gcc+clang)       && cc  demo.c -ObjC fwk.c -framework cocoa -framework iokit -framework audiotoolbox
 ```
-<!-- - Note: Windows: Assimp.dll may need [this package installed](https://www.microsoft.com/en-us/download/confirmation.aspx?id=30679).-->
-- Note: TCC is partially supported on Windows+Linux. Beware, no threading.
 
 ## Build (as dynamic library)
-Type `MAKE.bat dll` (Win) or `sh MAKE.bat dll` (Linux/OSX) to build everything staticly. Alternatively,
+Type `MAKE.bat dll` (Win) or `sh MAKE.bat dll` (Linux/OSX) to build everything dynamically. Alternatively,
 
 ```lua
-echo Win(vc)  && cl  fwk.c /LD     /DAPI=EXPORT && cl  demo.c fwk.lib /DAPI=IMPORT
-echo Win(tcc) && tcc fwk.c -shared -DAPI=EXPORT && tcc demo.c fwk.def -DAPI=IMPORT
-echo Win(gcc) && gcc fwk.c -shared -DAPI=EXPORT -o fwk.dll -lws2_32 -lwinmm -ldbghelp -lole32 -lgdi32 -lcomdlg32 -Wl,--out-implib,fwk.a && gcc demo.c fwk.a -DAPI=IMPORT
-echo Linux    && cc -fPIC -shared     -o libfwk.so    fwk.c -lX11 && cc demo.c libfwk.so -DAPI=IMPORT -Wl,-rpath,./
-echo OSX      && cc -ObjC -dynamiclib -o libfwk.dylib fwk.c -framework cocoa -framework iokit && cc demo.c libfwk.dylib -DAPI=IMPORT
+echo Win(vc,clang-cl)  && cl  fwk.c /LD     /DAPI=EXPORT      && cl  demo.c fwk.lib /DAPI=IMPORT
+echo Win(tcc)          && tcc fwk.c -shared -DAPI=EXPORT -m64 && tcc demo.c fwk.def -DAPI=IMPORT -m64
+echo Win(gcc)          && gcc fwk.c -shared -DAPI=EXPORT -o fwk.dll -lws2_32 -lwinmm -ldbghelp -lole32 -lgdi32 -lcomdlg32 -Wl,--out-implib,fwk.a && gcc demo.c fwk.a -DAPI=IMPORT
+echo Linux             && cc -fPIC -shared     -o libfwk.so    fwk.c -lX11 && cc demo.c libfwk.so -DAPI=IMPORT -Wl,-rpath,./
+echo OSX               && cc -ObjC -dynamiclib -o libfwk.dylib fwk.c -framework cocoa -framework iokit -framework audiotoolbox && cc demo.c libfwk.dylib -DAPI=IMPORT
 ```
 
 ## Cook
-- Most asset types need to be cooked before being used in your application. Other assets like `.png` do not.
-- Cooker is already embedded into you application and will scan for new contents & cook assets automatically.
-- In order to achieve this, your binary needs to keep both [`fwk.ini` file](fwk.ini) and [`tools/` folder](tools/) close together.
+- Most asset types need to be cooked before being used in your application. Some other assets like `.png` do not.
+- Cook manually your assets by running supplied [`tools/cook.*` standalone binary](tools/) from command-line.
+- Cook automatically your assets by running your game: a runtime cooker is already embedded into your binary.
 - Cooked assets will be written into .zipfiles close to your executable, and mounted before entering game loop.
-- When distributing your game, only your binary and these .zipfiles are required.
+- In order to achieve this, ensure the [`tools/` folder](tools/) is close to your executable.
+- This folder contains all the related binaries to perform any asset conversion plus the [cookbook](tools/cook.ini) to do so.
+- When distributing your game, only your binary and the cooked .zipfiles are required.
 
 ## Amalgamation
-- Depending on your IDE, you might need to [split all amalgamated](#Amalgamation) files when debugging FWK.
 - Split FWK into separate files by running `MAKE.bat split` (or `sh MAKE.bat split` in Linux/OSX).
 - Merge those files back into FWK by running `MAKE.bat join` (or `sh MAKE.bat join` in Linux/OSX).
 - Optionally, generate a single-header distribution by executing `MAKE.bat amalgamation` or following script:
 
 ```lua
-echo // This C file is a header that you can #include.  Do #define FWK_C  > fwk-single-header.h
+echo // This C file is a header that you can #include. Add #define FWK_C  > fwk-single-header.h
 echo // early in **one** C compilation unit to unroll the implementation >> fwk-single-header.h
 echo // The FWK_C symbol **must be defined in a C file**; C++ wont work. >> fwk-single-header.h
-echo // Looking at the FWK APIs? Open any of the split/ folders instead. >> fwk-single-header.h
+echo // This file is intended to be consumed by a compiler. Do not read. >> fwk-single-header.h
+echo // **Browse to any of the sources in tools/split/ folder instead**. >> fwk-single-header.h
 echo #pragma once                                                        >> fwk-single-header.h
-type split\split\3rd_font_md.h                                           >> fwk-single-header.h
-type split\split\3rd_glad.h                                              >> fwk-single-header.h
-type split\fwk.h                                                         >> fwk-single-header.h
+type tools\split\3rd_font_md.h                                           >> fwk-single-header.h
+type tools\split\3rd_glad.h                                              >> fwk-single-header.h
+type tools\fwk.h                                                         >> fwk-single-header.h
 echo #ifdef FWK_C                                                        >> fwk-single-header.h
-echo #pragma once                                                        >> fwk-single-header.h
 echo #define FWK_3RD                                                     >> fwk-single-header.h
-type split\fwk                                                           >> fwk-single-header.h
-type split\fwk.c                                                         >> fwk-single-header.h
+type tools\fwk                                                           >> fwk-single-header.h
+type tools\fwk.c                                                         >> fwk-single-header.h
 echo #endif // FWK_C                                                     >> fwk-single-header.h
 ```
 
 ## Extra tips
-- Any ico/png file matching the executable name will be automatically used as app icon.
-- Dropped files into game window will be imported & saved into [`import`](editor/art/import) folder.
+- Any ico/png file named after the executable name will be automatically used as app icon.
+- Similar to the ico/png case above, the cooked .zipfiles can be named after the main executable as well.
+- Dropped files into game window will be imported & saved into [`import/`](editor/art/import) folder.
 - Update the gamepad controller database by upgrading the [`gamecontrollerdb.txt`](editor/art/input) file.
+- Depending on your IDE, you might need to [browse to split/ sources when debugging FWK](tools/split).
 - Cancel entire cooking stage by pressing `ESC key` (not recommended).
-- Disable automatic cooking by using `--with-cook-jobs=0` flag (not recommended).
-- Cook directly from command-line by running supplied [`tools/cook` standalone binary](tools/).
-- Linux/OSX users can optionally install wine and use the Windows pipeline instead (by using `--with-wine` flag).
+- Disable automatic cooking by using `--cook-jobs=0` flag (not recommended).
+- Linux/OSX users can optionally install wine and use the Windows cook pipeline instead (by using `--cook-wine` flag).
 - Generate a Visual Studio solution by dropping `fwk.h, fwk.c and fwk` files into it.
 - Faster builds by typing `MAKE.bat tcc` (Win/Linux).
 - Get smaller .exes by compiling with `/Os /Ox /O2 /Oy /GL /GF /MT /DNDEBUG /Gw /link /OPT:ICF /LTCG` (vc).
+- TCC is partially supported on Windows+Linux, since there is no compiler support for thread-locals.
 <!-- - On windows + vc, you can use `make bindings` or `make docs` to generate everything prior to a release -->
+<!-- - Note: Windows: Assimp.dll may need [this package installed](https://www.microsoft.com/en-us/download/confirmation.aspx?id=30679).-->
 
 ## Bindings
 - Luajit: Luajit bindings are provided in the [auto-generated fwk.lua file](demos/lua/fwk.lua).
@@ -309,12 +318,16 @@ echo #endif // FWK_C                                                     >> fwk-
 
 ## Credits (Artwork + demos)
 - [DavidLam](https://en.wikipedia.org/wiki/Tokamak_(software)), for tokamak physics engine (ZLIB). 
+- [Dean Evans + Raijin](https://youtu.be/RRvYkrrpMKo?t=147), for the Map song (c).
 - [FMS_Cat](https://gist.github.com/FMS-Cat/a1ccea3ce866c34706084e3526204f4f), for nicest VHS/VCR shader around (MIT).
 - [Goblin165cm](https://sketchfab.com/3d-models/halloween-little-witch-ccc023590bfb4789af9322864e42d1ab), for witch 3D model (CC BY 4.0).
+- [ID Software](https://www.idsoftware.com) and [David St-Louis](https://github.com/Daivuk/PureDOOM), for PureDOOM (Doom License).
+- [Miloslav Číž](https://codeberg.org/drummyfish/Anarch), for Anarch (CC0).
 - [Nanofactory](https://sketchfab.com/3d-models/kgirls01-d2f946f58a8040ae993cda70c97b302c), for kgirls01 3D model (CC BY-NC-ND 4.0).
 - [Quaternius](https://www.patreon.com/quaternius), for the lovely 3D robots (CC0).
 - [RottingPixels](https://opengameart.org/content/2d-castle-platformer-tileset-16x16), for castle-tileset (CC0).
 - [Rxi](https://github.com/rxi/autobatch), for lovely sprites & cats demo (MIT).
+- [Tom Lewandowski](https://QuestStudios.com), for his MIDI recordings (c).
 - [wwwtyro](https://github.com/wwwtyro/glsl-atmosphere), for nicest rayleigh/mie scattering shader around (CC0).
 
 ## Credits (Tools)
@@ -322,6 +335,7 @@ echo #endif // FWK_C                                                     >> fwk-
 - [Arseny Kapoulkine](https://github.com/zeux/pugixml/), for pugixml (MIT).
 - [Assimp authors](https://github.com/assimp/assimp), for assimp (BSD3).
 - [Bernhard Schelling](https://github.com/schellingb/TinySoundFont), for tml.h (Zlib) and tsf.h (MIT).
+- [Christian Collins](http://www.schristiancollins.com), for GeneralUser GS soundfont (PD).
 - [ffmpeg authors](https://www.ffmpeg.org/), for ffmpeg (LGPL21).
 - [Imagination](https://developer.imaginationtech.com/pvrtextool/), for pvrtextoolcli (ITL).
 - [Krzysztof Gabis](https://github.com/kgabis/ape), for split.py/join.py (MIT).
@@ -332,6 +346,7 @@ echo #endif // FWK_C                                                     >> fwk-
 - [Morgan McGuire](https://casual-effects.com/markdeep/), for markdeep (BSD2).
 - [Olivier Lapicque, Konstanty Bialkowski](https://github.com/Konstanty/libmodplug), for libmodplug (PD).
 - [Polyglot Team](https://docs.google.com/spreadsheets/d/17f0dQawb-s_Fd7DHgmVvJoEGDMH_yoSd8EYigrb0zmM/edit), for polyglot gamedev (CC0).
+- [Tildearrow](https://github.com/tildearrow/furnace/), for Furnace (GPL2).
 - [Tomas Pettersson](http://www.drpetter.se/), for sfxr (PD).
 - [Tor Andersson](https://github.com/ccxvii/asstools), for assiqe.c (BSD).
 
@@ -371,7 +386,7 @@ echo #endif // FWK_C                                                     >> fwk-
 - Special thanks to [@ands](https://github.com/ands), [@barerose](https://github.com/barerose), [@datenwolf](https://github.com/datenwolf), [@evanw](https://github.com/evanw), [@glampert](https://github.com/glampert), [@krig](https://github.com/krig), [@sgorsten](https://github.com/sgorsten) and [@vurtun](https://github.com/vurtun) for their math libraries (PD,CC0,WTFPL2,CC0,PD,CC0,Unlicense,PD).
 
 ## Unlicense
-This software is released into the [public domain](https://unlicense.org/). Also dual-licensed as [0-BSD](https://opensource.org/licenses/FPL-1.0.0) or [MIT (No Attribution)](https://github.com/aws/mit-0) for those countries where public domain is a concern (sigh). Any contribution to this repository is implicitly subjected to the same release conditions aforementioned.
+This software is released into the [public domain](https://unlicense.org/). Also dual-licensed as [0-BSD](https://opensource.org/licenses/0BSD) or [MIT (No Attribution)](https://github.com/aws/mit-0) for those countries where public domain is a concern (sigh). Any contribution to this repository is implicitly subjected to the same release conditions aforementioned.
 
 ## Links
 <p>

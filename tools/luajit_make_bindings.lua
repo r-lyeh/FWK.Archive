@@ -18,7 +18,7 @@ function trim_multilines(str)
     return output
 end
 
-io.input("./split/fwk.h")
+io.input("./tools/fwk.h")
 local fwk_h = io.read("*all")
 fwk_h = fwk_h:gsub("#line", "//#line")
 fwk_h = fwk_h:gsub("#include", "//#include")

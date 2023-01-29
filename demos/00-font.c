@@ -88,9 +88,10 @@ int main() {
         font_print( "as there are no linefeeds.\n" );
 
         // i18n: pangrams.txt file, line browser
-        static int counter;
+        static int counter = 0;
         static array(char*) lines; do_once lines = strsplit( vfs_read("pangrams.txt"), "\r\n" );
-        counter += (counter += input_down(KEY_RIGHT)-input_down(KEY_LEFT)) < 0 ? array_count(lines) : 0;
+        counter += input_down(KEY_RIGHT)-input_down(KEY_LEFT);
+        counter += counter < 0 ? array_count(lines) : 0;
         font_print( va("<< %s >>\n", lines[counter % array_count(lines)]) );
 
         // this does not work yet. you cant chain alignments yet...

@@ -15,7 +15,7 @@
 
    LICENSE (ZLIB)
 
-   Copyright (C) 2017, 2018 Bernhard Schelling
+   Copyright (C) 2017, 2018, 2020 Bernhard Schelling
 
    This software is provided 'as-is', without any express or implied
    warranty.  In no event will the authors be held liable for any damages
@@ -88,8 +88,22 @@ typedef struct tml_message
 	// - pitch_bend for TML_PITCH_BEND messages
 	union
 	{
+		#ifdef _MSC_VER
+		#pragma warning(push)
+		#pragma warning(disable:4201) //nonstandard extension used: nameless struct/union
+		#elif defined(__GNUC__)
+		#pragma GCC diagnostic push
+		#pragma GCC diagnostic ignored "-Wpedantic" //ISO C++ prohibits anonymous structs
+		#endif
+
 		struct { union { char key, control, program, channel_pressure; }; union { char velocity, key_pressure, control_value; }; };
 		struct { unsigned short pitch_bend; };
+
+		#ifdef _MSC_VER
+		#pragma warning( pop )
+		#elif defined(__GNUC__)
+		#pragma GCC diagnostic pop
+		#endif
 	};
 
 	// The pointer to the next message in time following this event
@@ -138,6 +152,9 @@ struct tml_stream
 
 // Generic Midi loading method using the stream structure above
 TMLDEF tml_message* tml_load(struct tml_stream* stream);
+
+// If this library is used together with TinySoundFont, tsf_stream (equivalent to tml_stream) can also be used
+struct tsf_stream;
 TMLDEF tml_message* tml_load_tsf_stream(struct tsf_stream* stream);
 
 #ifdef __cplusplus

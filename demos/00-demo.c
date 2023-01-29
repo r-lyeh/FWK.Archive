@@ -20,7 +20,7 @@ int main() {
     window_title(__FILE__);
 
     // load all fx files
-    for(const char **list = vfs_list("fx**.fs"); *list; list++) {
+    for(const char **list = file_list("./", "fx**.fs"); *list; list++) {
         fx_load(*list);
     }
 
@@ -77,12 +77,13 @@ int main() {
     cam.speed = 0.2f;
 
     // audio (both clips & streams)
-    audio_t voice1 = audio_clip( "coin.wav" );
-    audio_t voice2 = audio_clip( "pew.sfxr" );
-    audio_t stream1 = audio_stream( "wrath_of_the_djinn.xm" );
-    audio_t stream2 = audio_stream( "larry.mid" );
-    audio_play(voice1, 0);
-    audio_play(stream1, 0);
+    audio_t SFX1 = audio_clip( "coin.wav" );
+    audio_t SFX2 = audio_clip( "pew.sfxr" );
+    audio_t BGM1 = audio_stream( "waterworld-map.fur"); // wrath_of_the_djinn.xm" );
+    audio_t BGM2 = audio_stream( "larry.mid" );
+    audio_t BGM3 = audio_stream( "monkey1.mid" ), BGM = BGM1;
+    audio_play(SFX1, 0);
+    audio_play(BGM, 0);
 
     // demo loop
     while (window_swap())
@@ -201,7 +202,7 @@ int main() {
             if(ui_float2("Mouse polarity", do_mouse_polarity.v2)) {}
             if(ui_float2("Mouse sensitivity", do_mouse_sensitivity.v2)) {}
             if(ui_separator()) {}
-            if(ui_button("About...")) { do_about = 1; audio_play(voice1, 0); }
+            if(ui_button("About...")) { do_about = 1; audio_play(SFX1, 0); }
             if(ui_dialog("About", __FILE__ "\n" __DATE__ "\n" "Public Domain.", 0, &do_about)) {}
             ui_panel_end();
         }
@@ -223,10 +224,11 @@ int main() {
             if( ui_slider2("BGM", &bgm, va("%.2f", bgm))) audio_volume_stream(bgm);
             if( ui_slider2("SFX", &sfx, va("%.2f", sfx))) audio_volume_clip(sfx);
             if( ui_slider2("Master", &master, va("%.2f", master))) audio_volume_master(master);
-            if( ui_label2_toolbar("BGM: Wrath of the Djinn", ICON_MD_VOLUME_UP, 24)) audio_stop(stream2), audio_play(stream1, AUDIO_SINGLE_INSTANCE);
-            if( ui_label2_toolbar("BGM: Leisure Suit Larry 3", ICON_MD_VOLUME_UP, 24)) audio_stop(stream1), audio_play(stream2, AUDIO_SINGLE_INSTANCE);
-            if( ui_label2_toolbar("SFX: Coin", ICON_MD_VOLUME_UP, 24)) audio_play(voice1, 0);
-            if( ui_label2_toolbar("SFX: Pew", ICON_MD_VOLUME_UP, 24)) audio_play(voice2, 0);
+            if( ui_label2_toolbar("BGM: Waterworld Map" /*Wrath of the Djinn"*/, ICON_MD_VOLUME_UP, 24)) audio_stop(BGM), audio_play(BGM = BGM1, AUDIO_SINGLE_INSTANCE);
+            if( ui_label2_toolbar("BGM: Leisure Suit Larry", ICON_MD_VOLUME_UP, 24)) audio_stop(BGM), audio_play(BGM = BGM2, AUDIO_SINGLE_INSTANCE);
+            if( ui_label2_toolbar("BGM: Monkey Island", ICON_MD_VOLUME_UP, 24)) audio_stop(BGM), audio_play(BGM = BGM3, AUDIO_SINGLE_INSTANCE);
+            if( ui_label2_toolbar("SFX: Coin", ICON_MD_VOLUME_UP, 24)) audio_play(SFX1, 0);
+            if( ui_label2_toolbar("SFX: Pew", ICON_MD_VOLUME_UP, 24)) audio_play(SFX2, 0);
             ui_panel_end();
         }
 
@@ -271,9 +273,8 @@ int main() {
     }
 
     // network test (https)
-    FILE *webfile = file_temp();
-    download(webfile, "https://www.google.com/");
-    printf("Network test: %d bytes downloaded from google.com\n", (int)ftell(webfile));
+    array(char) webfile = download("https://www.google.com/");
+    printf("Network test: %d bytes downloaded from google.com\n", array_count(webfile));
 
     // script test (lua)
     script_run( "-- Bye.lua\nio.write(\"script test: Bye world!, from \", _VERSION, \"\\n\")" );

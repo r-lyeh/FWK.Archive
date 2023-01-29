@@ -1,6 +1,8 @@
 // mid2wav
 // - rlyeh, public domain
 
+#include "3rd_stb_vorbis.h" // for sf3
+
 #define _CRT_NONSTDC_NO_DEPRECATE
 #define _CRT_SECURE_NO_WARNINGS
 #include <stdio.h> // stddef.h
@@ -46,11 +48,11 @@ unsigned char *readfile(const char *pathfile, int *size) {
     return bin;
 }
 
-void die(const char *errmsg) { exit(-puts(errmsg)); }
+#define die(errmsg) exit((puts(errmsg),-__LINE__))
 
 int main(int argc, char **argv) {
     if( argc != 3 && argc != 4 ) {
-        printf("%s infile.mid outfile.wav [soundbank.sf2]", argv[0]);
+        printf("%s infile.mid outfile.wav [soundbank.sf2/soundbank.sf3]\n", argv[0]);
         return -1;
     }
 
@@ -60,7 +62,7 @@ int main(int argc, char **argv) {
     snprintf(gm_dls, 255, "%s/system32/gm.dls", getenv("SystemRoot"));
     puts(gm_dls);
 #else
-    const char *gm_dls = "AweROMGM.sf2";
+    const char *gm_dls = "AweROMGM.sf3";
 #endif
 
     int mid_size = 0;
@@ -69,7 +71,7 @@ int main(int argc, char **argv) {
 
     int sf2_size = 0;
     void *sf2_data = readfile(argc > 3 ? argv[3] : gm_dls, &sf2_size);
-    if(!mid_data) die("cannot open sf2 file for reading");
+    if(!mid_data) die("cannot open soundfont file for reading");
 
     // set soundfont
     tsf *sound_font = tsf_load_memory( sf2_data, sf2_size );
@@ -100,3 +102,5 @@ int main(int argc, char **argv) {
 
     return 0;
 }
+
+// cl mid2wav.c -I split /Os /Ox /O2 /Oy /MT /DFINAL /GL /GF /Gw /arch:AVX2 /link /OPT:ICF /LTCG

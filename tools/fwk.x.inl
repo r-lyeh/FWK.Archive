@@ -140,6 +140,7 @@ int execv(const char *path, char *const argv[]);
 #define STBTT_malloc(x,u)  ((void)(u),MALLOC(x))
 #define STBTT_free(x,u)    ((void)(u),FREE(x))
 #define NK_ASSERT ASSERT
+#define NK_DTOA(s,n) strcpy(s, va("%f", n)) // override cos built-in nk_dtoa() will freeze while parsing UINT_MAX otherwise
 {{FILE:3rd_nuklear.h}}
 {{FILE:3rd_nuklear_glfw_gl3.h}}
 {{FILE:3rd_nuklear_filebrowser.h}}

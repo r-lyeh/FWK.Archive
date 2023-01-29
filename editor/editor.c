@@ -153,19 +153,9 @@
 // -     ecs: sys are modules, ecs: char *messaging, ecs: filesystem (e/dir,c/files,s/dll)
 // -     world: streaming, migration
 
-#define map_init_ptr(x) map_init(x, less_ptr, hash_ptr)
-#define map_init_str(x) map_init(x, less_str, hash_str)
-#define map_init_int(x) map_init(x, less_int, hash_int)
-
-#define set_init_ptr(x) set_init(x, less_ptr, hash_ptr)
-#define set_init_str(x) set_init(x, less_str, hash_str)
-#define set_init_int(x) set_init(x, less_int, hash_int)
-
-#define fourcc(x) (*(unsigned *)(#x "    "))
-
 #include "fwk.h"
 
-#include "labs/ecs.c"
+// #include "labs.vm/ecs.c"
 
 #define EDITOR_VERSION "2022.7"
 
@@ -446,7 +436,7 @@ bool editor_clear_redo(void *obj) {
 bool editor_save_disk(const void *obj, const char *outfile) {
     editor_state_t *ed = map_find_or_add(editor_state, (void*)obj, (editor_state_t){0});
 
-    static threadlocal array(char) buffer = 0;
+    static __thread array(char) buffer = 0;
     array_resize(buffer, 0); // <-- reused as an optimization
 
     bool ok = 0;
@@ -914,6 +904,12 @@ void editor_render_menubar() {
         if( ui_item() == 14) editor_key = key_quit;
     }
 
+    if( ui_menu( window_has_pause() ? ICON_MD_PLAY_ARROW "@Tap to Play Game" : ICON_MD_PAUSE "@Tap to Pause Game" )) editor_key = key_pause;
+    if( ui_menu( ICON_MD_STOP "@Stop game" )) editor_key = key_stop;
+    if( ui_menu( ICON_MD_CLOSE "@Close game" ) ) {}
+    static char game_args[16] = "--game-args"; // @fixme @todo remove '_' special char to signal that ui_menu() is writeable (inputbox)
+    if( ui_menu_editbox( game_args, 16 ) ) {}
+
     // ICON_MD_TROUBLESHOOT -> PROFILER
     // ICON_MD_SCHEMA -> GRAPHNODES
     // ICON_MD_ACCOUNT_TREE -> GRAPHNODES
@@ -959,9 +955,6 @@ void editor_render_menubar() {
     if( ui_menu(va(ICON_MD_SIGNAL_CELLULAR_ALT " 0/0KiB" ))) {} // SIGNAL_CELLULAR_1_BAR SIGNAL_CELLULAR_2_BAR
     if( ui_menu(va(ICON_MD_STORAGE " %s", xstats() ))) {} // 012/136MB
     if( ui_menu(va(ICON_MD_SPEED " %5.2f/%d", window_fps(), (int)window_fps_target()))) editor_key = key_profiler; // 012/136MB
-
-    if( ui_menu( ICON_MD_STOP "@Stop game" )) editor_key = key_stop;
-    if( ui_menu( window_has_pause() ? ICON_MD_PLAY_ARROW "@Tap to Play Game" : ICON_MD_PAUSE "@Tap to Pause Game" )) editor_key = key_pause;
 
     // @todo: alarm/snooze, chrono, time (calendar?)
     {
@@ -1046,14 +1039,14 @@ void editor_obj_render_properties_recursively(void *obj, const char *mask) {
     for( int p = (open = ui_collapse(title, id)), dummy = (clicked_or_toggled = ui_collapse_clicked()); p; ui_collapse_end(), p = 0) {
 
         // contextual menu (open)
-        if( ui_context() ) {
+        if( ui_contextual() ) {
             if( ui_button_transparent("<Load" ) ) do_context_obj = obj, do_context_cmd = fourcc(load);
             if( ui_button_transparent("<Save" ) ) do_context_obj = obj, do_context_cmd = fourcc(save);
             if( ui_button_transparent("<Merge") ) do_context_obj = obj, do_context_cmd = fourcc(merge);
             if( ui_button_transparent("<Cut"  ) ) do_context_obj = obj, do_context_cmd = fourcc(cut);
             if( ui_button_transparent("<Copy" ) ) do_context_obj = obj, do_context_cmd = fourcc(copy);
             if( ui_button_transparent("<Paste") ) do_context_obj = obj, do_context_cmd = fourcc(paste);
-            ui_context_end();
+            ui_contextual_end();
         }
 
         for( int i = 0; i < num_subobjects; ++i ) {
@@ -1067,14 +1060,14 @@ void editor_obj_render_properties_recursively(void *obj, const char *mask) {
     }
 
     // contextual menu (close)
-    if( !open && ui_context() ) {
+    if( !open && ui_contextual() ) {
         if( ui_button_transparent("<Load" ) ) do_context_obj = obj, do_context_cmd = fourcc(load);
         if( ui_button_transparent("<Save" ) ) do_context_obj = obj, do_context_cmd = fourcc(save);
         if( ui_button_transparent("<Merge") ) do_context_obj = obj, do_context_cmd = fourcc(merge);
         if( ui_button_transparent("<Cut"  ) ) do_context_obj = obj, do_context_cmd = fourcc(cut);
         if( ui_button_transparent("<Copy" ) ) do_context_obj = obj, do_context_cmd = fourcc(copy);
         if( ui_button_transparent("<Paste") ) do_context_obj = obj, do_context_cmd = fourcc(paste);
-        ui_context_end();
+        ui_contextual_end();
     }
 
     if( clicked_or_toggled & 1 ) {
@@ -1299,11 +1292,11 @@ void editor_render_windows() {
     if( ui_window("Icon Palette", 0 )) {
         static const char *icons[] = {
             #define ICON(x) ICON_MD_##x
-            #include "labs/editor"
+            #include "editor"
         };
         static const char *titles[] = {
             #define ICON(x) #x
-            #include "labs/editor"
+            #include "editor"
         };
 
         for( int i = 0, cols = 8; i < countof(icons); i += cols ) {
@@ -1445,8 +1438,8 @@ void* mymodel_tick(model_t *m, float pivot[16], vec3 *p, vec3 *r, vec3 *s) {
     return 0;
 }
 void* mymodel_aabb(model_t *m, float pivot[16]) {
-    static threadlocal struct aabb aabb[64];
-    static threadlocal int counter = 0; counter = (counter + 1) % 64;
+    static __thread struct aabb aabb[64];
+    static __thread int counter = 0; counter = (counter + 1) % 64;
     aabb[counter] = model_aabb(*m, pivot);
     return &aabb[counter];
 }
@@ -1605,7 +1598,7 @@ int main() {
 
                 // locomotion vars
                 float speed = 0.2f * delta;
-                int yaw_boost = GAME_AXISY > 0 ? 1.0 : 1.75;
+                float yaw_boost = GAME_AXISY > 0 ? 1.0 : 1.75;
                 if(punch_delta < 1) yaw_boost = 0.0; // if firing...
                 else if(punch_delta <= 0.1) yaw_boost = 4.0; // unless initial punch chaining, extra yaw
 

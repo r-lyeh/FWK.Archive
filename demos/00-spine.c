@@ -1,4 +1,4 @@
-// spine json loader
+// spine json loader (wip)
 // - rlyeh, public domain
 //
 // [ref] http://es.esotericsoftware.com/spine-json-format
@@ -11,6 +11,8 @@
 
 #include "fwk.h"
 
+enum { _64 = 64 }; // max bones
+
 typedef struct spine_bone_t {
     char *name, *parent;
     struct spine_bone_t *parent_bone;
@@ -18,7 +20,7 @@ typedef struct spine_bone_t {
     float z; // draw order usually matches bone-id. ie, zindex == bone_id .. root(0) < chest (mid) < finger(top)
 
     float x, y, deg;        // base
-    float x2, y2, deg2;     // accum / dirty during bone 
+    float x2, y2, deg2;     // accum / temporaries during bone transform time
     float x3, y3, deg3;     // values from timeline
 
     unsigned rect_id;
@@ -65,9 +67,9 @@ typedef struct spine_anim_t {
         };
 #endif
         struct {
-            array(spine_animkey_t) attach_keys[64];
-            array(spine_animkey_t) rotate_keys[64];
-            array(spine_animkey_t) translate_keys[64];
+            array(spine_animkey_t) attach_keys[_64];
+            array(spine_animkey_t) rotate_keys[_64];
+            array(spine_animkey_t) translate_keys[_64];
         };
     };
 } spine_anim_t;
@@ -86,6 +88,9 @@ typedef struct spine_t {
     array(spine_skin_t) skins;
     array(spine_anim_t) anims;
     array(spine_atlas_t) atlas;
+    // anim controller
+    unsigned inuse;
+    float time, maxtime;
 } spine_t;
 
 // ---
@@ -193,6 +198,7 @@ spine_t spine(const char *file_json, const char *file_atlas, unsigned flags) {
         v.parent = STRDUP(data_string("/bones[%d]/parent", i));
         v.x = data_float("/bones[%d]/x", i);
         v.y = data_float("/bones[%d]/y", i);
+        v.z = i;
         v.deg = data_float("/bones[%d]/rotation", i);
         t.bones[i] = v;
 
@@ -226,8 +232,8 @@ spine_t spine(const char *file_json, const char *file_atlas, unsigned flags) {
             r.name = STRDUP(data_key("/skins[%d]/attachments[%d][%d]",i,j,k)); // stringf("%s-%s-%s", data_key("/skins[%d]",i), data_key("/skins[%d][%d]",i,j), data_key("/skins[%d][%d][%d]",i,j,k));
             r.x = data_float("/skins[%d]/attachments[%d][%d]/x",i,j,k);
             r.y = data_float("/skins[%d]/attachments[%d][%d]/y",i,j,k);
-            r.sx= data_float("/skins[%d]/attachments[%d][%d]/scaleX",i,j,k);
-            r.sy= data_float("/skins[%d]/attachments[%d][%d]/scaleY",i,j,k);
+            r.sx= data_float("/skins[%d]/attachments[%d][%d]/scaleX",i,j,k); r.sx += !r.sx;
+            r.sy= data_float("/skins[%d]/attachments[%d][%d]/scaleY",i,j,k); r.sy += !r.sy;
             r.w = data_float("/skins[%d]/attachments[%d][%d]/width",i,j,k);
             r.h = data_float("/skins[%d]/attachments[%d][%d]/height",i,j,k);
             r.deg = data_float("/skins[%d]/attachments[%d][%d]/rotation",i,j,k);
@@ -313,7 +319,7 @@ spine_t spine(const char *file_json, const char *file_atlas, unsigned flags) {
                 }
 
                 if( track == 1 )
-                key.deg = data_float("/animations[%d]/bones[%d][%d][%d]/angle",i,j,k,l),
+                key.deg = data_float("/animations[%d]/bones[%d][%d][%d]/value",i,j,k,l), // "/angle"
                 array_push(v.rotate_keys[bone_id], key);
                 else
                 key.x = data_float("/animations[%d]/bones[%d][%d][%d]/x",i,j,k,l),
@@ -334,36 +340,39 @@ spine_t spine(const char *file_json, const char *file_atlas, unsigned flags) {
 
 void spine_render(spine_t *p, vec3 offset, unsigned flags) {
     if( !p->texture.id ) return;
+    if( !flags ) return;
 
     ddraw_push_2d();
-        ddraw_line(vec3(0,0,0), vec3(window_width(),window_height(),0));
-        ddraw_line(vec3(window_width(),0,0), vec3(0,window_height(),0));
+        if( flags & 2 ) ddraw_line(vec3(0,0,0), vec3(window_width(),window_height(),0));
+        if( flags & 2 ) ddraw_line(vec3(window_width(),0,0), vec3(0,window_height(),0));
 
         for( int i = 1; i < array_count(p->bones); ++i ) {
             spine_bone_t *self = &p->bones[i];
 
             static array(spine_bone_t*) chain = 0; array_resize(chain, 0);
-            array_push(chain, self);
-            for( spine_bone_t *next = self->parent_bone; next ; next = next->parent_bone ) {
+            for( spine_bone_t *next = self; next ; next = next->parent_bone ) {
                 array_push(chain, next);
             }
 
             vec3 target = {0}, prev = {0};
-            for( int end = array_count(chain), j = end; --j >= 0; ) { // from root to i bone
-                if( (j+1) == end ) continue; // skip root
+            for( int j = 1, end = array_count(chain); j < end; ++j ) { // traverse from root(skipped) -> `i` bone direction
+                int j_opposite = (end - 1) - j;
 
-                spine_bone_t *v = chain[j];
-                spine_bone_t *pv = chain[j+1];
+                spine_bone_t *b = chain[j_opposite]; // bone
+                spine_bone_t *pb = chain[j_opposite+1]; // parent bone
 
                 prev = target;
 
                 const float deg2rad = C_PI / 180;
-                v->x2 =      v->x3 + pv->x2   + v->x * cos( -pv->deg2 * deg2rad ) - v->y * sin( -pv->deg2 * deg2rad );
-                v->y2 =     -v->y3 + pv->y2   - v->y * cos(  pv->deg2 * deg2rad ) + v->x * sin(  pv->deg2 * deg2rad );
-                v->deg2 = -v->deg3 + pv->deg2 - v->deg;
+                b->x2 =      b->x3 + pb->x2   + b->x * cos( -pb->deg2 * deg2rad ) - b->y * sin( -pb->deg2 * deg2rad );
+                b->y2 =     -b->y3 + pb->y2   - b->y * cos(  pb->deg2 * deg2rad ) + b->x * sin(  pb->deg2 * deg2rad );
+                b->deg2 = -b->deg3 + pb->deg2 - b->deg;
 
-                target = vec3(v->x2,v->y2,0);
+                target = vec3(b->x2,b->y2,b->deg2);
             }
+
+            float deg = target.z, deg_prev = prev.z;
+            target.z = 0; prev.z = 0;
 
             target = add3(target, offset);
             prev = add3(prev, offset);
@@ -374,23 +383,26 @@ void spine_render(spine_t *p, vec3 offset, unsigned flags) {
                 ddraw_line( target, prev ); // from bone to parent
             }
             if( flags & 1 ) {
-                target.z = 3; // zoom. needed?
-                sprite_rect(p->texture, ptr4(&p->atlas[self->atlas_id].x), self->z, target, 
-                    self->deg2 + p->atlas[self->atlas_id].deg,
-                ~0u);
+                vec4 rect = ptr4(&p->atlas[self->atlas_id].x);
+                float zindex = self->z;
+                float offsx = 0; // -(rect.w * p->texture.w); // -p->atlas[self->atlas_id].w - (self->rect_id ? p->skins[p->skin].rects[self->rect_id].w/2 : 0);
+                float offsy = 0; // /*-(rect.z * p->texture.h)*2*/ -p->atlas[self->atlas_id].h - (self->rect_id ? p->skins[p->skin].rects[self->rect_id].h/2 : 0);
+                float deg_rect = self->rect_id ? p->skins[p->skin].rects[self->rect_id].deg : 0;
+                float tilt = p->atlas[self->atlas_id].deg + self->deg2 - deg_rect; // + self->deg2 + deg_rect + p->atlas[self->atlas_id].deg
+                unsigned tint = ~0u;
+                sprite_rect(p->texture, rect, zindex, add3(vec3(target.x,target.y,1),vec3(offsx,offsy,0)), tilt, tint);
             }
          }
+
     ddraw_pop_2d();
+    ddraw_flush();
 }
 
-void spine_animate(spine_t *p, float delta) {
+void spine_animate(spine_t *p, float *time, float *maxtime, float delta) {
     if( !p->texture.id ) return;
 
-    static float time = 0, maxtime = 1;
-    static unsigned anim_inuse = 0;
-
     if( delta > 1/120.f ) delta = 1/120.f;
-    if( time > maxtime ) time = 0; else time += delta;
+    if( *time >= *maxtime ) *time = 0; else *time += delta;
 
     // reset root // needed?
     p->bones[0].x2 = 0;
@@ -403,17 +415,17 @@ void spine_animate(spine_t *p, float delta) {
     for( int i = 0, end = array_count(p->bones); i < end; ++i) {
         // @todo: attach channel
         // @todo: per channel: if curve == linear || curve == stepped || array_count(curve) == 4 {...}
-        for each_array_ptr(p->anims[anim_inuse].rotate_keys[i], spine_animkey_t, r) {
+        for each_array_ptr(p->anims[p->inuse].rotate_keys[i], spine_animkey_t, r) {
             double r0 = r->time;
-            maxtime = maxf( maxtime, r0 );
-            if( absf(time - r0) < delta ) {
+            *maxtime = maxf( *maxtime, r0 );
+            if( absf(*time - r0) < delta ) {
                 p->bones[i].deg3 = r->deg;
             }
         }
-        for each_array_ptr(p->anims[anim_inuse].translate_keys[i], spine_animkey_t, r) {
+        for each_array_ptr(p->anims[p->inuse].translate_keys[i], spine_animkey_t, r) {
             double r0 = r->time;
-            maxtime = maxf( maxtime, r0 );
-            if( absf(time - r0) < delta ) {
+            *maxtime = maxf( *maxtime, r0 );
+            if( absf(*time - r0) < delta ) {
                 p->bones[i].x3 = r->x;
                 p->bones[i].y3 = r->y;
             }
@@ -422,26 +434,32 @@ void spine_animate(spine_t *p, float delta) {
 }
 
 void spine_ui(spine_t *p) {
+
     if( ui_collapse(va("Anims: %d", array_count(p->anims)), va("%p-a", p))) {
         for each_array_ptr(p->anims, spine_anim_t, q) {
-            ui_label2_toolbar(q->name, ICON_MD_PAUSE_CIRCLE " " ICON_MD_PLAY_CIRCLE, 24.f);
-#if 0
-            ui_separator();
-            ui_label("Attachment keys");
-            for each_array_ptr(q->attach_keys, spine_animkey_t, r) {
-                ui_label(va("%.2f [%.2f %.2f %.2f %.2f] %s", r->time, r->curve[0], r->curve[1], r->curve[2], r->curve[3], r->name));
+            if(ui_slider2("", &p->time, va("%.2f/%.0f %.2f%%", p->time, p->maxtime, p->time * 100.f))) {
+                spine_animate(p, &p->time, &p->maxtime, 0);
             }
-            ui_separator();
-            ui_label("Rotate keys");
-            for each_array_ptr(q->rotate_keys, spine_animkey_t, r) {
-                ui_label(va("%.2f [%.2f %.2f %.2f %.2f] %.2f deg", r->time, r->curve[0], r->curve[1], r->curve[2], r->curve[3], r->deg));
+
+            int choice = ui_label2_toolbar(q->name, ICON_MD_PAUSE_CIRCLE " " ICON_MD_PLAY_CIRCLE, 24.f); // 24px per ICON_MD_ glyph approximately
+            if( choice == 1 ) window_pause( 0 ); // play
+            if( choice == 2 ) window_pause( 1 ); // pause
+
+            for( int i = 0; i < _64; ++i ) {
+                ui_separator();
+                ui_label(va("Bone %d: Attachment keys", i));
+                for each_array_ptr(q->attach_keys[i], spine_animkey_t, r) {
+                    ui_label(va("%.2f [%.2f %.2f %.2f %.2f] %s", r->time, r->curve[0], r->curve[1], r->curve[2], r->curve[3], r->name));
+                }
+                ui_label(va("Bone %d: Rotate keys", i));
+                for each_array_ptr(q->rotate_keys[i], spine_animkey_t, r) {
+                    ui_label(va("%.2f [%.2f %.2f %.2f %.2f] %.2f deg", r->time, r->curve[0], r->curve[1], r->curve[2], r->curve[3], r->deg));
+                }
+                ui_label(va("Bone %d: Translate keys", i));
+                for each_array_ptr(q->translate_keys[i], spine_animkey_t, r) {
+                    ui_label(va("%.2f [%.2f %.2f %.2f %.2f] (%.2f,%.2f)", r->time, r->curve[0], r->curve[1], r->curve[2], r->curve[3], r->x, r->y));
+                }
             }
-            ui_separator();
-            ui_label("Translate keys");
-            for each_array_ptr(q->translate_keys, spine_animkey_t, r) {
-                ui_label(va("%.2f [%.2f %.2f %.2f %.2f] (%.2f,%.2f)", r->time, r->curve[0], r->curve[1], r->curve[2], r->curve[3], r->x, r->y));
-            }
-#endif
         }
         ui_collapse_end();
     }
@@ -478,6 +496,23 @@ void spine_ui(spine_t *p) {
                 ui_label2("Height:", va("%.2f", r->h));
                 ui_label2("Rotation:", va("%.2f", r->deg));
                 ui_collapse_end();
+
+
+                spine_bone_t *b = find_bone(p, r->name);
+                if( b ) {
+                    static float tilt = 0;
+                    if( input(KEY_LCTRL) ) tilt += 60*1/60.f; else tilt = 0;
+                    spine_atlas_t *r = p->atlas + b->atlas_id;
+                    sprite_flush();
+                    camera_get_active()->position = vec3(0,0,2);
+                            vec4 rect = ptr4(&r->x); float zindex = 0; vec3 xy_zoom = vec3(0,0,0); unsigned tint = ~0u;
+                            sprite_rect(p->texture,
+                                // rect: vec4(r->x*1.0/p->texture.w,r->y*1.0/p->texture.h,(r->x+r->w)*1.0/p->texture.w,(r->y+r->h)*1.0/p->texture.h),
+                                ptr4(&r->x), // atlas
+                                0, vec3(0,0,0), r->deg + tilt, tint);
+                            sprite_flush();
+                    camera_get_active()->position = vec3(+window_width()/3,window_height()/2.25,2);
+                }
             } 
             ui_collapse_end();
         } 
@@ -498,23 +533,22 @@ int main() {
     window_create(0.75, 0);
 
     camera_t cam = camera();
-    cam.position = vec3(window_width()/2,window_height()/2,2);
+    cam.position = vec3(0,0,1);
     camera_enable(&cam);
 
     spine_t s = spine("goblins.json", "goblins.atlas", 0);
 
     while( window_swap() ) {
-
-        // camera panning (x,y) & zooming (z)
-        if( !ui_hover() && !ui_active() ) {
-            if( input(MOUSE_L) ) camera_get_active()->position.x -= input_diff(MOUSE_X);
-            if( input(MOUSE_L) ) camera_get_active()->position.y -= input_diff(MOUSE_Y);
-            camera_get_active()->position.z += input_diff(MOUSE_W) * 0.1; // cam.p.z += 0.001f; for tests
-        }
+        camera_get_active()->position.x = window_width()/2;
+        camera_get_active()->position.y = window_height()/2;
 
         static bool do_skin = 1, do_skel = 1;
-        spine_animate(&s, window_delta());
-        spine_render(&s, vec3(window_width()/2, window_height()/2, 0), do_skin | (do_skel*2));
+        spine_animate(&s, &s.time, &s.maxtime, !window_has_pause() * window_delta());
+
+        spine_render(&s, vec3(window_width()/2, window_height()/2, 0), do_skin );
+        sprite_flush();
+        glClear(GL_DEPTH_BUFFER_BIT);
+        spine_render(&s, vec3(window_width()/2, window_height()/2, 0), (do_skel*2));
 
         if( ui_panel("Spine", 0) ) {
             if(ui_button("Load")) {

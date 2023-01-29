@@ -14,7 +14,7 @@ int main() {
     window_title(__FILE__);
 
     // load all fx files
-    for(const char **list = vfs_list("fx**.fs"); *list; list++) {
+    for(const char **list = file_list("./","fx**.fs"); *list; list++) {
         fx_load(*list);
     }
 

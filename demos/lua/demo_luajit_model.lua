@@ -1,6 +1,9 @@
--- this will run on vanilla luajit.exe, provided that fwk.dll+fwk.lua and the cooked .zip files are all present in same folder
+-- this will run on vanilla luajit.exe, provided that fwk.dll and this file are all present in same folder
 
 local fwk=require('fwk')
+
+-- specify location of cookbook
+fwk.cook_config("../../tools/cook.ini");
 
 -- create 75% sized + MSAAx2 anti-aliased window
 fwk.window_create(75.0, fwk.WINDOW_MSAA2)

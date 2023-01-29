@@ -66,7 +66,7 @@ tiled_t tiled(const char *file_tmx) {
             array(char) b64 = 0;
 
             if( !chunks ) { // non-infinite mode
-                b64 = xml_blob("/map/layer[%d]/data/$",l,c);
+                b64 = xml_blob("/map/layer[%d]/data/$",l);
                 cw = tm.cols, ch = tm.rows;
                 cx = 0, cy = 0;
             } else { // infinite mode

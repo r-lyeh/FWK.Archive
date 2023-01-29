@@ -12,7 +12,7 @@ int main() {
 
     texture_t sheet = texture("castle-tileset-by-RottingPixels-(CC0)", 0);
     tileset_t set = tileset(sheet, 16,16, 8,16); 
-    tilemap_t map = tilemap("\1\2\3\4\n\5\6\7", ' ','\n');
+    tilemap_t map = tilemap("\1\2\3\n\4\5\6", ' ','\n');
 
     while( window_swap() ) {
         // camera panning (x,y) & zooming (z)
