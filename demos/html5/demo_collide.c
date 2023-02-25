@@ -604,7 +604,7 @@ int main(void) {
     window_create(0.75f, WINDOW_MSAA4);
     window_title( "FWK - SPACE pauses simulation" );
 
-    for(const char **list = vfs_list("fx**.fs"); *list; list++) {
+    for(const char **list = file_list("fx**.fs"); *list; list++) {
         //fx_load(*list);
     }
 

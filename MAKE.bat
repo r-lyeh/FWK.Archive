@@ -12,7 +12,7 @@ cd `dirname $0`
 
 # tidy environment
 if [ "$1" = "tidy" ]; then
-    rm 00-* 2> /dev/null
+    rm 0?-* 2> /dev/null
     rm fwk.o 2> /dev/null
     rm .art*.zip 2> /dev/null
     rm demos/lua/.art*.zip 2> /dev/null
@@ -62,7 +62,8 @@ while [ $# -ge 1 ]; do
         echo sh MAKE.bat [gcc,clang,tcc] [dbg,dev,rel] [dll,static]
         echo sh MAKE.bat [tidy]
         echo sh MAKE.bat [split,join]
-	echo sh MAKE.bat [cook]
+        echo sh MAKE.bat [cook]
+        echo sh MAKE.bat [sln]
         exit
     fi
     if [ "$1" = "dll" ]; then 
@@ -91,6 +92,20 @@ while [ $# -ge 1 ]; do
     fi
     if [ "$1" = "tcc" ]; then 
         export cc="tcc -D__STDC_NO_VLA__"
+    fi
+    if [ "$1" = "sln" ]; then
+        if [ "$(uname)" != "Darwin" ]; then
+            chmod +x tools/premake5.linux
+            tools/premake5.linux gmake
+            tools/premake5.linux ninja
+            exit
+        fi
+        if [ "$(uname)" = "Darwin" ]; then
+            chmod +x tools/premake5.osx
+            tools/premake5.osx xcode4
+            tools/premake5.osx ninja
+            exit
+        fi
     fi
     if [ "$1" = "--" ]; then 
         shift
@@ -130,45 +145,37 @@ if [ "$(uname)" != "Darwin" ]; then
     chmod +x tools/PVRTexToolCLI.linux
     chmod +x tools/sfxr2wav.linux
     chmod +x tools/xlsx2ini.linux
+    chmod +x tools/premake5.linux
+    chmod +x tools/ninja.linux
     chmod +x demos/lua/luajit.linux
 
     echo build=$build, type=$dll, cc=$cc, args=$args
 
     # framework (as dynamic library)
     if [ "$dll" = "dll" ]; then
-        echo libfwk.so  && $cc -o libfwk.so tools/fwk.c -shared -fPIC -w -lX11 -lm -ldl -lpthread $flags $args
+        echo libfwk.so  && $cc -o libfwk.so engine/fwk.c -shared -fPIC -w -lX11 -lm -ldl -lpthread $flags $args
         cp libfwk.so demos/lua/
         export import="libfwk.so -Wl,-rpath,./"
     else
     # framework (static)
-        echo fwk        && $cc -c tools/fwk.c -w    $flags $args
+        echo fwk        && $cc -c engine/fwk.c -w    $flags $args
         export import=fwk.o
     fi
 
     # editor
-    echo editor       && $cc -o Editor       editor/editor.c      -lm -ldl -lpthread -lX11 -w -Itools/ $flags $args $import &
+    echo editor        && $cc -o Editor        tools/editor/editor.c      -lm -ldl -lpthread -lX11 -w -Iengine/ $flags $import $args &
 
     # demos
-    echo 00-demo      && $cc -o 00-demo      demos/00-demo.c      -lm -ldl -lpthread -lX11 -w -Itools/ $flags $args $import &
-    echo 00-hello     && $cc -o 00-hello     demos/00-hello.c     -lm -ldl -lpthread -lX11 -w -Itools/ $flags $args $import &
-    echo 00-cubemap   && $cc -o 00-cubemap   demos/00-cubemap.c   -lm -ldl -lpthread -lX11 -w -Itools/ $flags $args $import &
-    echo 00-collide   && $cc -o 00-collide   demos/00-collide.c   -lm -ldl -lpthread -lX11 -w -Itools/ $flags $args $import &
-    echo 00-anims     && $cc -o 00-anims     demos/00-anims.c     -lm -ldl -lpthread -lX11 -w -Itools/ $flags $args $import &
-    echo 00-scene     && $cc -o 00-scene     demos/00-scene.c     -lm -ldl -lpthread -lX11 -w -Itools/ $flags $args $import &
-    echo 00-shadertoy && $cc -o 00-shadertoy demos/00-shadertoy.c -lm -ldl -lpthread -lX11 -w -Itools/ $flags $args $import &
-    echo 00-sprite    && $cc -o 00-sprite    demos/00-sprite.c    -lm -ldl -lpthread -lX11 -w -Itools/ $flags $args $import &
-    echo 00-tilemap   && $cc -o 00-tilemap   demos/00-tilemap.c   -lm -ldl -lpthread -lX11 -w -Itools/ $flags $args $import &
-    echo 00-tiled     && $cc -o 00-tiled     demos/00-tiled.c     -lm -ldl -lpthread -lX11 -w -Itools/ $flags $args $import &
-    echo 00-video     && $cc -o 00-video     demos/00-video.c     -lm -ldl -lpthread -lX11 -w -Itools/ $flags $args $import &
-    echo 00-script    && $cc -o 00-script    demos/00-script.c    -lm -ldl -lpthread -lX11 -w -Itools/ $flags $args $import &
-    echo 00-socket    && $cc -o 00-socket    demos/00-socket.c    -lm -ldl -lpthread -lX11 -w -Itools/ $flags $args $import &
-    echo 00-easing    && $cc -o 00-easing    demos/00-easing.c    -lm -ldl -lpthread -lX11 -w -Itools/ $flags $args $import &
-    echo 00-font      && $cc -o 00-font      demos/00-font.c      -lm -ldl -lpthread -lX11 -w -Itools/ $flags $args $import &
-    echo 00-material  && $cc -o 00-material  demos/00-material.c  -lm -ldl -lpthread -lX11 -w -Itools/ $flags $args $import &
-    echo 00-pbr       && $cc -o 00-pbr       demos/00-pbr.c       -lm -ldl -lpthread -lX11 -w -Itools/ $flags $args $import &
-    echo 00-instanced && $cc -o 00-instanced demos/00-instanced.c -lm -ldl -lpthread -lX11 -w -Itools/ $flags $args $import &
-    echo 00-audio     && $cc -o 00-audio     demos/00-audio.c     -lm -ldl -lpthread -lX11 -w -Itools/ $flags $args $import &
-    echo 00-spine     && $cc -o 00-spine     demos/00-spine.c     -lm -ldl -lpthread -lX11 -w -Itools/ $flags $args $import
+    echo hello         && $cc -o hello         hello.c               -lm -ldl -lpthread -lX11 -w -Iengine/ $flags         $args &
+    echo 00-ui         && $cc -o 00-ui         demos/00-ui.c         -lm -ldl -lpthread -lX11 -w -Iengine/ $flags $import $args &
+    echo 01-sprite     && $cc -o 01-sprite     demos/01-sprite.c     -lm -ldl -lpthread -lX11 -w -Iengine/ $flags $import $args &
+    echo 02-ddraw      && $cc -o 02-ddraw      demos/02-ddraw.c      -lm -ldl -lpthread -lX11 -w -Iengine/ $flags $import $args &
+    echo 03-anims      && $cc -o 03-anims      demos/03-anims.c      -lm -ldl -lpthread -lX11 -w -Iengine/ $flags $import $args &
+    echo 04-actor      && $cc -o 04-actor      demos/04-actor.c      -lm -ldl -lpthread -lX11 -w -Iengine/ $flags $import $args &
+    echo 04-controller && $cc -o 04-controller demos/04-controller.c -lm -ldl -lpthread -lX11 -w -Iengine/ $flags $import $args &
+    echo 05-scene      && $cc -o 05-scene      demos/05-scene.c      -lm -ldl -lpthread -lX11 -w -Iengine/ $flags $import $args &
+    echo 06-pbr        && $cc -o 06-pbr        demos/06-pbr.c        -lm -ldl -lpthread -lX11 -w -Iengine/ $flags $import $args &
+    echo 07-network    && $cc -o 07-network    demos/07-network.c    -lm -ldl -lpthread -lX11 -w -Iengine/ $flags $import $args
 fi
 
 if [ "$(uname)" = "Darwin" ]; then
@@ -193,45 +200,37 @@ if [ "$(uname)" = "Darwin" ]; then
     chmod +x tools/PVRTexToolCLI.osx
     chmod +x tools/sfxr2wav.osx
     chmod +x tools/xlsx2ini.osx
+    chmod +x tools/premake5.osx
+    chmod +x tools/ninja.osx
     chmod +x demos/lua/luajit.osx
 
     echo build=$build, type=$dll, cc=$cc, args=$args
 
     # framework (as dynamic library)
     if [ "$dll" = "dll" ]; then
-        echo libfwk     && cc -ObjC -dynamiclib -o libfwk.dylib tools/fwk.c -framework cocoa -framework iokit -framework audiotoolbox -w $flags $args
+        echo libfwk     && cc -ObjC -dynamiclib -o libfwk.dylib engine/fwk.c -framework cocoa -framework iokit -framework audiotoolbox -w $flags $args
         cp libfwk.dylib demos/lua
         export import=libfwk.dylib
     else
     # framework
-        echo fwk        && cc -c -ObjC tools/fwk.c -w $flags $args
+        echo fwk        && cc -c -ObjC engine/fwk.c -w $flags $args
         export import=fwk.o
     fi
 
     # editor
-    echo editor       && cc -o editor.osx -ObjC editor/editor.c  -framework cocoa -framework iokit -framework audiotoolbox -w -Itools/ $import $flags $args &
+    echo editor        && cc -o editor.osx -ObjC tools/editor/editor.c  -w -Iengine/ $import $flags $args -framework cocoa -framework iokit -framework audiotoolbox &
 
     # demos
-    echo 00-demo      && cc -o 00-demo      demos/00-demo.c      -framework cocoa -framework iokit -framework audiotoolbox -w -Itools/ $import $flags $args &
-    echo 00-hello     && cc -o 00-hello     demos/00-hello.c     -framework cocoa -framework iokit -framework audiotoolbox -w -Itools/ $import $flags $args &
-    echo 00-cubemap   && cc -o 00-cubemap   demos/00-cubemap.c   -framework cocoa -framework iokit -framework audiotoolbox -w -Itools/ $import $flags $args &
-    echo 00-collide   && cc -o 00-collide   demos/00-collide.c   -framework cocoa -framework iokit -framework audiotoolbox -w -Itools/ $import $flags $args &
-    echo 00-anims     && cc -o 00-anims     demos/00-anims.c     -framework cocoa -framework iokit -framework audiotoolbox -w -Itools/ $import $flags $args &
-    echo 00-scene     && cc -o 00-scene     demos/00-scene.c     -framework cocoa -framework iokit -framework audiotoolbox -w -Itools/ $import $flags $args &
-    echo 00-shadertoy && cc -o 00-shadertoy demos/00-shadertoy.c -framework cocoa -framework iokit -framework audiotoolbox -w -Itools/ $import $flags $args &
-    echo 00-sprite    && cc -o 00-sprite    demos/00-sprite.c    -framework cocoa -framework iokit -framework audiotoolbox -w -Itools/ $import $flags $args &
-    echo 00-tilemap   && cc -o 00-tilemap   demos/00-tilemap.c   -framework cocoa -framework iokit -framework audiotoolbox -w -Itools/ $import $flags $args &
-    echo 00-tiled     && cc -o 00-tiled     demos/00-tiled.c     -framework cocoa -framework iokit -framework audiotoolbox -w -Itools/ $import $flags $args &
-    echo 00-video     && cc -o 00-video     demos/00-video.c     -framework cocoa -framework iokit -framework audiotoolbox -w -Itools/ $import $flags $args &
-    echo 00-script    && cc -o 00-script    demos/00-script.c    -framework cocoa -framework iokit -framework audiotoolbox -w -Itools/ $import $flags $args &
-    echo 00-socket    && cc -o 00-socket    demos/00-socket.c    -framework cocoa -framework iokit -framework audiotoolbox -w -Itools/ $import $flags $args &
-    echo 00-easing    && cc -o 00-easing    demos/00-easing.c    -framework cocoa -framework iokit -framework audiotoolbox -w -Itools/ $import $flags $args &
-    echo 00-font      && cc -o 00-font      demos/00-font.c      -framework cocoa -framework iokit -framework audiotoolbox -w -Itools/ $import $flags $args &
-    echo 00-material  && cc -o 00-material  demos/00-material.c  -framework cocoa -framework iokit -framework audiotoolbox -w -Itools/ $import $flags $args &
-    echo 00-pbr       && cc -o 00-pbr       demos/00-pbr.c       -framework cocoa -framework iokit -framework audiotoolbox -w -Itools/ $import $flags $args &
-    echo 00-instanced && cc -o 00-instanced demos/00-instanced.c -framework cocoa -framework iokit -framework audiotoolbox -w -Itools/ $import $flags $args &
-    echo 00-audio     && cc -o 00-audio     demos/00-audio.c     -framework cocoa -framework iokit -framework audiotoolbox -w -Itools/ $import $flags $args &
-    echo 00-spine     && cc -o 00-spine     demos/00-spine.c     -framework cocoa -framework iokit -framework audiotoolbox -w -Itools/ $import $flags $args
+    echo hello         && cc -o hello         hello.c               -w -Iengine/         $flags $args -framework cocoa -framework iokit -framework audiotoolbox &
+    echo 00-ui         && cc -o 00-ui         demos/00-ui.c         -w -Iengine/ $import $flags $args -framework cocoa -framework iokit -framework audiotoolbox &
+    echo 01-sprite     && cc -o 01-sprite     demos/01-sprite.c     -w -Iengine/ $import $flags $args -framework cocoa -framework iokit -framework audiotoolbox &
+    echo 02-ddraw      && cc -o 02-ddraw      demos/02-ddraw.c      -w -Iengine/ $import $flags $args -framework cocoa -framework iokit -framework audiotoolbox &
+    echo 03-anims      && cc -o 03-anims      demos/03-anims.c      -w -Iengine/ $import $flags $args -framework cocoa -framework iokit -framework audiotoolbox &
+    echo 04-actor      && cc -o 04-actor      demos/04-actor.c      -w -Iengine/ $import $flags $args -framework cocoa -framework iokit -framework audiotoolbox &
+    echo 04-controller && cc -o 04-controller demos/04-controller.c -w -Iengine/ $import $flags $args -framework cocoa -framework iokit -framework audiotoolbox &
+    echo 05-scene      && cc -o 05-scene      demos/05-scene.c      -w -Iengine/ $import $flags $args -framework cocoa -framework iokit -framework audiotoolbox &
+    echo 06-pbr        && cc -o 06-pbr        demos/06-pbr.c        -w -Iengine/ $import $flags $args -framework cocoa -framework iokit -framework audiotoolbox &
+    echo 07-network    && cc -o 07-network    demos/07-network.c    -w -Iengine/ $import $flags $args -framework cocoa -framework iokit -framework audiotoolbox
 fi
 
 exit
@@ -257,20 +256,22 @@ if "%1"=="help" (
     echo %0 [tidy]            ; clean up temp files
     echo %0 [bindings]        ; generate demos/lua bindings
     echo %0 [checkmem]        ; check untracked allocators in FWK
-    echo %0 [split^|join]      ; split tools/fwk* into tools/split/*, or join /fwk* into tools/fwk*
+    echo %0 [split^|join]      ; engine/fwk* ^>split^> engine/split/* or engine/split/* ^>join^> engine/fwk*
+    echo %0 [amalgamation]    ; combine engine/fwk* into a single-header file
+    echo %0 [sln]             ; generate a xcode/gmake/ninja/visual studio solution
     echo %0 [cl^|tcc^|cc^|gcc^|clang^|clang-cl] [dbg^|dev^|rel] [static^|dll] [nofwk^|nodemos^|noeditor] [vis] [-- args]
-    echo    cl       \ select compiler in PATH (autodetected when no compiler is provided^)
-    echo    tcc      ^| select compiler in PATH (autodetected when no compiler is provided^)
-    echo    cc       ^| select compiler in PATH (autodetected when no compiler is provided^)
-    echo    gcc      ^| select compiler in PATH (autodetected when no compiler is provided^)
-    echo    clang    ^| select compiler in PATH (autodetected when no compiler is provided^)
-    echo    clang-cl / select compiler in PATH (autodetected when no compiler is provided^)
-    echo    dbg      \     debug build: [x] ASAN [x] poison [x] asserts [x] debug symbols [ ] no  optimizations
-    echo    dev      ^| developer build: [ ] ASAN [x] poison [x] asserts [x] debug symbols [*] mid optimizations (default^)
-    echo    rel      /   release build: [ ] ASAN [ ] poison [ ] asserts [x] debug symbols [x] all optimizations
-    echo    static   \ build and link fwk as static library
-    echo    dll      / build and link fwk as dll (default^)
-    echo    nofwk    \ do not export framework
+    echo    cl       \
+    echo    tcc      ^|
+    echo    cc       ^| select compiler. must be accessible in PATH
+    echo    gcc      ^| (will be autodetected when no option is provided^)
+    echo    clang    ^|
+    echo    clang-cl /
+    echo    dbg      \   debug build: [x] ASAN [x] poison [x] asserts [x] profiler [x] symbols                    [ ] zero optimizations
+    echo    dev      ^| develop build: [ ] ASAN [x] poison [x] asserts [x] profiler [x] symbols                    [*] some optimizations (default^)
+    echo    rel      / release build: [ ] ASAN [ ] poison [ ] asserts [ ] profiler [x] symbols (cl,clang-cl only^) [x] many optimizations
+    echo    static   \ link fwk as static library
+    echo    dll      / link fwk as dynamic library (dll^) (default^)
+    echo    nofwk    \ do not compile framework
     echo    nodemos  ^| do not compile demos
     echo    noeditor / do not compile editor
     echo    vis      ^> visualize invokation cmdline.
@@ -286,11 +287,13 @@ if "%1"=="sync" (
     exit /b
 )
 
-rem generate cooker twice: use multi-threaded version if available (cl). then cook.
+rem cook asset files
 if "%1"=="cook" (
-    call tools\tcc tools\cook.c -I.
-                cl tools\cook.c -I.
-    cook
+    rem generate cooker twice: use multi-threaded version if available (cl). then cook.
+    rem call tools\tcc tools\cook.c -Iengine engine\fwk.c
+    rem             cl tools\cook.c -Iengine engine\fwk.c
+    rem cook
+    tools\cook
 
     exit /b
 )
@@ -304,9 +307,7 @@ if "%1"=="bindings" (
 )
 rem generate documentation
 if "%1"=="docs" (
-
     rem set symbols...
-    rem git pull
     git describe --tags --abbrev=0 > info.obj
     set /p VERSION=<info.obj
     git rev-list --count --first-parent HEAD > info.obj
@@ -317,28 +318,31 @@ if "%1"=="docs" (
     set /p LAST_MODIFIED=<info.obj
 
     rem ...and generate docs
-    cl   tools\docs\docs.c tools\fwk.c -Itools %2
-    docs tools\fwk.h --excluded=3rd_glad.h,fwk.h,fwk_compat.h, > fwk.html
-    rem move /y fwk.html tools\docs\docs.html
+    cl   tools\docs\docs.c engine\fwk.c -Iengine %2
+    docs engine\fwk.h --excluded=3rd_glad.h,fwk.h,fwk_compat.h, > fwk.html
+    move /y fwk.html engine\
 
     exit /b
 )
 rem generate single-header distribution
 if "%1"=="amalgamation" (
-echo // This C file is a header that you can #include. Add #define FWK_C  > fwk.h
+echo // This file is intended to be consumed by a compiler. Do not read.  > fwk.h
+echo // **Browse to any of the sources in engine/split/ folder instead** >> fwk.h
+echo // ---------------------------------------------------------------- >> fwk.h
+echo // This C file is a header that you can #include. Add #define FWK_C >> fwk.h
 echo // early in **one** C compilation unit to unroll the implementation >> fwk.h
 echo // The FWK_C symbol **must be defined in a C file**; C++ wont work. >> fwk.h
-echo // This file is intended to be consumed by a compiler. Do not read. >> fwk.h
-echo // **Browse to any of the sources in tools/split/ folder instead**. >> fwk.h
+echo // ---------------------------------------------------------------- >> fwk.h
 echo #pragma once                                                        >> fwk.h
-type tools\split\3rd_font_md.h                                           >> fwk.h
-type tools\split\3rd_glad.h                                              >> fwk.h
-type tools\fwk.h                                                         >> fwk.h
+type engine\split\3rd_font_md.h                                          >> fwk.h
+type engine\split\3rd_glad.h                                             >> fwk.h
+type engine\fwk.h                                                        >> fwk.h
 echo #ifdef FWK_C                                                        >> fwk.h
 echo #define FWK_3RD                                                     >> fwk.h
-type tools\fwk                                                           >> fwk.h
-type tools\fwk.c                                                         >> fwk.h
+type engine\fwk                                                          >> fwk.h
+type engine\fwk.c                                                        >> fwk.h
 echo #endif // FWK_C                                                     >> fwk.h
+move /y fwk.h engine\joint
 exit /b
 )
 
@@ -350,10 +354,11 @@ if "%1"=="github" (
 
     call make.bat amalgamation
     call make.bat split
-    rd /q /s tools\split
-    md tools\split
-    move /y fwk_*.? tools\split\
-    move /y 3rd_*.? tools\split\
+
+rem rd /q /s engine\split
+rem md engine\split
+rem move /y fwk_*.? engine\split\
+rem move /y 3rd_*.? engine\split\
 
     call make.bat tidy
 
@@ -372,11 +377,11 @@ if "%1"=="join" (
 
 rem check memory api calls
 if "%1"=="checkmem" (
-    findstr /RNC:"[^_xv]realloc[(]" tools\fwk.c tools\split\fwk*
-    findstr /RNC:"[^_xv]malloc[(]"  tools\fwk.c tools\split\fwk*
-    findstr /RNC:"[^_xv]free[(]"    tools\fwk.c tools\split\fwk*
-    findstr /RNC:"[^_xv]calloc[(]"  tools\fwk.c tools\split\fwk*
-    findstr /RNC:"[^_xv]strdup[(]"  tools\fwk.c tools\split\fwk*
+    findstr /RNC:"[^_xv]realloc[(]" engine\fwk.c engine\split\fwk*
+    findstr /RNC:"[^_xv]malloc[(]"  engine\fwk.c engine\split\fwk*
+    findstr /RNC:"[^_xv]free[(]"    engine\fwk.c engine\split\fwk*
+    findstr /RNC:"[^_xv]calloc[(]"  engine\fwk.c engine\split\fwk*
+    findstr /RNC:"[^_xv]strdup[(]"  engine\fwk.c engine\split\fwk*
     exit /b
 )
 
@@ -408,6 +413,10 @@ if "%1"=="tidy" (
 rem del ??-*.*                      > nul 2> nul
     del temp_*.*                    > nul 2> nul
     rd /q /s .vs                    > nul 2> nul
+    rd /q /s _debug                 > nul 2> nul
+    rd /q /s _devel                 > nul 2> nul
+    rd /q /s _release               > nul 2> nul
+rem rd /q /s _project               > nul 2> nul
     del tcc.bat                     > nul 2> nul
     del sh.bat                      > nul 2> nul
     exit /b
@@ -416,12 +425,14 @@ rem del ??-*.*                      > nul 2> nul
 set cc=%cc%
 set dll=dll
 set build=dev
-set args=-Itools
+set args=-Iengine
 set other=
 set fwk=yes
 set demos=yes
 set editor=yes
 set vis=no
+set sln=no
+set rc=0
 
 :parse_args
     if "%1"=="--"       shift && goto parse_compiler_args
@@ -433,19 +444,28 @@ set vis=no
     if "%1"=="dev"      set "build=%1" && goto loop
     if "%1"=="rel"      set "build=%1" && goto loop
 
+    if "%1"=="debug"       set "build=dbg" && goto loop
+    if "%1"=="devel"       set "build=dev" && goto loop
+    if "%1"=="develop"     set "build=dev" && goto loop
+    if "%1"=="developer"   set "build=dev" && goto loop
+    if "%1"=="development" set "build=dev" && goto loop
+    if "%1"=="release"     set "build=rel" && goto loop
+
     if "%1"=="vis"      set "vis=yes" && goto loop
 
     if "%1"=="nofwk"    set "fwk=no" && goto loop
     if "%1"=="nodemos"  set "demos=no" && goto loop
     if "%1"=="noeditor" set "editor=no" && goto loop
 
-    if "%1"=="tcc"      set "cc=call tools\tcc" && goto loop
+    if "%1"=="tcc"      set "cc=%1" && goto loop
     if "%1"=="cl"       set "cc=%1" && goto loop
     if "%1"=="vc"       set "cc=cl" && goto loop
     if "%1"=="cc"       set "cc=%1" && goto loop
     if "%1"=="gcc"      set "cc=%1" && goto loop
     if "%1"=="clang"    set "cc=%1" && goto loop
     if "%1"=="clang-cl" set "cc=%1" && goto loop
+
+    if "%1"=="sln"      set "sln=yes" && goto loop
 
     if not "%1"==""     set "other=!other! %1" && set "editor=no" && set "demos=no"
 
@@ -455,32 +475,38 @@ set vis=no
 :parse_compiler_args
     if not "%1"==""     set "args=!args! %1" && shift && goto parse_compiler_args
 
+set vs=00
 rem detect setup
 if "!cc!"=="" (
     echo Detecting VS 2022/2019/2017/2015/2013 x64 ...
     set cc=cl
-           if exist "%VS190COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat" (
-              @call "%VS190COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat" > nul
+           if exist "%VS170COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat" (
+              @call "%VS170COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat" > nul && set "vs=22"
     ) else if exist "%VS160COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat" (
-              @call "%VS160COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat" > nul
+              @call "%VS160COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat" > nul && set "vs=19"
     ) else if exist "%VS150COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat" (
-              @call "%VS150COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat" > nul
+              @call "%VS150COMNTOOLS%/../../VC/Auxiliary/Build/vcvarsx86_amd64.bat" > nul && set "vs=17"
     ) else if exist "%VS140COMNTOOLS%/../../VC/bin/x86_amd64/vcvarsx86_amd64.bat" (
-              @call "%VS140COMNTOOLS%/../../VC/bin/x86_amd64/vcvarsx86_amd64.bat" > nul
+              @call "%VS140COMNTOOLS%/../../VC/bin/x86_amd64/vcvarsx86_amd64.bat" > nul && set "vs=15"
     ) else if exist "%VS120COMNTOOLS%/../../VC/bin/x86_amd64/vcvarsx86_amd64.bat" (
-              @call "%VS120COMNTOOLS%/../../VC/bin/x86_amd64/vcvarsx86_amd64.bat" > nul
+              @call "%VS120COMNTOOLS%/../../VC/bin/x86_amd64/vcvarsx86_amd64.bat" > nul && set "vs=13"
     ) else if exist "%ProgramFiles%/microsoft visual studio/2022/community/VC/Auxiliary/Build/vcvarsx86_amd64.bat" (
-              @call "%ProgramFiles%/microsoft visual studio/2022/community/VC/Auxiliary/Build/vcvarsx86_amd64.bat" > nul
+              @call "%ProgramFiles%/microsoft visual studio/2022/community/VC/Auxiliary/Build/vcvarsx86_amd64.bat" > nul && set "vs=22"
     ) else if exist "%ProgramFiles(x86)%/microsoft visual studio/2019/community/VC/Auxiliary/Build/vcvarsx86_amd64.bat" (
-              @call "%ProgramFiles(x86)%/microsoft visual studio/2019/community/VC/Auxiliary/Build/vcvarsx86_amd64.bat" > nul
+              @call "%ProgramFiles(x86)%/microsoft visual studio/2019/community/VC/Auxiliary/Build/vcvarsx86_amd64.bat" > nul && set "vs=19"
     ) else if exist "%ProgramFiles(x86)%/microsoft visual studio/2017/community/VC/Auxiliary/Build/vcvarsx86_amd64.bat" (
-              @call "%ProgramFiles(x86)%/microsoft visual studio/2017/community/VC/Auxiliary/Build/vcvarsx86_amd64.bat" > nul
+              @call "%ProgramFiles(x86)%/microsoft visual studio/2017/community/VC/Auxiliary/Build/vcvarsx86_amd64.bat" > nul && set "vs=17"
     ) else (
         echo Detecting Mingw64 ...
         set cc=gcc
-        where /q gcc.exe || ( set cc=tcc&&echo Detecting TCC ... )
+        where /q gcc.exe || ( echo Detecting TCC ... && set "cc=tcc" )
     )
 )
+
+rem solution. @todo: lin/osx
+if "!sln!"=="yes" if not "%vs%"=="" pushd tools && premake5 vs20%vs% & popd
+if "!sln!"=="yes"                   pushd tools && premake5 ninja    & popd
+if "!sln!"=="yes"                   pushd tools && premake5 gmake    & popd & exit /b
 
 rem --- pipeline
 rem cl tools/ass2iqe.c   /Fetools/ass2iqe.exe  /nologo /openmp /O2 /Oy /MT /DNDEBUG assimp.lib
@@ -512,13 +538,13 @@ if "!cc!"=="cl" (
     )
 
     if "!build!"=="rel" (
-        set args=/nologo     /MT /openmp /DNDEBUG !args!        /Os /Ox /O2 /Oy /GL /GF /Gw /arch:AVX2 /link /OPT:ICF /LTCG
+        set args=/nologo /Zi /MT /openmp /DNDEBUG !args!        /Os /Ox /O2 /Oy /GL /GF /Gw /arch:AVX2 /pdbthreads:4 /link /OPT:ICF /LTCG
     )
     if "!build!"=="dev" (
-        set args=/nologo /Zi /MT /openmp /DEBUG   !args! && REM /Os /Ox /O2 /Oy /GL /GF /Gw /arch:AVX2
+        set args=/nologo /Zi /MT /openmp /DEBUG   !args! && REM /Os /Ox /O2 /Oy /GL /GF /Gw /arch:AVX2 /pdbthreads:4
     )
     if "!build!"=="dbg" (
-        set args=/nologo /Zi /MT         /DEBUG   !args!        /Od  /fsanitize=address
+        set args=/nologo /Zi /MT         /DEBUG   !args!        /Od  /fsanitize=address                /pdbthreads:4
         rem make -- /RTC1, or make -- /Zi /fsanitize=address /DEBUG
     )
 
@@ -540,10 +566,10 @@ if "!cc!"=="cl" (
     set warnings=!warnings_fwkc! !warnings_demos!
 
     if "!build!"=="rel" (
-        set args=!warnings! /nologo     /MT /openmp /DNDEBUG !args!        /Os /Ox /O2 /Oy /GL /GF /Gw /arch:AVX2 /link /OPT:ICF /LTCG
+        set args=!warnings! /nologo /Zi /MT /openmp /DNDEBUG !args!        /Os /Ox /O2 /Oy /GF /Gw /arch:AVX2
     )
     if "!build!"=="dev" (
-        set args=!warnings! /nologo /Zi /MT /openmp /DEBUG   !args! && REM /Os /Ox /O2 /Oy /GL /GF /Gw /arch:AVX2
+        set args=!warnings! /nologo /Zi /MT /openmp /DEBUG   !args! && REM /Os /Ox /O2 /Oy /GF /Gw /arch:AVX2
     )
     if "!build!"=="dbg" (
         set args=!warnings! /nologo /Zi /MT         /DEBUG   !args!        /Od  /fsanitize=address
@@ -552,7 +578,7 @@ if "!cc!"=="cl" (
     set o=-o
     set echo=echo
 
-) else if "!cc!"=="call tools\tcc" (
+) else if "!cc!"=="tcc" (
 
     if "!dll!"=="static" (
         set export=-c
@@ -590,7 +616,8 @@ if "!cc!"=="cl" (
     set args=-Wno-implicit-function-declaration !args!
 
     if "!build!"=="rel" (
-        set args=-g -O3 -DNDEBUG !args!
+        rem @todo see: https://stackoverflow.com/questions/866721/how-to-generate-gcc-debug-symbol-outside-the-build-target
+        set args=-O3 -DNDEBUG !args!
     )
     if "!build!"=="dev" (
         set args=-g -O1 !args!
@@ -606,48 +633,52 @@ if "!cc!"=="cl" (
 echo build=!build!, type=!dll!, cc=!cc!, other=!other!, args=!args!
 echo import=!import!, export=!export!
 
+if "!cc!"=="tcc" set "cc=call tools\tcc"
+
+rem detect wether user-defined sources use single-header distro
+rem if so, remove API=IMPORT flags and also do not produce fwk.dll by default
+if not "!other!"=="" (
+    >nul find "FWK_C" !other! && (
+      set import=
+      set fwk=no
+    )
+)
+
 rem framework
 if "!fwk!"=="yes" (
-if "!vis!"=="yes" echo !cc! tools\fwk.c !export! !args! ^&^& if "!dll!"=="dll" copy /y fwk.dll demos\lua ^> nul
-!echo! fwk          && !cc! tools\fwk.c !export! !args!   && if "!dll!"=="dll" copy /y fwk.dll demos\lua  > nul
+if "!vis!"=="yes" echo !cc! engine\fwk.c !export! !args! ^&^& if "!dll!"=="dll" copy /y fwk.dll demos\lua ^> nul
+!echo! fwk          && !cc! engine\fwk.c !export! !args!   && if "!dll!"=="dll" copy /y fwk.dll demos\lua  > nul || set rc=1
 )
 
 rem editor
 if "!editor!"=="yes" (
-!echo! editor       && !cc! !o! editor.exe       editor\editor.c      !import! !args!
+set edit=-DCOOK_ON_DEMAND -DUI_LESSER_SPACING -DUI_ICONS_SMALL
+if "!vis!"=="yes" echo !cc! !o! editor.exe  tools\editor\editor.c  !edit! !import! !args!
+!echo! editor       && !cc! !o! editor.exe  tools\editor\editor.c  !edit! !import! !args! || set rc=1
+!echo! editor2      && !cc! !o! editor2.exe tools\editor\editor2.c !edit!          !args! || set rc=1
 )
 
 rem demos
 if "!demos!"=="yes" (
-!echo! 00-demo      && !cc! !o! 00-demo.exe      demos\00-demo.c      !import! !args!
-!echo! 00-hello     && !cc! !o! 00-hello.exe     demos\00-hello.c     !import! !args!
-!echo! 00-cubemap   && !cc! !o! 00-cubemap.exe   demos\00-cubemap.c   !import! !args!
-!echo! 00-collide   && !cc! !o! 00-collide.exe   demos\00-collide.c   !import! !args!
-!echo! 00-anims     && !cc! !o! 00-anims.exe     demos\00-anims.c     !import! !args!
-!echo! 00-scene     && !cc! !o! 00-scene.exe     demos\00-scene.c     !import! !args!
-!echo! 00-shadertoy && !cc! !o! 00-shadertoy.exe demos\00-shadertoy.c !import! !args!
-!echo! 00-sprite    && !cc! !o! 00-sprite.exe    demos\00-sprite.c    !import! !args!
-!echo! 00-tilemap   && !cc! !o! 00-tilemap.exe   demos\00-tilemap.c   !import! !args!
-!echo! 00-tiled     && !cc! !o! 00-tiled.exe     demos\00-tiled.c     !import! !args!
-!echo! 00-video     && !cc! !o! 00-video.exe     demos\00-video.c     !import! !args!
-!echo! 00-script    && !cc! !o! 00-script.exe    demos\00-script.c    !import! !args!
-!echo! 00-socket    && !cc! !o! 00-socket.exe    demos\00-socket.c    !import! !args!
-!echo! 00-easing    && !cc! !o! 00-easing.exe    demos\00-easing.c    !import! !args!
-!echo! 00-font      && !cc! !o! 00-font.exe      demos\00-font.c      !import! !args!
-!echo! 00-material  && !cc! !o! 00-material.exe  demos\00-material.c  !import! !args!
-!echo! 00-pbr       && !cc! !o! 00-pbr.exe       demos\00-pbr.c       !import! !args!
-!echo! 00-instanced && !cc! !o! 00-instanced.exe demos\00-instanced.c !import! !args!
-!echo! 00-audio     && !cc! !o! 00-audio.exe     demos\00-audio.c     !import! !args!
-!echo! 00-spine     && !cc! !o! 00-spine.exe     demos\00-spine.c     !import! !args!
+!echo! hello         && !cc! !o! hello.exe         hello.c                           !args! || set rc=1
+!echo! 00-ui         && !cc! !o! 00-ui.exe         demos\00-ui.c            !import! !args! || set rc=1
+!echo! 01-sprite     && !cc! !o! 01-sprite.exe     demos\01-sprite.c        !import! !args! || set rc=1
+!echo! 02-ddraw      && !cc! !o! 02-ddraw.exe      demos\02-ddraw.c         !import! !args! || set rc=1
+!echo! 03-anims      && !cc! !o! 03-anims.exe      demos\03-anims.c         !import! !args! || set rc=1
+!echo! 04-actor      && !cc! !o! 04-actor.exe      demos\04-actor.c         !import! !args! || set rc=1
+!echo! 04-controller && !cc! !o! 04-controller.exe demos\04-controller.c    !import! !args! || set rc=1
+!echo! 05-scene      && !cc! !o! 05-scene.exe      demos\05-scene.c         !import! !args! || set rc=1
+!echo! 06-pbr        && !cc! !o! 06-pbr.exe        demos\06-pbr.c           !import! !args! || set rc=1
+!echo! 07-network    && !cc! !o! 07-network.exe    demos\07-network.c       !import! !args! || set rc=1
 )
 
 rem user-defined apps
 if not "!other!"=="" (
 if "!vis!"=="yes" echo !cc! !other! !import! !args!
-!echo! !other!      && !cc! !other! !import! !args!
+     !echo! !other! && !cc! !other! !import! !args! || set rc=1
 )
 
 rem PAUSE only if double-clicked from Windows explorer
 (((echo.%cmdcmdline%)|%WINDIR%\system32\find.exe /I "%~0")>nul)&&pause
 
-exit /b
+cmd /c exit !rc!

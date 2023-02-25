@@ -1,5 +1,5 @@
 #!/bin/bash 2>nul
 
-python tools/join.py --template tools/fwk.h.inl --path ./ --output ./tools/fwk.h
-python tools/join.py --template tools/fwk.c.inl --path ./ --output ./tools/fwk.c
-python tools/join.py --template tools/fwk.x.inl --path ./ --output ./tools/fwk
+python tools/join.py --template engine/split/fwk.h.inl --path ./engine/split/ --output ./engine/fwk.h
+python tools/join.py --template engine/split/fwk.c.inl --path ./engine/split/ --output ./engine/fwk.c
+python tools/join.py --template engine/split/fwk.x.inl --path ./engine/split/ --output ./engine/fwk

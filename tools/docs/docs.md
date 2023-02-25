@@ -1,8 +1,8 @@
-| Documentation last modified | {{LAST_MODIFIED}} |
-|:--------------|:------------|
 |Version:       | {{VERSION}} |
+|:--------------|:------------|
 |Branch:        | {{GIT_BRANCH}} |
 |Commit:        | {{GIT_REVISION}} |
+<!--| Documentation last modified | { {LAST_MODIFIED} } |-->
 
 # [F·W·K {{VERSION}}](https://github.com/r-lyeh/FWK)
 ## a b o u t

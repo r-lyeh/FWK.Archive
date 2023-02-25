@@ -24,7 +24,7 @@ void render(void *arg) {
         if( ui_bool("my bool", &boolean) ) puts("bool changed");
         if( ui_int("my int", &integer) ) puts("int changed");
         if( ui_float("my float", &floating) ) puts("float changed");
-        if( ui_string("my string", string, 64) ) puts("string changed");
+        if( ui_buffer("my string", string, 64) ) puts("string changed");
         if( ui_separator() ) {}
         if( ui_slider("my slider", &slider)) puts("slider changed");
         if( ui_slider2("my slider 2", &slider2, va("%.2f", slider2))) puts("slider2 changed");

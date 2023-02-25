@@ -18,7 +18,7 @@ int main(int argc, const char **argv) {
 
     unsigned num_cooked = 0;
     for( int i = 1; i < argc; ++i ) {
-        num_cooked += argv[i][0] != '-' && cook_start(ini_file, va("**%s", argv[i]), COOK_ASYNC) ? cook_stop(), 1 : 0;
+        num_cooked += argv[i][0] != '-' && cook_start(ini_file, argv[i], COOK_ASYNC) ? cook_stop(), 1 : 0;
     }
     if( !num_cooked ) {
         if( cook_start(ini_file, "**", COOK_ASYNC) ) cook_stop();
