@@ -934,7 +934,7 @@ void editor_render_menubar() {
     //        if 0% batt (no batt): battery alert
     //        if discharging:       battery levels [alert,0..6,full]
     //        if charging:          battery charging
-    int battery_read = battery();
+    int battery_read = app_battery();
     int battery_level = abs(battery_read);
     int battery_discharging = battery_read < 0 && battery_level < 100;
     const char *battery_levels[9] = { // @todo: remap [7%..100%] -> [0..1] ?
@@ -1040,12 +1040,12 @@ void editor_obj_render_properties_recursively(void *obj, const char *mask) {
 
         // contextual menu (open)
         if( ui_contextual() ) {
-            if( ui_button_transparent("<Load" ) ) do_context_obj = obj, do_context_cmd = fourcc(load);
-            if( ui_button_transparent("<Save" ) ) do_context_obj = obj, do_context_cmd = fourcc(save);
-            if( ui_button_transparent("<Merge") ) do_context_obj = obj, do_context_cmd = fourcc(merge);
-            if( ui_button_transparent("<Cut"  ) ) do_context_obj = obj, do_context_cmd = fourcc(cut);
-            if( ui_button_transparent("<Copy" ) ) do_context_obj = obj, do_context_cmd = fourcc(copy);
-            if( ui_button_transparent("<Paste") ) do_context_obj = obj, do_context_cmd = fourcc(paste);
+            if( ui_button_transparent("<Load" ) ) do_context_obj = obj, do_context_cmd = cc4(load);
+            if( ui_button_transparent("<Save" ) ) do_context_obj = obj, do_context_cmd = cc4(save);
+            if( ui_button_transparent("<Merge") ) do_context_obj = obj, do_context_cmd = cc4(merge);
+            if( ui_button_transparent("<Cut"  ) ) do_context_obj = obj, do_context_cmd = cc4(cut);
+            if( ui_button_transparent("<Copy" ) ) do_context_obj = obj, do_context_cmd = cc4(copy);
+            if( ui_button_transparent("<Paste") ) do_context_obj = obj, do_context_cmd = cc4(paste);
             ui_contextual_end();
         }
 
@@ -1061,12 +1061,12 @@ void editor_obj_render_properties_recursively(void *obj, const char *mask) {
 
     // contextual menu (close)
     if( !open && ui_contextual() ) {
-        if( ui_button_transparent("<Load" ) ) do_context_obj = obj, do_context_cmd = fourcc(load);
-        if( ui_button_transparent("<Save" ) ) do_context_obj = obj, do_context_cmd = fourcc(save);
-        if( ui_button_transparent("<Merge") ) do_context_obj = obj, do_context_cmd = fourcc(merge);
-        if( ui_button_transparent("<Cut"  ) ) do_context_obj = obj, do_context_cmd = fourcc(cut);
-        if( ui_button_transparent("<Copy" ) ) do_context_obj = obj, do_context_cmd = fourcc(copy);
-        if( ui_button_transparent("<Paste") ) do_context_obj = obj, do_context_cmd = fourcc(paste);
+        if( ui_button_transparent("<Load" ) ) do_context_obj = obj, do_context_cmd = cc4(load);
+        if( ui_button_transparent("<Save" ) ) do_context_obj = obj, do_context_cmd = cc4(save);
+        if( ui_button_transparent("<Merge") ) do_context_obj = obj, do_context_cmd = cc4(merge);
+        if( ui_button_transparent("<Cut"  ) ) do_context_obj = obj, do_context_cmd = cc4(cut);
+        if( ui_button_transparent("<Copy" ) ) do_context_obj = obj, do_context_cmd = cc4(copy);
+        if( ui_button_transparent("<Paste") ) do_context_obj = obj, do_context_cmd = cc4(paste);
         ui_contextual_end();
     }
 
@@ -1150,7 +1150,7 @@ void editor_render_windows() {
         const char *file = 0;
         if( ui_browse(&file, NULL) ) {
             const char *sep = ifdef(win32, "\"", "'");
-            os_exec(va("%s %s%s%s", ifdef(win32, "start \"\"", ifdef(osx, "open", "xdg-open")), sep, file, sep));
+            app_exec(va("%s %s%s%s", ifdef(win32, "start \"\"", ifdef(osx, "open", "xdg-open")), sep, file, sep));
         }
         ui_window_end();
     }
@@ -1196,7 +1196,7 @@ void editor_render_windows() {
             static const char *file;
             static bool show_browser = 1;
             if( ui_browse(&file, &show_browser) ) {
-                os_exec(va("%s %s", ifdef(win32, "start", ifdef(osx, "open", "xdg-open")), file));
+                app_exec(va("%s %s", ifdef(win32, "start", ifdef(osx, "open", "xdg-open")), file));
                 //puts(file);
             }
         }
@@ -1218,7 +1218,7 @@ void editor_render_windows() {
             void *k = *o;
             editor_obj_render_properties_recursively(k, mask);
         }
-        if( do_context_cmd == fourcc(list) && do_context_obj ) {
+        if( do_context_cmd == cc4(list) && do_context_obj ) {
             printf("list [%p]\n", do_context_obj);
         }
         // draw: depth + state (alpha0=off)
@@ -1531,7 +1531,7 @@ int main() {
                      target = add3(target, scale3(norm3(sub3(source, target)), 10.0));
                 source = mix3(source, target, 1-0.99f);
 
-                camera_teleport(cam, source.x,source.y,source.z);
+                camera_teleport(cam, source);
                 camera_lookat(cam, vec3(girl_p.x,0,girl_p.z));
 
                 // @todo: orbit cam w/ right pad

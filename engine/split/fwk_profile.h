@@ -2,7 +2,7 @@
 // profiler & stats (@fixme: threadsafe)
 
 #if !WITH_PROFILER
-#   define profile(...)                 for(int macro(i) = 1; macro(i); macro(i) = 0)
+#   define profile(section)             for(int macro(i) = 1; macro(i); macro(i) = 0)
 #   define profile_incstat(name, accum) do {} while(0)
 #   define profile_setstat(name, value) do {} while(0)
 #   define profile_init()               do {} while(0)

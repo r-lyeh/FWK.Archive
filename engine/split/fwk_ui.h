@@ -6,12 +6,12 @@
 // @todo: surround-adaptive window resizing. ie, surrounding windows adapting theirselves to fit dragged active window
 
 enum PANEL_FLAGS {
-	PANEL_OPEN = 1,
+    PANEL_OPEN = 1,
 };
 
 API int ui_notify(const char *title, const char *body);
 API int ui_window(const char *title, int *enabled);
-API int  ui_panel(const char *title, int flags);
+API int  ui_panel(const char *title, int flags); // may be embedded inside a window, or standalone
 API int   ui_collapse(const char *label, const char *id);
 API int   ui_contextual();
 API int    ui_section(const char *title);
@@ -35,7 +35,7 @@ API int    ui_button_transparent(const char *label);
 API int    ui_buttons(int buttons, /*labels*/...);
 API int    ui_toolbar(const char *options); // int choice = ui_toolbar("A;B;C;D");
 API int    ui_submenu(const char *options); // int choice = ui_submenu("A;B;C;D");
-API int    ui_browse(const char **outfile, bool *inlined);
+API int    ui_browse(const char **outfile, bool *inlined); // may be embedded inside a window or inside a panel
 API int    ui_toggle(const char *label, bool *value);
 API int    ui_dialog(const char *title, const char *text, int choices, bool *show); // @fixme: return
 API int    ui_list(const char *label, const char **items, int num_items, int *selector);
@@ -44,7 +44,7 @@ API int    ui_texture(const char *label, texture_t t);
 API int    ui_subtexture(const char *label, texture_t t, unsigned x, unsigned y, unsigned w, unsigned h);
 API int    ui_image(const char *label, handle id, unsigned w, unsigned h); //(w,h) can be 0
 API int    ui_subimage(const char *label, handle id, unsigned iw, unsigned ih, unsigned sx, unsigned sy, unsigned sw, unsigned sh);
-API int    ui_colormap(const char *map_name, colormap_t *cm); // returns num member changed: 1 for color, 2 for texture map
+API int    ui_colormap(const char *label, colormap_t *cm); // returns num member changed: 1 for color, 2 for texture map
 API int    ui_separator();
 API int    ui_bits8(const char *label, uint8_t *bits);
 API int    ui_bits16(const char *label, uint16_t *bits);
@@ -66,6 +66,8 @@ API int ui_window_end();
 
 API int ui_show(const char *panel_or_window_title, int enabled);
 API int ui_visible(const char *panel_or_window_title); // @todo: include ui_collapse() items that are open as well?
+API int ui_enable();
+API int ui_disable();
 
 API int ui_has_menubar();
 API int ui_menu(const char *items); // semicolon-separated or comma-separated items

@@ -513,6 +513,252 @@ int ui_active() {
 }
 
 static
+int ui_enable_(int enabled) {
+    static struct nk_style off, on;
+    do_once {
+        off = on = ui_ctx->style;
+        float alpha = 0.5f;
+
+        off.text.color.a *= alpha;
+
+        off.button.normal.data.color.a *= alpha;
+        off.button.hover.data.color.a *= alpha;
+        off.button.active.data.color.a *= alpha;
+        off.button.border_color.a *= alpha;
+        off.button.text_background.a *= alpha;
+        off.button.text_normal.a *= alpha;
+        off.button.text_hover.a *= alpha;
+        off.button.text_active.a *= alpha;
+
+        off.contextual_button.normal.data.color.a *= alpha;
+        off.contextual_button.hover.data.color.a *= alpha;
+        off.contextual_button.active.data.color.a *= alpha;
+        off.contextual_button.border_color.a *= alpha;
+        off.contextual_button.text_background.a *= alpha;
+        off.contextual_button.text_normal.a *= alpha;
+        off.contextual_button.text_hover.a *= alpha;
+        off.contextual_button.text_active.a *= alpha;
+
+        off.menu_button.normal.data.color.a *= alpha;
+        off.menu_button.hover.data.color.a *= alpha;
+        off.menu_button.active.data.color.a *= alpha;
+        off.menu_button.border_color.a *= alpha;
+        off.menu_button.text_background.a *= alpha;
+        off.menu_button.text_normal.a *= alpha;
+        off.menu_button.text_hover.a *= alpha;
+        off.menu_button.text_active.a *= alpha;
+
+        off.option.normal.data.color.a *= alpha;
+        off.option.hover.data.color.a *= alpha;
+        off.option.active.data.color.a *= alpha;
+        off.option.border_color.a *= alpha;
+        off.option.cursor_normal.data.color.a *= alpha;
+        off.option.cursor_hover.data.color.a *= alpha;
+        off.option.text_normal.a *= alpha;
+        off.option.text_hover.a *= alpha;
+        off.option.text_active.a *= alpha;
+        off.option.text_background.a *= alpha;
+
+        off.checkbox.normal.data.color.a *= alpha;
+        off.checkbox.hover.data.color.a *= alpha;
+        off.checkbox.active.data.color.a *= alpha;
+        off.checkbox.border_color.a *= alpha;
+        off.checkbox.cursor_normal.data.color.a *= alpha;
+        off.checkbox.cursor_hover.data.color.a *= alpha;
+        off.checkbox.text_normal.a *= alpha;
+        off.checkbox.text_hover.a *= alpha;
+        off.checkbox.text_active.a *= alpha;
+        off.checkbox.text_background.a *= alpha;
+
+        off.selectable.normal.data.color.a *= alpha;
+        off.selectable.hover.data.color.a *= alpha;
+        off.selectable.pressed.data.color.a *= alpha;
+        off.selectable.normal_active.data.color.a *= alpha;
+        off.selectable.hover_active.data.color.a *= alpha;
+        off.selectable.pressed_active.data.color.a *= alpha;
+        off.selectable.text_normal.a *= alpha;
+        off.selectable.text_hover.a *= alpha;
+        off.selectable.text_pressed.a *= alpha;
+        off.selectable.text_normal_active.a *= alpha;
+        off.selectable.text_hover_active.a *= alpha;
+        off.selectable.text_pressed_active.a *= alpha;
+        off.selectable.text_background.a *= alpha;
+
+        off.slider.normal.data.color.a *= alpha;
+        off.slider.hover.data.color.a *= alpha;
+        off.slider.active.data.color.a *= alpha;
+        off.slider.border_color.a *= alpha;
+        off.slider.bar_normal.a *= alpha;
+        off.slider.bar_hover.a *= alpha;
+        off.slider.bar_active.a *= alpha;
+        off.slider.bar_filled.a *= alpha;
+        off.slider.cursor_normal.data.color.a *= alpha;
+        off.slider.cursor_hover.data.color.a *= alpha;
+        off.slider.cursor_active.data.color.a *= alpha;
+        off.slider.dec_button.normal.data.color.a *= alpha;
+        off.slider.dec_button.hover.data.color.a *= alpha;
+        off.slider.dec_button.active.data.color.a *= alpha;
+        off.slider.dec_button.border_color.a *= alpha;
+        off.slider.dec_button.text_background.a *= alpha;
+        off.slider.dec_button.text_normal.a *= alpha;
+        off.slider.dec_button.text_hover.a *= alpha;
+        off.slider.dec_button.text_active.a *= alpha;
+        off.slider.inc_button.normal.data.color.a *= alpha;
+        off.slider.inc_button.hover.data.color.a *= alpha;
+        off.slider.inc_button.active.data.color.a *= alpha;
+        off.slider.inc_button.border_color.a *= alpha;
+        off.slider.inc_button.text_background.a *= alpha;
+        off.slider.inc_button.text_normal.a *= alpha;
+        off.slider.inc_button.text_hover.a *= alpha;
+        off.slider.inc_button.text_active.a *= alpha;
+
+        off.progress.normal.data.color.a *= alpha;
+        off.progress.hover.data.color.a *= alpha;
+        off.progress.active.data.color.a *= alpha;
+        off.progress.border_color.a *= alpha;
+        off.progress.cursor_normal.data.color.a *= alpha;
+        off.progress.cursor_hover.data.color.a *= alpha;
+        off.progress.cursor_active.data.color.a *= alpha;
+        off.progress.cursor_border_color.a *= alpha;
+
+        off.property.normal.data.color.a *= alpha;
+        off.property.hover.data.color.a *= alpha;
+        off.property.active.data.color.a *= alpha;
+        off.property.border_color.a *= alpha;
+        off.property.label_normal.a *= alpha;
+        off.property.label_hover.a *= alpha;
+        off.property.label_active.a *= alpha;
+        off.property.edit.normal.data.color.a *= alpha;
+        off.property.edit.hover.data.color.a *= alpha;
+        off.property.edit.active.data.color.a *= alpha;
+        off.property.edit.border_color.a *= alpha;
+        off.property.edit.cursor_normal.a *= alpha;
+        off.property.edit.cursor_hover.a *= alpha;
+        off.property.edit.cursor_text_normal.a *= alpha;
+        off.property.edit.cursor_text_hover.a *= alpha;
+        off.property.edit.text_normal.a *= alpha;
+        off.property.edit.text_hover.a *= alpha;
+        off.property.edit.text_active.a *= alpha;
+        off.property.edit.selected_normal.a *= alpha;
+        off.property.edit.selected_hover.a *= alpha;
+        off.property.edit.selected_text_normal.a *= alpha;
+        off.property.edit.selected_text_hover.a *= alpha;
+        off.property.dec_button.normal.data.color.a *= alpha;
+        off.property.dec_button.hover.data.color.a *= alpha;
+        off.property.dec_button.active.data.color.a *= alpha;
+        off.property.dec_button.border_color.a *= alpha;
+        off.property.dec_button.text_background.a *= alpha;
+        off.property.dec_button.text_normal.a *= alpha;
+        off.property.dec_button.text_hover.a *= alpha;
+        off.property.dec_button.text_active.a *= alpha;
+        off.property.inc_button.normal.data.color.a *= alpha;
+        off.property.inc_button.hover.data.color.a *= alpha;
+        off.property.inc_button.active.data.color.a *= alpha;
+        off.property.inc_button.border_color.a *= alpha;
+        off.property.inc_button.text_background.a *= alpha;
+        off.property.inc_button.text_normal.a *= alpha;
+        off.property.inc_button.text_hover.a *= alpha;
+        off.property.inc_button.text_active.a *= alpha;
+
+        off.edit.normal.data.color.a *= alpha;
+        off.edit.hover.data.color.a *= alpha;
+        off.edit.active.data.color.a *= alpha;
+        off.edit.border_color.a *= alpha;
+        off.edit.cursor_normal.a *= alpha;
+        off.edit.cursor_hover.a *= alpha;
+        off.edit.cursor_text_normal.a *= alpha;
+        off.edit.cursor_text_hover.a *= alpha;
+        off.edit.text_normal.a *= alpha;
+        off.edit.text_hover.a *= alpha;
+        off.edit.text_active.a *= alpha;
+        off.edit.selected_normal.a *= alpha;
+        off.edit.selected_hover.a *= alpha;
+        off.edit.selected_text_normal.a *= alpha;
+        off.edit.selected_text_hover.a *= alpha;
+
+        off.chart.background.data.color.a *= alpha;
+        off.chart.border_color.a *= alpha;
+        off.chart.selected_color.a *= alpha;
+        off.chart.color.a *= alpha;
+
+        off.scrollh.normal.data.color.a *= alpha;
+        off.scrollh.hover.data.color.a *= alpha;
+        off.scrollh.active.data.color.a *= alpha;
+        off.scrollh.border_color.a *= alpha;
+        off.scrollh.cursor_normal.data.color.a *= alpha;
+        off.scrollh.cursor_hover.data.color.a *= alpha;
+        off.scrollh.cursor_active.data.color.a *= alpha;
+        off.scrollh.cursor_border_color.a *= alpha;
+
+        off.scrollv.normal.data.color.a *= alpha;
+        off.scrollv.hover.data.color.a *= alpha;
+        off.scrollv.active.data.color.a *= alpha;
+        off.scrollv.border_color.a *= alpha;
+        off.scrollv.cursor_normal.data.color.a *= alpha;
+        off.scrollv.cursor_hover.data.color.a *= alpha;
+        off.scrollv.cursor_active.data.color.a *= alpha;
+        off.scrollv.cursor_border_color.a *= alpha;
+
+        off.tab.background.data.color.a *= alpha;
+        off.tab.border_color.a *= alpha;
+        off.tab.text.a *= alpha;
+
+        off.combo.normal.data.color.a *= alpha;
+        off.combo.hover.data.color.a *= alpha;
+        off.combo.active.data.color.a *= alpha;
+        off.combo.border_color.a *= alpha;
+        off.combo.label_normal.a *= alpha;
+        off.combo.label_hover.a *= alpha;
+        off.combo.label_active.a *= alpha;
+        off.combo.symbol_normal.a *= alpha;
+        off.combo.symbol_hover.a *= alpha;
+        off.combo.symbol_active.a *= alpha;
+        off.combo.button.normal.data.color.a *= alpha;
+        off.combo.button.hover.data.color.a *= alpha;
+        off.combo.button.active.data.color.a *= alpha;
+        off.combo.button.border_color.a *= alpha;
+        off.combo.button.text_background.a *= alpha;
+        off.combo.button.text_normal.a *= alpha;
+        off.combo.button.text_hover.a *= alpha;
+        off.combo.button.text_active.a *= alpha;
+
+        off.window.fixed_background.data.color.a *= alpha;
+        off.window.background.a *= alpha;
+        off.window.border_color.a *= alpha;
+        off.window.popup_border_color.a *= alpha;
+        off.window.combo_border_color.a *= alpha;
+        off.window.contextual_border_color.a *= alpha;
+        off.window.menu_border_color.a *= alpha;
+        off.window.group_border_color.a *= alpha;
+        off.window.tooltip_border_color.a *= alpha;
+        off.window.scaler.data.color.a *= alpha;
+        off.window.header.normal.data.color.a *= alpha;
+        off.window.header.hover.data.color.a *= alpha;
+        off.window.header.active.data.color.a *= alpha;
+    }
+    static struct nk_input input;
+    if (!enabled) {
+        ui_alpha_push(0.5);
+        ui_ctx->style = off; // .button = off.button; 
+        input = ui_ctx->input;
+        memset(&ui_ctx->input, 0, sizeof(ui_ctx->input));
+    } else {
+        ui_alpha_pop();
+        ui_ctx->style = on; // .button = on.button;
+        ui_ctx->input = input;
+    }
+    return enabled;
+}
+
+static int ui_is_enabled = 1;
+int ui_enable() {
+    return ui_is_enabled ? 0 : ui_enable_(ui_is_enabled = 1);
+}
+int ui_disable() {
+    return ui_is_enabled ? ui_enable_(ui_is_enabled = 0) ^ 1 : 0;
+}
+
+static
 void ui_destroy(void) {
     if(ui_ctx) {
         nk_glfw3_shutdown(&nk_glfw); // nk_sdl_shutdown();
@@ -526,6 +772,8 @@ void ui_create() {
     if( ui_dirty ) {
         nk_glfw3_new_frame(&nk_glfw); //g->nk_glfw);
         ui_dirty = 0;
+
+        ui_enable();
     }
 }
 
@@ -1131,13 +1379,16 @@ static
 int nk_button_transparent(struct nk_context *ctx, const char *text) {
     static struct nk_style_button transparent_style;
     do_once transparent_style = ctx->style.button;
+    do_once transparent_style.text_alignment = NK_TEXT_ALIGN_CENTERED|NK_TEXT_ALIGN_MIDDLE;
     do_once transparent_style.normal.data.color = nk_rgba(0,0,0,0);
     do_once transparent_style.border_color = nk_rgba(0,0,0,0);
     do_once transparent_style.active = transparent_style.normal;
     do_once transparent_style.hover = transparent_style.normal;
     do_once transparent_style.hover.data.color = nk_rgba(0,0,0,127);
-    transparent_style.text_alignment = NK_TEXT_ALIGN_CENTERED|NK_TEXT_ALIGN_MIDDLE;
-
+    transparent_style.text_background.a = 255 * ui_alpha;
+    transparent_style.text_normal.a = 255 * ui_alpha;
+    transparent_style.text_hover.a = 255 * ui_alpha;
+    transparent_style.text_active.a = 255 * ui_alpha;
     return nk_button_label_styled(ctx, &transparent_style, text);
 }
 
@@ -1295,29 +1546,29 @@ int ui_button_(const char *text) {
 
     if( 1 ) {
 #if UI_BUTTON_MONOCHROME
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_normal, nk_rgb(0,0,0));
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_hover,  nk_rgb(0,0,0));
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_active, nk_rgb(0,0,0));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_normal, nk_rgba(0,0,0,ui_alpha));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_hover,  nk_rgba(0,0,0,ui_alpha));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_active, nk_rgba(0,0,0,ui_alpha));
 
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.normal.data.color, nk_hsv_f(ui_hue,0.0,0.8));
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.hover.data.color,  nk_hsv_f(ui_hue,0.0,1.0));
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.active.data.color, nk_hsv_f(ui_hue,0.0,0.4));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.normal.data.color, nk_hsva_f(ui_hue,0.0,0.8*ui_alpha));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.hover.data.color,  nk_hsva_f(ui_hue,0.0,1.0*ui_alpha));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.active.data.color, nk_hsva_f(ui_hue,0.0,0.4*ui_alpha));
 #elif 0 // old
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_normal, nk_rgb(0,0,0));
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_hover,  nk_rgb(0,0,0));
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_active, nk_rgb(0,0,0));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_normal, nk_rgba(0,0,0,ui_alpha));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_hover,  nk_rgba(0,0,0,ui_alpha));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_active, nk_rgba(0,0,0,ui_alpha));
 
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.normal.data.color, nk_hsv_f(ui_hue,0.75,0.8));
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.hover.data.color,  nk_hsv_f(ui_hue,1.00,1.0));
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.active.data.color, nk_hsv_f(ui_hue,0.60,0.4));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.normal.data.color, nk_hsva_f(ui_hue,0.75,0.8*ui_alpha));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.hover.data.color,  nk_hsva_f(ui_hue,1.00,1.0*ui_alpha));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.active.data.color, nk_hsva_f(ui_hue,0.60,0.4*ui_alpha));
 #else // new
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_normal, nk_rgba(0,0,0,255));
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_hover,  nk_rgba(28,28,28,255));
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_active, nk_rgb(0,0,0));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_normal, nk_rgba_f(0.00,0.00,0.00,ui_alpha));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_hover,  nk_rgba_f(0.11,0.11,0.11,ui_alpha));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_active, nk_rgba_f(0.00,0.00,0.00,ui_alpha));
 
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.normal.data.color, nk_hsva_f(ui_hue,0.80,0.6,0.90));
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.hover.data.color,  nk_hsva_f(ui_hue,0.85,0.9,0.90));
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.active.data.color, nk_hsva_f(ui_hue,0.80,0.6,0.90));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.normal.data.color, nk_hsva_f(ui_hue,0.80,0.6,0.90*ui_alpha));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.hover.data.color,  nk_hsva_f(ui_hue,0.85,0.9,0.90*ui_alpha));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.active.data.color, nk_hsva_f(ui_hue,0.80,0.6,0.90*ui_alpha));
 #endif
     }
 
@@ -1412,7 +1663,7 @@ int ui_color4(const char *label, float *color4) {
     nk_layout_row_dynamic(ui_ctx, 0, 2 - (label ? !label[0] : 1));
     ui_label_(label, NK_TEXT_LEFT);
 
-    struct nk_colorf after = { color4[0]/255, color4[1]/255, color4[2]/255, color4[3]/255 }, before = after;
+    struct nk_colorf after = { color4[0]*ui_alpha/255, color4[1]*ui_alpha/255, color4[2]*ui_alpha/255, color4[3]/255 }, before = after;
     if (nk_combo_begin_color(ui_ctx, nk_rgb_cf(after), nk_vec2(200,400))) {
         nk_layout_row_dynamic(ui_ctx, 120, 1);
         after = nk_color_picker(ui_ctx, after, NK_RGBA);
@@ -1458,7 +1709,7 @@ int ui_color3(const char *label, float *color3) {
     nk_layout_row_dynamic(ui_ctx, 0, 2 - (label ? !label[0] : 1));
     ui_label_(label, NK_TEXT_LEFT);
 
-    struct nk_colorf after = { color3[0]/255, color3[1]/255, color3[2]/255, 1 }, before = after;
+    struct nk_colorf after = { color3[0]*ui_alpha/255, color3[1]*ui_alpha/255, color3[2]*ui_alpha/255, 1 }, before = after;
     if (nk_combo_begin_color(ui_ctx, nk_rgb_cf(after), nk_vec2(200,400))) {
         nk_layout_row_dynamic(ui_ctx, 120, 1);
         after = nk_color_picker(ui_ctx, after, NK_RGB);
@@ -1522,7 +1773,7 @@ int ui_slider2(const char *label, float *slider, const char *caption) {
     text.padding.x = item_padding.x;
     text.padding.y = item_padding.y;
     text.background = style->window.background;
-    text.text = nk_rgb(255,255,255);
+    text.text = nk_rgba_f(1,1,1,ui_alpha);
 
         nk_size val = *slider * 1000;
         int chg = nk_progress(ui_ctx, &val, 1000, NK_MODIFIABLE);
@@ -1683,7 +1934,7 @@ int ui_subimage(const char *label, handle id, unsigned iw, unsigned ih, unsigned
 
     struct nk_rect bounds; nk_layout_peek(&bounds, ui_ctx); bounds.w -= 10; // bounds.w *= 0.95f;
 
-    int ret = nk_button_image(ui_ctx, nk_subimage_id((int)id, iw, ih, nk_rect(sx,sy,sw,sh)));
+    int ret = nk_button_image_styled(ui_ctx, &ui_ctx->style.button, nk_subimage_id((int)id, iw, ih, nk_rect(sx,sy,sw,sh)));
     if( !ret ) {
         ret |= input(MOUSE_L) && nk_input_is_mouse_hovering_rect(&ui_ctx->input, bounds); // , true);
     }
@@ -1963,14 +2214,16 @@ int ui_demo(int do_windows) {
     static uint8_t bitmask = 0x55;
     static int hits = 0;
     static int window1 = 0, window2 = 0, window3 = 0;
+    static int disable_all = 0;
 
     if( ui_panel("UI", 0) ) {
+        int choice = ui_toolbar("Browser;Toast@Notify;Toggle on/off");
+            if(choice == 1) show_browser = true;
+            if(choice == 2) ui_notify(va("My random toast (%d)", rand()), va("This is notification #%d", ++hits));
+            if(choice == 3) disable_all ^= 1;
 
-        switch( ui_toolbar("Browser;Toast@Notify") ) {
-            default: break;
-            case 1: show_browser = true; break;
-            case 2: ui_notify(va("My random toast (%d)", rand()), va("This is notification #%d", ++hits));
-        }
+        if( disable_all ) ui_disable();
+
         if( ui_browse(&browsed_file, &show_browser) ) puts(browsed_file);
 
         if( ui_section("Labels")) {}
@@ -2017,6 +2270,8 @@ int ui_demo(int do_windows) {
         if( ui_buttons(2, "yes", "no") ) { puts("button clicked"); }
         if( ui_buttons(3, "yes", "no", "maybe") ) { puts("button clicked"); }
         if( ui_dialog("my dialog", __FILE__ "\n" __DATE__ "\n" "Public Domain.", 2/*two buttons*/, &show_dialog) ) {}
+
+        if( disable_all ) ui_enable();
 
         ui_panel_end();
     }

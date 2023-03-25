@@ -472,11 +472,11 @@ int cook(void *userdata) {
         if( logging ) {
             FILE *logfile = fopen(va("cook%d.cmd",job->threadid), "a+t");
             if( logfile ) { fprintf(logfile, "@rem %s\n%s\n", fname, cs.script); fclose(logfile); }
-            // maybe log fprintf(logfile, "@rem %*.s\n", 4096, os_exec_output()); ?
+            // maybe log fprintf(logfile, "@rem %*.s\n", 4096, app_exec_output()); ?
         }
 
         // invoke cooking script and recap status
-        const char *rcout = os_exec(cs.script);
+        const char *rcout = app_exec(cs.script);
         int rc = atoi(rcout);
         int outlen = file_size(cs.finalfile);
         int failed = cs.script[0] ? rc || !outlen : 0;
@@ -753,7 +753,7 @@ void cook_cancel() {
 }
 
 int cook_jobs() {
-    int num_jobs = optioni("--cook-jobs", maxf(1.15,cpu_cores()) * 1.75), max_jobs = countof(jobs);
+    int num_jobs = optioni("--cook-jobs", maxf(1.15,app_cores()) * 1.75), max_jobs = countof(jobs);
     ifdef(ems, num_jobs = 0);
     return clampi(num_jobs, 0, max_jobs);
 }

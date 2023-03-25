@@ -24281,8 +24281,9 @@ nk_draw_button_image(struct nk_command_buffer *out,
     const struct nk_rect *bounds, const struct nk_rect *content,
     nk_flags state, const struct nk_style_button *style, const struct nk_image *img)
 {
+    float a = style->text_normal.a / 255.f;
     nk_draw_button(out, bounds, state, style);
-    nk_draw_image(out, *content, img, nk_white);
+    nk_draw_image(out, *content, img, nk_rgba_f(a,a,a,1)); // @r-lyeh: nk_white -> nk_rgba_f
 }
 NK_LIB nk_bool
 nk_do_button_image(nk_flags *state,

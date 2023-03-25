@@ -67,7 +67,7 @@ void fwk_quit(void) {
 void fwk_init() {
     do_once {
         // install signal handlers
-        ifdef(debug, signals_install());
+        ifdef(debug, signal_hooks());
 
         // init panic handler
         panic_oom_reserve = SYS_REALLOC(panic_oom_reserve, 1<<20); // 1MiB

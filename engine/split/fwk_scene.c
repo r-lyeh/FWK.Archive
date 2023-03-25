@@ -11,6 +11,7 @@ camera_t camera() {
     cam.position = vec3(10,10,10);
     cam.last_look = cam.last_move = vec3(0,0,0);
     cam.up = vec3(0,1,0);
+    cam.fov = 45;
 
     // @todo: remove this hack
     static int smoothing = -1; if( smoothing < 0 ) smoothing = flag("--camera-smooth");
@@ -59,8 +60,8 @@ void camera_move(camera_t *cam, float incx, float incy, float incz) {
     camera_fps(cam, 0, 0);
 }
 
-void camera_teleport(camera_t *cam, float px, float py, float pz) {
-    cam->position = vec3(px,py,pz);
+void camera_teleport(camera_t *cam, vec3 pos) {
+    cam->position = pos;
     camera_fps(cam, 0, 0);
 }
 
@@ -86,6 +87,10 @@ void camera_enable(camera_t *cam) {
     camera_fps(cam, 0, 0);
 }
 
+void camera_fov(camera_t *cam, float fov) {
+    cam->fov = fov;
+}
+
 void camera_fps(camera_t *cam, float yaw, float pitch) {
     last_camera = cam;
 
@@ -109,7 +114,7 @@ void camera_fps(camera_t *cam, float yaw, float pitch) {
     cam->look = norm3(vec3(cos(y) * cos(p), sin(p), sin(y) * cos(p)));
 
     lookat44(cam->view, cam->position, add3(cam->position, cam->look), cam->up); // eye,center,up
-    perspective44(cam->proj, 45, window_width() / ((float)window_height()+!window_height()), 0.01f, 1000.f);
+    perspective44(cam->proj, cam->fov, window_width() / ((float)window_height()+!window_height()), 0.01f, 1000.f);
 
 #if 0 // isometric/dimetric
     #define orthogonal(proj, fov, aspect, znear, zfar) \

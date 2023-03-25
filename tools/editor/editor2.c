@@ -286,7 +286,7 @@ void editor_frame() {
         const char *file = 0;
         if( ui_browse(&file, NULL) ) {
             const char *sep = ifdef(win32, "\"", "'");
-            os_exec(va("%s %s%s%s", ifdef(win32, "start \"\"", ifdef(osx, "open", "xdg-open")), sep, file, sep));
+            app_exec(va("%s %s%s%s", ifdef(win32, "start \"\"", ifdef(osx, "open", "xdg-open")), sep, file, sep));
         }
         ui_window_end();
     }
@@ -321,7 +321,7 @@ void editor_frame() {
             static const char *file;
             static bool show_browser = 1;
             if( ui_browse(&file, &show_browser) ) {
-                os_exec(va("%s %s", ifdef(win32, "start", ifdef(osx, "open", "xdg-open")), file));
+                app_exec(va("%s %s", ifdef(win32, "start", ifdef(osx, "open", "xdg-open")), file));
                 //puts(file);
                 show_browser = 1;
             }

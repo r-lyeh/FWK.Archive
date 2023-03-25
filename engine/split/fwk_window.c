@@ -469,6 +469,8 @@ int window_frame_begin() {
 
     ui_create();
 
+    profile_render();
+ 
 #if 0 // deprecated
     // run user-defined hooks
     for(int i = 0; i < 64; ++i) {
@@ -501,8 +503,6 @@ void window_frame_end() {
         touch_flush();
         sprite_flush();
 
-        profile_render();
- 
         // flush all debugdraw calls before swap
         dd_ontop = 0;
         ddraw_flush();
@@ -658,6 +658,13 @@ uint64_t window_frame() {
 void window_title(const char *title_) {
     snprintf(title, 128, "%s", title_);
     if( !title[0] ) glfwSetWindowTitle(window, title);
+}
+void window_color(unsigned color) {
+    unsigned b = (color >>  0) & 255;
+    unsigned g = (color >>  8) & 255;
+    unsigned r = (color >> 16) & 255;
+    unsigned a = (color >> 24) & 255;
+    glClearColor(r / 255.0, g / 255.0, b / 255.0, 1.0);
 }
 void window_icon(const char *file_icon) {
     unsigned len = file_size(file_icon); // len = len ? len : vfs_size(file_icon); // @fixme: reenable this to allow icons to be put in cooked .zipfiles

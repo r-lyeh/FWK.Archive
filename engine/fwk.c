@@ -101,6 +101,7 @@
 #endif
 
 #line 1 "fwk_ds.c"
+
 // -----------------------------------------------------------------------------
 // sort/less
 
@@ -468,6 +469,28 @@ void (set_free)(set* m) {
     set zero = {0};
     *m = zero;
 }
+
+char *cc4str(unsigned x) {
+    static __thread char type[4+1] = {0};
+    type[3] = (x >> 24ULL) & 255;
+    type[2] = (x >> 16ULL) & 255;
+    type[1] = (x >>  8ULL) & 255;
+    type[0] = (x >>  0ULL) & 255;
+    return type;
+}
+char *cc8str(uint64_t x) {
+    static __thread char type[8+1] = {0};
+    type[7] = (x >> 56ULL) & 255;
+    type[6] = (x >> 48ULL) & 255;
+    type[5] = (x >> 40ULL) & 255;
+    type[4] = (x >> 32ULL) & 255;
+    type[3] = (x >> 24ULL) & 255;
+    type[2] = (x >> 16ULL) & 255;
+    type[1] = (x >>  8ULL) & 255;
+    type[0] = (x >>  0ULL) & 255;
+    return type;
+}
+
 #line 0
 
 #line 1 "fwk_string.c"
@@ -2368,7 +2391,7 @@ frustum frustum_build(mat44 pv) {
     f.b = vec4(pv[ 3]+pv[ 1], pv[ 7]+pv[ 5], pv[11]+pv[ 9], pv[15]+pv[13]);
     f.n = vec4(pv[ 3]+pv[ 2], pv[ 7]+pv[ 6], pv[11]+pv[10], pv[15]+pv[14]);
     f.f = vec4(pv[ 3]-pv[ 2], pv[ 7]-pv[ 6], pv[11]-pv[10], pv[15]-pv[14]);
-    for (int i = 0; i < 6; i++) f.pl[i] = div4(f.pl[i], len3(f.pl[i].xyz));
+    for (int i = 0; i < 6; i++) f.pl[i] = scale4(f.pl[i], 1 / len3(f.pl[i].xyz));
     return f;
 }
 int frustum_test_sphere(frustum f, sphere s) {
@@ -3374,11 +3397,11 @@ int cook(void *userdata) {
         if( logging ) {
             FILE *logfile = fopen(va("cook%d.cmd",job->threadid), "a+t");
             if( logfile ) { fprintf(logfile, "@rem %s\n%s\n", fname, cs.script); fclose(logfile); }
-            // maybe log fprintf(logfile, "@rem %*.s\n", 4096, os_exec_output()); ?
+            // maybe log fprintf(logfile, "@rem %*.s\n", 4096, app_exec_output()); ?
         }
 
         // invoke cooking script and recap status
-        const char *rcout = os_exec(cs.script);
+        const char *rcout = app_exec(cs.script);
         int rc = atoi(rcout);
         int outlen = file_size(cs.finalfile);
         int failed = cs.script[0] ? rc || !outlen : 0;
@@ -3655,7 +3678,7 @@ void cook_cancel() {
 }
 
 int cook_jobs() {
-    int num_jobs = optioni("--cook-jobs", maxf(1.15,cpu_cores()) * 1.75), max_jobs = countof(jobs);
+    int num_jobs = optioni("--cook-jobs", maxf(1.15,app_cores()) * 1.75), max_jobs = countof(jobs);
     ifdef(ems, num_jobs = 0);
     return clampi(num_jobs, 0, max_jobs);
 }
@@ -3914,6 +3937,57 @@ array(char) (xml_blob)(char *key) { // base64 blob
     const char *data = (const char*)node;
     array(char) out = base64__decode(data, strlen(data)); // either array of chars (ok) or null (error)
     return out;
+}
+
+bool data_tests() {
+    // data tests (json5)
+    const char json5[] =
+    "  /* json5 */ // comment\n"
+    "  abc: 42.67, def: true, integer:0x100 \n"
+    "  huge: 2.2239333e5, \n"
+    "  hello: 'world /*comment in string*/ //again', \n"
+    "  children : { a: 1, b: 2, c: 3 },\n"
+    "  array: [+1,2,-3,4,5],    \n"
+    "  invalids : [ nan, NaN, -nan, -NaN, inf, Infinity, -inf, -Infinity ],";
+    if( json_push(json5) ) {
+        assert( json_float("/abc") == 42.67 );
+        assert( json_int("/def") == 1 );
+        assert( json_int("/integer") == 0x100 );
+        assert( json_float("/huge") > 2.22e5 );
+        assert( strlen(json_string("/hello")) == 35 );
+        assert( json_int("/children/a") == 1 );
+        assert( json_int("/children.b") == 2 );
+        assert( json_int("/children[c]") == 3 );
+        assert( json_int("/array[%d]", 2) == -3 );
+        assert( json_count("/invalids") == 8 );
+        assert( isnan(json_float("/invalids[0]")) );
+        assert( !json_find("/non_existing") );
+        assert( PRINTF("json5 tests OK\n") );
+        json_pop();
+    }
+
+    // data tests (xml)
+    const char *xml = // vfs_read("test1.xml");
+    "<!-- XML representation of a person record -->"
+    "<person created=\"2006-11-11T19:23\" modified=\"2006-12-31T23:59\">"
+    "    <firstName>Robert</firstName>"
+    "    <lastName>Smith</lastName>"
+    "    <address type=\"home\">"
+    "        <street>12345 Sixth Ave</street>"
+    "        <city>Anytown</city>"
+    "        <state>CA</state>"
+    "        <postalCode>98765-4321</postalCode>"
+    "    </address>"
+    "</person>";
+    if( xml_push(xml) ) {
+        assert( !strcmp("Robert", xml_string("/person/firstName/$")) );
+        assert( !strcmp("Smith", xml_string("/person/lastName/$")) );
+        assert( !strcmp("home", xml_string("/person/address/@type")) );
+        assert( PRINTF("xml tests OK\n") );
+        xml_pop();
+    }
+
+    return true;
 }
 
 // compression api
@@ -4307,6 +4381,75 @@ char *file_counter(const char *name) {
     }
     return 0;
 }
+
+enum { MD5_HASHLEN = 16 };
+enum { SHA1_HASHLEN = 20 };
+enum { CRC32_HASHLEN = 4 };
+
+void* file_sha1(const char *file) { // 20bytes
+    hash_state hs = {0};
+    sha1_init(&hs);
+    for( FILE *fp = fopen(file, "rb"); fp; fclose(fp), fp = 0) {
+        char buf[8192];
+        for( int inlen; (inlen = fread(buf, 1, sizeof(buf), fp)) > 0; ) {
+            sha1_process(&hs, (const unsigned char *)buf, inlen);
+        }
+    }
+    unsigned char *hash = va("%.*s", SHA1_HASHLEN, "");
+    sha1_done(&hs, hash);
+    return hash;
+}
+
+void* file_md5(const char *file) { // 16bytes
+    hash_state hs = {0};
+    md5_init(&hs);
+    for( FILE *fp = fopen(file, "rb"); fp; fclose(fp), fp = 0) {
+        char buf[8192];
+        for( int inlen; (inlen = fread(buf, 1, sizeof(buf), fp)) > 0; ) {
+            md5_process(&hs, (const unsigned char *)buf, inlen);
+        }
+    }
+    unsigned char *hash = va("%.*s", MD5_HASHLEN, "");
+    md5_done(&hs, hash);
+    return hash;
+}
+
+void* file_crc32(const char *file) { // 4bytes
+    unsigned crc = 0;
+    for( FILE *fp = fopen(file, "rb"); fp; fclose(fp), fp = 0) {
+        char buf[8192];
+        for( int inlen; (inlen = fread(buf, 1, sizeof(buf), fp)) > 0; ) {
+            crc = zip__crc32(crc, buf, inlen); // unsigned int stbiw__crc32(unsigned char *buffer, int len)
+        }
+    }
+    unsigned char *hash = va("%.*s", (int)sizeof(crc), "");
+    memcpy(hash, &crc, sizeof(crc));
+    return hash;
+}
+
+#if 0
+void* crc32_mem(const void *ptr, int inlen) { // 4bytes
+    unsigned hash = 0;
+    hash = zip__crc32(hash, ptr, inlen); // unsigned int stbiw__crc32(unsigned char *buffer, int len)
+    return hash;
+}
+void* md5_mem(const void *ptr, int inlen) { // 16bytes
+    hash_state hs = {0};
+    md5_init(&hs);
+    md5_process(&hs, (const unsigned char *)ptr, inlen);
+    unsigned char *hash = va("%.*s", MD5_HASHLEN, "");
+    md5_done(&hs, hash);
+    return hash;
+}
+void* sha1_mem(const void *ptr, int inlen) { // 20bytes
+    hash_state hs = {0};
+    sha1_init(&hs);
+    sha1_process(&hs, (const unsigned char *)ptr, inlen);
+    unsigned char *hash = va("%.*s", SHA1_HASHLEN, "");
+    sha1_done(&hs, hash);
+    return hash;
+}
+#endif
 
 // -----------------------------------------------------------------------------
 // storage (emscripten only)
@@ -6565,12 +6708,12 @@ static font_t fonts[8] = {0};
 static
 void font_init() {
     do_once {
-        font_face_from_mem(FONT_FACE1, bm_mini_ttf,0, 48, 0);
-        font_face_from_mem(FONT_FACE2, bm_mini_ttf,0, 48, 0);
-        font_face_from_mem(FONT_FACE3, bm_mini_ttf,0, 48, 0);
-        font_face_from_mem(FONT_FACE4, bm_mini_ttf,0, 48, 0);
-        font_face_from_mem(FONT_FACE5, bm_mini_ttf,0, 48, 0);
-        font_face_from_mem(FONT_FACE6, bm_mini_ttf,0, 48, 0);
+        font_face_from_mem(FONT_FACE1, bm_mini_ttf,0, 42.5f, 0);
+        font_face_from_mem(FONT_FACE2, bm_mini_ttf,0, 42.5f, 0);
+        font_face_from_mem(FONT_FACE3, bm_mini_ttf,0, 42.5f, 0);
+        font_face_from_mem(FONT_FACE4, bm_mini_ttf,0, 42.5f, 0);
+        font_face_from_mem(FONT_FACE5, bm_mini_ttf,0, 42.5f, 0);
+        font_face_from_mem(FONT_FACE6, bm_mini_ttf,0, 42.5f, 0);
     }
 }
 
@@ -6638,11 +6781,11 @@ void font_face_from_mem(const char *tag, const void *ttf_bufferv, unsigned ttf_l
     f->font_size = font_size;
     f->scale[0] = 1.0000f; // H1
     f->scale[1] = 1.0000f; // H1
-    f->scale[2] = 0.8000f; // H2
-    f->scale[3] = 0.6000f; // H3
+    f->scale[2] = 0.7500f; // H2
+    f->scale[3] = 0.6600f; // H3
     f->scale[4] = 0.5000f; // H4
-    f->scale[5] = 0.4000f; // H5
-    f->scale[6] = 0.3000f; // H6
+    f->scale[5] = 0.3750f; // H5
+    f->scale[6] = 0.2500f; // H6
 
     const char *vs_filename = 0, *fs_filename = 0;
     const char *vs = vs_filename ? file_read(vs_filename) : mv_vs_source;
@@ -7927,7 +8070,8 @@ bool input_touch_active() {
 // ----------------------------------------------------------------------------
 
 void input_demo() {
-    if( ui_panel("Keyboard",0) ) {
+    if( ui_panel("Input",0) ) {
+        ui_section("Keyboard");
         ui_const_bool("[Key 1]", input(KEY_1));
         ui_const_bool("[Key 2]", input(KEY_2));
         ui_const_bool("[Key 3]", input(KEY_3));
@@ -7943,9 +8087,9 @@ void input_demo() {
         ui_const_bool("[Key 5] Click event", input_click(KEY_5,500) );
         ui_const_bool("[Key 6] Click2 event", input_click2(KEY_6,1000) );
         ui_const_bool("[Key 7] Repeat event", input_repeat(KEY_7,750) );
-        ui_panel_end();
-    }
-    if( ui_panel("Mouse",0) ) {
+        ui_separator();
+
+        ui_section("Mouse");
         ui_const_float("X", input(MOUSE_X));
         ui_const_float("Y", input(MOUSE_Y));
         ui_separator();
@@ -7956,11 +8100,11 @@ void input_demo() {
         ui_const_bool("Right", input(MOUSE_R));
         ui_separator();
         for( int i = 0; i <= CURSOR_SW_AUTO; ++i ) if(ui_button(va("Cursor shape #%d", i))) window_cursor_shape(i);
-        ui_panel_end();
-    }
-    if( ui_panel("GamePad",0) ) {
+        ui_separator();
+
         static int gamepad_id = 0;
         const char *list[] = {"1","2","3","4"};
+        ui_section("GamePads");
         ui_list("Gamepad", list, 4, &gamepad_id);
 
         input_use(gamepad_id);
@@ -8134,7 +8278,6 @@ float ease(float t01, unsigned mode) {
     typedef float (*easing)(float);
     easing modes[] = {
         ease_linear,
-
         ease_out_sine,
         ease_out_quad,
         ease_out_cubic,
@@ -8146,6 +8289,7 @@ float ease(float t01, unsigned mode) {
         ease_out_elastic,
         ease_out_bounce,
 
+        ease_linear,
         ease_in_sine,
         ease_in_quad,
         ease_in_cubic,
@@ -8157,6 +8301,7 @@ float ease(float t01, unsigned mode) {
         ease_in_elastic,
         ease_in_bounce,
 
+        ease_linear,
         ease_inout_sine,
         ease_inout_quad,
         ease_inout_cubic,
@@ -8200,10 +8345,10 @@ vec2  neg2     (vec2   a          ) { return vec2(-a.x, -a.y); }
 vec2  add2     (vec2   a, vec2   b) { return vec2(a.x + b.x, a.y + b.y); }
 vec2  sub2     (vec2   a, vec2   b) { return vec2(a.x - b.x, a.y - b.y); }
 vec2  mul2     (vec2   a, vec2   b) { return vec2(a.x * b.x, a.y * b.y); }
+vec2  div2     (vec2   a, vec2   b) { return vec2(a.x / (b.x + !b.x), a.y / (b.y + !b.y)); }
 vec2  inc2     (vec2   a, float  b) { return vec2(a.x + b, a.y + b); }
 vec2  dec2     (vec2   a, float  b) { return vec2(a.x - b, a.y - b); }
 vec2  scale2   (vec2   a, float  b) { return vec2(a.x * b, a.y * b); }
-vec2  div2     (vec2   a, float  b) { return scale2(a, b ? 1/b : 0.f); }
 vec2  pmod2    (vec2   a, float  b) { return vec2(pmodf(a.x, b), pmodf(a.y, b)); }
 vec2  min2     (vec2   a, vec2   b) { return vec2(minf(a.x, b.x), minf(a.y, b.y)); }
 vec2  max2     (vec2   a, vec2   b) { return vec2(maxf(a.x, b.x), maxf(a.y, b.y)); }
@@ -8216,7 +8361,8 @@ vec2  refl2    (vec2   a, vec2   b) { return sub2(a, scale2(b, 2*dot2(a,b))); }
 float cross2   (vec2   a, vec2   b) { return a.x * b.y - a.y * b.x; } // pseudo cross product
 float len2sq   (vec2   a          ) { return a.x * a.x + a.y * a.y; }
 float len2     (vec2   a          ) { return sqrtf(len2sq(a)); }
-vec2  norm2    (vec2   a          ) { return /*dot(2) == 0 ? a :*/ div2(a, len2(a)); }
+vec2  norm2    (vec2   a          ) { return len2sq(a) == 0 ? a : scale2(a, 1 / len2(a)); }
+vec2  norm2sq  (vec2   a          ) { return len2sq(a) == 0 ? a : scale2(a, 1 / len2sq(a)); }
 int   finite2  (vec2   a          ) { return FINITE(a.x) && FINITE(a.y); }
 vec2  mix2  (vec2 a,vec2 b,float t) { return add2(scale2((a),1-(t)), scale2((b), t)); }
 vec2  clamp2(vec2 v,float a,float b){ return vec2(maxf(minf(b,v.x),a),maxf(minf(b,v.y),a)); }
@@ -8229,10 +8375,10 @@ vec3  neg3     (vec3   a          ) { return vec3(-a.x, -a.y, -a.z); }
 vec3  add3     (vec3   a, vec3   b) { return vec3(a.x + b.x, a.y + b.y, a.z + b.z); }
 vec3  sub3     (vec3   a, vec3   b) { return vec3(a.x - b.x, a.y - b.y, a.z - b.z); }
 vec3  mul3     (vec3   a, vec3   b) { return vec3(a.x * b.x, a.y * b.y, a.z * b.z); }
+vec3  div3     (vec3   a, vec3   b) { return vec3(a.x / (b.x + !b.x), a.y / (b.y + !b.y), a.z / (b.z + !b.z)); }
 vec3  inc3     (vec3   a, float  b) { return vec3(a.x + b, a.y + b, a.z + b); }
 vec3  dec3     (vec3   a, float  b) { return vec3(a.x - b, a.y - b, a.z - b); }
 vec3  scale3   (vec3   a, float  b) { return vec3(a.x * b, a.y * b, a.z * b); }
-vec3  div3     (vec3   a, float  b) { return scale3(a, b ? 1/b : 0.f); }
 vec3  pmod3    (vec3   a, float  b) { return vec3(pmodf(a.x, b), pmodf(a.y, b), pmodf(a.z, b)); }
 vec3  min3     (vec3   a, vec3   b) { return vec3(minf(a.x, b.x), minf(a.y, b.y), minf(a.z, b.z)); }
 vec3  max3     (vec3   a, vec3   b) { return vec3(maxf(a.x, b.x), maxf(a.y, b.y), maxf(a.z, b.z)); }
@@ -8245,8 +8391,8 @@ float dot3     (vec3   a, vec3   b) { return a.x * b.x + a.y * b.y + a.z * b.z; 
 vec3  refl3    (vec3   a, vec3   b) { return sub3(a, scale3(b, 2*dot3(a, b))); }
 float len3sq   (vec3   a          ) { return dot3(a,a); }
 float len3     (vec3   a          ) { return sqrtf(len3sq(a)); }
-vec3  norm3    (vec3   a          ) { return /*dot3(a) == 0 ? a :*/ div3(a, len3(a)); }
-vec3  norm3sq  (vec3   a          ) { return /*dot3(a) == 0 ? a :*/ div3(a, len3sq(a)); }
+vec3  norm3    (vec3   a          ) { return len3sq(a) == 0 ? a : scale3(a, 1 / len3(a)); }
+vec3  norm3sq  (vec3   a          ) { return len3sq(a) == 0 ? a : scale3(a, 1 / len3sq(a)); }
 int   finite3  (vec3   a          ) { return finite2(vec2(a.x,a.y)) && FINITE(a.z); }
 vec3  mix3  (vec3 a,vec3 b,float t) { return add3(scale3((a),1-(t)), scale3((b), t)); }
 vec3  clamp3(vec3 v,float a,float b){ return vec3(maxf(minf(b,v.x),a),maxf(minf(b,v.y),a),maxf(minf(b,v.z),a)); }
@@ -8284,10 +8430,10 @@ vec4  neg4     (vec4   a          ) { return vec4(-a.x, -a.y, -a.z, -a.w); }
 vec4  add4     (vec4   a, vec4   b) { return vec4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w); }
 vec4  sub4     (vec4   a, vec4   b) { return vec4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w); }
 vec4  mul4     (vec4   a, vec4   b) { return vec4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w); }
+vec4  div4     (vec4   a, vec4   b) { return vec4(a.x / (b.x + !b.x), a.y / (b.y + !b.y), a.z / (b.z + !b.z), a.w / (b.w + !b.w)); }
 vec4  inc4     (vec4   a, float  b) { return vec4(a.x + b, a.y + b, a.z + b, a.w + b); }
 vec4  dec4     (vec4   a, float  b) { return vec4(a.x - b, a.y - b, a.z - b, a.w - b); }
 vec4  scale4   (vec4   a, float  b) { return vec4(a.x * b, a.y * b, a.z * b, a.w * b); }
-vec4  div4     (vec4   a, float  b) { return scale4(a, b ? 1/b : 0.f); }
 vec4  pmod4    (vec4   a, float  b) { return vec4(pmodf(a.x, b), pmodf(a.y, b), pmodf(a.z, b), pmodf(a.w, b)); }
 vec4  min4     (vec4   a, vec4   b) { return vec4(minf(a.x, b.x), minf(a.y, b.y), minf(a.z, b.z), minf(a.w, b.w)); }
 vec4  max4     (vec4   a, vec4   b) { return vec4(maxf(a.x, b.x), maxf(a.y, b.y), maxf(a.z, b.z), maxf(a.w, b.w)); }
@@ -8299,8 +8445,8 @@ float dot4     (vec4   a, vec4   b) { return a.x * b.x + a.y * b.y + a.z * b.z +
 vec4  refl4    (vec4   a, vec4   b) { return sub4(a, scale4(b, 2*dot4(a, b))); }
 float len4sq   (vec4   a          ) { return dot4(a,a); }
 float len4     (vec4   a          ) { return sqrtf(len4sq(a)); }
-vec4  norm4    (vec4   a          ) { return /*dot4(a) == 0 ? a :*/ div4(a, len4(a)); }
-vec4  norm4sq  (vec4   a          ) { return /*dot4(a) == 0 ? a :*/ div4(a, len4sq(a)); }
+vec4  norm4    (vec4   a          ) { return len4sq(a) == 0 ? a : scale4(a, 1 / len4(a)); }
+vec4  norm4sq  (vec4   a          ) { return len4sq(a) == 0 ? a : scale4(a, 1 / len4sq(a)); }
 int   finite4  (vec4   a          ) { return finite3(vec3(a.x,a.y,a.z)) && FINITE(a.w); }
 vec4  mix4  (vec4 a,vec4 b,float t) { return add4(scale4((a),1-(t)), scale4((b), t)); }
 vec4  clamp4(vec4 v,float a,float b){ return vec4(maxf(minf(b,v.x),a),maxf(minf(b,v.y),a),maxf(minf(b,v.z),a),maxf(minf(b,v.w),a)); }
@@ -9081,6 +9227,13 @@ array(char) download( const char *url ) {
         }
     }
     return out;
+}
+
+bool network_tests() {
+    // network test (https)
+    array(char) webfile = download("https://www.google.com/");
+    printf("Network test: %d bytes downloaded from google.com\n", array_count(webfile));
+    return true;
 }
 
 int portname( const char *service_name, unsigned retries ) {
@@ -11242,7 +11395,7 @@ static void sprite_rebuild_meshes() {
                 array_push( sprite_indices, sprite_index(C, A, B) ); // Triangle 2
             }
 
-            mesh_upgrade(&bt->mesh, "p3 t2 c4B", 0,array_count(sprite_vertices),sprite_vertices, 3*array_count(sprite_indices),sprite_indices, MESH_STATIC);
+            mesh_update(&bt->mesh, "p3 t2 c4B", 0,array_count(sprite_vertices),sprite_vertices, 3*array_count(sprite_indices),sprite_indices, MESH_STATIC);
 
             // clear elements from queue
             sprite_count += array_count(bt->sprites);
@@ -11295,7 +11448,7 @@ static void sprite_rebuild_meshes() {
                 array_push( sprite_indices, sprite_index(C, A, B) ); // Triangle 2
             }
 
-            mesh_upgrade(&bt->mesh, "p3 t2 c4B", 0,array_count(sprite_vertices),sprite_vertices, 3*array_count(sprite_indices),sprite_indices, MESH_STATIC);
+            mesh_update(&bt->mesh, "p3 t2 c4B", 0,array_count(sprite_vertices),sprite_vertices, 3*array_count(sprite_indices),sprite_indices, MESH_STATIC);
 
             // clear elements from queue
             sprite_count += array_count(bt->sprites);
@@ -12260,7 +12413,7 @@ cubemap_t cubemap6( const image_t images[6], int flags ) {
                         scale3(skyY[i], -2.0f * (y / (img.h - 1.0f)) + 1.0f)),
                     skyDir[i]); // texelDirection;
                 float l = len3(n);
-                vec3 light = div3(vec3(p[0], p[1], p[2]), 255.0f * l * l * l); // texelSolidAngle * texel_radiance;
+                vec3 light = scale3(vec3(p[0], p[1], p[2]), 1 / (255.0f * l * l * l)); // texelSolidAngle * texel_radiance;
                 n = norm3(n);
                 c.sh[0] = add3(c.sh[0], scale3(light,  0.282095f));
                 c.sh[1] = add3(c.sh[1], scale3(light, -0.488603f * n.y * 2.0 / 3.0));
@@ -12324,7 +12477,7 @@ skybox_t skybox(const char *asset, int flags) {
     // sky mesh
     vec3 vertices[] = {{+1,-1,+1},{+1,+1,+1},{+1,+1,-1},{-1,+1,-1},{+1,-1,-1},{-1,-1,-1},{-1,-1,+1},{-1,+1,+1}};
     unsigned indices[] = { 0, 1, 2, 3, 4, 5, 6, 3, 7, 1, 6, 0, 4, 2 };
-    sky.geometry = mesh_create("p3", 0,countof(vertices),vertices, countof(indices),indices, MESH_TRIANGLE_STRIP);
+    mesh_update(&sky.geometry, "p3", 0,countof(vertices),vertices, countof(indices),indices, MESH_TRIANGLE_STRIP);
 
     // sky program
     sky.flags = flags ? flags : !!asset; // either cubemap or rayleigh
@@ -12395,13 +12548,12 @@ void skybox_destroy(skybox_t *sky) {
 // -----------------------------------------------------------------------------
 // meshes
 
-mesh_t mesh_create(const char *format, int vertex_stride,int vertex_count,const void *vertex_data, int index_count,const void *index_data, int flags) {
+mesh_t mesh() {
     mesh_t z = {0};
-    mesh_upgrade(&z, format,  vertex_stride,vertex_count,vertex_data,  index_count,index_data,  flags);
     return z;
 }
 
-void mesh_upgrade(mesh_t *m, const char *format, int vertex_stride,int vertex_count,const void *vertex_data, int index_count,const void *index_data, int flags) {
+void mesh_update(mesh_t *m, const char *format, int vertex_stride,int vertex_count,const void *vertex_data, int index_count,const void *index_data, int flags) {
     m->flags = flags;
 
     // setup
@@ -12479,16 +12631,18 @@ void mesh_upgrade(mesh_t *m, const char *format, int vertex_stride,int vertex_co
 }
 
 void mesh_render(mesh_t *sm) {
-    glBindVertexArray(sm->vao);
-    if( sm->ibo ) { // with indices
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sm->ibo); // <-- why intel?
-        glDrawElements(sm->flags & MESH_TRIANGLE_STRIP ? GL_TRIANGLE_STRIP : GL_TRIANGLES, sm->index_count, GL_UNSIGNED_INT, (char*)0);
-        profile_incstat("Render.num_drawcalls", +1);
-        profile_incstat("Render.num_triangles", sm->index_count/3);
-    } else { // with vertices only
-        glDrawArrays(sm->flags & MESH_TRIANGLE_STRIP ? GL_TRIANGLE_STRIP : GL_TRIANGLES, 0, sm->vertex_count /* / 3 */);
-        profile_incstat("Render.num_drawcalls", +1);
-        profile_incstat("Render.num_triangles", sm->vertex_count/3);
+    if( sm->vao ) {
+        glBindVertexArray(sm->vao);
+        if( sm->ibo ) { // with indices
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sm->ibo); // <-- why intel?
+            glDrawElements(sm->flags & MESH_TRIANGLE_STRIP ? GL_TRIANGLE_STRIP : GL_TRIANGLES, sm->index_count, GL_UNSIGNED_INT, (char*)0);
+            profile_incstat("Render.num_drawcalls", +1);
+            profile_incstat("Render.num_triangles", sm->index_count/3);
+        } else { // with vertices only
+            glDrawArrays(sm->flags & MESH_TRIANGLE_STRIP ? GL_TRIANGLE_STRIP : GL_TRIANGLES, 0, sm->vertex_count /* / 3 */);
+            profile_incstat("Render.num_drawcalls", +1);
+            profile_incstat("Render.num_triangles", sm->vertex_count/3);
+        }
     }
 }
 
@@ -15003,6 +15157,8 @@ void ddraw_init() {
 }
 
 void ddraw_demo() {
+    ddraw_color_push(YELLOW);
+
     // freeze current frame for (frustum) camera forensics
     static mat44 projview_copy;
     do_once {
@@ -15053,6 +15209,8 @@ void ddraw_demo() {
     ddraw_point(vec3(-2,0,-2));
     ddraw_color(PURPLE);
     ddraw_sphere(vec3(-3,0,-3),1);
+
+    ddraw_color_pop();
 }
 #line 0
 
@@ -15070,6 +15228,7 @@ camera_t camera() {
     cam.position = vec3(10,10,10);
     cam.last_look = cam.last_move = vec3(0,0,0);
     cam.up = vec3(0,1,0);
+    cam.fov = 45;
 
     // @todo: remove this hack
     static int smoothing = -1; if( smoothing < 0 ) smoothing = flag("--camera-smooth");
@@ -15118,8 +15277,8 @@ void camera_move(camera_t *cam, float incx, float incy, float incz) {
     camera_fps(cam, 0, 0);
 }
 
-void camera_teleport(camera_t *cam, float px, float py, float pz) {
-    cam->position = vec3(px,py,pz);
+void camera_teleport(camera_t *cam, vec3 pos) {
+    cam->position = pos;
     camera_fps(cam, 0, 0);
 }
 
@@ -15145,6 +15304,10 @@ void camera_enable(camera_t *cam) {
     camera_fps(cam, 0, 0);
 }
 
+void camera_fov(camera_t *cam, float fov) {
+    cam->fov = fov;
+}
+
 void camera_fps(camera_t *cam, float yaw, float pitch) {
     last_camera = cam;
 
@@ -15168,7 +15331,7 @@ void camera_fps(camera_t *cam, float yaw, float pitch) {
     cam->look = norm3(vec3(cos(y) * cos(p), sin(p), sin(y) * cos(p)));
 
     lookat44(cam->view, cam->position, add3(cam->position, cam->look), cam->up); // eye,center,up
-    perspective44(cam->proj, 45, window_width() / ((float)window_height()+!window_height()), 0.01f, 1000.f);
+    perspective44(cam->proj, cam->fov, window_width() / ((float)window_height()+!window_height()), 0.01f, 1000.f);
 
 #if 0 // isometric/dimetric
     #define orthogonal(proj, fov, aspect, znear, zfar) \
@@ -15638,6 +15801,13 @@ void script_init() {
         atexit(script_quit);
     }
 }
+
+bool script_tests() {
+    // script test (lua)
+    script_run( "-- Bye.lua\nio.write(\"script test: Bye world!, from \", _VERSION, \"\\n\")" );    
+    return true;
+}
+
 #undef XMACRO
 #line 0
 
@@ -15731,7 +15901,7 @@ const char *app_cache() {
     return buffer;
 }
 
-const char * os_exec( const char *cmd ) {
+const char * app_exec( const char *cmd ) {
     static __thread char output[4096+16] = {0};
 
     if( !cmd[0] ) return "0               ";
@@ -15919,7 +16089,7 @@ void signal_handler_debug(int signal) {
     fprintf(stderr, "Error: unexpected signal %s (%d)\n%s\n", signal_name(signal), signal, callstack(16));
     exit(-1);
 }
-void signals_install(void) {
+void signal_hooks(void) {
     // expected signals
     signal(SIGINT, signal_handler_quit);
     signal(SIGTERM, signal_handler_quit);
@@ -15942,7 +16112,7 @@ void hang() {
     for(;;);
 }
 int main(int argc, char **argv) {
-    signals_install();
+    signal_hooks();
     crash(); // hang();
 }
 #define main main__
@@ -16001,7 +16171,7 @@ double  * big64pf(void *p, int sz) { if(is_little()) { double   *n = (double   *
 #include <sched.h>
 #endif
 
-int cpu_cores() {
+int app_cores() {
 #if is(win32)
     DWORD_PTR pm, sm;
     if( GetProcessAffinityMask(GetCurrentProcess(), &pm, &sm) ) if( pm ) {
@@ -16049,7 +16219,7 @@ int cpu_cores() {
 #if is(win32)
 #include <winsock2.h>
 
-int battery() {
+int app_battery() {
     SYSTEM_POWER_STATUS ibstatus;
 
     if (GetSystemPowerStatus(&ibstatus) == FALSE) {
@@ -16068,7 +16238,7 @@ int battery() {
 #include <unistd.h>
 #include <fcntl.h>
 
-int battery() {
+int app_battery() {
     static int battery_status_handle;
     static int battery_capacity_handle;
 
@@ -16101,7 +16271,7 @@ int battery() {
 #import <IOKit/ps/IOPowerSources.h>
 #import <IOKit/ps/IOPSKeys.h>
 
-int battery() {
+int app_battery() {
     static CFDictionaryRef psrc;
 
     do_once {
@@ -16129,7 +16299,7 @@ int battery() {
 
 #else
 
-int battery() {
+int app_battery() {
     return 0;
 }
 
@@ -17223,6 +17393,252 @@ int ui_active() {
 }
 
 static
+int ui_enable_(int enabled) {
+    static struct nk_style off, on;
+    do_once {
+        off = on = ui_ctx->style;
+        float alpha = 0.5f;
+
+        off.text.color.a *= alpha;
+
+        off.button.normal.data.color.a *= alpha;
+        off.button.hover.data.color.a *= alpha;
+        off.button.active.data.color.a *= alpha;
+        off.button.border_color.a *= alpha;
+        off.button.text_background.a *= alpha;
+        off.button.text_normal.a *= alpha;
+        off.button.text_hover.a *= alpha;
+        off.button.text_active.a *= alpha;
+
+        off.contextual_button.normal.data.color.a *= alpha;
+        off.contextual_button.hover.data.color.a *= alpha;
+        off.contextual_button.active.data.color.a *= alpha;
+        off.contextual_button.border_color.a *= alpha;
+        off.contextual_button.text_background.a *= alpha;
+        off.contextual_button.text_normal.a *= alpha;
+        off.contextual_button.text_hover.a *= alpha;
+        off.contextual_button.text_active.a *= alpha;
+
+        off.menu_button.normal.data.color.a *= alpha;
+        off.menu_button.hover.data.color.a *= alpha;
+        off.menu_button.active.data.color.a *= alpha;
+        off.menu_button.border_color.a *= alpha;
+        off.menu_button.text_background.a *= alpha;
+        off.menu_button.text_normal.a *= alpha;
+        off.menu_button.text_hover.a *= alpha;
+        off.menu_button.text_active.a *= alpha;
+
+        off.option.normal.data.color.a *= alpha;
+        off.option.hover.data.color.a *= alpha;
+        off.option.active.data.color.a *= alpha;
+        off.option.border_color.a *= alpha;
+        off.option.cursor_normal.data.color.a *= alpha;
+        off.option.cursor_hover.data.color.a *= alpha;
+        off.option.text_normal.a *= alpha;
+        off.option.text_hover.a *= alpha;
+        off.option.text_active.a *= alpha;
+        off.option.text_background.a *= alpha;
+
+        off.checkbox.normal.data.color.a *= alpha;
+        off.checkbox.hover.data.color.a *= alpha;
+        off.checkbox.active.data.color.a *= alpha;
+        off.checkbox.border_color.a *= alpha;
+        off.checkbox.cursor_normal.data.color.a *= alpha;
+        off.checkbox.cursor_hover.data.color.a *= alpha;
+        off.checkbox.text_normal.a *= alpha;
+        off.checkbox.text_hover.a *= alpha;
+        off.checkbox.text_active.a *= alpha;
+        off.checkbox.text_background.a *= alpha;
+
+        off.selectable.normal.data.color.a *= alpha;
+        off.selectable.hover.data.color.a *= alpha;
+        off.selectable.pressed.data.color.a *= alpha;
+        off.selectable.normal_active.data.color.a *= alpha;
+        off.selectable.hover_active.data.color.a *= alpha;
+        off.selectable.pressed_active.data.color.a *= alpha;
+        off.selectable.text_normal.a *= alpha;
+        off.selectable.text_hover.a *= alpha;
+        off.selectable.text_pressed.a *= alpha;
+        off.selectable.text_normal_active.a *= alpha;
+        off.selectable.text_hover_active.a *= alpha;
+        off.selectable.text_pressed_active.a *= alpha;
+        off.selectable.text_background.a *= alpha;
+
+        off.slider.normal.data.color.a *= alpha;
+        off.slider.hover.data.color.a *= alpha;
+        off.slider.active.data.color.a *= alpha;
+        off.slider.border_color.a *= alpha;
+        off.slider.bar_normal.a *= alpha;
+        off.slider.bar_hover.a *= alpha;
+        off.slider.bar_active.a *= alpha;
+        off.slider.bar_filled.a *= alpha;
+        off.slider.cursor_normal.data.color.a *= alpha;
+        off.slider.cursor_hover.data.color.a *= alpha;
+        off.slider.cursor_active.data.color.a *= alpha;
+        off.slider.dec_button.normal.data.color.a *= alpha;
+        off.slider.dec_button.hover.data.color.a *= alpha;
+        off.slider.dec_button.active.data.color.a *= alpha;
+        off.slider.dec_button.border_color.a *= alpha;
+        off.slider.dec_button.text_background.a *= alpha;
+        off.slider.dec_button.text_normal.a *= alpha;
+        off.slider.dec_button.text_hover.a *= alpha;
+        off.slider.dec_button.text_active.a *= alpha;
+        off.slider.inc_button.normal.data.color.a *= alpha;
+        off.slider.inc_button.hover.data.color.a *= alpha;
+        off.slider.inc_button.active.data.color.a *= alpha;
+        off.slider.inc_button.border_color.a *= alpha;
+        off.slider.inc_button.text_background.a *= alpha;
+        off.slider.inc_button.text_normal.a *= alpha;
+        off.slider.inc_button.text_hover.a *= alpha;
+        off.slider.inc_button.text_active.a *= alpha;
+
+        off.progress.normal.data.color.a *= alpha;
+        off.progress.hover.data.color.a *= alpha;
+        off.progress.active.data.color.a *= alpha;
+        off.progress.border_color.a *= alpha;
+        off.progress.cursor_normal.data.color.a *= alpha;
+        off.progress.cursor_hover.data.color.a *= alpha;
+        off.progress.cursor_active.data.color.a *= alpha;
+        off.progress.cursor_border_color.a *= alpha;
+
+        off.property.normal.data.color.a *= alpha;
+        off.property.hover.data.color.a *= alpha;
+        off.property.active.data.color.a *= alpha;
+        off.property.border_color.a *= alpha;
+        off.property.label_normal.a *= alpha;
+        off.property.label_hover.a *= alpha;
+        off.property.label_active.a *= alpha;
+        off.property.edit.normal.data.color.a *= alpha;
+        off.property.edit.hover.data.color.a *= alpha;
+        off.property.edit.active.data.color.a *= alpha;
+        off.property.edit.border_color.a *= alpha;
+        off.property.edit.cursor_normal.a *= alpha;
+        off.property.edit.cursor_hover.a *= alpha;
+        off.property.edit.cursor_text_normal.a *= alpha;
+        off.property.edit.cursor_text_hover.a *= alpha;
+        off.property.edit.text_normal.a *= alpha;
+        off.property.edit.text_hover.a *= alpha;
+        off.property.edit.text_active.a *= alpha;
+        off.property.edit.selected_normal.a *= alpha;
+        off.property.edit.selected_hover.a *= alpha;
+        off.property.edit.selected_text_normal.a *= alpha;
+        off.property.edit.selected_text_hover.a *= alpha;
+        off.property.dec_button.normal.data.color.a *= alpha;
+        off.property.dec_button.hover.data.color.a *= alpha;
+        off.property.dec_button.active.data.color.a *= alpha;
+        off.property.dec_button.border_color.a *= alpha;
+        off.property.dec_button.text_background.a *= alpha;
+        off.property.dec_button.text_normal.a *= alpha;
+        off.property.dec_button.text_hover.a *= alpha;
+        off.property.dec_button.text_active.a *= alpha;
+        off.property.inc_button.normal.data.color.a *= alpha;
+        off.property.inc_button.hover.data.color.a *= alpha;
+        off.property.inc_button.active.data.color.a *= alpha;
+        off.property.inc_button.border_color.a *= alpha;
+        off.property.inc_button.text_background.a *= alpha;
+        off.property.inc_button.text_normal.a *= alpha;
+        off.property.inc_button.text_hover.a *= alpha;
+        off.property.inc_button.text_active.a *= alpha;
+
+        off.edit.normal.data.color.a *= alpha;
+        off.edit.hover.data.color.a *= alpha;
+        off.edit.active.data.color.a *= alpha;
+        off.edit.border_color.a *= alpha;
+        off.edit.cursor_normal.a *= alpha;
+        off.edit.cursor_hover.a *= alpha;
+        off.edit.cursor_text_normal.a *= alpha;
+        off.edit.cursor_text_hover.a *= alpha;
+        off.edit.text_normal.a *= alpha;
+        off.edit.text_hover.a *= alpha;
+        off.edit.text_active.a *= alpha;
+        off.edit.selected_normal.a *= alpha;
+        off.edit.selected_hover.a *= alpha;
+        off.edit.selected_text_normal.a *= alpha;
+        off.edit.selected_text_hover.a *= alpha;
+
+        off.chart.background.data.color.a *= alpha;
+        off.chart.border_color.a *= alpha;
+        off.chart.selected_color.a *= alpha;
+        off.chart.color.a *= alpha;
+
+        off.scrollh.normal.data.color.a *= alpha;
+        off.scrollh.hover.data.color.a *= alpha;
+        off.scrollh.active.data.color.a *= alpha;
+        off.scrollh.border_color.a *= alpha;
+        off.scrollh.cursor_normal.data.color.a *= alpha;
+        off.scrollh.cursor_hover.data.color.a *= alpha;
+        off.scrollh.cursor_active.data.color.a *= alpha;
+        off.scrollh.cursor_border_color.a *= alpha;
+
+        off.scrollv.normal.data.color.a *= alpha;
+        off.scrollv.hover.data.color.a *= alpha;
+        off.scrollv.active.data.color.a *= alpha;
+        off.scrollv.border_color.a *= alpha;
+        off.scrollv.cursor_normal.data.color.a *= alpha;
+        off.scrollv.cursor_hover.data.color.a *= alpha;
+        off.scrollv.cursor_active.data.color.a *= alpha;
+        off.scrollv.cursor_border_color.a *= alpha;
+
+        off.tab.background.data.color.a *= alpha;
+        off.tab.border_color.a *= alpha;
+        off.tab.text.a *= alpha;
+
+        off.combo.normal.data.color.a *= alpha;
+        off.combo.hover.data.color.a *= alpha;
+        off.combo.active.data.color.a *= alpha;
+        off.combo.border_color.a *= alpha;
+        off.combo.label_normal.a *= alpha;
+        off.combo.label_hover.a *= alpha;
+        off.combo.label_active.a *= alpha;
+        off.combo.symbol_normal.a *= alpha;
+        off.combo.symbol_hover.a *= alpha;
+        off.combo.symbol_active.a *= alpha;
+        off.combo.button.normal.data.color.a *= alpha;
+        off.combo.button.hover.data.color.a *= alpha;
+        off.combo.button.active.data.color.a *= alpha;
+        off.combo.button.border_color.a *= alpha;
+        off.combo.button.text_background.a *= alpha;
+        off.combo.button.text_normal.a *= alpha;
+        off.combo.button.text_hover.a *= alpha;
+        off.combo.button.text_active.a *= alpha;
+
+        off.window.fixed_background.data.color.a *= alpha;
+        off.window.background.a *= alpha;
+        off.window.border_color.a *= alpha;
+        off.window.popup_border_color.a *= alpha;
+        off.window.combo_border_color.a *= alpha;
+        off.window.contextual_border_color.a *= alpha;
+        off.window.menu_border_color.a *= alpha;
+        off.window.group_border_color.a *= alpha;
+        off.window.tooltip_border_color.a *= alpha;
+        off.window.scaler.data.color.a *= alpha;
+        off.window.header.normal.data.color.a *= alpha;
+        off.window.header.hover.data.color.a *= alpha;
+        off.window.header.active.data.color.a *= alpha;
+    }
+    static struct nk_input input;
+    if (!enabled) {
+        ui_alpha_push(0.5);
+        ui_ctx->style = off; // .button = off.button; 
+        input = ui_ctx->input;
+        memset(&ui_ctx->input, 0, sizeof(ui_ctx->input));
+    } else {
+        ui_alpha_pop();
+        ui_ctx->style = on; // .button = on.button;
+        ui_ctx->input = input;
+    }
+    return enabled;
+}
+
+static int ui_is_enabled = 1;
+int ui_enable() {
+    return ui_is_enabled ? 0 : ui_enable_(ui_is_enabled = 1);
+}
+int ui_disable() {
+    return ui_is_enabled ? ui_enable_(ui_is_enabled = 0) ^ 1 : 0;
+}
+
+static
 void ui_destroy(void) {
     if(ui_ctx) {
         nk_glfw3_shutdown(&nk_glfw); // nk_sdl_shutdown();
@@ -17236,6 +17652,8 @@ void ui_create() {
     if( ui_dirty ) {
         nk_glfw3_new_frame(&nk_glfw); //g->nk_glfw);
         ui_dirty = 0;
+
+        ui_enable();
     }
 }
 
@@ -17841,13 +18259,16 @@ static
 int nk_button_transparent(struct nk_context *ctx, const char *text) {
     static struct nk_style_button transparent_style;
     do_once transparent_style = ctx->style.button;
+    do_once transparent_style.text_alignment = NK_TEXT_ALIGN_CENTERED|NK_TEXT_ALIGN_MIDDLE;
     do_once transparent_style.normal.data.color = nk_rgba(0,0,0,0);
     do_once transparent_style.border_color = nk_rgba(0,0,0,0);
     do_once transparent_style.active = transparent_style.normal;
     do_once transparent_style.hover = transparent_style.normal;
     do_once transparent_style.hover.data.color = nk_rgba(0,0,0,127);
-    transparent_style.text_alignment = NK_TEXT_ALIGN_CENTERED|NK_TEXT_ALIGN_MIDDLE;
-
+    transparent_style.text_background.a = 255 * ui_alpha;
+    transparent_style.text_normal.a = 255 * ui_alpha;
+    transparent_style.text_hover.a = 255 * ui_alpha;
+    transparent_style.text_active.a = 255 * ui_alpha;
     return nk_button_label_styled(ctx, &transparent_style, text);
 }
 
@@ -18005,29 +18426,29 @@ int ui_button_(const char *text) {
 
     if( 1 ) {
 #if UI_BUTTON_MONOCHROME
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_normal, nk_rgb(0,0,0));
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_hover,  nk_rgb(0,0,0));
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_active, nk_rgb(0,0,0));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_normal, nk_rgba(0,0,0,ui_alpha));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_hover,  nk_rgba(0,0,0,ui_alpha));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_active, nk_rgba(0,0,0,ui_alpha));
 
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.normal.data.color, nk_hsv_f(ui_hue,0.0,0.8));
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.hover.data.color,  nk_hsv_f(ui_hue,0.0,1.0));
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.active.data.color, nk_hsv_f(ui_hue,0.0,0.4));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.normal.data.color, nk_hsva_f(ui_hue,0.0,0.8*ui_alpha));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.hover.data.color,  nk_hsva_f(ui_hue,0.0,1.0*ui_alpha));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.active.data.color, nk_hsva_f(ui_hue,0.0,0.4*ui_alpha));
 #elif 0 // old
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_normal, nk_rgb(0,0,0));
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_hover,  nk_rgb(0,0,0));
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_active, nk_rgb(0,0,0));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_normal, nk_rgba(0,0,0,ui_alpha));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_hover,  nk_rgba(0,0,0,ui_alpha));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_active, nk_rgba(0,0,0,ui_alpha));
 
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.normal.data.color, nk_hsv_f(ui_hue,0.75,0.8));
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.hover.data.color,  nk_hsv_f(ui_hue,1.00,1.0));
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.active.data.color, nk_hsv_f(ui_hue,0.60,0.4));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.normal.data.color, nk_hsva_f(ui_hue,0.75,0.8*ui_alpha));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.hover.data.color,  nk_hsva_f(ui_hue,1.00,1.0*ui_alpha));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.active.data.color, nk_hsva_f(ui_hue,0.60,0.4*ui_alpha));
 #else // new
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_normal, nk_rgba(0,0,0,255));
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_hover,  nk_rgba(28,28,28,255));
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_active, nk_rgb(0,0,0));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_normal, nk_rgba_f(0.00,0.00,0.00,ui_alpha));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_hover,  nk_rgba_f(0.11,0.11,0.11,ui_alpha));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.text_active, nk_rgba_f(0.00,0.00,0.00,ui_alpha));
 
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.normal.data.color, nk_hsva_f(ui_hue,0.80,0.6,0.90));
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.hover.data.color,  nk_hsva_f(ui_hue,0.85,0.9,0.90));
-        nk_style_push_color(ui_ctx, &ui_ctx->style.button.active.data.color, nk_hsva_f(ui_hue,0.80,0.6,0.90));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.normal.data.color, nk_hsva_f(ui_hue,0.80,0.6,0.90*ui_alpha));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.hover.data.color,  nk_hsva_f(ui_hue,0.85,0.9,0.90*ui_alpha));
+        nk_style_push_color(ui_ctx, &ui_ctx->style.button.active.data.color, nk_hsva_f(ui_hue,0.80,0.6,0.90*ui_alpha));
 #endif
     }
 
@@ -18122,7 +18543,7 @@ int ui_color4(const char *label, float *color4) {
     nk_layout_row_dynamic(ui_ctx, 0, 2 - (label ? !label[0] : 1));
     ui_label_(label, NK_TEXT_LEFT);
 
-    struct nk_colorf after = { color4[0]/255, color4[1]/255, color4[2]/255, color4[3]/255 }, before = after;
+    struct nk_colorf after = { color4[0]*ui_alpha/255, color4[1]*ui_alpha/255, color4[2]*ui_alpha/255, color4[3]/255 }, before = after;
     if (nk_combo_begin_color(ui_ctx, nk_rgb_cf(after), nk_vec2(200,400))) {
         nk_layout_row_dynamic(ui_ctx, 120, 1);
         after = nk_color_picker(ui_ctx, after, NK_RGBA);
@@ -18168,7 +18589,7 @@ int ui_color3(const char *label, float *color3) {
     nk_layout_row_dynamic(ui_ctx, 0, 2 - (label ? !label[0] : 1));
     ui_label_(label, NK_TEXT_LEFT);
 
-    struct nk_colorf after = { color3[0]/255, color3[1]/255, color3[2]/255, 1 }, before = after;
+    struct nk_colorf after = { color3[0]*ui_alpha/255, color3[1]*ui_alpha/255, color3[2]*ui_alpha/255, 1 }, before = after;
     if (nk_combo_begin_color(ui_ctx, nk_rgb_cf(after), nk_vec2(200,400))) {
         nk_layout_row_dynamic(ui_ctx, 120, 1);
         after = nk_color_picker(ui_ctx, after, NK_RGB);
@@ -18232,7 +18653,7 @@ int ui_slider2(const char *label, float *slider, const char *caption) {
     text.padding.x = item_padding.x;
     text.padding.y = item_padding.y;
     text.background = style->window.background;
-    text.text = nk_rgb(255,255,255);
+    text.text = nk_rgba_f(1,1,1,ui_alpha);
 
         nk_size val = *slider * 1000;
         int chg = nk_progress(ui_ctx, &val, 1000, NK_MODIFIABLE);
@@ -18393,7 +18814,7 @@ int ui_subimage(const char *label, handle id, unsigned iw, unsigned ih, unsigned
 
     struct nk_rect bounds; nk_layout_peek(&bounds, ui_ctx); bounds.w -= 10; // bounds.w *= 0.95f;
 
-    int ret = nk_button_image(ui_ctx, nk_subimage_id((int)id, iw, ih, nk_rect(sx,sy,sw,sh)));
+    int ret = nk_button_image_styled(ui_ctx, &ui_ctx->style.button, nk_subimage_id((int)id, iw, ih, nk_rect(sx,sy,sw,sh)));
     if( !ret ) {
         ret |= input(MOUSE_L) && nk_input_is_mouse_hovering_rect(&ui_ctx->input, bounds); // , true);
     }
@@ -18673,14 +19094,16 @@ int ui_demo(int do_windows) {
     static uint8_t bitmask = 0x55;
     static int hits = 0;
     static int window1 = 0, window2 = 0, window3 = 0;
+    static int disable_all = 0;
 
     if( ui_panel("UI", 0) ) {
+        int choice = ui_toolbar("Browser;Toast@Notify;Toggle on/off");
+            if(choice == 1) show_browser = true;
+            if(choice == 2) ui_notify(va("My random toast (%d)", rand()), va("This is notification #%d", ++hits));
+            if(choice == 3) disable_all ^= 1;
 
-        switch( ui_toolbar("Browser;Toast@Notify") ) {
-            default: break;
-            case 1: show_browser = true; break;
-            case 2: ui_notify(va("My random toast (%d)", rand()), va("This is notification #%d", ++hits));
-        }
+        if( disable_all ) ui_disable();
+
         if( ui_browse(&browsed_file, &show_browser) ) puts(browsed_file);
 
         if( ui_section("Labels")) {}
@@ -18727,6 +19150,8 @@ int ui_demo(int do_windows) {
         if( ui_buttons(2, "yes", "no") ) { puts("button clicked"); }
         if( ui_buttons(3, "yes", "no", "maybe") ) { puts("button clicked"); }
         if( ui_dialog("my dialog", __FILE__ "\n" __DATE__ "\n" "Public Domain.", 2/*two buttons*/, &show_dialog) ) {}
+
+        if( disable_all ) ui_enable();
 
         ui_panel_end();
     }
@@ -18827,11 +19252,9 @@ void (profile_render)() {
     if( !has_menu ) {
         static int cook_on_demand; do_once cook_on_demand = COOK_ON_DEMAND;
         if( !cook_on_demand ) {
-            // render profiler, unless we are in the cooking stage
-            // also, we defer profile from rendering some initial frames, so the user may have chance to actually call any UI call before us
-            // (given the UI policy nature, first-called first-served, we dont want profile tab to be on top of all other tabs)
-            static unsigned frames = 0; if(frames <= 3) frames += cook_progress() >= 100;
-            if( frames <= 3 ) return;
+            // render profiler, unless we are in the cook progress screen
+            static unsigned frames = 0; if(frames <= 0) frames += cook_progress() >= 100;
+            if( frames <= 0 ) return;
         }
     }
 
@@ -19589,6 +20012,8 @@ int window_frame_begin() {
 
     ui_create();
 
+    profile_render();
+ 
 #if 0 // deprecated
     // run user-defined hooks
     for(int i = 0; i < 64; ++i) {
@@ -19621,8 +20046,6 @@ void window_frame_end() {
         touch_flush();
         sprite_flush();
 
-        profile_render();
- 
         // flush all debugdraw calls before swap
         dd_ontop = 0;
         ddraw_flush();
@@ -19778,6 +20201,13 @@ uint64_t window_frame() {
 void window_title(const char *title_) {
     snprintf(title, 128, "%s", title_);
     if( !title[0] ) glfwSetWindowTitle(window, title);
+}
+void window_color(unsigned color) {
+    unsigned b = (color >>  0) & 255;
+    unsigned g = (color >>  8) & 255;
+    unsigned r = (color >> 16) & 255;
+    unsigned a = (color >> 24) & 255;
+    glClearColor(r / 255.0, g / 255.0, b / 255.0, 1.0);
 }
 void window_icon(const char *file_icon) {
     unsigned len = file_size(file_icon); // len = len ? len : vfs_size(file_icon); // @fixme: reenable this to allow icons to be put in cooked .zipfiles
@@ -20537,7 +20967,10 @@ int main() {
 // AI framework
 // - rlyeh, public domain.
 //
-// original code by https://github.com/Cultrarius/Swarmz (UNLICENSE)
+// [src] original A-star code by @mmozeiko (PD) - https://gist.github.com/mmozeiko/68f0a8459ef2f98bcd879158011cc275
+// [src] original swarm/boids code by @Cultrarius (UNLICENSE) - https://github.com/Cultrarius/Swarmz
+
+// boids/swarm -----------------------------------------------------------------
 
 vec3 rnd3() { // random uniform
     float theta = randf() * C_PI * 2;
@@ -20786,6 +21219,324 @@ int ui_swarm(swarm_t *self) {
     rc |= ui_float( "Max Velocity", &self->max_velocity);
 
     return rc;
+}
+
+// pathfinding -----------------------------------------------------------------
+
+static
+int pathfind_astar(int width, int height, const unsigned* map, vec2i src, vec2i dst, vec2i* path, size_t maxpath) {
+#define ALLOW_DIAGONAL_MOVEMENT 1
+
+#if ALLOW_DIAGONAL_MOVEMENT
+    #define ASTAR_DIR_COUNT 8
+#else
+    #define ASTAR_DIR_COUNT 4
+#endif
+
+    static const vec2i dir[ASTAR_DIR_COUNT] =
+    {
+        {  1,  0 },
+        {  0,  1 },
+        { -1,  0 },
+        {  0, -1 },
+#if ALLOW_DIAGONAL_MOVEMENT
+        {  1,  1 },
+        {  1, -1 },
+        { -1,  1 },
+        { -1, -1 },
+#endif
+    };
+
+    #define ASTAR_POS_TYPE vec2i
+    #define ASTAR_POS_START src
+    #define ASTAR_POS_FINISH dst
+    #define ASTAR_POS_INDEX(p) ((p).y * width + (p).x)
+    #define ASTAR_MAX_INDEX (width * height)
+    #define ASTAR_INDEX_POS(p, i) \
+        do {                      \
+            (p).x = (i) % width;  \
+            (p).y = (i) / width;  \
+        } while (0)
+    #define ASTAR_POS_EQUAL(a, b) ((a).x == (b).x && (a).y == (b).y)
+    #define ASTAR_MAP_IS_FREE(p) ((p).y >= 0 && (p).y < height && (p).x >= 0 && (p).x < width && (char)map[(p).y * width + (p).x] == 0)
+    #define ASTAR_NEXT_POS(p, i) \
+        do {                     \
+            (p).x += dir[i].x;   \
+            (p).y += dir[i].y;   \
+        } while (0)
+    #define ASTAR_PREV_POS(p, i) \
+        do {                     \
+            (p).x -= dir[i].x;   \
+            (p).y -= dir[i].y;   \
+        } while (0)
+    #define ASTAR_GET_COST(a, b) (abs((a).x - (b).x) + abs((a).y - (b).y))
+
+#if ALLOW_DIAGONAL_MOVEMENT
+    #define ASTAR_EXTRA_COST(i) (i < 4 ? 5 : 7) // 7/5 is approx sqrt(2)
+    #define ASTAR_COST_MUL 5
+#endif
+
+    size_t path_count = 0;
+    #define ASTAR_PATH(p) if (path_count < maxpath) path[path_count++] = p
+
+    // tempwork memory, not thread-safe.
+    #define ASTAR_TEMP_SIZE (ASTAR_MAX_INDEX * (sizeof(unsigned)*2) + sizeof(unsigned)*4) // (16<<20)
+    #define ASTAR_TEMP temp
+    static array(char) ASTAR_TEMP; do_once array_resize(ASTAR_TEMP, ASTAR_TEMP_SIZE);
+
+    // #if 1  "astar.h"
+    {
+        // generic A* pathfinding
+
+        //
+        // INTERFACE
+        //
+
+        // mandatory macros
+
+        #ifndef ASTAR_POS_TYPE
+        #error ASTAR_POS_TYPE should specify position type
+        #endif
+
+        #ifndef ASTAR_POS_START
+        #error ASTAR_POS_START should specify start position
+        #endif
+
+        #ifndef ASTAR_POS_FINISH
+        #error ASTAR_POS_FINISH should specify finish position
+        #endif
+
+        #ifndef ASTAR_POS_INDEX
+        #error ASTAR_POS_INDEX(p) should specify macro to map position to index
+        #endif
+
+        #ifndef ASTAR_MAX_INDEX 
+        #error ASTAR_MAX_INDEX should specify max count of indices the position can map to
+        #endif
+
+        #ifndef ASTAR_INDEX_POS
+        #error ASTAR_INDEX_POS(i) should specify macro to map index to position
+        #endif
+
+        #ifndef ASTAR_POS_EQUAL
+        #error ASTAR_POS_EQUAL(a, b) should specify macro to compare if two positions are the same
+        #endif
+
+        #ifndef ASTAR_MAP_IS_FREE
+        #error ASTAR_MAP_IS_FREE(p) should specify macro to check if map at position p is free
+        #endif
+
+        #ifndef ASTAR_NEXT_POS
+        #error ASTAR_NEXT_POS(p, i) should specify macro to get next position in specific direction
+        #endif
+
+        #ifndef ASTAR_PREV_POS
+        #error ASTAR_PREV_POS(p, i) should specify macro to get previous position from specific direction
+        #endif
+
+        #ifndef ASTAR_DIR_COUNT
+        #error ASTAR_DIR_COUNT should specify possible direction count
+        #endif
+
+        #ifndef ASTAR_GET_COST
+        #error ASTAR_GET_COST(a, b) should specify macro to get get cost between two positions
+        #endif
+
+        #ifndef ASTAR_PATH
+        #error ASTAR_PATH(p) should specify macro that will be invoked on each position for path (in reverse order), including start/finish positions
+        #endif
+
+        #if !defined(ASTAR_TEMP) || !defined(ASTAR_TEMP_SIZE)
+        #error ASTAR_TEMP and ASTAR_TEMP_SIZE should specify variable & size for temporary memory (should be at least ASTAR_MAX_INDEX * 4 + extra)
+        #endif
+
+        // optional macros
+
+        // adds extra cost for specific direction (useful for increasing cost for diagonal movements)
+        #ifndef ASTAR_EXTRA_COST
+        #define ASTAR_EXTRA_COST(i) 1
+        #endif
+
+        // multiplier for adding cost values (current_cost + mul * new_cost) - useful when using extra cost for diagonal movements
+        #ifndef ASTAR_COST_MUL
+        #define ASTAR_COST_MUL 1
+        #endif
+
+        //
+        // IMPLEMENTATION
+        //
+
+        #if ASTAR_DIR_COUNT <= 4
+        #define ASTAR_DIR_BITS 2
+        #elif ASTAR_DIR_COUNT <= 8
+        #define ASTAR_DIR_BITS 3
+        #elif ASTAR_DIR_COUNT <= 16
+        #define ASTAR_DIR_BITS 4
+        #elif ASTAR_DIR_COUNT <= 32
+        #define ASTAR_DIR_BITS 5
+        #elif ASTAR_DIR_COUNT <= 64
+        #define ASTAR_DIR_BITS 6
+        #else
+        #error Too many elements for ASTAR_DIR_COUNT, 64 is max
+        #endif
+
+        #define ASTAR_COST_BITS (32 - 1 - ASTAR_DIR_BITS)
+
+        #define ASTAR_HEAP_SWAP(a, b) \
+        do {                          \
+            heapnode t = heap[a];     \
+            heap[a] = heap[b];        \
+            heap[b] = t;              \
+        } while (0)                   \
+
+        #define ASTAR_HEAP_PUSH(idx, c)                   \
+        do {                                              \
+            heap[heap_count].index = idx;                 \
+            heap[heap_count].cost = c;                    \
+            int i = heap_count++;                         \
+            int p = (i - 1) / 2;                          \
+            while (i != 0 && heap[p].cost > heap[i].cost) \
+            {                                             \
+                ASTAR_HEAP_SWAP(i, p);                    \
+                i = p;                                    \
+                p = (i - 1) / 2;                          \
+            }                                             \
+        } while (0) 
+
+        #define ASTAR_HEAP_POP()                                          \
+        do {                                                              \
+            heap[0] = heap[--heap_count];                                 \
+            int i = 0;                                                    \
+            for (;;)                                                      \
+            {                                                             \
+                int l = 2 * i + 1;                                        \
+                int r = 2 * i + 2;                                        \
+                int s = i;                                                \
+                if (l < heap_count && heap[l].cost < heap[i].cost) s = l; \
+                if (r < heap_count && heap[r].cost < heap[s].cost) s = r; \
+                if (s == i) break;                                        \
+                ASTAR_HEAP_SWAP(i, s);                                    \
+                i = s;                                                    \
+          }                                                               \
+        } while (0)
+
+        typedef union {
+            struct {
+                unsigned int cost    : ASTAR_COST_BITS;
+                unsigned int dir     : ASTAR_DIR_BITS;
+                unsigned int visited : 1;
+            };
+            unsigned int all;
+        } node;
+
+        typedef struct {
+            unsigned int index;
+            unsigned int cost;
+        } heapnode;
+
+        if (ASTAR_TEMP_SIZE >= sizeof(node) * ASTAR_MAX_INDEX + sizeof(heapnode))
+        {
+            node* nodes = (node*)ASTAR_TEMP;
+            for (unsigned int i = 0; i < ASTAR_MAX_INDEX; i++)
+            {
+                nodes[i].all = 0;
+            }
+
+            heapnode* heap = (heapnode*)((char*)ASTAR_TEMP + sizeof(node) * ASTAR_MAX_INDEX);
+            unsigned int heap_max = (ASTAR_TEMP_SIZE - sizeof(node) * ASTAR_MAX_INDEX) / sizeof(heapnode);
+            int heap_count = 0;
+
+            ASTAR_POS_TYPE p = ASTAR_POS_START;
+            unsigned int nindex = ASTAR_POS_INDEX(p);
+            node* n = nodes + nindex;
+            n->cost = 0;
+            n->visited = 1;
+            ASTAR_HEAP_PUSH(nindex, ASTAR_GET_COST(p, ASTAR_POS_FINISH));
+
+            int found = 0;
+            while (heap_count != 0)
+            {
+                nindex = heap[0].index;
+                n = nodes + nindex;
+                ASTAR_HEAP_POP();
+
+                ASTAR_INDEX_POS(p, nindex);
+                if (ASTAR_POS_EQUAL(p, ASTAR_POS_FINISH))
+                {
+                    found = 1;
+                    break;
+                }
+                n->visited = 1;
+
+                for (unsigned int i = 0; i < ASTAR_DIR_COUNT; i++)
+                {
+                    ASTAR_POS_TYPE next = p;
+                    ASTAR_NEXT_POS(next, i);
+                    if (ASTAR_MAP_IS_FREE(next))
+                    {
+                        unsigned int nnext_index = ASTAR_POS_INDEX(next);
+                        node* nnext = nodes + nnext_index;
+                        unsigned int cost = n->cost + ASTAR_EXTRA_COST(i);
+                        if (nnext->visited == 0 || cost < nnext->cost)
+                        {
+                            nnext->cost = cost;
+                            nnext->dir = i;
+                            nnext->visited = 1;
+                            if (heap_count == heap_max)
+                            {
+                                // out of memory
+                                goto bail;
+                            }
+                            unsigned int new_cost = cost + ASTAR_COST_MUL * ASTAR_GET_COST(next, ASTAR_POS_FINISH);
+                            ASTAR_HEAP_PUSH(nnext_index, new_cost);
+                        }
+                    }
+                }
+            }
+        bail:
+
+            if (found)
+            {
+                ASTAR_PATH(p);
+                while (!ASTAR_POS_EQUAL(p, ASTAR_POS_START))
+                {
+                    ASTAR_PREV_POS(p, n->dir);
+                    n = nodes + ASTAR_POS_INDEX(p);
+                    ASTAR_PATH(p);
+                }
+            }
+        }
+        else
+        {
+            // not enough temp memory
+        }
+
+        #undef ASTAR_POS_TYPE
+        #undef ASTAR_POS_START
+        #undef ASTAR_POS_FINISH
+        #undef ASTAR_POS_INDEX
+        #undef ASTAR_MAX_INDEX
+        #undef ASTAR_INDEX_POS
+        #undef ASTAR_POS_EQUAL
+        #undef ASTAR_MAP_IS_FREE
+        #undef ASTAR_NEXT_POS
+        #undef ASTAR_PREV_POS
+        #undef ASTAR_DIR_COUNT
+        #undef ASTAR_GET_COST
+        #undef ASTAR_EXTRA_COST
+        #undef ASTAR_COST_MUL
+        #undef ASTAR_PATH
+        #undef ASTAR_TEMP
+        #undef ASTAR_TEMP_SIZE
+        #undef ASTAR_COST_BITS
+        #undef ASTAR_DIR_BITS
+        #undef ASTAR_HEAP_SWAP
+        #undef ASTAR_HEAP_PUSH
+        #undef ASTAR_HEAP_POP
+    }
+    // #endif "astar.h"
+
+    return path_count;
 }
 #line 0
 
@@ -21192,7 +21943,7 @@ void fwk_quit(void) {
 void fwk_init() {
     do_once {
         // install signal handlers
-        ifdef(debug, signals_install());
+        ifdef(debug, signal_hooks());
 
         // init panic handler
         panic_oom_reserve = SYS_REALLOC(panic_oom_reserve, 1<<20); // 1MiB

@@ -1612,12 +1612,12 @@ static font_t fonts[8] = {0};
 static
 void font_init() {
     do_once {
-        font_face_from_mem(FONT_FACE1, bm_mini_ttf,0, 48, 0);
-        font_face_from_mem(FONT_FACE2, bm_mini_ttf,0, 48, 0);
-        font_face_from_mem(FONT_FACE3, bm_mini_ttf,0, 48, 0);
-        font_face_from_mem(FONT_FACE4, bm_mini_ttf,0, 48, 0);
-        font_face_from_mem(FONT_FACE5, bm_mini_ttf,0, 48, 0);
-        font_face_from_mem(FONT_FACE6, bm_mini_ttf,0, 48, 0);
+        font_face_from_mem(FONT_FACE1, bm_mini_ttf,0, 42.5f, 0);
+        font_face_from_mem(FONT_FACE2, bm_mini_ttf,0, 42.5f, 0);
+        font_face_from_mem(FONT_FACE3, bm_mini_ttf,0, 42.5f, 0);
+        font_face_from_mem(FONT_FACE4, bm_mini_ttf,0, 42.5f, 0);
+        font_face_from_mem(FONT_FACE5, bm_mini_ttf,0, 42.5f, 0);
+        font_face_from_mem(FONT_FACE6, bm_mini_ttf,0, 42.5f, 0);
     }
 }
 
@@ -1685,11 +1685,11 @@ void font_face_from_mem(const char *tag, const void *ttf_bufferv, unsigned ttf_l
     f->font_size = font_size;
     f->scale[0] = 1.0000f; // H1
     f->scale[1] = 1.0000f; // H1
-    f->scale[2] = 0.8000f; // H2
-    f->scale[3] = 0.6000f; // H3
+    f->scale[2] = 0.7500f; // H2
+    f->scale[3] = 0.6600f; // H3
     f->scale[4] = 0.5000f; // H4
-    f->scale[5] = 0.4000f; // H5
-    f->scale[6] = 0.3000f; // H6
+    f->scale[5] = 0.3750f; // H5
+    f->scale[6] = 0.2500f; // H6
 
     const char *vs_filename = 0, *fs_filename = 0;
     const char *vs = vs_filename ? file_read(vs_filename) : mv_vs_source;

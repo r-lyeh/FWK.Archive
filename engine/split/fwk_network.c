@@ -25,6 +25,13 @@ array(char) download( const char *url ) {
     return out;
 }
 
+bool network_tests() {
+    // network test (https)
+    array(char) webfile = download("https://www.google.com/");
+    printf("Network test: %d bytes downloaded from google.com\n", array_count(webfile));
+    return true;
+}
+
 int portname( const char *service_name, unsigned retries ) {
     // Determine port for a given service based on hash of its name.
     // If port cant be reached, client should retry with next hash.

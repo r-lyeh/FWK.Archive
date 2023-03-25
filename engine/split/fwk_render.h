@@ -34,14 +34,11 @@ API float    alpha( unsigned rgba );
 #define YELLOW  RGBX(0xFFEC27,255)
 #define GRAY    RGBX(0x725158,255)
 #else
-// in this colour scheme, all components make 255+192 (~) to keep
-// tone balance. red, purple and yellow tweak a little bit to
-// fit better with gray colours.
 #define RED     RGB3(   255,48,48 )
 #define GREEN   RGB3(  144,255,48 )
 #define CYAN    RGB3(   0,192,255 )
 #define ORANGE  RGB3(  255,144,48 )
-#define PURPLE  RGB3( 178,128,255 )
+#define PURPLE  RGB3(  102,77,102 ) // 178,128,255 )
 #define YELLOW  RGB3(   255,224,0 )
 #define GRAY    RGB3( 149,149,149 )
 #define PINK    RGB3(  255,48,144 )
@@ -328,7 +325,6 @@ API     void shader_colormap(const char *name, colormap_t cm);
 API unsigned shader_get_active();
 API void     shader_destroy(unsigned shader);
 
-
 // -----------------------------------------------------------------------------
 // meshes (@fixme: deprecate?)
 
@@ -343,10 +339,30 @@ typedef struct mesh_t {
     unsigned vertex_count;
     unsigned index_count;
     unsigned flags;
+
+	array(int) lod_collapse_map; // to which neighbor each vertex collapses. ie, [10] -> 7 (used by LODs) @leak
+
+    // @leaks: following members are totally unused. convenient for end-users to keep their custom datas somewhere while processing.
+    union {
+	array(unsigned) in_index;
+	array(vec3i)    in_index3;
+    };
+    union {
+	array(unsigned) out_index;
+	array(vec3i)    out_index3;
+    };
+	union {
+    array(float) in_vertex;
+    array(vec3) in_vertex3;
+	};
+	union {
+    array(float) out_vertex;
+    array(vec3) out_vertex3;
+	};
 } mesh_t;
 
-API mesh_t mesh_create(const char *format, int vertex_stride,int vertex_count,const void *interleaved_vertex_data, int index_count,const void *index_data, int flags);
-API   void mesh_upgrade(mesh_t *m, const char *format, int vertex_stride,int vertex_count,const void *interleaved_vertex_data, int index_count,const void *index_data, int flags);
+API mesh_t mesh();
+API   void mesh_update(mesh_t *m, const char *format, int vertex_stride,int vertex_count,const void *interleaved_vertex_data, int index_count,const void *index_data, int flags);
 API   void mesh_render(mesh_t *m);
 API   void mesh_destroy(mesh_t *m);
 API   aabb mesh_bounds(mesh_t *m);
@@ -414,7 +430,7 @@ typedef struct anim_t {
 
 API anim_t clip(float minframe, float maxframe, float blendtime, unsigned flags);
 API anim_t loop(float minframe, float maxframe, float blendtime, unsigned flags);
-//API array(anim_t) animlist_load(const char *filename); // @todo
+//API array(anim_t) animlist(const char *filename); // @todo
 
 // -----------------------------------------------------------------------------
 // models

@@ -47,7 +47,7 @@ int main() {
                  target = add3(target, scale3(norm3(sub3(source, target)), 10.0));
             source = mix3(source, target, 1-0.99f);
 
-            camera_teleport(cam, source.x,source.y,source.z);
+            camera_teleport(cam, source);
             camera_lookat(cam, vec3(girl_p.x,0,girl_p.z));
         }
 

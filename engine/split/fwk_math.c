@@ -119,7 +119,6 @@ float ease(float t01, unsigned mode) {
     typedef float (*easing)(float);
     easing modes[] = {
         ease_linear,
-
         ease_out_sine,
         ease_out_quad,
         ease_out_cubic,
@@ -131,6 +130,7 @@ float ease(float t01, unsigned mode) {
         ease_out_elastic,
         ease_out_bounce,
 
+        ease_linear,
         ease_in_sine,
         ease_in_quad,
         ease_in_cubic,
@@ -142,6 +142,7 @@ float ease(float t01, unsigned mode) {
         ease_in_elastic,
         ease_in_bounce,
 
+        ease_linear,
         ease_inout_sine,
         ease_inout_quad,
         ease_inout_cubic,
@@ -185,10 +186,10 @@ vec2  neg2     (vec2   a          ) { return vec2(-a.x, -a.y); }
 vec2  add2     (vec2   a, vec2   b) { return vec2(a.x + b.x, a.y + b.y); }
 vec2  sub2     (vec2   a, vec2   b) { return vec2(a.x - b.x, a.y - b.y); }
 vec2  mul2     (vec2   a, vec2   b) { return vec2(a.x * b.x, a.y * b.y); }
+vec2  div2     (vec2   a, vec2   b) { return vec2(a.x / (b.x + !b.x), a.y / (b.y + !b.y)); }
 vec2  inc2     (vec2   a, float  b) { return vec2(a.x + b, a.y + b); }
 vec2  dec2     (vec2   a, float  b) { return vec2(a.x - b, a.y - b); }
 vec2  scale2   (vec2   a, float  b) { return vec2(a.x * b, a.y * b); }
-vec2  div2     (vec2   a, float  b) { return scale2(a, b ? 1/b : 0.f); }
 vec2  pmod2    (vec2   a, float  b) { return vec2(pmodf(a.x, b), pmodf(a.y, b)); }
 vec2  min2     (vec2   a, vec2   b) { return vec2(minf(a.x, b.x), minf(a.y, b.y)); }
 vec2  max2     (vec2   a, vec2   b) { return vec2(maxf(a.x, b.x), maxf(a.y, b.y)); }
@@ -201,7 +202,8 @@ vec2  refl2    (vec2   a, vec2   b) { return sub2(a, scale2(b, 2*dot2(a,b))); }
 float cross2   (vec2   a, vec2   b) { return a.x * b.y - a.y * b.x; } // pseudo cross product
 float len2sq   (vec2   a          ) { return a.x * a.x + a.y * a.y; }
 float len2     (vec2   a          ) { return sqrtf(len2sq(a)); }
-vec2  norm2    (vec2   a          ) { return /*dot(2) == 0 ? a :*/ div2(a, len2(a)); }
+vec2  norm2    (vec2   a          ) { return len2sq(a) == 0 ? a : scale2(a, 1 / len2(a)); }
+vec2  norm2sq  (vec2   a          ) { return len2sq(a) == 0 ? a : scale2(a, 1 / len2sq(a)); }
 int   finite2  (vec2   a          ) { return FINITE(a.x) && FINITE(a.y); }
 vec2  mix2  (vec2 a,vec2 b,float t) { return add2(scale2((a),1-(t)), scale2((b), t)); }
 vec2  clamp2(vec2 v,float a,float b){ return vec2(maxf(minf(b,v.x),a),maxf(minf(b,v.y),a)); }
@@ -214,10 +216,10 @@ vec3  neg3     (vec3   a          ) { return vec3(-a.x, -a.y, -a.z); }
 vec3  add3     (vec3   a, vec3   b) { return vec3(a.x + b.x, a.y + b.y, a.z + b.z); }
 vec3  sub3     (vec3   a, vec3   b) { return vec3(a.x - b.x, a.y - b.y, a.z - b.z); }
 vec3  mul3     (vec3   a, vec3   b) { return vec3(a.x * b.x, a.y * b.y, a.z * b.z); }
+vec3  div3     (vec3   a, vec3   b) { return vec3(a.x / (b.x + !b.x), a.y / (b.y + !b.y), a.z / (b.z + !b.z)); }
 vec3  inc3     (vec3   a, float  b) { return vec3(a.x + b, a.y + b, a.z + b); }
 vec3  dec3     (vec3   a, float  b) { return vec3(a.x - b, a.y - b, a.z - b); }
 vec3  scale3   (vec3   a, float  b) { return vec3(a.x * b, a.y * b, a.z * b); }
-vec3  div3     (vec3   a, float  b) { return scale3(a, b ? 1/b : 0.f); }
 vec3  pmod3    (vec3   a, float  b) { return vec3(pmodf(a.x, b), pmodf(a.y, b), pmodf(a.z, b)); }
 vec3  min3     (vec3   a, vec3   b) { return vec3(minf(a.x, b.x), minf(a.y, b.y), minf(a.z, b.z)); }
 vec3  max3     (vec3   a, vec3   b) { return vec3(maxf(a.x, b.x), maxf(a.y, b.y), maxf(a.z, b.z)); }
@@ -230,8 +232,8 @@ float dot3     (vec3   a, vec3   b) { return a.x * b.x + a.y * b.y + a.z * b.z; 
 vec3  refl3    (vec3   a, vec3   b) { return sub3(a, scale3(b, 2*dot3(a, b))); }
 float len3sq   (vec3   a          ) { return dot3(a,a); }
 float len3     (vec3   a          ) { return sqrtf(len3sq(a)); }
-vec3  norm3    (vec3   a          ) { return /*dot3(a) == 0 ? a :*/ div3(a, len3(a)); }
-vec3  norm3sq  (vec3   a          ) { return /*dot3(a) == 0 ? a :*/ div3(a, len3sq(a)); }
+vec3  norm3    (vec3   a          ) { return len3sq(a) == 0 ? a : scale3(a, 1 / len3(a)); }
+vec3  norm3sq  (vec3   a          ) { return len3sq(a) == 0 ? a : scale3(a, 1 / len3sq(a)); }
 int   finite3  (vec3   a          ) { return finite2(vec2(a.x,a.y)) && FINITE(a.z); }
 vec3  mix3  (vec3 a,vec3 b,float t) { return add3(scale3((a),1-(t)), scale3((b), t)); }
 vec3  clamp3(vec3 v,float a,float b){ return vec3(maxf(minf(b,v.x),a),maxf(minf(b,v.y),a),maxf(minf(b,v.z),a)); }
@@ -269,10 +271,10 @@ vec4  neg4     (vec4   a          ) { return vec4(-a.x, -a.y, -a.z, -a.w); }
 vec4  add4     (vec4   a, vec4   b) { return vec4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w); }
 vec4  sub4     (vec4   a, vec4   b) { return vec4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w); }
 vec4  mul4     (vec4   a, vec4   b) { return vec4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w); }
+vec4  div4     (vec4   a, vec4   b) { return vec4(a.x / (b.x + !b.x), a.y / (b.y + !b.y), a.z / (b.z + !b.z), a.w / (b.w + !b.w)); }
 vec4  inc4     (vec4   a, float  b) { return vec4(a.x + b, a.y + b, a.z + b, a.w + b); }
 vec4  dec4     (vec4   a, float  b) { return vec4(a.x - b, a.y - b, a.z - b, a.w - b); }
 vec4  scale4   (vec4   a, float  b) { return vec4(a.x * b, a.y * b, a.z * b, a.w * b); }
-vec4  div4     (vec4   a, float  b) { return scale4(a, b ? 1/b : 0.f); }
 vec4  pmod4    (vec4   a, float  b) { return vec4(pmodf(a.x, b), pmodf(a.y, b), pmodf(a.z, b), pmodf(a.w, b)); }
 vec4  min4     (vec4   a, vec4   b) { return vec4(minf(a.x, b.x), minf(a.y, b.y), minf(a.z, b.z), minf(a.w, b.w)); }
 vec4  max4     (vec4   a, vec4   b) { return vec4(maxf(a.x, b.x), maxf(a.y, b.y), maxf(a.z, b.z), maxf(a.w, b.w)); }
@@ -284,8 +286,8 @@ float dot4     (vec4   a, vec4   b) { return a.x * b.x + a.y * b.y + a.z * b.z +
 vec4  refl4    (vec4   a, vec4   b) { return sub4(a, scale4(b, 2*dot4(a, b))); }
 float len4sq   (vec4   a          ) { return dot4(a,a); }
 float len4     (vec4   a          ) { return sqrtf(len4sq(a)); }
-vec4  norm4    (vec4   a          ) { return /*dot4(a) == 0 ? a :*/ div4(a, len4(a)); }
-vec4  norm4sq  (vec4   a          ) { return /*dot4(a) == 0 ? a :*/ div4(a, len4sq(a)); }
+vec4  norm4    (vec4   a          ) { return len4sq(a) == 0 ? a : scale4(a, 1 / len4(a)); }
+vec4  norm4sq  (vec4   a          ) { return len4sq(a) == 0 ? a : scale4(a, 1 / len4sq(a)); }
 int   finite4  (vec4   a          ) { return finite3(vec3(a.x,a.y,a.z)) && FINITE(a.w); }
 vec4  mix4  (vec4 a,vec4 b,float t) { return add4(scale4((a),1-(t)), scale4((b), t)); }
 vec4  clamp4(vec4 v,float a,float b){ return vec4(maxf(minf(b,v.x),a),maxf(minf(b,v.y),a),maxf(minf(b,v.z),a),maxf(minf(b,v.w),a)); }

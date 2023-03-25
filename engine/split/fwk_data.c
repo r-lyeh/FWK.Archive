@@ -248,6 +248,57 @@ array(char) (xml_blob)(char *key) { // base64 blob
     return out;
 }
 
+bool data_tests() {
+    // data tests (json5)
+    const char json5[] =
+    "  /* json5 */ // comment\n"
+    "  abc: 42.67, def: true, integer:0x100 \n"
+    "  huge: 2.2239333e5, \n"
+    "  hello: 'world /*comment in string*/ //again', \n"
+    "  children : { a: 1, b: 2, c: 3 },\n"
+    "  array: [+1,2,-3,4,5],    \n"
+    "  invalids : [ nan, NaN, -nan, -NaN, inf, Infinity, -inf, -Infinity ],";
+    if( json_push(json5) ) {
+        assert( json_float("/abc") == 42.67 );
+        assert( json_int("/def") == 1 );
+        assert( json_int("/integer") == 0x100 );
+        assert( json_float("/huge") > 2.22e5 );
+        assert( strlen(json_string("/hello")) == 35 );
+        assert( json_int("/children/a") == 1 );
+        assert( json_int("/children.b") == 2 );
+        assert( json_int("/children[c]") == 3 );
+        assert( json_int("/array[%d]", 2) == -3 );
+        assert( json_count("/invalids") == 8 );
+        assert( isnan(json_float("/invalids[0]")) );
+        assert( !json_find("/non_existing") );
+        assert( PRINTF("json5 tests OK\n") );
+        json_pop();
+    }
+
+    // data tests (xml)
+    const char *xml = // vfs_read("test1.xml");
+    "<!-- XML representation of a person record -->"
+    "<person created=\"2006-11-11T19:23\" modified=\"2006-12-31T23:59\">"
+    "    <firstName>Robert</firstName>"
+    "    <lastName>Smith</lastName>"
+    "    <address type=\"home\">"
+    "        <street>12345 Sixth Ave</street>"
+    "        <city>Anytown</city>"
+    "        <state>CA</state>"
+    "        <postalCode>98765-4321</postalCode>"
+    "    </address>"
+    "</person>";
+    if( xml_push(xml) ) {
+        assert( !strcmp("Robert", xml_string("/person/firstName/$")) );
+        assert( !strcmp("Smith", xml_string("/person/lastName/$")) );
+        assert( !strcmp("home", xml_string("/person/address/@type")) );
+        assert( PRINTF("xml tests OK\n") );
+        xml_pop();
+    }
+
+    return true;
+}
+
 // compression api
 
 static struct zcompressor {

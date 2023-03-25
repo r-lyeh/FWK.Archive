@@ -60,9 +60,9 @@ API size_t vlen( void* p );
 
 #define array_push_front(arr,x) \
     (array_resize((arr), array_count(arr)+1), memmove((arr)+1, (arr), sizeof(0[arr])*array_count(arr)), 0[arr] = (x))
-#define array_pop_front(arr,x) ( \
+#define array_pop_front(arr) ( \
     (array_count(arr) > 1 ? memmove((arr), (arr)+1, sizeof(0[arr])*(array_count(arr)-1)) : (void*)0), \
-    (array_count(arr) > 0 ? array_resize(arr, array_count(arr) - 1 ) : array_resize( arr, 0 ) )     )
+    (array_count(arr) > 0 ? array_resize(arr, array_count(arr) - 1 ) : array_resize( arr, 0 ) ) )
 
 static __thread unsigned array_c_;
 static __thread unsigned array_n_;
@@ -118,7 +118,7 @@ static __thread unsigned array_n_;
     memcpy( (t), src, array_count(src) * sizeof(0[t])); \
 } while(0)
 
-#define array_erase(t, i) do { \
+#define array_erase(t, i) do { /*may alter ordering*/ \
     memcpy( &(t)[i], &(t)[array_count(t) - 1], sizeof(0[t])); \
     array_pop(t); \
 } while(0)
@@ -421,3 +421,15 @@ API int   (map_count)(map *m);
 API void  (map_gc)(map *m); // only if using MAP_DONT_ERASE
 API bool  (map_sort)(map* m);
 API void  (map_clear)(map* m);
+
+// -----------------------------------------------------------------------------
+// four-cc, eight-cc
+
+API unsigned cc4(const char *id);
+API uint64_t cc8(const char *id);
+API char *cc4str(unsigned cc);
+API char *cc8str(uint64_t cc);
+
+// fast path
+#define cc4(abcd)      ( *(unsigned*) #abcd     "    "     ) // lil32() ?
+#define cc8(abcdefgh)  ( *(uint64_t*) #abcdefgh "        " ) // lil64() ?

@@ -1,6 +1,8 @@
 // -----------------------------------------------------------------------------
 // in-game editor
 // - rlyeh, public domain.
+//
+// @todo: merge editor1.c and editor2.c internals into this api
 
 //API void  editor();
 //API bool  editor_active();

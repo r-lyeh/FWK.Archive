@@ -22,7 +22,8 @@ int main() {
         vec3 pivot, speed;    // [pitch,yaw,roll] [turn speed,forward speed,anim speed fps]
         vec3 pos, dir, pad;   // [position] [facing dir] [gamepad accumulator]
         bool notified;
-    } player[] = {
+        float brain[4];       // AI
+    } player[3] = {
         { "PLAYER-1", model("kgirls01.fbx", 0), loop(0,60,0.25,0), loop(66,85,0.25,0), // idle anim [0..60], run anim [66..85]
             {KEY_UP,KEY_DOWN,KEY_LEFT,KEY_RIGHT}, 2, {0.90,0.80}, {-100}, {3, 0.30, 30}, {0}, {1} },
         { "PLAYER-2", model("george.fbx", 0), loop(0,100,0.25,0), loop(372,396,0.25,0), // idle anim [0..100], run anim [372..396]
@@ -49,9 +50,63 @@ int main() {
         for( int i = 0; i < countof(player); ++i ) {
             struct player_t *p = &player[i];
 
-            // accumulate inputs
-            float yaw = input(p->keys[2]) - input(p->keys[3]);
-            float fwd = input(p->keys[0]) - input(p->keys[1]); if(fwd<0) fwd = 0;
+            // capture inputs
+            p->brain[0] = input(p->keys[0]);
+            p->brain[1] = input(p->keys[1]);
+            p->brain[2] = input(p->keys[2]);
+            p->brain[3] = input(p->keys[3]);
+
+            // setup waypoints for PLAYER-1
+            static array(vec3) points;
+            if( input_down(MOUSE_L) && !ui_hover() ) {
+                vec3 pt = editor_pick(input(MOUSE_X), input(MOUSE_Y));
+                hit *h = ray_hit_plane(ray(cam.position, pt), plane(vec3(0,0,0),vec3(0,1,0)));
+                if(h) array_push(points, h->p);
+            }
+            // ddraw waypoints
+            ddraw_color(YELLOW);
+            for( int i = 1; i < array_count(points); ++i) ddraw_line(points[i-1],points[i]);
+            for( int i = 0; i < array_count(points); ++i) ddraw_circle(points[i], vec3(0,1,0), 1); // prism(points[i], 1, 0, vec3(0,1,0), 4);
+            ddraw_color(RED);
+            for( int i = 0; i < array_count(points); ++i) ddraw_point(points[i]);
+            ddraw_color(WHITE);
+            // move thru waypoints (PLAYER-1 only)
+            if( i == 0 && array_count(points) ) {
+                struct player_t *p = &player[i];
+                vec3 dst = points[0];
+                vec3 vector1 = norm3(vec3(p->dir.x,0,p->dir.z));
+                vec3 vector2 = norm3(sub3(dst,p->pos));
+
+                float angle = atan2(vector2.z, vector2.x) - atan2(vector1.z, vector1.x);
+                angle *= 180 / C_PI;
+                // range [0, 360)
+                // if (angle < 0) { angle += 2 * 180; }
+                // range (-180, 180]
+                if (angle > 180)        { angle -= 2 * 180; }
+                else if (angle <= -180) { angle += 2 * 180; }
+
+                float dist = len3(sub3(p->pos, dst));
+                if(dist < 1) {
+                    // goal
+                    array_pop_front(points);
+                }
+                else {
+                    if( dist < 10 && abs(angle) > 10 ) {
+                        // spin only
+                        p->brain[ angle < 0 ? 2 : 3 ] = 1;
+                    }
+                    else {
+                        // spin
+                        p->brain[ angle < 0 ? 2 : 3 ] = 1;
+                        // move forward
+                        p->brain[ 0 ] = 1;
+                    }
+                }
+            }
+
+            // accumulate movement
+            float yaw = p->brain[2] - p->brain[3];
+            float fwd = p->brain[0] - p->brain[1]; if(fwd<0) fwd = 0;
             p->pad.x = p->pad.x * p->inertia.y + yaw * (1-p->inertia.y);
             p->pad.y = p->pad.y * p->inertia.x + fwd * (1-p->inertia.x);
 
@@ -85,6 +140,7 @@ int main() {
 
         // ui
         if( ui_panel("Controls", 0) ) {
+            ui_label2("Girl",  ICON_MD_MOUSE   " Set Waypoint");
             ui_label2("Girl",  ICON_MD_GAMEPAD " CURSOR keys");
             ui_label2("Alien", ICON_MD_GAMEPAD " W,A,S,D keys");
             ui_label2("Robot", ICON_MD_GAMEPAD " I,J,K,L keys");

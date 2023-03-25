@@ -10,7 +10,7 @@
     whatsoever.
 */
 
-#define FWK_C
+#define FWK_IMPLEMENTATION
 #include "fwk.h"
 
 #ifdef _MSC_VER
@@ -131,7 +131,7 @@ void SFG_playSound(uint8_t soundIndex, uint8_t volume) {
 
 int main() {
     // install signal handlers
-    signals_install();
+    signal_hooks();
 
     SFG_init();
 

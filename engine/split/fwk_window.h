@@ -36,6 +36,7 @@ API void     window_loop_exit(); // exit from main loop function (emscripten onl
 
 API void     window_title(const char *title);
 API void     window_icon(const char *file_icon);
+API void     window_color(unsigned color);
 API vec2     window_canvas();
 API void*    window_handle();
 API char*    window_stats();

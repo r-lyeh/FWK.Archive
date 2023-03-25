@@ -87,7 +87,7 @@ const char *app_cache() {
     return buffer;
 }
 
-const char * os_exec( const char *cmd ) {
+const char * app_exec( const char *cmd ) {
     static __thread char output[4096+16] = {0};
 
     if( !cmd[0] ) return "0               ";
@@ -275,7 +275,7 @@ void signal_handler_debug(int signal) {
     fprintf(stderr, "Error: unexpected signal %s (%d)\n%s\n", signal_name(signal), signal, callstack(16));
     exit(-1);
 }
-void signals_install(void) {
+void signal_hooks(void) {
     // expected signals
     signal(SIGINT, signal_handler_quit);
     signal(SIGTERM, signal_handler_quit);
@@ -298,7 +298,7 @@ void hang() {
     for(;;);
 }
 int main(int argc, char **argv) {
-    signals_install();
+    signal_hooks();
     crash(); // hang();
 }
 #define main main__
@@ -357,7 +357,7 @@ double  * big64pf(void *p, int sz) { if(is_little()) { double   *n = (double   *
 #include <sched.h>
 #endif
 
-int cpu_cores() {
+int app_cores() {
 #if is(win32)
     DWORD_PTR pm, sm;
     if( GetProcessAffinityMask(GetCurrentProcess(), &pm, &sm) ) if( pm ) {
@@ -405,7 +405,7 @@ int cpu_cores() {
 #if is(win32)
 #include <winsock2.h>
 
-int battery() {
+int app_battery() {
     SYSTEM_POWER_STATUS ibstatus;
 
     if (GetSystemPowerStatus(&ibstatus) == FALSE) {
@@ -424,7 +424,7 @@ int battery() {
 #include <unistd.h>
 #include <fcntl.h>
 
-int battery() {
+int app_battery() {
     static int battery_status_handle;
     static int battery_capacity_handle;
 
@@ -457,7 +457,7 @@ int battery() {
 #import <IOKit/ps/IOPowerSources.h>
 #import <IOKit/ps/IOPSKeys.h>
 
-int battery() {
+int app_battery() {
     static CFDictionaryRef psrc;
 
     do_once {
@@ -485,7 +485,7 @@ int battery() {
 
 #else
 
-int battery() {
+int app_battery() {
     return 0;
 }
 

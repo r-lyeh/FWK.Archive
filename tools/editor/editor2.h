@@ -245,7 +245,7 @@ void editor_menubar() {
     //        if 0% batt (no batt): battery alert
     //        if discharging:       battery levels [alert,0..6,full]
     //        if charging:          battery charging
-    int battery_read = battery();
+    int battery_read = app_battery();
     int battery_level = abs(battery_read);
     int battery_discharging = battery_read < 0 && battery_level < 100;
     const char *battery_levels[] = { // @todo: remap [7%..100%] -> [0..1] ?

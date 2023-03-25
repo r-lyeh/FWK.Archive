@@ -9,11 +9,13 @@ typedef struct camera_t {
     vec3 position, up, look; // position, updir, lookdir
     float yaw, pitch, speed; // mirror_x, mirror_y;
     vec3 last_look, last_move; // used for friction and smoothing
+    float fov; // deg(45)
 } camera_t;
 
 API camera_t camera();
-API void camera_teleport(camera_t *cam, float px, float py, float pz);
+API void camera_teleport(camera_t *cam, vec3 pos);
 API void camera_move(camera_t *cam, float incx, float incy, float incz);
+API void camera_fov(camera_t *cam, float fov);
 API void camera_fps(camera_t *cam, float yaw, float pitch);
 API void camera_orbit(camera_t *cam, float yaw, float pitch, float inc_distance);
 API void camera_lookat(camera_t *cam, vec3 target);

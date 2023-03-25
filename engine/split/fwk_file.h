@@ -39,6 +39,10 @@ API bool         file_move(const char *src, const char *dst);
 API FILE*        file_temp();
 API char*        file_tempname();
 
+API void*        file_md5(const char *file); // 16 bytes
+API void*        file_sha1(const char *file); // 20 bytes
+API void*        file_crc32(const char *file); // 4 bytes
+
 // compressed files
 
 API array(char*) file_zip_list(const char *zipfile);
@@ -65,7 +69,7 @@ API char *       vfs_load(const char *pathfile, int *size);
 API int          vfs_size(const char *pathfile);
 
 API const char * vfs_resolve(const char *fuzzyname); // guess best match. @todo: fuzzy path
-//API const char * vfs_extract(const char *pathfile); // extracts vfs file into local filesystem (temporary file), so it can be read by foreign/3rd party libs
+//API const char*vfs_extract(const char *pathfile); // extracts vfs file into local filesystem (temporary file), so it can be read by foreign/3rd party libs
 API FILE*        vfs_handle(const char *pathfile); // same as above, but returns file handle instead. preferred way, will clean descriptors at exit
 
 // cache

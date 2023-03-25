@@ -28,7 +28,7 @@ API void ddraw_axis(float units);
 API void ddraw_boid(vec3 pos, vec3 dir);
 API void ddraw_bone(vec3 center, vec3 end); // @todo: use me
 API void ddraw_bounds(const vec3 points[8]);
-API void ddraw_box(vec3 c, vec3 extents);
+API void ddraw_box(vec3 center, vec3 extents);
 API void ddraw_capsule(vec3 from, vec3 to, float radius);
 API void ddraw_circle(vec3 pos, vec3 n, float radius);
 API void ddraw_ring(vec3 pos, vec3 n, float radius);

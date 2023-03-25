@@ -894,7 +894,7 @@ frustum frustum_build(mat44 pv) {
     f.b = vec4(pv[ 3]+pv[ 1], pv[ 7]+pv[ 5], pv[11]+pv[ 9], pv[15]+pv[13]);
     f.n = vec4(pv[ 3]+pv[ 2], pv[ 7]+pv[ 6], pv[11]+pv[10], pv[15]+pv[14]);
     f.f = vec4(pv[ 3]-pv[ 2], pv[ 7]-pv[ 6], pv[11]-pv[10], pv[15]-pv[14]);
-    for (int i = 0; i < 6; i++) f.pl[i] = div4(f.pl[i], len3(f.pl[i].xyz));
+    for (int i = 0; i < 6; i++) f.pl[i] = scale4(f.pl[i], 1 / len3(f.pl[i].xyz));
     return f;
 }
 int frustum_test_sphere(frustum f, sphere s) {

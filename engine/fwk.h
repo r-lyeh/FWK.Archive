@@ -73,7 +73,7 @@
 * --
 *
 * "I dedicate any and all copyright interest in this software to the three
-* license terms listed above. I make this dedication for the benefit of the
+* licensing terms listed above. I make this dedication for the benefit of the
 * public at large and to the detriment of my heirs and successors. I intend
 * this dedication to be an overt act of relinquishment in perpetuity of all
 * present and future rights to this software under copyright law."
@@ -233,8 +233,6 @@ extern "C" {
 #elif is(tcc)
 #define __thread
 #endif
-
-#define fourcc(abcd)  ( *(unsigned*) #abcd "    " ) // lil32() ?
 
 // usage: bool static(audio_is_init) = audio_init();
 //#define static(var)    static var; do_once var
@@ -454,9 +452,9 @@ API size_t vlen( void* p );
 
 #define array_push_front(arr,x) \
     (array_resize((arr), array_count(arr)+1), memmove((arr)+1, (arr), sizeof(0[arr])*array_count(arr)), 0[arr] = (x))
-#define array_pop_front(arr,x) ( \
+#define array_pop_front(arr) ( \
     (array_count(arr) > 1 ? memmove((arr), (arr)+1, sizeof(0[arr])*(array_count(arr)-1)) : (void*)0), \
-    (array_count(arr) > 0 ? array_resize(arr, array_count(arr) - 1 ) : array_resize( arr, 0 ) )     )
+    (array_count(arr) > 0 ? array_resize(arr, array_count(arr) - 1 ) : array_resize( arr, 0 ) ) )
 
 static __thread unsigned array_c_;
 static __thread unsigned array_n_;
@@ -512,7 +510,7 @@ static __thread unsigned array_n_;
     memcpy( (t), src, array_count(src) * sizeof(0[t])); \
 } while(0)
 
-#define array_erase(t, i) do { \
+#define array_erase(t, i) do { /*may alter ordering*/ \
     memcpy( &(t)[i], &(t)[array_count(t) - 1], sizeof(0[t])); \
     array_pop(t); \
 } while(0)
@@ -815,6 +813,18 @@ API int   (map_count)(map *m);
 API void  (map_gc)(map *m); // only if using MAP_DONT_ERASE
 API bool  (map_sort)(map* m);
 API void  (map_clear)(map* m);
+
+// -----------------------------------------------------------------------------
+// four-cc, eight-cc
+
+API unsigned cc4(const char *id);
+API uint64_t cc8(const char *id);
+API char *cc4str(unsigned cc);
+API char *cc8str(uint64_t cc);
+
+// fast path
+#define cc4(abcd)      ( *(unsigned*) #abcd     "    "     ) // lil32() ?
+#define cc8(abcdefgh)  ( *(uint64_t*) #abcdefgh "        " ) // lil64() ?
 #line 0
 
 #line 1 "fwk_math.h"
@@ -833,6 +843,7 @@ API void  (map_clear)(map* m);
 
 //#define ptr(type)         0[&(type).x]
 #define vec2i(x, y     )  C_CAST(vec2i,(int)(x),   (int)(y)                          )
+#define vec3i(x, y, z  )  C_CAST(vec3i,(int)(x),   (int)(y),   (int)(z)              )
 #define vec2(x, y      )  C_CAST(vec2, (float)(x), (float)(y)                        )
 #define vec3(x, y, z   )  C_CAST(vec3, (float)(x), (float)(y), (float)(z),           )
 #define vec4(x, y, z, w)  C_CAST(vec4, (float)(x), (float)(y), (float)(z), (float)(w))
@@ -843,6 +854,7 @@ API void  (map_clear)(map* m);
 #define mat44(...)        C_CAST(mat44, __VA_ARGS__ )
 
 typedef union vec2i{ struct { int X,Y; };       struct { int x,y; }; struct { int r,g; }; struct { int w,h; }; struct { int min,max; }; struct { int from,to; }; struct { int src,dst; }; int v2[2]; int array[1]; } vec2i;
+typedef union vec3i{ struct { int X,Y,Z; };     struct { int x,y,z; }; struct { int r,g,b; }; struct { int w,h,d; }; struct { int min,max; }; struct { int from,to,step; }; struct { int src,dst; }; int v3[3]; int array[1]; } vec3i;
 typedef union vec2 { struct { float X,Y; };     struct { float x,y; }; struct { float r,g; }; struct { float w,h; }; struct { float min,max; }; struct { float from,to; }; struct { float src,dst; }; float v2[2]; float array[1]; } vec2;
 typedef union vec3 { struct { float X,Y,Z; };   struct { float x,y,z; }; struct { float r,g,b; }; struct { float min,max; }; struct { float from,to; }; vec2 xy; vec2 rg; vec2 wh; float v3[3]; float array[1]; } vec3;
 typedef union vec4 { struct { float X,Y,Z,W; }; struct { float x,y,z,w; }; struct { float r,g,b,a; }; struct { float min,max; }; struct { float from,to; }; vec2 xy; vec3 xyz; vec2 rg; vec3 rgb; vec2 wh; vec3 whd; float v4[4]; float array[1]; } vec4;
@@ -905,6 +917,24 @@ API float ease_inout_bounce(float t);
 
 API float ease_inout_perlin(float t);
 
+enum EASE_FLAGS {
+    EASE_LINEAR,
+    EASE_SINE,
+    EASE_QUAD,
+    EASE_CUBIC,
+    EASE_QUART,
+    EASE_QUINT,
+    EASE_EXPO,
+    EASE_CIRC,
+    EASE_BACK,
+    EASE_ELASTIC,
+    EASE_BOUNCE,
+
+    EASE_IN,
+    EASE_INOUT = EASE_IN * 2,
+    EASE_OUT = 0,
+};
+
 API float ease(float t01, unsigned mode); // 0=linear,1=out_sine...31=inout_perlin
 
 API float ease_ping_pong(float t, float(*fn1)(float), float(*fn2)(float));
@@ -937,10 +967,10 @@ API vec2  neg2     (vec2   a          );
 API vec2  add2     (vec2   a, vec2   b);
 API vec2  sub2     (vec2   a, vec2   b);
 API vec2  mul2     (vec2   a, vec2   b);
+API vec2  div2     (vec2   a, vec2   b);
 API vec2  inc2     (vec2   a, float  b);
 API vec2  dec2     (vec2   a, float  b);
 API vec2  scale2   (vec2   a, float  b);
-API vec2  div2     (vec2   a, float  b);
 API vec2  pmod2    (vec2   a, float  b);
 API vec2  min2     (vec2   a, vec2   b);
 API vec2  max2     (vec2   a, vec2   b);
@@ -967,10 +997,10 @@ API vec3  neg3     (vec3   a          );
 API vec3  add3     (vec3   a, vec3   b);
 API vec3  sub3     (vec3   a, vec3   b);
 API vec3  mul3     (vec3   a, vec3   b);
+API vec3  div3     (vec3   a, vec3   b);
 API vec3  inc3     (vec3   a, float  b);
 API vec3  dec3     (vec3   a, float  b);
 API vec3  scale3   (vec3   a, float  b);
-API vec3  div3     (vec3   a, float  b);
 API vec3  pmod3    (vec3   a, float  b);
 API vec3  min3     (vec3   a, vec3   b);
 API vec3  max3     (vec3   a, vec3   b);
@@ -1004,10 +1034,10 @@ API vec4  neg4     (vec4   a          );
 API vec4  add4     (vec4   a, vec4   b);
 API vec4  sub4     (vec4   a, vec4   b);
 API vec4  mul4     (vec4   a, vec4   b);
+API vec4  div4     (vec4   a, vec4   b);
 API vec4  inc4     (vec4   a, float  b);
 API vec4  dec4     (vec4   a, float  b);
 API vec4  scale4   (vec4   a, float  b);
-API vec4  div4     (vec4   a, float  b);
 API vec4  pmod4    (vec4   a, float  b);
 API vec4  min4     (vec4   a, vec4   b);
 API vec4  max4     (vec4   a, vec4   b);
@@ -1089,7 +1119,6 @@ API void invert34(mat34 m, const mat34 o);
 
 // ----------------------------------------------------------------------------
 
-API void scaling44(mat44 m, float x, float y, float z);
 API void id44(mat44 m);
 API void identity44(mat44 m);
 API void copy44(mat44 m, const mat44 a);
@@ -1115,54 +1144,15 @@ API void transpose44(mat44 m, const mat44 a);
 API float det44(const mat44 M);
 API bool invert44(mat44 T, const mat44 M);
 
-API vec4 transform444(const mat44, const vec4);
-API bool unproject44(vec3 *out, vec3 xyd, vec4 viewport, mat44 mvp);
-
 API void compose44(mat44 m, vec3 t, quat q, vec3 s);
 
 // ----------------------------------------------------------------------------
 
-API vec3 transform33(const mat33 m, vec3 p);
-
-API vec4 transform444(const mat44 m, const vec4 p);
-
-API vec3 transform344(const mat44 m, const vec3 p);
-
 API vec3 transformq(const quat q, const vec3 v);
-
-#if 0
-// A value type representing an abstract direction vector in 3D space, independent of any coordinate system.
-// A concrete 3D coordinate system with defined x, y, and z axes.
-typedef enum AXIS_ENUMS { axis_front, axis_back, axis_left, axis_right, axis_up, axis_down } AXIS_ENUMS;
-typedef union coord_system { struct { AXIS_ENUMS x,y,z; }; } coord_system;
-
-API vec3 transform_axis(const coord_system, const AXIS_ENUMS);
-
-API void rebase44(mat44 m, const coord_system src_basis, const coord_system dst_basis);
-
-//API vec3 transform_axis(const coord_system basis, const AXIS_ENUMS to);
-
-// A vector is the difference between two points in 3D space, possessing both direction and magnitude
-API vec3 transform_vector  (const mat44 m, const vec3 vector);
-
-// A point is a specific location within a 3D space
-API vec3 transform_point   (const mat44 m, const vec3 p);
-
-// A tangent is a unit-length vector which is parallel to a piece of geometry, such as a surface or a curve
-API vec3 transform_tangent (const mat44 m, const vec3 tangent);
-
-// A normal is a unit-length bivector which is perpendicular to a piece of geometry, such as a surface or a curve
-API vec3 transform_normal  (const mat44 m, const vec3 normal);
-
-// A quaternion can describe both a rotation and a uniform scaling in 3D space
-API quat transform_quat    (const mat44 m, const quat q);
-
-// A matrix can describe a general transformation of homogeneous coordinates in projective space
-API float* transform_matrix(mat44 out, const mat44 m, const mat44 matrix);
-
-// Scaling factors are not a vector, they are a compact representation of a scaling matrix
-API vec3 transform_scaling (const mat44 m, const vec3 scaling);
-#endif
+API vec3 transform33(const mat33 m, vec3 p);
+API vec3 transform344(const mat44 m, const vec3 p);
+API vec4 transform444(const mat44 m, const vec4 p);
+API bool unproject44(vec3 *out, vec3 xyd, vec4 viewport, mat44 mvp);
 
 // ----------------------------------------------------------------------------
 // !!! for debugging
@@ -1174,7 +1164,6 @@ API void printq( quat q );
 API void print33( float *m );
 API void print34( float *m );
 API void print44( float *m );
-
 #line 0
 
 
@@ -1484,13 +1473,7 @@ API int  cook_progress(); // [0..100]
 //
 // @todo: vec2,vec3,vec4
 
-typedef union json_t {
-    char* s;
-    double f;
-    int64_t i;
-    uintptr_t p;
-    array(union json_t) arr;
-} json_t;
+typedef union json_t { char* s; double f; int64_t i; uintptr_t p; array(union json_t) arr; } json_t;
 
 // json api
 
@@ -1508,7 +1491,7 @@ API bool            json_pop();
 
 // xml api
 
-API int 			xml_push(const char *xml_content);
+API int             xml_push(const char *xml_content);
 API const char *        xml_string(char *key);
 API unsigned            xml_count(char *key);
 API array(char)         xml_blob(char *key);
@@ -1518,6 +1501,8 @@ API array(char)         xml_blob(char *key);
 #define                 xml_blob(...)   xml_blob(va(__VA_ARGS__))         // syntax sugar: base64 blob
 #define                 xml_count(...)  xml_count(va(__VA_ARGS__))        // syntax sugar: count nodes
 API void            xml_pop();
+
+API bool data_tests();
 
 // compression api
 
@@ -1562,6 +1547,8 @@ API void* dll(const char *filename, const char *symbol);
 // -----------------------------------------------------------------------------
 // in-game editor
 // - rlyeh, public domain.
+//
+// @todo: merge editor1.c and editor2.c internals into this api
 
 //API void  editor();
 //API bool  editor_active();
@@ -1638,6 +1625,10 @@ API bool         file_move(const char *src, const char *dst);
 API FILE*        file_temp();
 API char*        file_tempname();
 
+API void*        file_md5(const char *file); // 16 bytes
+API void*        file_sha1(const char *file); // 20 bytes
+API void*        file_crc32(const char *file); // 4 bytes
+
 // compressed files
 
 API array(char*) file_zip_list(const char *zipfile);
@@ -1664,7 +1655,7 @@ API char *       vfs_load(const char *pathfile, int *size);
 API int          vfs_size(const char *pathfile);
 
 API const char * vfs_resolve(const char *fuzzyname); // guess best match. @todo: fuzzy path
-//API const char * vfs_extract(const char *pathfile); // extracts vfs file into local filesystem (temporary file), so it can be read by foreign/3rd party libs
+//API const char*vfs_extract(const char *pathfile); // extracts vfs file into local filesystem (temporary file), so it can be read by foreign/3rd party libs
 API FILE*        vfs_handle(const char *pathfile); // same as above, but returns file handle instead. preferred way, will clean descriptors at exit
 
 // cache
@@ -1834,7 +1825,7 @@ API vec2        input_filter_positive2( vec2 v ); // [-1..1] -> [0..1]
 API vec2        input_filter_deadzone( vec2 v, float deadzone_treshold );
 API vec2        input_filter_deadzone_4way( vec2 v, float deadzone_treshold );
 
-// -- multi-touch 
+// -- multi-touch
 
 enum TOUCH_BUTTONS {
     TOUCH_0,    // defaults to left screen area. input_touch_area() to override
@@ -1918,7 +1909,7 @@ API char*  xstats(void);
 // stack based allocator (negative bytes does rewind stack, like when entering new frame)
 API void*  stack(int bytes);
 
-// memory leaks
+// memory leaks api (this is already integrated as long as you compile with -DWITH_MEMORY_LEAKS)
 API void*  watch( void *ptr, int sz );
 API void*  forget( void *ptr );
 
@@ -1943,6 +1934,8 @@ static FORCE_INLINE char *(STRDUP_)(const char *s) { size_t n = strlen(s)+1; ret
 API array(char) download( const char *url );
 API int         download_file( FILE *out, const char *url );
 API int         portname( const char *service_name, unsigned retries );
+
+API bool        network_tests();
 
 // -----------------------------------------------------------------------------
 // udp wrapper
@@ -2124,7 +2117,7 @@ static __thread void *obj_tmpalloc;
 // profiler & stats (@fixme: threadsafe)
 
 #if !WITH_PROFILER
-#   define profile(...)                 for(int macro(i) = 1; macro(i); macro(i) = 0)
+#   define profile(section)             for(int macro(i) = 1; macro(i); macro(i) = 0)
 #   define profile_incstat(name, accum) do {} while(0)
 #   define profile_setstat(name, value) do {} while(0)
 #   define profile_init()               do {} while(0)
@@ -2188,14 +2181,11 @@ API float    alpha( unsigned rgba );
 #define YELLOW  RGBX(0xFFEC27,255)
 #define GRAY    RGBX(0x725158,255)
 #else
-// in this colour scheme, all components make 255+192 (~) to keep
-// tone balance. red, purple and yellow tweak a little bit to
-// fit better with gray colours.
 #define RED     RGB3(   255,48,48 )
 #define GREEN   RGB3(  144,255,48 )
 #define CYAN    RGB3(   0,192,255 )
 #define ORANGE  RGB3(  255,144,48 )
-#define PURPLE  RGB3( 178,128,255 )
+#define PURPLE  RGB3(  102,77,102 ) // 178,128,255 )
 #define YELLOW  RGB3(   255,224,0 )
 #define GRAY    RGB3( 149,149,149 )
 #define PINK    RGB3(  255,48,144 )
@@ -2482,7 +2472,6 @@ API     void shader_colormap(const char *name, colormap_t cm);
 API unsigned shader_get_active();
 API void     shader_destroy(unsigned shader);
 
-
 // -----------------------------------------------------------------------------
 // meshes (@fixme: deprecate?)
 
@@ -2497,10 +2486,30 @@ typedef struct mesh_t {
     unsigned vertex_count;
     unsigned index_count;
     unsigned flags;
+
+	array(int) lod_collapse_map; // to which neighbor each vertex collapses. ie, [10] -> 7 (used by LODs) @leak
+
+    // @leaks: following members are totally unused. convenient for end-users to keep their custom datas somewhere while processing.
+    union {
+	array(unsigned) in_index;
+	array(vec3i)    in_index3;
+    };
+    union {
+	array(unsigned) out_index;
+	array(vec3i)    out_index3;
+    };
+	union {
+    array(float) in_vertex;
+    array(vec3) in_vertex3;
+	};
+	union {
+    array(float) out_vertex;
+    array(vec3) out_vertex3;
+	};
 } mesh_t;
 
-API mesh_t mesh_create(const char *format, int vertex_stride,int vertex_count,const void *interleaved_vertex_data, int index_count,const void *index_data, int flags);
-API   void mesh_upgrade(mesh_t *m, const char *format, int vertex_stride,int vertex_count,const void *interleaved_vertex_data, int index_count,const void *index_data, int flags);
+API mesh_t mesh();
+API   void mesh_update(mesh_t *m, const char *format, int vertex_stride,int vertex_count,const void *interleaved_vertex_data, int index_count,const void *index_data, int flags);
 API   void mesh_render(mesh_t *m);
 API   void mesh_destroy(mesh_t *m);
 API   aabb mesh_bounds(mesh_t *m);
@@ -2568,7 +2577,7 @@ typedef struct anim_t {
 
 API anim_t clip(float minframe, float maxframe, float blendtime, unsigned flags);
 API anim_t loop(float minframe, float maxframe, float blendtime, unsigned flags);
-//API array(anim_t) animlist_load(const char *filename); // @todo
+//API array(anim_t) animlist(const char *filename); // @todo
 
 // -----------------------------------------------------------------------------
 // models
@@ -2697,7 +2706,7 @@ API void ddraw_axis(float units);
 API void ddraw_boid(vec3 pos, vec3 dir);
 API void ddraw_bone(vec3 center, vec3 end); // @todo: use me
 API void ddraw_bounds(const vec3 points[8]);
-API void ddraw_box(vec3 c, vec3 extents);
+API void ddraw_box(vec3 center, vec3 extents);
 API void ddraw_capsule(vec3 from, vec3 to, float radius);
 API void ddraw_circle(vec3 pos, vec3 n, float radius);
 API void ddraw_ring(vec3 pos, vec3 n, float radius);
@@ -2745,11 +2754,13 @@ typedef struct camera_t {
     vec3 position, up, look; // position, updir, lookdir
     float yaw, pitch, speed; // mirror_x, mirror_y;
     vec3 last_look, last_move; // used for friction and smoothing
+    float fov; // deg(45)
 } camera_t;
 
 API camera_t camera();
-API void camera_teleport(camera_t *cam, float px, float py, float pz);
+API void camera_teleport(camera_t *cam, vec3 pos);
 API void camera_move(camera_t *cam, float incx, float incy, float incz);
+API void camera_fov(camera_t *cam, float fov);
 API void camera_fps(camera_t *cam, float yaw, float pitch);
 API void camera_orbit(camera_t *cam, float yaw, float pitch, float inc_distance);
 API void camera_lookat(camera_t *cam, vec3 target);
@@ -2828,6 +2839,8 @@ API void script_runfile(const char *pathfile);
 API void script_bind_class(const char *objname, int num_methods, const char **c_names, void **c_functions);
 API void script_bind_function(const char *c_name, void *c_function);
 API void script_call(const char *lua_function);
+
+API bool script_tests();
 #line 0
 
 #line 1 "fwk_string.h"
@@ -2837,7 +2850,7 @@ API void script_call(const char *lua_function);
 // string: temporary api (stack)
 API char*   tempvl(const char *fmt, va_list);
 API char*   tempva(const char *fmt, ...);
-#define     va(...) ((printf || printf(__VA_ARGS__), tempva(__VA_ARGS__)))  // vs2015 check trick
+#define     va(...) (((&printf) || printf(__VA_ARGS__), tempva(__VA_ARGS__)))  // vs2015 check trick
 
 // string: allocated api (heap). FREE() after use
 API char*   strcatf(char **s, const char *buf);
@@ -2927,16 +2940,13 @@ API const char* option(const char *commalist, const char *defaults); // --arg=va
 API int         optioni(const char *commalist, int defaults); // argvi() ?
 API float       optionf(const char *commalist, float defaults); // app_option?
 
-API const char* os_exec(const char *command); // app_exec? returns ("%15d %s", retcode, output_last_line)
-
 API void        tty_color(unsigned color);
 API void        tty_reset();
 API void        tty_attach();
 
-API int         cpu_cores(); // app_cores?
-
-// return battery level [1..100]. also positive if charging (+), negative if discharging (-), and 0 if no battery is present.
-API int         battery(); // app_battery?
+API const char* app_exec(const char *command); // returns ("%15d %s", retcode, output_last_line)
+API int         app_cores();
+API int         app_battery(); /// return battery level [1..100]. also positive if charging (+), negative if discharging (-), and 0 if no battery is present.
 
 API const char* app_name();
 API const char* app_path();
@@ -2971,7 +2981,7 @@ API void        hexdumpf( FILE *fp, const void *ptr, unsigned len, int width );
 API void        breakpoint(const char *optional_reason);
 API bool        has_debugger();
 
-API void        signals_install(void);
+API void        signal_hooks(void);
 API void        signal_handler_ignore(int signal);
 API void        signal_handler_quit(int signal);
 API void        signal_handler_abort(int signal);
@@ -3016,12 +3026,12 @@ API int (PRINTF)(const char *text, const char *stack, const char *file, int line
 // @todo: surround-adaptive window resizing. ie, surrounding windows adapting theirselves to fit dragged active window
 
 enum PANEL_FLAGS {
-	PANEL_OPEN = 1,
+    PANEL_OPEN = 1,
 };
 
 API int ui_notify(const char *title, const char *body);
 API int ui_window(const char *title, int *enabled);
-API int  ui_panel(const char *title, int flags);
+API int  ui_panel(const char *title, int flags); // may be embedded inside a window, or standalone
 API int   ui_collapse(const char *label, const char *id);
 API int   ui_contextual();
 API int    ui_section(const char *title);
@@ -3045,7 +3055,7 @@ API int    ui_button_transparent(const char *label);
 API int    ui_buttons(int buttons, /*labels*/...);
 API int    ui_toolbar(const char *options); // int choice = ui_toolbar("A;B;C;D");
 API int    ui_submenu(const char *options); // int choice = ui_submenu("A;B;C;D");
-API int    ui_browse(const char **outfile, bool *inlined);
+API int    ui_browse(const char **outfile, bool *inlined); // may be embedded inside a window or inside a panel
 API int    ui_toggle(const char *label, bool *value);
 API int    ui_dialog(const char *title, const char *text, int choices, bool *show); // @fixme: return
 API int    ui_list(const char *label, const char **items, int num_items, int *selector);
@@ -3054,7 +3064,7 @@ API int    ui_texture(const char *label, texture_t t);
 API int    ui_subtexture(const char *label, texture_t t, unsigned x, unsigned y, unsigned w, unsigned h);
 API int    ui_image(const char *label, handle id, unsigned w, unsigned h); //(w,h) can be 0
 API int    ui_subimage(const char *label, handle id, unsigned iw, unsigned ih, unsigned sx, unsigned sy, unsigned sw, unsigned sh);
-API int    ui_colormap(const char *map_name, colormap_t *cm); // returns num member changed: 1 for color, 2 for texture map
+API int    ui_colormap(const char *label, colormap_t *cm); // returns num member changed: 1 for color, 2 for texture map
 API int    ui_separator();
 API int    ui_bits8(const char *label, uint8_t *bits);
 API int    ui_bits16(const char *label, uint16_t *bits);
@@ -3076,6 +3086,8 @@ API int ui_window_end();
 
 API int ui_show(const char *panel_or_window_title, int enabled);
 API int ui_visible(const char *panel_or_window_title); // @todo: include ui_collapse() items that are open as well?
+API int ui_enable();
+API int ui_disable();
 
 API int ui_has_menubar();
 API int ui_menu(const char *items); // semicolon-separated or comma-separated items
@@ -3169,6 +3181,7 @@ API void     window_loop_exit(); // exit from main loop function (emscripten onl
 
 API void     window_title(const char *title);
 API void     window_icon(const char *file_icon);
+API void     window_color(unsigned color);
 API vec2     window_canvas();
 API void*    window_handle();
 API char*    window_stats();

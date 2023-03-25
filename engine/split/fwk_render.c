@@ -1918,7 +1918,7 @@ static void sprite_rebuild_meshes() {
                 array_push( sprite_indices, sprite_index(C, A, B) ); // Triangle 2
             }
 
-            mesh_upgrade(&bt->mesh, "p3 t2 c4B", 0,array_count(sprite_vertices),sprite_vertices, 3*array_count(sprite_indices),sprite_indices, MESH_STATIC);
+            mesh_update(&bt->mesh, "p3 t2 c4B", 0,array_count(sprite_vertices),sprite_vertices, 3*array_count(sprite_indices),sprite_indices, MESH_STATIC);
 
             // clear elements from queue
             sprite_count += array_count(bt->sprites);
@@ -1971,7 +1971,7 @@ static void sprite_rebuild_meshes() {
                 array_push( sprite_indices, sprite_index(C, A, B) ); // Triangle 2
             }
 
-            mesh_upgrade(&bt->mesh, "p3 t2 c4B", 0,array_count(sprite_vertices),sprite_vertices, 3*array_count(sprite_indices),sprite_indices, MESH_STATIC);
+            mesh_update(&bt->mesh, "p3 t2 c4B", 0,array_count(sprite_vertices),sprite_vertices, 3*array_count(sprite_indices),sprite_indices, MESH_STATIC);
 
             // clear elements from queue
             sprite_count += array_count(bt->sprites);
@@ -2936,7 +2936,7 @@ cubemap_t cubemap6( const image_t images[6], int flags ) {
                         scale3(skyY[i], -2.0f * (y / (img.h - 1.0f)) + 1.0f)),
                     skyDir[i]); // texelDirection;
                 float l = len3(n);
-                vec3 light = div3(vec3(p[0], p[1], p[2]), 255.0f * l * l * l); // texelSolidAngle * texel_radiance;
+                vec3 light = scale3(vec3(p[0], p[1], p[2]), 1 / (255.0f * l * l * l)); // texelSolidAngle * texel_radiance;
                 n = norm3(n);
                 c.sh[0] = add3(c.sh[0], scale3(light,  0.282095f));
                 c.sh[1] = add3(c.sh[1], scale3(light, -0.488603f * n.y * 2.0 / 3.0));
@@ -3000,7 +3000,7 @@ skybox_t skybox(const char *asset, int flags) {
     // sky mesh
     vec3 vertices[] = {{+1,-1,+1},{+1,+1,+1},{+1,+1,-1},{-1,+1,-1},{+1,-1,-1},{-1,-1,-1},{-1,-1,+1},{-1,+1,+1}};
     unsigned indices[] = { 0, 1, 2, 3, 4, 5, 6, 3, 7, 1, 6, 0, 4, 2 };
-    sky.geometry = mesh_create("p3", 0,countof(vertices),vertices, countof(indices),indices, MESH_TRIANGLE_STRIP);
+    mesh_update(&sky.geometry, "p3", 0,countof(vertices),vertices, countof(indices),indices, MESH_TRIANGLE_STRIP);
 
     // sky program
     sky.flags = flags ? flags : !!asset; // either cubemap or rayleigh
@@ -3071,13 +3071,12 @@ void skybox_destroy(skybox_t *sky) {
 // -----------------------------------------------------------------------------
 // meshes
 
-mesh_t mesh_create(const char *format, int vertex_stride,int vertex_count,const void *vertex_data, int index_count,const void *index_data, int flags) {
+mesh_t mesh() {
     mesh_t z = {0};
-    mesh_upgrade(&z, format,  vertex_stride,vertex_count,vertex_data,  index_count,index_data,  flags);
     return z;
 }
 
-void mesh_upgrade(mesh_t *m, const char *format, int vertex_stride,int vertex_count,const void *vertex_data, int index_count,const void *index_data, int flags) {
+void mesh_update(mesh_t *m, const char *format, int vertex_stride,int vertex_count,const void *vertex_data, int index_count,const void *index_data, int flags) {
     m->flags = flags;
 
     // setup
@@ -3155,16 +3154,18 @@ void mesh_upgrade(mesh_t *m, const char *format, int vertex_stride,int vertex_co
 }
 
 void mesh_render(mesh_t *sm) {
-    glBindVertexArray(sm->vao);
-    if( sm->ibo ) { // with indices
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sm->ibo); // <-- why intel?
-        glDrawElements(sm->flags & MESH_TRIANGLE_STRIP ? GL_TRIANGLE_STRIP : GL_TRIANGLES, sm->index_count, GL_UNSIGNED_INT, (char*)0);
-        profile_incstat("Render.num_drawcalls", +1);
-        profile_incstat("Render.num_triangles", sm->index_count/3);
-    } else { // with vertices only
-        glDrawArrays(sm->flags & MESH_TRIANGLE_STRIP ? GL_TRIANGLE_STRIP : GL_TRIANGLES, 0, sm->vertex_count /* / 3 */);
-        profile_incstat("Render.num_drawcalls", +1);
-        profile_incstat("Render.num_triangles", sm->vertex_count/3);
+    if( sm->vao ) {
+        glBindVertexArray(sm->vao);
+        if( sm->ibo ) { // with indices
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sm->ibo); // <-- why intel?
+            glDrawElements(sm->flags & MESH_TRIANGLE_STRIP ? GL_TRIANGLE_STRIP : GL_TRIANGLES, sm->index_count, GL_UNSIGNED_INT, (char*)0);
+            profile_incstat("Render.num_drawcalls", +1);
+            profile_incstat("Render.num_triangles", sm->index_count/3);
+        } else { // with vertices only
+            glDrawArrays(sm->flags & MESH_TRIANGLE_STRIP ? GL_TRIANGLE_STRIP : GL_TRIANGLES, 0, sm->vertex_count /* / 3 */);
+            profile_incstat("Render.num_drawcalls", +1);
+            profile_incstat("Render.num_triangles", sm->vertex_count/3);
+        }
     }
 }
 

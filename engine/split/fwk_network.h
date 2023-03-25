@@ -6,6 +6,8 @@ API array(char) download( const char *url );
 API int         download_file( FILE *out, const char *url );
 API int         portname( const char *service_name, unsigned retries );
 
+API bool        network_tests();
+
 // -----------------------------------------------------------------------------
 // udp wrapper
 // - rlyeh, public domain.

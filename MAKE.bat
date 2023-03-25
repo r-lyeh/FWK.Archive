@@ -24,7 +24,7 @@ if [ "$1" = "tidy" ]; then
     rm -rf *.dSYM 2> /dev/null
     rm *.png 2> /dev/null
     rm *.mp4 2> /dev/null
-    rm Editor 2> /dev/null
+    rm editor.linux 2> /dev/null
     rm editor.osx 2> /dev/null
     rm temp_* 2> /dev/null
     exit
@@ -163,7 +163,7 @@ if [ "$(uname)" != "Darwin" ]; then
     fi
 
     # editor
-    echo editor        && $cc -o Editor        tools/editor/editor.c      -lm -ldl -lpthread -lX11 -w -Iengine/ $flags $import $args &
+    echo editor        && $cc -o editor.linux  tools/editor/editor.c      -lm -ldl -lpthread -lX11 -w -Iengine/ $flags $import $args &
 
     # demos
     echo hello         && $cc -o hello         hello.c               -lm -ldl -lpthread -lX11 -w -Iengine/ $flags         $args &
@@ -221,7 +221,7 @@ if [ "$(uname)" = "Darwin" ]; then
     echo editor        && cc -o editor.osx -ObjC tools/editor/editor.c  -w -Iengine/ $import $flags $args -framework cocoa -framework iokit -framework audiotoolbox &
 
     # demos
-    echo hello         && cc -o hello         hello.c               -w -Iengine/         $flags $args -framework cocoa -framework iokit -framework audiotoolbox &
+    echo hello         && cc -o hello -ObjC   hello.c               -w -Iengine/         $flags $args -framework cocoa -framework iokit -framework audiotoolbox &
     echo 00-ui         && cc -o 00-ui         demos/00-ui.c         -w -Iengine/ $import $flags $args -framework cocoa -framework iokit -framework audiotoolbox &
     echo 01-sprite     && cc -o 01-sprite     demos/01-sprite.c     -w -Iengine/ $import $flags $args -framework cocoa -framework iokit -framework audiotoolbox &
     echo 02-ddraw      && cc -o 02-ddraw      demos/02-ddraw.c      -w -Iengine/ $import $flags $args -framework cocoa -framework iokit -framework audiotoolbox &
@@ -329,19 +329,18 @@ if "%1"=="amalgamation" (
 echo // This file is intended to be consumed by a compiler. Do not read.  > fwk.h
 echo // **Browse to any of the sources in engine/split/ folder instead** >> fwk.h
 echo // ---------------------------------------------------------------- >> fwk.h
-echo // This C file is a header that you can #include. Add #define FWK_C >> fwk.h
-echo // early in **one** C compilation unit to unroll the implementation >> fwk.h
-echo // The FWK_C symbol **must be defined in a C file**; C++ wont work. >> fwk.h
+echo // #define FWK_IMPLEMENTATION early in **one** C file to unroll the >> fwk.h
+echo // implementation. The symbol must be defined in a C (not C++^) file>> fwk.h
 echo // ---------------------------------------------------------------- >> fwk.h
 echo #pragma once                                                        >> fwk.h
 type engine\split\3rd_font_md.h                                          >> fwk.h
 type engine\split\3rd_glad.h                                             >> fwk.h
 type engine\fwk.h                                                        >> fwk.h
-echo #ifdef FWK_C                                                        >> fwk.h
+echo #ifdef FWK_IMPLEMENTATION                                           >> fwk.h
 echo #define FWK_3RD                                                     >> fwk.h
 type engine\fwk                                                          >> fwk.h
 type engine\fwk.c                                                        >> fwk.h
-echo #endif // FWK_C                                                     >> fwk.h
+echo #endif // FWK_IMPLEMENTATION                                        >> fwk.h
 move /y fwk.h engine\joint
 exit /b
 )
@@ -538,13 +537,13 @@ if "!cc!"=="cl" (
     )
 
     if "!build!"=="rel" (
-        set args=/nologo /Zi /MT /openmp /DNDEBUG !args!        /Os /Ox /O2 /Oy /GL /GF /Gw /arch:AVX2 /pdbthreads:4 /link /OPT:ICF /LTCG
+        set args=/nologo /Zi /MT /openmp /DNDEBUG !args!        /Os /Ox /O2 /Oy /GL /GF /Gw /arch:AVX2 /link /OPT:ICF /LTCG
     )
     if "!build!"=="dev" (
-        set args=/nologo /Zi /MT /openmp /DEBUG   !args! && REM /Os /Ox /O2 /Oy /GL /GF /Gw /arch:AVX2 /pdbthreads:4
+        set args=/nologo /Zi /MT /openmp /DEBUG   !args! && REM /Os /Ox /O2 /Oy /GL /GF /Gw /arch:AVX2
     )
     if "!build!"=="dbg" (
-        set args=/nologo /Zi /MT         /DEBUG   !args!        /Od  /fsanitize=address                /pdbthreads:4
+        set args=/nologo /Zi /MT         /DEBUG   !args!        /Od  /fsanitize=address               
         rem make -- /RTC1, or make -- /Zi /fsanitize=address /DEBUG
     )
 
@@ -638,7 +637,7 @@ if "!cc!"=="tcc" set "cc=call tools\tcc"
 rem detect wether user-defined sources use single-header distro
 rem if so, remove API=IMPORT flags and also do not produce fwk.dll by default
 if not "!other!"=="" (
-    >nul find "FWK_C" !other! && (
+    >nul find "FWK_IMPLEMENTATION" !other! && (
       set import=
       set fwk=no
     )

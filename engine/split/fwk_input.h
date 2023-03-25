@@ -47,7 +47,7 @@ API vec2        input_filter_positive2( vec2 v ); // [-1..1] -> [0..1]
 API vec2        input_filter_deadzone( vec2 v, float deadzone_treshold );
 API vec2        input_filter_deadzone_4way( vec2 v, float deadzone_treshold );
 
-// -- multi-touch 
+// -- multi-touch
 
 enum TOUCH_BUTTONS {
     TOUCH_0,    // defaults to left screen area. input_touch_area() to override

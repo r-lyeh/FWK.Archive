@@ -4,13 +4,7 @@
 //
 // @todo: vec2,vec3,vec4
 
-typedef union json_t {
-    char* s;
-    double f;
-    int64_t i;
-    uintptr_t p;
-    array(union json_t) arr;
-} json_t;
+typedef union json_t { char* s; double f; int64_t i; uintptr_t p; array(union json_t) arr; } json_t;
 
 // json api
 
@@ -28,7 +22,7 @@ API bool            json_pop();
 
 // xml api
 
-API int 			xml_push(const char *xml_content);
+API int             xml_push(const char *xml_content);
 API const char *        xml_string(char *key);
 API unsigned            xml_count(char *key);
 API array(char)         xml_blob(char *key);
@@ -38,6 +32,8 @@ API array(char)         xml_blob(char *key);
 #define                 xml_blob(...)   xml_blob(va(__VA_ARGS__))         // syntax sugar: base64 blob
 #define                 xml_count(...)  xml_count(va(__VA_ARGS__))        // syntax sugar: count nodes
 API void            xml_pop();
+
+API bool data_tests();
 
 // compression api
 

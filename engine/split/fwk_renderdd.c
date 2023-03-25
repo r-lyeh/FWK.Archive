@@ -764,6 +764,8 @@ void ddraw_init() {
 }
 
 void ddraw_demo() {
+    ddraw_color_push(YELLOW);
+
     // freeze current frame for (frustum) camera forensics
     static mat44 projview_copy;
     do_once {
@@ -814,4 +816,6 @@ void ddraw_demo() {
     ddraw_point(vec3(-2,0,-2));
     ddraw_color(PURPLE);
     ddraw_sphere(vec3(-3,0,-3),1);
+
+    ddraw_color_pop();
 }

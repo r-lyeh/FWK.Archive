@@ -305,6 +305,75 @@ char *file_counter(const char *name) {
     return 0;
 }
 
+enum { MD5_HASHLEN = 16 };
+enum { SHA1_HASHLEN = 20 };
+enum { CRC32_HASHLEN = 4 };
+
+void* file_sha1(const char *file) { // 20bytes
+    hash_state hs = {0};
+    sha1_init(&hs);
+    for( FILE *fp = fopen(file, "rb"); fp; fclose(fp), fp = 0) {
+        char buf[8192];
+        for( int inlen; (inlen = fread(buf, 1, sizeof(buf), fp)) > 0; ) {
+            sha1_process(&hs, (const unsigned char *)buf, inlen);
+        }
+    }
+    unsigned char *hash = va("%.*s", SHA1_HASHLEN, "");
+    sha1_done(&hs, hash);
+    return hash;
+}
+
+void* file_md5(const char *file) { // 16bytes
+    hash_state hs = {0};
+    md5_init(&hs);
+    for( FILE *fp = fopen(file, "rb"); fp; fclose(fp), fp = 0) {
+        char buf[8192];
+        for( int inlen; (inlen = fread(buf, 1, sizeof(buf), fp)) > 0; ) {
+            md5_process(&hs, (const unsigned char *)buf, inlen);
+        }
+    }
+    unsigned char *hash = va("%.*s", MD5_HASHLEN, "");
+    md5_done(&hs, hash);
+    return hash;
+}
+
+void* file_crc32(const char *file) { // 4bytes
+    unsigned crc = 0;
+    for( FILE *fp = fopen(file, "rb"); fp; fclose(fp), fp = 0) {
+        char buf[8192];
+        for( int inlen; (inlen = fread(buf, 1, sizeof(buf), fp)) > 0; ) {
+            crc = zip__crc32(crc, buf, inlen); // unsigned int stbiw__crc32(unsigned char *buffer, int len)
+        }
+    }
+    unsigned char *hash = va("%.*s", (int)sizeof(crc), "");
+    memcpy(hash, &crc, sizeof(crc));
+    return hash;
+}
+
+#if 0
+void* crc32_mem(const void *ptr, int inlen) { // 4bytes
+    unsigned hash = 0;
+    hash = zip__crc32(hash, ptr, inlen); // unsigned int stbiw__crc32(unsigned char *buffer, int len)
+    return hash;
+}
+void* md5_mem(const void *ptr, int inlen) { // 16bytes
+    hash_state hs = {0};
+    md5_init(&hs);
+    md5_process(&hs, (const unsigned char *)ptr, inlen);
+    unsigned char *hash = va("%.*s", MD5_HASHLEN, "");
+    md5_done(&hs, hash);
+    return hash;
+}
+void* sha1_mem(const void *ptr, int inlen) { // 20bytes
+    hash_state hs = {0};
+    sha1_init(&hs);
+    sha1_process(&hs, (const unsigned char *)ptr, inlen);
+    unsigned char *hash = va("%.*s", SHA1_HASHLEN, "");
+    sha1_done(&hs, hash);
+    return hash;
+}
+#endif
+
 // -----------------------------------------------------------------------------
 // storage (emscripten only)
 

@@ -13,6 +13,7 @@
 
 //#define ptr(type)         0[&(type).x]
 #define vec2i(x, y     )  C_CAST(vec2i,(int)(x),   (int)(y)                          )
+#define vec3i(x, y, z  )  C_CAST(vec3i,(int)(x),   (int)(y),   (int)(z)              )
 #define vec2(x, y      )  C_CAST(vec2, (float)(x), (float)(y)                        )
 #define vec3(x, y, z   )  C_CAST(vec3, (float)(x), (float)(y), (float)(z),           )
 #define vec4(x, y, z, w)  C_CAST(vec4, (float)(x), (float)(y), (float)(z), (float)(w))
@@ -23,6 +24,7 @@
 #define mat44(...)        C_CAST(mat44, __VA_ARGS__ )
 
 typedef union vec2i{ struct { int X,Y; };       struct { int x,y; }; struct { int r,g; }; struct { int w,h; }; struct { int min,max; }; struct { int from,to; }; struct { int src,dst; }; int v2[2]; int array[1]; } vec2i;
+typedef union vec3i{ struct { int X,Y,Z; };     struct { int x,y,z; }; struct { int r,g,b; }; struct { int w,h,d; }; struct { int min,max; }; struct { int from,to,step; }; struct { int src,dst; }; int v3[3]; int array[1]; } vec3i;
 typedef union vec2 { struct { float X,Y; };     struct { float x,y; }; struct { float r,g; }; struct { float w,h; }; struct { float min,max; }; struct { float from,to; }; struct { float src,dst; }; float v2[2]; float array[1]; } vec2;
 typedef union vec3 { struct { float X,Y,Z; };   struct { float x,y,z; }; struct { float r,g,b; }; struct { float min,max; }; struct { float from,to; }; vec2 xy; vec2 rg; vec2 wh; float v3[3]; float array[1]; } vec3;
 typedef union vec4 { struct { float X,Y,Z,W; }; struct { float x,y,z,w; }; struct { float r,g,b,a; }; struct { float min,max; }; struct { float from,to; }; vec2 xy; vec3 xyz; vec2 rg; vec3 rgb; vec2 wh; vec3 whd; float v4[4]; float array[1]; } vec4;
@@ -85,6 +87,24 @@ API float ease_inout_bounce(float t);
 
 API float ease_inout_perlin(float t);
 
+enum EASE_FLAGS {
+    EASE_LINEAR,
+    EASE_SINE,
+    EASE_QUAD,
+    EASE_CUBIC,
+    EASE_QUART,
+    EASE_QUINT,
+    EASE_EXPO,
+    EASE_CIRC,
+    EASE_BACK,
+    EASE_ELASTIC,
+    EASE_BOUNCE,
+
+    EASE_IN,
+    EASE_INOUT = EASE_IN * 2,
+    EASE_OUT = 0,
+};
+
 API float ease(float t01, unsigned mode); // 0=linear,1=out_sine...31=inout_perlin
 
 API float ease_ping_pong(float t, float(*fn1)(float), float(*fn2)(float));
@@ -117,10 +137,10 @@ API vec2  neg2     (vec2   a          );
 API vec2  add2     (vec2   a, vec2   b);
 API vec2  sub2     (vec2   a, vec2   b);
 API vec2  mul2     (vec2   a, vec2   b);
+API vec2  div2     (vec2   a, vec2   b);
 API vec2  inc2     (vec2   a, float  b);
 API vec2  dec2     (vec2   a, float  b);
 API vec2  scale2   (vec2   a, float  b);
-API vec2  div2     (vec2   a, float  b);
 API vec2  pmod2    (vec2   a, float  b);
 API vec2  min2     (vec2   a, vec2   b);
 API vec2  max2     (vec2   a, vec2   b);
@@ -147,10 +167,10 @@ API vec3  neg3     (vec3   a          );
 API vec3  add3     (vec3   a, vec3   b);
 API vec3  sub3     (vec3   a, vec3   b);
 API vec3  mul3     (vec3   a, vec3   b);
+API vec3  div3     (vec3   a, vec3   b);
 API vec3  inc3     (vec3   a, float  b);
 API vec3  dec3     (vec3   a, float  b);
 API vec3  scale3   (vec3   a, float  b);
-API vec3  div3     (vec3   a, float  b);
 API vec3  pmod3    (vec3   a, float  b);
 API vec3  min3     (vec3   a, vec3   b);
 API vec3  max3     (vec3   a, vec3   b);
@@ -184,10 +204,10 @@ API vec4  neg4     (vec4   a          );
 API vec4  add4     (vec4   a, vec4   b);
 API vec4  sub4     (vec4   a, vec4   b);
 API vec4  mul4     (vec4   a, vec4   b);
+API vec4  div4     (vec4   a, vec4   b);
 API vec4  inc4     (vec4   a, float  b);
 API vec4  dec4     (vec4   a, float  b);
 API vec4  scale4   (vec4   a, float  b);
-API vec4  div4     (vec4   a, float  b);
 API vec4  pmod4    (vec4   a, float  b);
 API vec4  min4     (vec4   a, vec4   b);
 API vec4  max4     (vec4   a, vec4   b);
@@ -269,7 +289,6 @@ API void invert34(mat34 m, const mat34 o);
 
 // ----------------------------------------------------------------------------
 
-API void scaling44(mat44 m, float x, float y, float z);
 API void id44(mat44 m);
 API void identity44(mat44 m);
 API void copy44(mat44 m, const mat44 a);
@@ -295,54 +314,15 @@ API void transpose44(mat44 m, const mat44 a);
 API float det44(const mat44 M);
 API bool invert44(mat44 T, const mat44 M);
 
-API vec4 transform444(const mat44, const vec4);
-API bool unproject44(vec3 *out, vec3 xyd, vec4 viewport, mat44 mvp);
-
 API void compose44(mat44 m, vec3 t, quat q, vec3 s);
 
 // ----------------------------------------------------------------------------
 
-API vec3 transform33(const mat33 m, vec3 p);
-
-API vec4 transform444(const mat44 m, const vec4 p);
-
-API vec3 transform344(const mat44 m, const vec3 p);
-
 API vec3 transformq(const quat q, const vec3 v);
-
-#if 0
-// A value type representing an abstract direction vector in 3D space, independent of any coordinate system.
-// A concrete 3D coordinate system with defined x, y, and z axes.
-typedef enum AXIS_ENUMS { axis_front, axis_back, axis_left, axis_right, axis_up, axis_down } AXIS_ENUMS;
-typedef union coord_system { struct { AXIS_ENUMS x,y,z; }; } coord_system;
-
-API vec3 transform_axis(const coord_system, const AXIS_ENUMS);
-
-API void rebase44(mat44 m, const coord_system src_basis, const coord_system dst_basis);
-
-//API vec3 transform_axis(const coord_system basis, const AXIS_ENUMS to);
-
-// A vector is the difference between two points in 3D space, possessing both direction and magnitude
-API vec3 transform_vector  (const mat44 m, const vec3 vector);
-
-// A point is a specific location within a 3D space
-API vec3 transform_point   (const mat44 m, const vec3 p);
-
-// A tangent is a unit-length vector which is parallel to a piece of geometry, such as a surface or a curve
-API vec3 transform_tangent (const mat44 m, const vec3 tangent);
-
-// A normal is a unit-length bivector which is perpendicular to a piece of geometry, such as a surface or a curve
-API vec3 transform_normal  (const mat44 m, const vec3 normal);
-
-// A quaternion can describe both a rotation and a uniform scaling in 3D space
-API quat transform_quat    (const mat44 m, const quat q);
-
-// A matrix can describe a general transformation of homogeneous coordinates in projective space
-API float* transform_matrix(mat44 out, const mat44 m, const mat44 matrix);
-
-// Scaling factors are not a vector, they are a compact representation of a scaling matrix
-API vec3 transform_scaling (const mat44 m, const vec3 scaling);
-#endif
+API vec3 transform33(const mat33 m, vec3 p);
+API vec3 transform344(const mat44 m, const vec3 p);
+API vec4 transform444(const mat44 m, const vec4 p);
+API bool unproject44(vec3 *out, vec3 xyd, vec4 viewport, mat44 mvp);
 
 // ----------------------------------------------------------------------------
 // !!! for debugging
@@ -354,4 +334,3 @@ API void printq( quat q );
 API void print33( float *m );
 API void print34( float *m );
 API void print44( float *m );
-

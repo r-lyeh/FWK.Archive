@@ -137,8 +137,6 @@
 #define __thread
 #endif
 
-#define fourcc(abcd)  ( *(unsigned*) #abcd "    " ) // lil32() ?
-
 // usage: bool static(audio_is_init) = audio_init();
 //#define static(var)    static var; do_once var
 

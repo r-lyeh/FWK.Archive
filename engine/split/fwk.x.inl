@@ -163,4 +163,5 @@ errno_t fopen_s(
 #define g g2
 {{FILE:3rd_xml.h}}
 #undef g
+{{FILE:3rd_polychop.h}}
 #endif // FWK_3RD

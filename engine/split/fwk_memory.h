@@ -19,7 +19,7 @@ API char*  xstats(void);
 // stack based allocator (negative bytes does rewind stack, like when entering new frame)
 API void*  stack(int bytes);
 
-// memory leaks
+// memory leaks api (this is already integrated as long as you compile with -DWITH_MEMORY_LEAKS)
 API void*  watch( void *ptr, int sz );
 API void*  forget( void *ptr );
 

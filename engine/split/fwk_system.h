@@ -16,16 +16,13 @@ API const char* option(const char *commalist, const char *defaults); // --arg=va
 API int         optioni(const char *commalist, int defaults); // argvi() ?
 API float       optionf(const char *commalist, float defaults); // app_option?
 
-API const char* os_exec(const char *command); // app_exec? returns ("%15d %s", retcode, output_last_line)
-
 API void        tty_color(unsigned color);
 API void        tty_reset();
 API void        tty_attach();
 
-API int         cpu_cores(); // app_cores?
-
-// return battery level [1..100]. also positive if charging (+), negative if discharging (-), and 0 if no battery is present.
-API int         battery(); // app_battery?
+API const char* app_exec(const char *command); // returns ("%15d %s", retcode, output_last_line)
+API int         app_cores();
+API int         app_battery(); /// return battery level [1..100]. also positive if charging (+), negative if discharging (-), and 0 if no battery is present.
 
 API const char* app_name();
 API const char* app_path();
@@ -60,7 +57,7 @@ API void        hexdumpf( FILE *fp, const void *ptr, unsigned len, int width );
 API void        breakpoint(const char *optional_reason);
 API bool        has_debugger();
 
-API void        signals_install(void);
+API void        signal_hooks(void);
 API void        signal_handler_ignore(int signal);
 API void        signal_handler_quit(int signal);
 API void        signal_handler_abort(int signal);

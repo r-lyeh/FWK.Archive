@@ -150,7 +150,7 @@ unsigned midi(unsigned interval, void *param) { // this is async called every in
 
 int main(int argc, char** argv) {
     // install signal handlers
-    signals_install();
+    signal_hooks();
 
     // Change default bindings to modern
     doom_set_default_int("key_up", DOOM_KEY_W);

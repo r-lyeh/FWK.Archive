@@ -11,11 +11,9 @@ void (profile_render)() {
     if( !has_menu ) {
         static int cook_on_demand; do_once cook_on_demand = COOK_ON_DEMAND;
         if( !cook_on_demand ) {
-            // render profiler, unless we are in the cooking stage
-            // also, we defer profile from rendering some initial frames, so the user may have chance to actually call any UI call before us
-            // (given the UI policy nature, first-called first-served, we dont want profile tab to be on top of all other tabs)
-            static unsigned frames = 0; if(frames <= 3) frames += cook_progress() >= 100;
-            if( frames <= 3 ) return;
+            // render profiler, unless we are in the cook progress screen
+            static unsigned frames = 0; if(frames <= 0) frames += cook_progress() >= 100;
+            if( frames <= 0 ) return;
         }
     }
 

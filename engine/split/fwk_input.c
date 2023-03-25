@@ -624,7 +624,8 @@ bool input_touch_active() {
 // ----------------------------------------------------------------------------
 
 void input_demo() {
-    if( ui_panel("Keyboard",0) ) {
+    if( ui_panel("Input",0) ) {
+        ui_section("Keyboard");
         ui_const_bool("[Key 1]", input(KEY_1));
         ui_const_bool("[Key 2]", input(KEY_2));
         ui_const_bool("[Key 3]", input(KEY_3));
@@ -640,9 +641,9 @@ void input_demo() {
         ui_const_bool("[Key 5] Click event", input_click(KEY_5,500) );
         ui_const_bool("[Key 6] Click2 event", input_click2(KEY_6,1000) );
         ui_const_bool("[Key 7] Repeat event", input_repeat(KEY_7,750) );
-        ui_panel_end();
-    }
-    if( ui_panel("Mouse",0) ) {
+        ui_separator();
+
+        ui_section("Mouse");
         ui_const_float("X", input(MOUSE_X));
         ui_const_float("Y", input(MOUSE_Y));
         ui_separator();
@@ -653,11 +654,11 @@ void input_demo() {
         ui_const_bool("Right", input(MOUSE_R));
         ui_separator();
         for( int i = 0; i <= CURSOR_SW_AUTO; ++i ) if(ui_button(va("Cursor shape #%d", i))) window_cursor_shape(i);
-        ui_panel_end();
-    }
-    if( ui_panel("GamePad",0) ) {
+        ui_separator();
+
         static int gamepad_id = 0;
         const char *list[] = {"1","2","3","4"};
+        ui_section("GamePads");
         ui_list("Gamepad", list, 4, &gamepad_id);
 
         input_use(gamepad_id);

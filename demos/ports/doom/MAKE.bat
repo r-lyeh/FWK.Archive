@@ -1,4 +1,4 @@
-cl game.c PureDOOM.c -I ..\..\..\tools ..\..\..\tools\fwk.c ^
+cl game.c PureDOOM.c -I ..\..\..\engine ..\..\..\engine\fwk.c ^
     -DWIN32 ^
     %* ^
     /link /SUBSYSTEM:WINDOWS /entry:mainCRTStartup
