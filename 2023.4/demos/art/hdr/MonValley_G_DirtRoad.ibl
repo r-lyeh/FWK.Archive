@@ -1,0 +1,46 @@
+[Header]
+ICOfile = "MonValley_G_DirtRoad_thumb.jpg"
+PREVIEWfile = "MonValley_G_DirtRoad_preview.jpg"
+Name = "MonValley DirtRoad"
+Author = "Blochi"
+Location = "Monument Valley"
+Comment = "Daylight, outdoors, clear sky, mountains, rocks, tree"
+GEOlat = 36.937955742242785
+GEOlong = -110.06034851074219
+Link = "http://www.hdrlabs.com/sibl/archive.html"
+Date = "2008:11:29"
+Time = "11:01:00"
+Height = 1.6
+North = 0.25
+
+[Background]
+BGfile = "MonValley_G_DirtRoad_8k.jpg"
+BGmap = 1
+BGu = 0.000000
+BGv = 0.000000
+BGheight = 4000
+
+[Enviroment]
+EVfile = "MonValley_G_DirtRoad_Env.hdr"
+EVmap = 1
+EVu = 0.000000
+EVv = 0.000000
+EVheight = 180
+EVmulti = 1.000000
+EVgamma = 1.800000
+
+[Reflection]
+REFfile = "MonValley_G_DirtRoad_3k.hdr"
+REFmap = 1
+REFu = 0.000000
+REFv = 0.000000
+REFheight = 1600
+REFmulti = 1.000000
+REFgamma = 1.800000
+
+[Sun]
+SUNcolor = 255,249,236
+SUNmulti = 1.200000
+SUNu = 0.503750
+SUNv = 0.455000
+
