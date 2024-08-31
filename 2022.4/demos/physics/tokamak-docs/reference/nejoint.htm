@@ -1,0 +1,174 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta name="GENERATOR" content="Microsoft FrontPage 4.0">
+<meta name="ProgId" content="FrontPage.Editor.Document">
+<title>neJoint</title>
+<base target="_self">
+</head>
+
+<body link="#880000" vlink="#880000" alink="#880000">
+
+<h1>class <a name="neJoint">neJoint</a></h1>
+<table border="1" width="100%" height="243">
+  <tr>
+    <td width="33%" height="19">Joint Types</td>
+    <td width="33%" height="19">Joint Frame and Limit</td>
+    <td width="34%" height="19">Others</td>
+  </tr>
+  <tr>
+    <td width="33%" height="212" valign="top"> <font COLOR="#880000"><a href="#SetType">SetType<br>
+      GetType</a><br>
+      <a href="#GetRigidBodyA">GetRigidBodyA<br>
+      GetRigidBodyB<br>
+      GetAnimatedBodyB</a><br>
+      <a href="#Enable">Enable<br>
+      Enable</a><br>
+      </font></td>
+    <td width="33%" height="212" valign="top"><font COLOR="#880000"><a href="#SetJointFrameA">SetJointFrameA<br>
+      GetJointFrameA<br>
+      SetJointFrameB<br>
+      GetJointFrameB</a><br>
+      <a href="#SetJointFrameWorld">SetJointFrameWorld</a><br>
+      <a href="#SetJointLength">SetJointLength<br>
+      GetJointLength</a><br>
+      <a href="#EnableLimit">EnableLimit<br>
+      EnableLimit2</a><br>
+      <a href="#GetUpperLimit">GetLowerLimit<br>
+      SetLowerLimit<br>
+      GetUpperLimit<br>
+      SetUpperLimit</a></font></td>
+    <td width="34%" height="212" valign="top"><font COLOR="#880000"><a href="#SetTau">
+      SetEpsilon<br>
+      GetEpsilon<br>
+      SetIteration<br>
+      GetIteration<br>
+      </a>
+      <a href="#AddController">AddController<br>
+      RemoveController<br>
+      BeginIterateController<br>
+      GetNextController</a></font></td>
+  </tr>
+</table>
+<p><font COLOR="#0000ff">typedef</font> <font COLOR="#0000ff">enum<br>
+</font>{<font COLOR="#a000a0"><br>
+&nbsp;&nbsp;&nbsp; NE_JOINT_BALLSOCKET</font>,<font COLOR="#a000a0"><br>
+&nbsp;&nbsp; </font> <font COLOR="#a000a0">NE_JOINT_HINGE</font>,<br>
+}<font COLOR="#a000a0">JointType</font>;</p>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="SetType">SetType</a></font>(<font COLOR="#a000a0">JointType</font>
+<font COLOR="#808080">t</font>);<font COLOR="#a000a0"><br>
+JointType</font> <font COLOR="#880000">GetType</font>();</p>
+<p>Specify and retrieve the type of the joint.</p>
+<p><i><a href="#neJoint">&lt;back to top&gt;</a></i></p>
+<hr>
+<p><font COLOR="#0000ff">neRigidBody</font> * <font COLOR="#880000"><a name="GetRigidBodyA">GetRigidBodyA</a></font>();<font COLOR="#0000ff"><br>
+neRigidBody</font> * <font COLOR="#880000">GetRigidBodyB</font>();<font COLOR="#0000ff"><br>
+neAnimatedBody</font> * <font COLOR="#880000">GetAnimatedBodyB</font>();</p>
+<p>Retrieve the bodies which are connected by this joint. The bodies are specified 
+  when the joint is created and cannot be changed.</p>
+<p><i><a href="#neJoint">&lt;back to top&gt;</a></i></p>
+<hr>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="SetJointFrameA">SetJointFrameA</a></font>(<font COLOR="#0000ff">const</font>
+<font COLOR="#0000ff">neT3</font> &amp; <font COLOR="#808080">frameA</font>);<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">SetJointFrameB</font>(<font COLOR="#0000ff">const</font>
+<font COLOR="#0000ff">neT3</font> &amp; <font COLOR="#808080">frameB</font>);<font COLOR="#0000ff"><br>
+neT3</font> <font COLOR="#880000">GetJointFrameA</font>();<font COLOR="#0000ff"><br>
+neT3</font> <font COLOR="#880000">GetJointFrameB</font>();</p>
+<p>Use these functions to specify and retrieve the reference frame of the joint. 
+  The reference frame of the joint specifies position and orientation of the joint 
+  with respect to each body's local frame. For ball-and-socket joints, the position 
+  of the frame specifies the location where the two bodies are connected. For 
+  hinge joints, the position specifies the location of the joint, and the Y-axis 
+  of the joint frame is the axis of the joint (which is the axis the two bodies 
+  are free to rotate about).</p>
+<p><i><a href="#neJoint">&lt;back to top&gt;</a></i></p>
+<hr>
+<p><font COLOR="#0000ff">
+void</font> <font COLOR="#880000"><a name="SetJointFrameWorld">SetJointFrameWorld</a></font>(<font COLOR="#0000ff">const</font>
+<font COLOR="#0000ff">neT3</font> &amp; <font COLOR="#808080">frame</font>); </p>
+<p>Use this function to specify the joint's frame in world coordinate. To use 
+  this function, typically the two bodies of the joint would already be positioned 
+  correctly in relation to each other in world co-ordinates.</p>
+<p><i><a href="#neJoint">&lt;back to top&gt;</a></i> </p>
+<hr>
+<p><font COLOR="#0000ff">
+void</font> <font COLOR="#880000"><a name="SetJointLength">SetJointLength</a></font>(<font COLOR="#0000ff">f32</font>
+<font COLOR="#808080">length</font>);<i><a href="#neJoint"><br>
+</a></i><font COLOR="#0000ff">f32</font> <font COLOR="#880000">GetJointLength</font>();</p>
+<p>Specify and retrieve the length of the joint. Some joints, such as hinge joints, 
+  have length as well as position and orientation.</p>
+<p><i><a href="#neJoint">&lt;back to top&gt;</a></i></p>
+<hr>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="Enable">Enable</a></font>(<font COLOR="#0000ff">neBool</font>
+<font COLOR="#808080">yes</font>);<font COLOR="#0000ff"><br>
+neBool</font>  <font COLOR="#880000">Enable</font>();</p>
+<p>Enable or disable the joint. The second function returns true if the joint is
+enabled.</p>
+<p><i><a href="#neJoint">&lt;back to top&gt;</a></i></p>
+<hr>
+<p><font COLOR="#0000ff">
+void</font> <font COLOR="#880000"><a name="EnableLimit">EnableLimit</a></font>(<font COLOR="#0000ff">neBool</font>
+<font COLOR="#808080">yes</font>);<font COLOR="#0000ff"><br>
+neBool</font>  <font COLOR="#880000">EnableLimit</font>();<br>
+<font color="#0000FF">void</font> <font color="#880000">EnableLimit2</font>(<font color="#0000FF">neBool</font>
+yes);<br>
+<font color="#0000FF">neBool</font> <font color="#880000">EnableLimit2</font>();</p>
+<p>Enable or disable the joint limit. The second function returns true if the 
+  joint limit is enabled. The last two functions relate to the second limit for 
+  the joint. Note: currently, only ball and socket joints have a second limit, 
+  which is the twist.&nbsp;</p>
+<p><i><a href="#neJoint">&lt;back to top&gt;</a></i></p>
+<hr>
+<p><font COLOR="#0000ff">f32</font> <font COLOR="#880000"><a name="GetUpperLimit">GetUpperLimit</a></font>();<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">SetUpperLimit</font>(<font COLOR="#0000ff">f32</font>
+<font COLOR="#808080">upperLimit</font>);<font COLOR="#0000ff"><br>
+f32</font> <font COLOR="#880000">GetLowerLimit</font>();<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">SetLowerLimit</font>(<font COLOR="#0000ff">f32</font>
+<font COLOR="#808080">lowerLimit</font>);<br>
+<font COLOR="#0000ff">f32 </font><font color="#880000">GetUpperLimit2</font>();<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">SetUpperLimit2</font>(<font COLOR="#0000ff">f32</font>
+<font COLOR="#808080">upperLimit</font>);<font COLOR="#0000ff"><br>
+f32</font> <font COLOR="#880000">GetLowerLimit2</font>();<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">SetLowerLimit2</font>(<font COLOR="#0000ff">f32</font>
+<font COLOR="#808080">lowerLimit</font>);</p>
+<p>Set the upper and lower limits of the joint. Joint limits are used to restrict 
+  the movement of a joint. For ball-and-socket joints and hinge joints, the joint's 
+  current angle is the angle between the X-axes of the joint's frame in each of 
+  the joint bodies. For ball-and-socket joints, the valid range of the lower limit 
+  is 0 to PI; for the upper limit, between lower the limit and PI. For a hinge 
+  joint, the valid range for lower and upper limits is -PI..PI, but the upper 
+  limit must be greater than the lower limit.</p>
+<p>For ball and socket joints, a twist limit can also be specified. This is done 
+  by calling the SetUpperLimit2 and SetLowerLimit2 functions.</p>
+<p><i><a href="#neJoint">&lt;back to top&gt;</a></i></p>
+<hr>
+<p><font COLOR="#0000ff">
+void</font> <font COLOR="#880000">SetEpsilon</font>(<font COLOR="#0000ff">f32</font>
+<font COLOR="#808080">e</font>);<font COLOR="#0000ff"><br>
+f32</font> <font COLOR="#880000">GetEpsilon</font>();<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">SetIteration</font>(<font COLOR="#0000ff">s32</font>
+<font COLOR="#808080">i</font>);<font COLOR="#0000ff"><br>
+s32</font> <font COLOR="#880000">GetIteration</font>();</p>
+<p>These functions relate to the accuracy of the solution of the joint. Generally, 
+  lower accuracy results in faster simulation, but may be prone to side effects 
+  if the accuracy is too low. Epsilon specifies the early-exit theshold for the 
+  constraint solver. Iteration relates to the number of iterations the solver 
+  will use to solve the constraint. Setting the epsilon to 0 means the solver 
+  will always perform the specified number of iterations and will not exit early.</p>
+<p><i><a href="#neJoint">&lt;back to top&gt;</a></i></p>
+<hr>
+<p><font COLOR="#0000ff">neJointController</font> * <font COLOR="#880000"><a name="AddController">AddController</a></font>(<font COLOR="#0000ff">neJointControllerCallback</font>
+* <font COLOR="#808080">controller</font>, <font COLOR="#0000ff">s32</font> <font COLOR="#808080">period</font>);<font COLOR="#0000ff"><br>
+neBool</font> <font COLOR="#880000">RemoveController</font>(<font COLOR="#0000ff">neJointController</font>
+* <font COLOR="#808080">rbController</font>);<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">BeginIterateController</font>();<font COLOR="#0000ff"><br>
+neJointController</font> * <font COLOR="#880000">GetNextController</font>();</p>
+
+<p>These functions provide access to adding and removing joint controller callbacks.</p>
+
+<p><i><a href="#neJoint">&lt;back to top&gt;</a></i></p>
+
+</body>
+
+</html>
