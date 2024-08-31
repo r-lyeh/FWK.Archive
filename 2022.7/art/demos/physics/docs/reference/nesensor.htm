@@ -1,0 +1,44 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta name="GENERATOR" content="Microsoft FrontPage 4.0">
+<meta name="ProgId" content="FrontPage.Editor.Document">
+<title>neSensor</title>
+</head>
+
+<body>
+
+<h1>class <a name="neSensor">neSensor</a></h1>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000">SetLineSensor</font>(<font COLOR="#0000ff">const</font>
+<font COLOR="#0000ff">neV3</font> &amp; <font COLOR="#808080">pos</font>, <font COLOR="#0000ff">const</font>
+<font COLOR="#0000ff">neV3</font> <font COLOR="#808080">dir</font>);<br>
+<font COLOR="#0000ff">neV3</font> <font COLOR="#880000">GetLineNormal</font>();</p>
+<p>Specify the position and vector of the line representing the sensor object. 
+  Sensors are directed lines which are attached to a body. When the line representing 
+  the sensor intersects with other bodys' geometries, the intersection information 
+  can be retrieved and used by the application. To retrieve the intersection information, 
+  use the GetLineNormal, GetDetectDepth, GetDetectNormal, GetDetectContactPoint, 
+  GetDetectRigidBody, GetDetectAnimatedBody, and the GetDetectMaterial functions.</p>
+<hr>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000">SetUserData</font>(<font COLOR="#0000ff">u32</font>
+<font COLOR="#808080">userData</font>);<font COLOR="#0000ff"><br>
+u32</font> <font COLOR="#880000">GetUserData</font>();</p>
+<p>Specify and retrieve the user data associate with the sensor object.</p>
+<hr>
+<p><font COLOR="#0000ff">
+f32</font> <font COLOR="#880000">GetDetectDepth</font>();<font COLOR="#0000ff"><br>
+neV3</font> <font COLOR="#880000">GetDetectNormal</font>();<font COLOR="#0000ff"><br>
+neV3</font> <font COLOR="#880000">GetDetectContactPoint</font>();<font COLOR="#0000ff"><br>
+neRigidBody</font> * <font COLOR="#880000">GetDetectRigidBody</font>();<font COLOR="#0000ff"><br>
+neAnimatedBody</font> * <font COLOR="#880000">GetDetectAnimatedBody</font>();<font COLOR="#0000ff"><br>
+s32</font> <font COLOR="#880000">GetDetectMaterial</font>();</p>
+
+<p>Use these functions to retrieve the current intersection information of the 
+  sensor. If GetDetectDepth is &lt;= 0.0, then the sensor does not intersect with 
+  other geometries and all other values returned by GetDetectXXX functions are 
+  invalid.</p>
+
+</body>
+
+</html>
