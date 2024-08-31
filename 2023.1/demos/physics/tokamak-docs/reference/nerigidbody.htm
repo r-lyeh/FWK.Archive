@@ -1,0 +1,309 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Language" content="en-gb">
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta name="GENERATOR" content="Microsoft FrontPage 4.0">
+<meta name="ProgId" content="FrontPage.Editor.Document">
+<title>neRigidBody</title>
+<base target="_self">
+</head>
+
+<body link="#880000">
+
+<h1>class <a name="neRigidBody">neRigidBody</a></h1>
+
+<table border="1" width="717" height="105" style="line-height: 100%">
+  <tr>
+    <td width="150" height="32">Properties</td>
+    <td width="128" height="32">Spatial States</td>
+    <td width="163" height="32">Dynamic States</td>
+    <td width="248" height="32">Others</td>
+  </tr>
+  <tr>
+    <td width="150" height="199" valign="top">
+      <p style="line-height: 100%"><font color="#880000"><a href="#GetMass">GetMass</a><br>
+      <a href="#GetMass">
+      SetMass</a><br>
+      <a href="#SetInertiaTensor">
+      SetInertiaTensor</a><br>
+      <a href="#SetCollisionID">
+      SetCollisionID</a><br>
+      <a href="#SetCollisionID">
+      GetCollisionID</a><br>
+      <a href="#SetUserData">SetUserData</a><br>
+      <a href="#SetUserData">GetUserData</a><br>
+      <a href="#SetForce">SetForce</a><br>
+      <a href="#SetForce">
+      SetTorque</a><br>
+      <a href="#SetForce">
+      SetForce</a><br>
+      <a href="#SetForce">
+      GetForce</a><br>
+      <a href="#SetForce">
+      GetTorque</a><br>
+      </font></p>
+    </td>
+    <td width="128" height="199" valign="top"><font COLOR="#880000"><a href="#GetPos">GetPos</a><br>
+      <a href="#GetPos">
+      SetPos</a><br>
+      <a href="#GetPos">
+      GetRotationM3</a><br>
+      <a href="#GetPos">
+      GetRotationQ</a><br>
+      <a href="#GetPos">
+      SetRotation</a><br>
+      <a href="#GetPos">
+      SetRotation</a><br>
+      <a href="#GetPos">
+      GetTransform</a></font>
+      <p>&nbsp;</td>
+    <td width="163" height="199" valign="top"><font COLOR="#880000"><a href="#GetVelocity">GetVelocity</a><br>
+      <a href="#GetVelocity">
+      SetVelocity</a><br>
+      <a href="#GetVelocity">
+      GetAngularVelocity</a><br>
+      <a href="#GetVelocity">
+      GetAngularMomentum</a><br>
+      <a href="#GetVelocity">
+      SetAngularMomentum</a></font>
+      <p>&nbsp;</td>
+    <td width="248" height="199" valign="top"><font COLOR="#880000"><a href="#UpdateBoundingInfo">UpdateBoundingInfo</a><br>
+      <a href="#ApplyImpulse">
+      ApplyImpulse</a><br>
+      <a href="#ApplyImpulse">
+      ApplyImpulse</a><br>
+      <a href="#ApplyImpulse">
+      ApplyTwist<br>
+      </a>
+      <a href="#GravityEnable">GravityEnable</a><br>
+      <a href="#GravityEnable">GravityEnable</a><br>
+      <a href="#CollideConnected">
+      CollideConnected</a><br>
+      <a href="#CollideConnected">
+      CollideConnected</a><br>
+      <a href="#Active">
+      Active</a><br>
+      <a href="#Active">
+      Active</a><br>
+      <a href="#Active">
+      Active</a></font><p><font color="#880000"><a href="#GetGeometryCount">GetGeometryCount</a></font><a href="#GetGeometryCount"><font COLOR="#0000ff"><br>
+      </font> <font COLOR="#880000">AddGeometry</font><br>
+ <font COLOR="#880000">RemoveGeometry</font><font COLOR="#0000ff"><br>
+      </font> <font COLOR="#880000">BeginIterateGeometry</font><font COLOR="#0000ff"><br>
+      </font> <font COLOR="#880000">GetNextGeometry</font></a></p>
+      <p><a href="#BreakGeometry"> <font COLOR="#880000">BreakGeometry</font></a></p>
+      <p><font color="#880000"><a href="#AddSensor">AddSensor<br>
+      RemoveSensor<br>
+      BeginIterateSensor<br>
+      GetNextSensor</a></font></p>
+      <p><font color="#880000"><a href="#AddController">AddController</a></font><a href="#AddController"><br>
+ <font COLOR="#880000">RemoveController</font><font COLOR="#0000ff"><br>
+      </font> <font COLOR="#880000">BeginIterateController<br>
+      GetNextController</font></a></p>
+    </td>
+  </tr>
+</table>
+<p><font color="#0000FF">f32</font> <font COLOR="#880000"><a name="GetMass">GetMass</a></font>();<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">SetMass</font>(<font color="#0000FF">f32</font>
+<font COLOR="#808080">mass</font>);</p>
+<p>Sets and retrieves the mass of the rigid body. This property governs how fast 
+  a rigid body will accelerate under a given force, as well as how big an impulse 
+  is needed to change the body's velocity.</p>
+<hr>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="SetInertiaTensor">SetInertiaTensor</a></font>(<font COLOR="#0000ff">const</font>
+ <font color="#0000FF">
+neM3</font> &amp; <font COLOR="#808080">tensor</font>);<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">SetInertiaTensor</font>(<font COLOR="#0000ff">const</font>
+ <font color="#0000FF">
+neV3</font> &amp; <font COLOR="#808080">tensor</font>);</p>
+<p>Set and retrieve the body's mass inertia tensor. This property is analagous 
+  to mass, but effects the rotational behaviour. Use utility functions such as 
+  <font color="#880000">neBoxInertiaTensor </font>to help you set this value.</p>
+<p align="left"><a href="#neRigidBody"><i>&lt;back to top&gt;</i></a></p>
+<hr>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="SetCollisionID">SetCollisionID</a></font>(<font color="#0000FF">s32</font>
+<font COLOR="#808080">cid</font>);<br>
+<font color="#0000FF">
+s32</font> <font COLOR="#880000">GetCollisionID</font>();</p>
+<p>Set and retrieve the collision ID of the rigid body. The collision ID, along 
+  with the <font color="#880000">neCollisionTable</font>, determines how the rigid 
+  body will respond when a collision has occurred with other objects in the simulation. 
+  See also <font color="#880000">neCollisionTable</font>.</p>
+<p><a href="#neRigidBody"><i>&lt;back to top&gt;</i></a></p>
+<hr>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="SetUserData">SetUserData</a></font>(<font color="#0000FF">u32</font>
+<font COLOR="#808080">userData</font>);<br>
+<font color="#0000FF">
+u32</font> <font COLOR="#880000">GetUserData</font>();</p>
+<p>Set and retrieve the user data property. This is a u32 value used to store 
+  game-specific information associated with the rigid body.</p>
+<p><a href="#neRigidBody"><i>&lt;back to top&gt;</i></a></p>
+<hr>
+<p><font color="#0000FF">s32</font> <font COLOR="#880000"><a name="GetGeometryCount">GetGeometryCount</a></font>();<font COLOR="#0000ff"><br>
+neGeometry</font> * <font COLOR="#880000">AddGeometry</font>();<br>
+<font color="#0000FF">
+neBool</font> <font COLOR="#880000">RemoveGeometry</font>(<font COLOR="#0000ff">neGeometry</font>
+* <font COLOR="#808080">g</font>);<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">BeginIterateGeometry</font>();<font COLOR="#0000ff"><br>
+neGeometry</font> * <font COLOR="#880000">GetNextGeometry</font>();</p>
+<p>Use these functions to create and retrieve <font color="#880000">neGeometry</font> 
+  objects for the rigid body. The collection <font color="#880000">neGeometry</font> 
+  belonging to a rigid body defines the body's collision boundary. It also defines 
+  the rigid body's breaking behaviour. A rigid body can also exist and be simulated 
+  without any <font color="#880000">neGeomtry</font> assigned to it; it just won't 
+  collide with anything in the simulation. All <font color="#880000">neGeometry</font> 
+  objects within a rigid body will be freed automatcally when the rigid body is 
+  freed. See also <font color="#880000">neGeometry</font>.</p>
+<p><a href="#neRigidBody"><i>&lt;back to top&gt;</i></a></p>
+<hr>
+<p><font COLOR="#0000ff">neRigidBody</font> * <font COLOR="#880000"><a name="BreakGeometry">BreakGeometry</a></font>(<font COLOR="#0000ff">neGeometry</font>
+* <font COLOR="#808080">g</font>);</p>
+<p>Breaks off the geometry object, which must belong to the rigid body. Returns
+the newly created rigid body.</p>
+<p><a href="#neRigidBody"><i>&lt;back to top&gt;</i></a></p>
+<hr>
+<p><font COLOR="#0000ff">neSensor</font> * <font COLOR="#880000"><a name="AddSensor">AddSensor</a></font>();<br>
+<font color="#0000FF">
+neBool</font> <font COLOR="#880000">RemoveSensor</font>(<font COLOR="#0000ff">neSensor</font>
+* <font COLOR="#808080">s</font>);<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">BeginIterateSensor</font>();<font COLOR="#0000ff"><br>
+neSensor</font> * <font COLOR="#880000">GetNextSensor</font>();</p>
+<p>Use these functions to create and retrieve neSensor objects for the rigid
+body. See <font color="#880000">neSensor</font>.</p>
+<p><a href="#neRigidBody"><i>&lt;back to top&gt;</i></a></p>
+<hr>
+<p><font COLOR="#0000ff">neRigidBodyController</font> * <font COLOR="#880000"><a name="AddController">AddController</a></font>(<font COLOR="#0000ff">neRigidBodyControllerCallback</font>
+* <font COLOR="#808080">controller</font>, <font color="#0000FF"> s32</font> <font COLOR="#808080">period</font>);<br>
+<font color="#0000FF">
+neBool</font> <font COLOR="#880000">RemoveController</font>(<font COLOR="#0000ff">neRigidBodyController</font>
+* <font COLOR="#808080">rbController</font>);<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">BeginIterateController</font>();<font COLOR="#0000ff"><br>
+neRigidBodyController</font> * <font COLOR="#880000">GetNextController</font>();</p>
+<p>Use these functions to create and retrieve neRigidBodyController objects for
+the rigid body. See <font color="#880000">neRigidBodyController</font>.</p>
+<p><a href="#neRigidBody"><i>&lt;back to top&gt;</i></a></p>
+<hr>
+<p><font color="#0000FF">neV3</font> <font COLOR="#880000"><a name="GetPos">GetPos</a></font>();<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">SetPos</font>(<font COLOR="#0000ff">const</font>
+ <font color="#0000FF">
+neV3</font> &amp; <font COLOR="#808080">p</font>);<br>
+<font color="#0000FF">
+neM3</font> <font COLOR="#880000">GetRotationM3</font>();<br>
+<font color="#0000FF">
+neQ</font> <font COLOR="#880000">GetRotationQ</font>();<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">SetRotation</font>(<font COLOR="#0000ff">const</font>
+ <font color="#0000FF">
+neM3</font> &amp; <font COLOR="#808080">m</font>);<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">SetRotation</font>(<font COLOR="#0000ff">const</font>
+ <font color="#0000FF">
+neQ</font> &amp; <font COLOR="#808080">q</font>);<br>
+<font color="#0000FF">
+neT3</font> <font COLOR="#880000">GetTransform</font>();</p>
+<p>Set and retrieve spatial states for the rigid body with these functions.</p>
+<p><a href="#neRigidBody"><i>&lt;back to top&gt;</i></a></p>
+<hr>
+<p><font color="#0000FF">neV3</font> <font COLOR="#880000"><a name="GetVelocity">GetVelocity</a></font>();<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">SetVelocity</font>(<font COLOR="#0000ff">const</font>
+ <font color="#0000FF">
+neV3</font> &amp; <font COLOR="#808080">v</font>);<br>
+<font color="#0000FF">
+neV3</font> <font COLOR="#880000">GetAngularVelocity</font>();<br>
+<font color="#0000FF">
+neV3</font> <font COLOR="#880000">GetAngularMomentum</font>();<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">SetAngularMomentum</font>(<font COLOR="#0000ff">const</font>
+ <font color="#0000FF">
+neV3</font>&amp; <font COLOR="#808080">am</font>);</p>
+<p>Set and retrieve dynamic states for the rigid body with these functions.</p>
+<p><a href="#neRigidBody"><i>&lt;back to top&gt;</i></a></p>
+<hr>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="UpdateBoundingInfo">UpdateBoundingInfo</a></font>();</p>
+<p>Update the internal bounding information of the rigid body. Whenever the user 
+  changes the geometry and/or sensor of the rigid body by adding, removing, or 
+  modifying the geometry and/or sensor, this function needs to be called to update 
+  the internal bounding information.</p>
+<p><a href="#neRigidBody"><i>&lt;back to top&gt;</i></a></p>
+<hr>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="SetForce">SetForce</a></font>(<font COLOR="#0000ff">const</font>
+ <font color="#0000FF">
+neV3</font> &amp; <font COLOR="#808080">force</font>);<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">SetTorque</font>(<font COLOR="#0000ff">const</font>
+ <font color="#0000FF">
+neV3</font> &amp; <font COLOR="#808080">torque</font>);<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">SetForce</font>(<font COLOR="#0000ff">const</font>
+ <font color="#0000FF">
+neV3</font> &amp; <font COLOR="#808080">force</font>, <font COLOR="#0000ff">const</font>
+ <font color="#0000FF">
+neV3</font> &amp; <font COLOR="#808080">pos</font>);<br>
+<font color="#0000FF">
+neV3</font> <font COLOR="#880000">GetForce</font>();<br>
+<font color="#0000FF">
+neV3</font> <font COLOR="#880000">GetTorque</font>();</p>
+<p>Set and retrieve the force/torque acting on the rigid body. A force will accelerate 
+  the rigid body's velocity. A torque will accelerate the rigid body's angular 
+  velocity. When the force is applied at a point other than the Center of Mass 
+  of the rigid body, it will also produce a torque, hence the second <font COLOR="#880000">SetForce</font> 
+  function, where <font color="#808080">pos</font> is defined in world coordinates.</p>
+<p>The force/torque will be apply continously. To apply no force/torque to the
+rigid body set the value to zero.</p>
+<p><a href="#neRigidBody"><i>&lt;back to top&gt;</i></a></p>
+<hr>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="ApplyImpulse">ApplyImpulse</a></font>(<font COLOR="#0000ff">const</font>
+ <font color="#0000FF">
+neV3</font> &amp; <font COLOR="#808080">impulse</font>);<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">ApplyImpulse</font>(<font COLOR="#0000ff">const</font>
+ <font color="#0000FF">
+neV3</font> &amp; <font COLOR="#808080">impulse</font>, <font COLOR="#0000ff">const</font>
+ <font color="#0000FF">
+neV3</font> &amp; <font COLOR="#808080">pos</font>);<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">ApplyTwist</font>(<font COLOR="#0000ff">const</font>
+ <font color="#0000FF">
+neV3</font> &amp; <font COLOR="#808080">twist</font>);</p>
+<p>Apply an impulse or a twist to the rigid body. An impulse will produce a immediate 
+  change in velocity. A twist will produce immediate a change in angular velocity. 
+  An impulse applied at a point other than the Center of Mass of the rigid body 
+  also produce a twist. To do this, use the second <font COLOR="#880000">ApplyImpulse</font> 
+  function, where <font color="#808080">pos</font> is define in world coordinates 
+  of the application point.</p>
+<p><a href="#neRigidBody"><i>&lt;back to top&gt;</i></a></p>
+<hr>
+<p><font COLOR="#0000ff">
+void </font><a name="GravityEnable"><font COLOR="#880000">GravityEnable</font></a>(<font COLOR="#0000ff">neBool</font>
+<font COLOR="#808080">yes</font>);<br>
+<font color="#0000FF">neBool</font>  <font color="#880000">GravityEnable</font>();</p>
+<p>Enable or disable gravity for the rigid body. If gravity is enabled, the rigid 
+  body will have a force equal to</p>
+<p>&nbsp;&nbsp;&nbsp; gravity x mass</p>
+<p>automatically applied to it by the simulator.</p>
+<p><a href="#neRigidBody"><i>&lt;back to top&gt;</i></a></p>
+<hr>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="CollideConnected">CollideConnected</a></font>(<font color="#0000FF">neBool</font>
+<font COLOR="#808080">yes</font>);<br>
+<font color="#0000FF">
+neBool</font>  <font COLOR="#880000">CollideConnected</font>();</p>
+<p>Define whether or not a rigid body will collide with another body connected 
+  to it via joints (<font color="#880000">neJoint</font>). The behaviour defined 
+  by this function overrides the behaviour defined by the <font color="#880000">neCollisionTable</font>.</p>
+<p><a href="#neRigidBody"><i>&lt;back to top&gt;</i></a></p>
+<hr>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="Active">Active</a></font>(<font color="#0000FF">neBool</font> <font COLOR="#808080">yes</font>,
+<font COLOR="#0000ff">neRigidBody</font> * <font COLOR="#808080">hint</font> = <font COLOR="#a000a0">NULL</font>);<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">Active</font>(<font color="#0000FF">neBool</font> <font COLOR="#808080">yes</font>,
+<font COLOR="#0000ff">neAnimatedBody</font> * <font COLOR="#808080">hint</font>
+= <font COLOR="#a000a0">NULL</font>);<br>
+<font color="#0000FF">
+neBool</font>  <font COLOR="#880000">Active</font>();</p>
+
+<p>Activate or deactivate the rigid body. When a rigid body is deactivated, the 
+  simulator will not update its dynamic state, will not call its controllers, 
+  and the rigid body will not collide with anything.</p>
+<p>When activating (<font color="#808080">yes</font> == <font color="#0000FF">true</font>), 
+  an optional hint can be supplied. The hint should be a rigid body or an animated 
+  body near where the rigid body being activated is. This can help speed up the 
+  introduction of the newly-activated rigid body into the simulation.</p>
+
+<p><a href="#neRigidBody"><i>&lt;back to top&gt;</i></a></p>
+
+</body>
+
+</html>

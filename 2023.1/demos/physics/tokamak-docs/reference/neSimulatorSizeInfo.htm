@@ -1,0 +1,62 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta name="GENERATOR" content="Microsoft FrontPage 4.0">
+<meta name="ProgId" content="FrontPage.Editor.Document">
+<title>neSimulatorSizeInfo</title>
+</head>
+
+<body>
+
+<h1>class <a name="neSimulatorSizeInfo">neSimulatorSizeInfo</a></h1>
+<p><font COLOR="#0000ff">enum<br>
+</font>{<font COLOR="#a000a0"><br>
+&nbsp;&nbsp;&nbsp;</font>  <font COLOR="#a000a0">DEFAULT_RIGIDBODIES_COUNT</font> = 50,<font COLOR="#a000a0"><br>
+&nbsp;&nbsp;&nbsp;</font>  <font COLOR="#a000a0">DEFAULT_ANIMATEDBODIES_COUNT</font> = 50,<font COLOR="#a000a0"><br>
+&nbsp;&nbsp;&nbsp; DEFAULT_RIGIDPARTICLES_COUNT</font> = 50,<font COLOR="#a000a0"><br>
+&nbsp;&nbsp;&nbsp; DEFAULT_CONTROLLERS_COUNT</font> = 50,<font COLOR="#a000a0"><br>
+&nbsp;&nbsp;&nbsp; DEFAULT_OVERLAPPED_PAIRS_COUNT</font> = 1225,<font COLOR="#a000a0"><br>
+&nbsp;&nbsp;&nbsp; DEFAULT_GEOMETRIES_COUNT</font> = 50,<font COLOR="#a000a0"><br>
+&nbsp;&nbsp;&nbsp; DEFAULT_CONSTRAINTS_COUNT</font> = 200,<font COLOR="#a000a0"><br>
+&nbsp;&nbsp;&nbsp; DEFAULT_CONTRAINT_SETS_COUNT</font> = 200,<font COLOR="#a000a0"><br>
+&nbsp;&nbsp;&nbsp; DEFAULT_SOLVER_BUFFER_SIZE</font> = 2000,<font COLOR="#a000a0"><br>
+&nbsp;&nbsp;&nbsp; DEFAULT_SENSORS_COUNT</font> = 200,<font COLOR="#a000a0"><br>
+&nbsp;&nbsp;&nbsp; DEFAULT_TERRAIN_NODES_START_COUNT</font> = 200,<font COLOR="#a000a0"><br>
+&nbsp;&nbsp;&nbsp; DEFAULT_TERRAIN_NODES_GROWBY_COUNT</font> = -1,<br>
+};<br>
+<font COLOR="#0000ff">neSimulatorSizeInfo</font>();</p>
+<p>The constructor function initialises the members to the default values.</p>
+<p><font COLOR="#0000ff">s32</font> <font COLOR="#808080">rigidBodiesCount</font>;
+/* Number of rigid bodies in the simulation */</p>
+<p><font COLOR="#0000ff">s32</font> <font COLOR="#808080">animatedBodiesCount</font>;
+/* Number of animated bodies in the simulation */</p>
+<p><font COLOR="#0000ff">s32</font> <font COLOR="#808080">rigidParticleCount</font>;
+/* Number of rigid particles in the simulation */</p>
+<p><font COLOR="#0000ff">s32</font> <font COLOR="#808080">controllersCount</font>;
+/* Number of controller instances in the simulation */</p>
+<p><font COLOR="#0000ff">s32</font> <font COLOR="#808080">overlappedPairsCount</font>;
+/* Number of possible overlapping pairs.</p>
+<p>This has the maximum value of (n x (n - 1)) / 2,</p>
+<p>where n = rigidBodyCount + animatedBodyCount.</p>
+<p>But in practice it rarely goes that high.</p>
+<p>You can try specifying a smaller number to save memory.</p>
+<p>*/</p>
+<p><font COLOR="#0000ff">s32</font> <font COLOR="#808080">geometriesCount</font>;
+/* Number of collision geometries in the simulator*/</p>
+<p>&nbsp;</p>
+<p><font COLOR="#0000ff">s32</font> <font COLOR="#808080">constraintsCount</font>;
+/* Number of constraints in the simulation */</p>
+<p><font COLOR="#0000ff">s32</font> <font COLOR="#808080">constraintSetsCount</font>; 
+  /* Number of constraint sets in the simulation */</p>
+<p><font COLOR="#0000ff">s32</font> <font COLOR="#808080">constraintBufferSize</font>; 
+  /* Size of the buffer used to solve constraints */</p>
+<p><font COLOR="#0000ff">s32</font> <font COLOR="#808080">sensorsCount</font>;</p>
+<p><font COLOR="#0000ff">s32</font> <font COLOR="#808080">terrainNodesStartCount</font>;
+/* Number of nodes use to store terrain triangles */</p>
+<p><font COLOR="#0000ff">s32</font> <font COLOR="#808080">terrainNodesGrowByCount</font>;/* 
+  Grow by this size if you run out of nodes */</p>
+
+</body>
+
+</html>
