@@ -1,0 +1,53 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta name="GENERATOR" content="Microsoft FrontPage 4.0">
+<meta name="ProgId" content="FrontPage.Editor.Document">
+<title>neRigidBodyControllerCallback</title>
+</head>
+
+<body>
+
+<h1>class <a name="neRigidBodyControllerCallback">neRigidBodyControllerCallback</a></h1>
+
+<p><font COLOR="#0000ff">virtual</font> <font COLOR="#0000ff">void</font> <font COLOR="#880000">RigidBodyControllerCallback</font>(<font COLOR="#0000ff">neRigidBodyController</font>
+* <font COLOR="#808080">controller</font>) {};</p>
+
+<h1>class neJointControllerCallback</h1>
+<p><font COLOR="#0000ff">virtual</font> <font COLOR="#0000ff">void</font> <font COLOR="#880000">JointControllerCallback</font>(<font COLOR="#0000ff">neJointController</font>
+* <font COLOR="#808080">controller</font>) {};</p>
+<p>These two classes, along with neRigidBodyController and neJointController,
+provide the application an interface to periodically control neRigidBody and
+neJoint.</p>
+<p>The following steps illustrate how to use neRigidBodyControllerCallback.</p>
+<p>1) The application derives its own neRigidBodyControllerCallback class, with 
+  its own implementation of the RigidBodyControllerCallback method</p>
+<p><font face="Courier New">class MyRigidBodyControllerCallback : public
+neRigidBodyControllerCallback<br>
+{<br>
+public:<font COLOR="#0000ff"><br>
+&nbsp;&nbsp; </font> <font COLOR="#0000ff">virtual</font> <font COLOR="#0000ff">void</font>
+<font COLOR="#880000">RigidBodyControllerCallback</font>(<font COLOR="#0000ff">neRigidBodyController</font>
+* <font COLOR="#808080">controller</font>) <br>
+&nbsp;&nbsp;&nbsp; {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; // controller code goes here.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; controller-&gt;SetControllerForce(...);<br>
+&nbsp;&nbsp;&nbsp; };<br>
+};</font></p>
+<p>2) The application creates a neRigidBody object, and adds the controller callback 
+  to it by calling</p>
+<p><font face="Courier New">&nbsp;&nbsp;&nbsp; MyRigidBodyControllerCallback
+callbackInstance;</font></p>
+<p><font face="Courier New">&nbsp;&nbsp;&nbsp; rb-&gt;AddController(&amp;callbackInstance,
+0); // period of 0 meaning once per timestep.</font></p>
+<p>3) Periodically (in this case, once per simulation time step), the simulator
+object will call the callbackInstance::RigidBodyControllerCallback function.</p>
+<p>4) To apply force and torque to the rigid body during the callback, use the
+parameter <font COLOR="#0000ff">neRigidBodyController</font> * <font COLOR="#808080"></font>controller.</p>
+<p>See also <a href="neRigidBodyController.htm#neRigidBodyController"><font COLOR="#0000ff">neRigidBodyController</font></a>,
+<a href="nerigidbody.htm#AddController">neRigidBody::AddController</a></p>
+
+</body>
+
+</html>

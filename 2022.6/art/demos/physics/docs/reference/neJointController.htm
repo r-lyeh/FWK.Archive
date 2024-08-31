@@ -1,0 +1,40 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta name="GENERATOR" content="Microsoft FrontPage 4.0">
+<meta name="ProgId" content="FrontPage.Editor.Document">
+<title>neJointController</title>
+</head>
+
+<body>
+
+<h1>class <a name="neJointController">neJointController</a></h1>
+<p>The joint controller is an object passed to the application during a joint 
+  controller callback. Using the joint controller object, the application can 
+  find out the joints which are currently being controlled, and the application 
+  can specify the force and torque to be applied to the body by the controller.</p>
+
+<p><font color="#0000ff">neJoint</font> * <font COLOR="#880000">GetJoint</font>();<font COLOR="#0000ff"><br>
+neV3</font> <font COLOR="#880000">GetControllerForceBodyA</font>();<font COLOR="#0000ff"><br>
+neV3</font> <font COLOR="#880000">GetControllerForceBodyB</font>();<font COLOR="#0000ff"><br>
+neV3</font> <font COLOR="#880000">GetControllerTorqueBodyA</font>();<font COLOR="#0000ff"><br>
+neV3</font> <font COLOR="#880000">GetControllerTorqueBodyB</font>();<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">SetControllerForceBodyA</font>(<font COLOR="#0000ff">const</font>
+<font COLOR="#0000ff">neV3</font> &amp; <font COLOR="#808080">force</font>);<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">SetControllerForceBodyB</font>(<font COLOR="#0000ff">const</font>
+<font COLOR="#0000ff">neV3</font> &amp; <font COLOR="#808080">force</font>);<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">SetControllerForceWithTorqueBodyA</font>(<font COLOR="#0000ff">const</font>
+<font COLOR="#0000ff">neV3</font> &amp; <font COLOR="#808080">force</font>, <font COLOR="#0000ff">const</font>
+<font COLOR="#0000ff">neV3</font> &amp; <font COLOR="#808080">pos</font>);<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">SetControllerForceWithTorqueBodyB</font>(<font COLOR="#0000ff">const</font>
+<font COLOR="#0000ff">neV3</font> &amp; <font COLOR="#808080">force</font>, <font COLOR="#0000ff">const</font>
+<font COLOR="#0000ff">neV3</font> &amp; <font COLOR="#808080">pos</font>);<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">SetControllerTorqueBodyA</font>(<font COLOR="#0000ff">const</font>
+<font COLOR="#0000ff">neV3</font> &amp; <font COLOR="#808080">torque</font>);<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">SetControllerTorqueBodyB</font>(<font COLOR="#0000ff">const</font>
+<font COLOR="#0000ff">neV3</font> &amp; <font COLOR="#808080">torque</font>);</p>
+
+</body>
+
+</html>
