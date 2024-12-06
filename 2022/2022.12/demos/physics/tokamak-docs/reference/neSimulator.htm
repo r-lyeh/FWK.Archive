@@ -1,0 +1,193 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta name="GENERATOR" content="Microsoft FrontPage 4.0">
+<meta name="ProgId" content="FrontPage.Editor.Document">
+<title>neSimulator</title>
+<base target="_self">
+</head>
+
+<body link="#880000" vlink="#880000" alink="#880000">
+
+<h1>class <a name="neSimulator">neSimulator</a></h1>
+<table border="1" width="100%" height="245">
+  <tr>
+    <td width="33%" height="19">Create/Free</td>
+    <td width="33%" height="19">Functions/Properties</td>
+    <td width="34%" height="19">Callbacks</td>
+  </tr>
+  <tr>
+    <td width="33%" height="214" valign="top"> <font COLOR="#880000"><a href="#CreateSimulator">CreateSimulator</a><br>
+      <a href="#CreateSimulator">DestroySimulator</a><br>
+      <a href="#CreateRigidBody">CreateRigidBody<br>
+      CreateRigidParticle<br>
+      CreateAnimatedBody<br>
+      FreeRigidBody<br>
+      FreeAnimatedBody</a><br>
+      <a href="#CreateJoint">CreateJoint<br>
+      FreeJoint</a></font>
+      <p>&nbsp;</td>
+    <td width="33%" height="214" valign="top"><font COLOR="#880000"><a href="#GetCollisionTable">GetCollisionTable</a><br>
+      <a href="#SetMaterial">SetMaterial<br>
+      GetMaterial</a><br>
+      <a href="#Advance">Advance</a><br>
+      <a href="#SetTerrainMesh">SetTerrainMesh</a><br>
+      <a href="#SetLogOutputCallback">SetLogOutputLevel</a><br>
+      <a href="#GetCurrentSizeInfo">GetCurrentSizeInfo<br>
+      GetStartSizeInfo</a><br>
+      <a href="#GetMemoryAllocated">GetMemoryAllocated</a></font></td>
+    <td width="34%" height="214" valign="top"><font COLOR="#880000"><a href="#SetBreakageCallback">SetBreakageCallback<br>
+      GetBreakageCallback</a><br>
+      <a href="#SetCollisionCallback">SetCollisionCallback<br>
+      GetCollisionCallback</a><br>
+      <a href="#SetTerrainTriangleQueryCallback">SetTerrainTriangleQueryCallback<br>
+      GetTerrainTriangleQueryCallback</a><br>
+      <a href="#SetLogOutputCallback">SetLogOutputCallback<br>
+      GetLogOutputCallback</a></font></td>
+  </tr>
+</table>
+<p><font COLOR="#0000ff">static</font> <font COLOR="#0000ff">neSimulator</font>
+* <font COLOR="#880000"><a name="CreateSimulator">CreateSimulator</a></font>(<font COLOR="#0000ff">const</font>
+<font COLOR="#0000ff">neSimulatorSizeInfo</font> &amp; <font COLOR="#808080">sizeInfo</font>,
+<font COLOR="#0000ff">neAllocatorAbstract</font> * <font COLOR="#808080">alloc</font>
+= <font COLOR="#a000a0">NULL</font>, <br>
+<font COLOR="#0000ff">&nbsp;&nbsp; </font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<font COLOR="#0000ff">const</font> <font COLOR="#0000ff">neV3</font> * <font COLOR="#808080">gravity</font>
+= <font COLOR="#a000a0">NULL</font>);</p>
+<p><font COLOR="#0000ff">static</font> <font COLOR="#0000ff">void</font> <font COLOR="#880000">DestroySimulator</font>(<font COLOR="#0000ff">neSimulator</font>
+* <font COLOR="#808080">sim</font>);</p>
+<p>Use <font color="#880000">CreateSimulator</font> to create a new instance of 
+  the simulator.&nbsp;</p>
+<p> <font COLOR="#808080">sizeInfo </font>specifies the amount of various objects 
+  to allocate within the simulator.</p>
+<p><font color="#808080">alloc </font>is a user-supplied memory allocator object. 
+  Supply your own allocator object base on the neAllocatorAbstract class. Supplying 
+  <font color="#A000A0">NULL</font> tells the simulator to use the default allocator 
+  object which uses the standard malloc and free functions.</p>
+<p>Use <font color="#880000">DestroySimulator</font> to delete an existing
+instance of the simulator object.</p>
+<p>See also <font COLOR="#0000ff"><a href="neSimulatorSizeInfo.htm#neSimulatorSizeInfo">neSimulatorSizeInfo</a></font>,
+<font COLOR="#0000ff"><a href="neAllocatorAbstract.htm#neAllocatorAbstract">neAllocatorAbstract</a></font>.</p>
+<p><i><a href="#neSimulator">&lt;back to top&gt;</a></i></p>
+<hr>
+<p><font COLOR="#0000ff">neRigidBody</font> * <font COLOR="#880000"><a name="CreateRigidBody">CreateRigidBody</a></font>();<font COLOR="#0000ff"><br>
+neRigidBody</font> * <font COLOR="#880000">CreateRigidParticle</font>();<font COLOR="#0000ff"><br>
+neAnimatedBody</font> * <font COLOR="#880000">CreateAnimatedBody</font>();<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">FreeRigidBody</font>(<font COLOR="#0000ff">neRigidBody</font>
+* <font COLOR="#808080">body</font>);<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">FreeAnimatedBody</font>(<font COLOR="#0000ff">neAnimatedBody</font>
+* <font COLOR="#808080">body</font>);</p>
+<p>Use these functions to create or free a rigid body (<font COLOR="#0000ff">neRigidBody</font>),
+rigid particle (<font COLOR="#0000ff">neRigidBody</font>), or animated body (<font COLOR="#0000ff">neAnimatedBody</font>).</p>
+<p>See also <font COLOR="#0000ff"><a href="nerigidbody.htm#neRigidBody">neRigidBody</a></font>,
+<font COLOR="#0000ff"><a href="neanimatedbody.htm#class neAnimatedBody">
+neAnimatedBody</a></font>.</p>
+<p><i><a href="#neSimulator">&lt;back to top&gt;</a></i></p>
+<hr>
+<p><font COLOR="#0000ff">neCollisionTable</font> * <font COLOR="#880000"><a name="GetCollisionTable">GetCollisionTable</a></font>();</p>
+<p>Retrieve the pointer to the collision table. A collision table specifies the 
+  collision response between different collision groups inside the simulation.</p>
+<p>See also <a href="neCollisionTable.htm#neCollisionTable">neCollisionTable</a></p>
+<p><i><a href="#neSimulator">&lt;back to top&gt;</a></i></p>
+<hr>
+<p><font COLOR="#0000ff">
+bool</font> <font COLOR="#880000"><a name="SetMaterial">SetMaterial</a></font>(<font COLOR="#0000ff">s32</font>
+<font COLOR="#808080">index</font>, <font COLOR="#0000ff">f32</font> <font COLOR="#808080">friction</font>,
+<font COLOR="#0000ff">f32</font> <font COLOR="#808080">restitution</font>);<font COLOR="#0000ff"><br>
+bool</font> <font COLOR="#880000">GetMaterial</font>(<font COLOR="#0000ff">s32</font>
+<font COLOR="#808080">index</font>, <font COLOR="#0000ff">f32</font>&amp; <font COLOR="#808080">friction</font>,
+<font COLOR="#0000ff">f32</font>&amp; <font COLOR="#808080">restitution</font>);</p>
+<p>Specify and retrieve the material properties for a corresponding material
+index.</p>
+<p>By default all materials have the following values:</p>
+<p>friction = 0.4</p>
+<p>restitution = 0.5</p>
+<p><i><a href="#neSimulator">&lt;back to top&gt;</a></i></p>
+<hr>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="Advance">Advance</a></font>(<font COLOR="#0000ff">f32</font>
+<font COLOR="#808080">sec</font>, <font COLOR="#0000ff">s32</font> <font COLOR="#808080">nSteps</font>
+= 1, <font COLOR="#0000ff">nePerformanceReport</font> * <font COLOR="#808080">perfReport</font>
+= <font COLOR="#a000a0">NULL</font>);</p>
+<p>Advance the simulation by the amount sec, specified in milliseconds. nSteps 
+  specifies the number of sub-steps to perform.</p>
+<p>perfReport, if supplied, would be filled with the simulator's performance information 
+  during this time step.</p>
+<p>See also <font COLOR="#0000ff"><a href="nePerformanceReport.htm#nePerformanceReport">nePerformanceReport</a></font> &nbsp;</p>
+<p><i><a href="#neSimulator">&lt;back to top&gt;</a></i></p>
+<hr>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="SetTerrainMesh">SetTerrainMesh</a></font>(<font COLOR="#0000ff">neTriangleMesh</font>
+* <font COLOR="#808080">tris</font>);</p>
+<p>Use this function to specify the terrain mesh to the simulator.</p>
+<p>See also <font COLOR="#0000ff"><a href="neTriangleMesh.htm#neTriangeMesh">neTriangleMesh</a></font>
+&nbsp;</p>
+<p><i><a href="#neSimulator">&lt;back to top&gt;</a></i></p>
+<hr>
+<p><font COLOR="#0000ff">neJoint</font> * <font COLOR="#880000"><a name="CreateJoint">CreateJoint</a></font>(<font COLOR="#0000ff">neRigidBody</font>
+* <font COLOR="#808080">bodyA</font>);<font COLOR="#0000ff"><br>
+neJoint</font> * <font COLOR="#880000">CreateJoint</font>(<font COLOR="#0000ff">neRigidBody</font>
+* <font COLOR="#808080">bodyA</font>, <font COLOR="#0000ff">neRigidBody</font> *
+<font COLOR="#808080">bodyB</font>);<font COLOR="#0000ff"><br>
+neJoint</font> * <font COLOR="#880000">CreateJoint</font>(<font COLOR="#0000ff">neRigidBody</font>
+* <font COLOR="#808080">bodyA</font>, <font COLOR="#0000ff">neAnimatedBody</font>
+* <font COLOR="#808080">bodyB</font>);<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">FreeJoint</font>(<font COLOR="#0000ff">neJoint</font>
+* <font COLOR="#808080">joint</font>);</p>
+<p>Create and free joint a object. The first form of CreateJoint takes one neRigidBody. 
+  This means the joint constraint of the rigid body to the world. The second and 
+  third form require a joint which constrains bodyA to another rigid body or to 
+  an animated body respectively.</p>
+<p>When a rigid body or animated body is freed, all their associated joints, geometries, 
+  sensors and callbacks are freed automatically.</p>
+<p>See also <a href="nejoint.htm#neJoint">neJoint</a></p>
+<p><i><a href="#neSimulator">&lt;back to top&gt;</a></i></p>
+<hr>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="SetBreakageCallback">SetBreakageCallback</a></font>(<font color="#0000FF">neBreakageCallback</font>
+* <font COLOR="#808080">cb</font>);<font COLOR="#808080"><br>
+</font> <font color="#0000FF">
+neBreakageCallback</font> * <font COLOR="#880000">GetBreakageCallback</font>();</p>
+<p>Specify and retrieve the breakage callback function. The breakage callback 
+  function is called by the simulator whenever a breakage is about to occur. The 
+  callback function is called for each geometry object which has broken. When 
+  the geometry is broken, a new rigid body (or rigid particle, depending the breakage 
+  flag) is spawned. During the breakage callback function the application can 
+  retrieve the pointer to the newly spawned object.</p>
+<p>See also <font color="#0000FF">neBreakageCallback</font>&nbsp;</p>
+<p><i><a href="#neSimulator">&lt;back to top&gt;</a></i></p>
+<hr>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="SetCollisionCallback">SetCollisionCallback</a></font>(<font color="#0000FF">neCollisionCallback</font>
+* <font COLOR="#808080">cb</font>);<font COLOR="#808080"><br>
+</font> <font color="#0000FF">
+neCollisionCallback</font> * <font COLOR="#880000">GetCollisionCallback</font>();</p>
+<p>Specify and retrieve the collision callback function. The collision callback
+function returns information about a collision between two objects in the
+simulation. Each pair of objects will only receive a maximum of one collision
+callback for each timestep of the simulation.</p>
+<p>See also neCollisionCallback</p>
+<p><i><a href="#neSimulator">&lt;back to top&gt;</a></i></p>
+<hr>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="SetTerrainTriangleQueryCallback">SetTerrainTriangleQueryCallback</a></font>(<font COLOR="#808080">neTerrainTriangleQueryCallback</font>
+* <font COLOR="#808080">cb</font>);<font COLOR="#808080"><br>
+neTerrainTriangleQueryCallback</font> * <font COLOR="#880000">GetTerrainTriangleQueryCallback</font>();</p>
+<p><i><a href="#neSimulator">&lt;back to top&gt;</a></i></p>
+<hr>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="SetLogOutputCallback">SetLogOutputCallback</a></font>(<font COLOR="#808080">neLogOutputCallback</font>
+* <font COLOR="#808080">cb</font>);<font COLOR="#808080"><br>
+neLogOutputCallback</font> * <font COLOR="#880000">GetLogOutputCallback</font>();<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">SetLogOutputLevel</font>(<font COLOR="#a000a0">LOG_OUTPUT_LEVEL</font>
+<font COLOR="#808080">lvl</font> = <font COLOR="#a000a0">LOG_OUTPUT_LEVEL_FULL</font>);</p>
+<p><i><a href="#neSimulator">&lt;back to top&gt;</a></i></p>
+<hr>
+<p><font COLOR="#0000ff">neSimulatorSizeInfo</font> <font COLOR="#880000"><a name="GetCurrentSizeInfo">GetCurrentSizeInfo</a></font>();<font COLOR="#0000ff"><br>
+neSimulatorSizeInfo</font> <font COLOR="#880000">GetStartSizeInfo</font>();</p>
+<p>See also <font COLOR="#0000ff"><a href="neSimulatorSizeInfo.htm#neSimulatorSizeInfo">neSimulatorSizeInfo</a></font> &nbsp;</p>
+<p><i><a href="#neSimulator">&lt;back to top&gt;</a></i></p>
+<hr>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="GetMemoryAllocated">GetMemoryAllocated</a></font>(<font COLOR="#0000ff">s32</font>
+&amp; <font COLOR="#808080">memoryAllocated</font>);</p>
+
+<p><i><a href="#neSimulator">&lt;back to top&gt;</a></i></p>
+
+</body>
+
+</html>

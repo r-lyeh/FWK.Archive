@@ -1,0 +1,170 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta name="GENERATOR" content="Microsoft FrontPage 4.0">
+<meta name="ProgId" content="FrontPage.Editor.Document">
+<title>neGeometry</title>
+<base target="_self">
+</head>
+
+<body link="#880000" vlink="#880000" alink="#880000">
+
+<h1>class <a name="neGeometry"> neGeometry</a></h1>
+<table border="1" width="100%" height="230">
+  <tr>
+    <td width="33%" height="19">General</td>
+    <td width="33%" height="19">Collision Model</td>
+    <td width="34%" height="19">Breakage</td>
+  </tr>
+  <tr>
+    <td width="33%" height="199" valign="top"><font COLOR="#880000"><a href="#SetTransform">SetTransform</a><br>
+      <a href="#SetTransform">GetTransform</a><br>
+      <a href="#SetMaterialIndex">SetMaterialIndex<br>
+      GetMaterialIndex</a><br>
+      <a href="#SetUserData">SetUserData<br>
+      GetUserData</a></font></td>
+    <td width="33%" height="199" valign="top"><font COLOR="#880000"><a href="#SetBoxSize">SetBoxSize<br>
+      GetBoxSize</a><br>
+      <a href="#SetSphereDiameter">SetSphereDiameter<br>
+      GetSphereDiameter</a><br>
+      <a href="#SetCylinder">SetCylinder<br>
+      GetCylinder</a></font></td>
+    <td width="34%" height="199" valign="top"><font COLOR="#880000"><a href="#SetBreakFlag">SetBreakageFlag<br>
+      GetBreakageFlag</a><br>
+      <a href="#SetBreakageMass">SetBreakageMass<br>
+      GetBreakageMass<br>
+      SetBreakageInertiaTensor<br>
+      GetBreakageInertiaTensor</a><br>
+      <a href="#SetBreakageMagnitude">SetBreakageMagnitude<br>
+      GetBreakageMagnitude</a><br>
+      <a href="#SetBreakageAbsorption">SetBreakageAbsorption<br>
+      GetBreakageAbsorption</a><br>
+      <a href="#SetBreakNeighbourRadius">SetBreakageNeighbourRadius<br>
+      GetBreakageNeighbourRadius</a></font></td>
+  </tr>
+</table>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="SetTransform">SetTransform</a></font>(<font COLOR="#0000ff">neT3</font>
+&amp; <font COLOR="#808080">t</font>);<br>
+<font COLOR="#0000ff">neT3</font> <font COLOR="#880000">GetTransform</font>();</p>
+<p>Set and retrieve the transform of the geometry. The transform defines the geometry's 
+  position and orientation relative to its host body object. The transform is 
+  defined in the host body's space.</p>
+<p><i><a href="#neGeometry">&lt;back to top&gt;</a></i></p>
+<hr>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="SetMaterialIndex">SetMaterialIndex</a></font>(<font COLOR="#0000ff">s32</font>
+<font COLOR="#808080">index</font>);<font COLOR="#0000ff"><br>
+s32</font> <font COLOR="#880000">GetMaterialIndex</font>();</p>
+<p>Set and retrieve the material index for the geometry. The material index refers 
+  to a material defined in the <font color="#0000FF">neSimulator</font> using 
+  the function <font color="#0000FF">neSimulator</font><font color="#880000">::SetMaterial</font>. 
+  During a collision, the materials of the two colliding geometries are used to 
+  calculate the correct collision response.</p>
+<p><i><a href="#neGeometry">&lt;back to top&gt;</a></i></p>
+<hr>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="SetUserData">SetUserData</a></font>(<font COLOR="#0000ff">u32</font>
+<font COLOR="#808080">userData</font>);<font COLOR="#0000ff"><br>
+u32</font> <font COLOR="#880000">GetUserData</font>();</p>
+<p>Set and retrieve the user data property. This is a u32 value, used to store 
+  game-specific information associated with the geometry.</p>
+<p><i><a href="#neGeometry">&lt;back to top&gt;</a></i></p>
+<hr>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="SetBoxSize">SetBoxSize</a></font>(<font COLOR="#0000ff">f32</font>
+<font COLOR="#808080">width</font>, <font COLOR="#0000ff">f32</font> <font COLOR="#808080">height</font>,
+<font COLOR="#0000ff">f32</font> <font COLOR="#808080">depth</font>);<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">SetBoxSize</font>(<font COLOR="#0000ff">const</font>
+<font COLOR="#0000ff">neV3</font> &amp; <font COLOR="#808080">boxSize</font>);<font COLOR="#0000ff"><br>
+neBool</font> <font COLOR="#880000">GetBoxSize</font>(<font COLOR="#0000ff">neV3</font>
+&amp; <font COLOR="#808080">boxSize</font>);</p>
+<p>Set the geometry to a box and set its dimension. </p>
+<p><font COLOR="#880000">GetBoxSize </font>retrieves the dimension if the geometry 
+  is box. Otherwise it returns <font color="#0000FF">false</font>.</p>
+<p><i><a href="#neGeometry">&lt;back to top&gt;</a></i></p>
+<hr>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="SetSphereDiameter">SetSphereDiameter</a></font>(<font COLOR="#0000ff">f32</font>
+<font COLOR="#808080">diameter</font>);<font COLOR="#0000ff"><br>
+neBool</font> <font COLOR="#880000">GetSphereDiameter</font>(<font COLOR="#0000ff">f32</font>
+&amp; <font COLOR="#808080">diameter</font>);</p>
+<p>Specify and retrieve the diameter of a sphere primitive.</p>
+<p><font COLOR="#880000">GetSphereDiameter</font> returns <font color="#0000FF">false</font>
+if the geometry is not a sphere.</p>
+<p><i><a href="#neGeometry">&lt;back to top&gt;</a></i></p>
+<hr>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="SetCylinder">SetCylinder</a></font>(<font COLOR="#0000ff">f32</font>
+<font COLOR="#808080">diameter</font>, <font COLOR="#0000ff">f32</font> <font COLOR="#808080">height</font>);<font COLOR="#0000ff"><br>
+neBool</font> <font COLOR="#880000">GetCylinder</font>(<font COLOR="#0000ff">f32</font>
+&amp; <font COLOR="#808080">diameter</font>, <font COLOR="#0000ff">f32</font>
+&amp; <font COLOR="#808080">height</font>);</p>
+<p>Specify and retrieve the dimension of a cylinder primitive.</p>
+<p><font COLOR="#880000">GetCylinder </font>returns <font color="#0000FF">false</font> 
+  if the geometry is not a cylinder.</p>
+<p><i><a href="#neGeometry">&lt;back to top&gt;</a></i></p>
+<hr>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="SetBreakFlag">SetBreakageFlag</a></font>(<font COLOR="#a000a0">neBreakFlag</font>
+<font COLOR="#808080">flag</font>);<font COLOR="#a000a0"><br>
+neBreakFlag</font> <font COLOR="#880000">GetBreakageFlag</font>();</p>
+<p>
+<font COLOR="#0000ff">typedef</font> <font COLOR="#0000ff">enum<br>
+</font>{<font COLOR="#a000a0"><br>
+&nbsp;&nbsp; </font> <font COLOR="#a000a0">NE_BREAK_DISABLE</font>,<font COLOR="#a000a0"><br>
+&nbsp;&nbsp; </font> <font COLOR="#a000a0">NE_BREAK_NORMAL</font>,<font COLOR="#a000a0"><br>
+&nbsp;&nbsp; </font> <font COLOR="#a000a0">NE_BREAK_ALL</font>,<font COLOR="#a000a0"><br>
+&nbsp;&nbsp; </font> <font COLOR="#a000a0">NE_BREAK_NEIGHBOUR</font>,</p>
+<p><font COLOR="#a000a0">&nbsp;&nbsp; </font> <font COLOR="#a000a0">NE_BREAK_NORMAL_PARTICLE</font>,<font COLOR="#a000a0"><br>
+&nbsp;&nbsp;&nbsp; NE_BREAK_ALL_PARTICLE</font>,<font COLOR="#a000a0"><br>
+&nbsp;&nbsp; </font> <font COLOR="#a000a0">NE_BREAK_NEIGHBOUR_PARTICLE</font>,<br>
+} <font COLOR="#a000a0">neBreakFlag</font>;</p>
+<p>Specify and retrieve the breaking behaviour of the geometry.</p>
+<p><font COLOR="#a000a0">NE_BREAK_DISABLE&nbsp;</font></p>
+<p>&nbsp;&nbsp;&nbsp;<font color="#a000a0"> </font>The geometry does not break
+off upon collision</p>
+<p><font COLOR="#a000a0">NE_BREAK_NORMAL&nbsp;</font></p>
+<p>&nbsp;&nbsp;&nbsp;<font color="#a000a0"> </font>Normal breakage mode. Only 
+  this geometry will break when a suitably large collision has occurred.</p>
+<p><font COLOR="#a000a0">NE_BREAK_ALL&nbsp;</font></p>
+<p>&nbsp;&nbsp;&nbsp;<font color="#a000a0"> </font>When this geometry breaks off, 
+  all geometries within the current object, with break the flag not equal to <font COLOR="#a000a0">NE_BREAK_DISABLE</font>, 
+  will also break off.</p>
+<p><font COLOR="#a000a0">NE_BREAK_NEIGHBOUR</font></p>
+<p>&nbsp;&nbsp;&nbsp;<font color="#a000a0"> </font>When this geometry breaks off, 
+  its neighbours within a certain radius will also break off. This radius is specified 
+  by <font color="#880000">SetBreakageNeighbourRadius.</font></p>
+<p>The <font color="#A000A0">XXX_PARTICLE</font> flags are the same as the above, 
+  except that they specify the new object spawned from the geometry will be a 
+  rigid particle, rather than a rigid body.</p>
+<p><i><a href="#neGeometry">&lt;back to top&gt;</a></i></p>
+<hr>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="SetBreakageMass">SetBreakageMass</a></font>();<font COLOR="#0000ff"><br>
+f32</font> <font COLOR="#880000">GetBreakageMass</font>();<font COLOR="#0000ff"><br>
+void</font> <font COLOR="#880000">SetBreakageInertiaTensor</font>(<font COLOR="#0000ff">const</font>
+<font COLOR="#0000ff">neV3</font> &amp; <font COLOR="#808080">tensor</font>);<font COLOR="#0000ff"><br>
+neV3</font> <font COLOR="#880000">GetBreakageInertiaTensor</font>();</p>
+<p>Specify and retrieve the mass and inertia mass tensor of the object spawned 
+  from the breakage.</p>
+<p><i><a href="#neGeometry">&lt;back to top&gt;</a></i></p>
+<hr>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="SetBreakageMagnitude">SetBreakageMagnitude</a></font>(<font COLOR="#0000ff">f32</font>
+<font COLOR="#808080">mag</font>);<font COLOR="#0000ff"><br>
+f32</font> <font COLOR="#880000">GetBreakageMagnitude</font>();</p>
+<p>Specify and retrieve the magnitude of the collision impulse required to break 
+  this geometry.</p>
+<p><i><a href="#neGeometry">&lt;back to top&gt;</a></i></p>
+<hr>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="SetBreakageAbsorption">SetBreakageAbsorption</a></font>(<font COLOR="#0000ff">f32</font>
+<font COLOR="#808080">absorb</font>);<font COLOR="#0000ff"><br>
+f32</font> <font COLOR="#880000">GetBreakageAbsorption</font>();</p>
+<p>Specify and retrieve the amount of absorption the breaking of this geometry
+has.&nbsp;</p>
+<p><i><a href="#neGeometry">&lt;back to top&gt;</a></i></p>
+<hr>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000"><a name="SetBreakNeighbourRadius">SetBreakageNeighbourRadius</a></font>(<font COLOR="#0000ff">f32</font>
+<font COLOR="#808080">radius</font>);<font COLOR="#0000ff"><br>
+f32</font> <font COLOR="#880000">GetBreakageNeighbourRadius</font>();</p>
+
+<p>Specify and retrieve the radius within which other geometries within the same 
+  body will also break when a breakage occurs.</p>
+<p><i><a href="#neGeometry">&lt;back to top&gt;</a></i></p>
+
+</body>
+
+</html>

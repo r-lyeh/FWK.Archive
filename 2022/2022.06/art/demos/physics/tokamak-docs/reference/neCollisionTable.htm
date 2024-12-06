@@ -1,0 +1,43 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta name="GENERATOR" content="Microsoft FrontPage 4.0">
+<meta name="ProgId" content="FrontPage.Editor.Document">
+<title>neCollisionTable</title>
+<base target="_self">
+</head>
+
+<body link="#880000" vlink="#880000" alink="#880000">
+
+<h1>class <a name="neCollisionTable">neCollisionTable</a></h1>
+<p>Using the collision table, the application can specify the response whenever 
+  two bodies collide in the simulation. Each body in the simulation has a collision 
+  ID, which defaults to 0. A collision table contains a neResponseBitFlag for 
+  each pair of collision IDs. A neResponseBitFlag equal to <font COLOR="#a000a0">RESPONSE_IGNORE</font> 
+  means the collision will be ignored; no collision impulse or collision callback 
+  will be performed. The application can retrieve the neCollisionTable by calling 
+  neSimulator::<a href="neSimulator.htm#GetCollisionTable">GetCollisionTable</a> 
+  function.</p>
+<p><font COLOR="#0000ff">typedef</font> <font COLOR="#0000ff">enum<br>
+</font>{<font COLOR="#a000a0"><br>
+&nbsp;&nbsp; </font> <font COLOR="#a000a0">RESPONSE_IGNORE</font> = 0,<font COLOR="#a000a0"><br>
+&nbsp;&nbsp; </font> <font COLOR="#a000a0">RESPONSE_IMPULSE</font> = 1,<font COLOR="#a000a0"><br>
+&nbsp;&nbsp; </font> <font COLOR="#a000a0">RESPONSE_CALLBACK</font> = 2,<br>
+&nbsp;&nbsp; <font COLOR="#a000a0">RESPONSE_IMPULSE_CALLBACK</font> = 3,<br>
+}<font COLOR="#a000a0">neReponseBitFlag</font>;</p>
+<p><font COLOR="#0000ff">enum<br>
+</font>{<font COLOR="#a000a0"><br>
+&nbsp;&nbsp; </font> <font COLOR="#a000a0">NE_COLLISION_TABLE_MAX</font> = 64,<br>
+};</p>
+<p><font COLOR="#0000ff">void</font> <font COLOR="#880000">Set</font>(<font COLOR="#0000ff">s32</font>
+<font COLOR="#808080">collisionID1</font>, <font COLOR="#0000ff">s32</font> <font COLOR="#808080">collisionID2</font>,
+<font COLOR="#a000a0">neReponseBitFlag</font> <font COLOR="#808080">response</font>
+= <font COLOR="#a000a0">RESPONSE_IMPULSE</font>);</p>
+<p><font COLOR="#a000a0">neReponseBitFlag</font> <font COLOR="#880000">Get</font>(<font COLOR="#0000ff">s32</font>
+<font COLOR="#808080">collisionID1</font>, <font COLOR="#0000ff">s32</font> <font COLOR="#808080">collisionID2</font>);</p>
+<p><font COLOR="#0000ff">s32</font> <font COLOR="#880000">GetMaxCollisionID</font>();</p>
+
+</body>
+
+</html>

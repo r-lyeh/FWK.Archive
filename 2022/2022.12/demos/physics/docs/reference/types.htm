@@ -1,0 +1,91 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta name="GENERATOR" content="Microsoft FrontPage 4.0">
+<meta name="ProgId" content="FrontPage.Editor.Document">
+<title>types</title>
+</head>
+
+<body>
+
+<h1>neBodyType</h1>
+<p>
+<font COLOR="#0000ff">typedef</font> <font COLOR="#0000ff">enum<br>
+</font>{<font COLOR="#a000a0"><br>
+&nbsp;&nbsp;&nbsp; NE_TERRAIN</font> = 0,<font COLOR="#a000a0"><br>
+&nbsp;&nbsp;&nbsp; NE_RIGID_BODY</font>,<font COLOR="#a000a0"><br>
+&nbsp;&nbsp;&nbsp; NE_ANIMATED_BODY</font>,<br>
+} <font COLOR="#a000a0">neBodyType</font>;</p>
+<p>This enum identifies the type of objects of bodyA and bodyB in the <font COLOR="#0000ff">neCollisionInfo</font> 
+  structure.</p>
+<hr>
+<h1>neCollisionInfo</h1>
+<p>
+<font COLOR="#0000ff">typedef</font> <font COLOR="#0000ff">struct</font> <font COLOR="#0000ff">neCollisionInfo</font>
+<font COLOR="#0000ff">neCollisionInfo</font>;</p>
+<p>
+<font COLOR="#0000ff">struct</font> <font COLOR="#0000ff">neCollisionInfo<br>
+</font>{<font COLOR="#0000ff"><br>
+&nbsp;&nbsp;&nbsp; neByte</font> * <font COLOR="#808080">bodyA</font>;<font COLOR="#0000ff"><br>
+&nbsp;&nbsp;&nbsp; neByte</font> * <font COLOR="#808080">bodyB</font>;<font COLOR="#a000a0"><br>
+&nbsp;&nbsp;&nbsp; neBodyType</font> <font COLOR="#808080">typeA</font>;<font COLOR="#a000a0"><br>
+&nbsp;&nbsp;&nbsp; neBodyType</font> <font COLOR="#808080">typeB</font>;<font COLOR="#0000ff"><br>
+&nbsp;&nbsp;&nbsp; neGeometry</font> * <font COLOR="#808080">geometryA</font>;<font COLOR="#0000ff"><br>
+&nbsp;&nbsp;&nbsp; neGeometry</font> * <font COLOR="#808080">geometryB</font>;<font COLOR="#0000ff"><br>
+&nbsp;&nbsp;&nbsp; s32</font> <font COLOR="#808080">materialIdA</font>;<font COLOR="#0000ff"><br>
+&nbsp;&nbsp;&nbsp; s32</font> <font COLOR="#808080">materialIdB</font>;<font COLOR="#0000ff"><br>
+&nbsp;&nbsp;&nbsp; neV3</font> <font COLOR="#808080">bodyContactPointA</font>;<font COLOR="#0000ff"><br>
+&nbsp;&nbsp;&nbsp; neV3</font> <font COLOR="#808080">bodyContactPointB</font>;<font COLOR="#0000ff"><br>
+&nbsp;&nbsp;&nbsp; neV3</font> <font COLOR="#808080">worldContactPointA</font>;<font COLOR="#0000ff"><br>
+&nbsp;&nbsp;&nbsp; neV3</font> <font COLOR="#808080">worldContactPointB</font>;<font COLOR="#0000ff"><br>
+&nbsp;&nbsp;&nbsp; neV3</font> <font COLOR="#808080">relativeVelocity</font>;<font COLOR="#0000ff"><br>
+&nbsp;&nbsp;&nbsp; neV3</font> <font COLOR="#808080">collisionNormal</font>;<br>
+};</p>
+<p>This structure is passed to the application during neCollisionCallback. It 
+  contains various blocks of information about a collision which has occurred 
+  during the current simulation step.</p>
+<p>bodyA, bodyB, typeA, typeB</p>
+<blockquote>
+  <p>bodyA and bodyB are pointers to the bodies which are colliding. Their type 
+    depends on the value of typeA and typeB. If the value of typeB is NE_TERRAIN, 
+    then bodyB is NULL.</p>
+</blockquote>
+<p>geometryA, geometryB</p>
+<blockquote>
+  <p>These are pointers to neGeometry objects involved in the collision, one
+  from each of the body. If typeB equal to NE_TERRAIN, then geometryB is NULL</p>
+</blockquote>
+<p>materialA, materialB</p>
+<blockquote>
+  <p>The material indices of the geometries which are colliding.</p>
+</blockquote>
+<p>bodyContactPointA, bodyContactPointB, worldContactPointA, worldContactPointB</p>
+<blockquote>
+  <p>The contact points in body coordinates and in world coordinates.</p>
+</blockquote>
+<p>relativeVelocity</p>
+<blockquote>
+  <p>The relativeVelocity of the contact points. </p>
+</blockquote>
+<p>collisionNormal</p>
+<blockquote>
+  <p>The direction of the collision normal.</p>
+</blockquote>
+<hr>
+<h1>Callback Function Types</h1>
+<p>
+<font COLOR="#0000ff">typedef</font> <font COLOR="#0000ff">void</font> (<font COLOR="#808080">neLogOutputCallback</font>)(<font COLOR="#0000ff">char</font>
+* <font COLOR="#808080">logString</font>);</p>
+<p>
+<font COLOR="#0000ff">typedef</font> <font COLOR="#0000ff">void</font> (<font COLOR="#808080">neCollisionCallback</font>)(<font COLOR="#0000ff">neCollisionInfo</font>
+&amp; <font COLOR="#808080">collisionInfo</font>);</p>
+<p>
+<font COLOR="#0000ff">typedef</font> <font COLOR="#0000ff">void</font> (<font COLOR="#808080">neTerrainTriangleQueryCallback</font>)(<font COLOR="#0000ff">const</font>
+<font COLOR="#0000ff">neV3</font> &amp; <font COLOR="#808080">minBound</font>, <font COLOR="#0000ff">const</font>
+<font COLOR="#0000ff">neV3</font> &amp; <font COLOR="#808080">maxBound</font>, <font COLOR="#0000ff">neTriangleMesh</font>
+&amp; <font COLOR="#808080">triMesh</font>);</p>
+
+</body>
+
+</html>

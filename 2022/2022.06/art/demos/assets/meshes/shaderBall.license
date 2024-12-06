@@ -1,0 +1,6 @@
+Kristof Lovas
+https://kristoflovas.gumroad.com/l/FWVNShaderBall
+
+This is a much lower poly shader ball mesh than the regular ones available on the internet, its made from 10.000 triangles, and it uses face weighted normals, to achieve smooth shading. Its ideal for non tessellated material presentation, or to be used in a material showcasing scene, where a lot of them would appear on the screen at the same time.
+
+To get the best shading, make sure you the vertex normals from the fbx, so the face weighted normals works!

@@ -1,0 +1,23 @@
+## Known HTML5 issues:
+- [x] Game loop is event based (fixed: see `window_loop()`)
+- [x] No automated emsdk installation (fixed: see `demos/html5/MAKE.bat`)
+- [x] Art must be cooked beforehand (fixed: see `demos/html5/MAKE.bat`)
+- [x] No VFS loading (fixed)
+- [x] No UI rendering (fixed)
+- [x] No cooker (fixed: win,osx,linux)
+- [x] No input (fixed)
+- [x] No gamepads (fixed)
+- [x] No multi-touch (fixed)
+- [x] No threads (fixed)
+- [x] No glTexture1D()
+- [x] Shaders: `uniform float var = 1.0f; // ERROR: 'uniform' :  cannot initialize this type of qualifier`
+- [ ] Shaders: `vec2 iResolution = vec2(iWidth, iHeight); // ERROR: '=' : global variable initializers must be constant expressions`
+- [ ] Scaling artifacts on high DPI + fullscreen combo (via FS button only)
+- [ ] No audio
+- [ ] No callstacks
+- [ ] No file writing (untested)
+- [ ] No network
+- [ ] No fbos
+- [ ] No pbos
+- [ ] No postfxs
+- [ ] Shaders require (automated?) GL->GLES translation (pbrs, ...) (@todo: embed Spir-v/glslcross tools?)
